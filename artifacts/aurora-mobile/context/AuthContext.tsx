@@ -18,10 +18,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setLoading(false);
-    });
+    supabase.auth
+      .getSession()
+      .then(({ data: { session } }) => {
+        setSession(session);
+        setLoading(false);
+      })
+      .catch((error) => {
+        // A storage/read failure here (e.g. corrupted AsyncStorage) must not
+        // leave the app stuck on a loading screen forever — fall back to a
+        // signed-out state so the user can still reach the sign-in flow.
+        console.error("[auth] getSession failed:", error);
+        setSession(null);
+        setLoading(false);
+      });
 
     const {
       data: { subscription },

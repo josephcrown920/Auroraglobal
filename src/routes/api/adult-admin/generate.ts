@@ -14,6 +14,12 @@ import { z } from "zod";
 import type { GenerateKind } from "@/lib/orchestrator.server";
 import { reserveOrchestrateRecord } from "@/lib/generate-core.server";
 import { computeCost, detectFeatures } from "@/lib/pricing";
+import { assertRateLimit, RateLimitError } from "@/lib/rate-limit.server";
+
+// Abuse guard: each call uploads reference images AND calls the orchestrator,
+// so cap raw request rate independent of balance (mirrors /api/public/generate).
+const ADULT_ADMIN_RATE_WINDOW_MS = 60_000;
+const ADULT_ADMIN_RATE_MAX_PER_WINDOW = 20;
 
 const cors = {
   "Content-Type": "application/json",
@@ -117,6 +123,14 @@ export const Route = createFileRoute("/api/adult-admin/generate")({
               JSON.stringify({ error: "No admin user found — create an admin role first" }),
               { status: 500, headers: cors },
             );
+          }
+          try {
+            assertRateLimit(`adult-admin-generate:${userId}`, ADULT_ADMIN_RATE_MAX_PER_WINDOW, ADULT_ADMIN_RATE_WINDOW_MS);
+          } catch (e) {
+            if (e instanceof RateLimitError) {
+              return new Response(JSON.stringify({ error: e.message }), { status: 429, headers: cors });
+            }
+            throw e;
           }
 
           // ── 4. Upload base64 images → signed storage URLs ───────────────

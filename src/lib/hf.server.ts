@@ -47,6 +47,7 @@ async function postBinary(
       "X-Wait-For-Model": "true",
     },
     body: JSON.stringify(body),
+    signal: AbortSignal.timeout(180_000), // HF cold-start can be slow
   });
   if (!res.ok) {
     const txt = await res.text().catch(() => "");
@@ -65,6 +66,7 @@ async function postJson<T>(modelOrUrl: string, body: unknown): Promise<T> {
       "X-Wait-For-Model": "true",
     },
     body: JSON.stringify(body),
+    signal: AbortSignal.timeout(180_000), // HF cold-start can be slow
   });
   if (!res.ok) {
     const txt = await res.text().catch(() => "");
@@ -115,6 +117,7 @@ export async function hfSpeechToText(
       "X-Wait-For-Model": "true",
     },
     body: audio as BodyInit,
+    signal: AbortSignal.timeout(180_000), // HF cold-start can be slow
   });
   if (!res.ok) {
     const txt = await res.text().catch(() => "");

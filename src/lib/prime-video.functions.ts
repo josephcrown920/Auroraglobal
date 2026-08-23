@@ -49,6 +49,7 @@ export const generatePrimeHeygenVideo = createServerFn({ method: "POST" })
         }],
         dimension: { width: w, height: h },
       }),
+      signal: AbortSignal.timeout(45_000),
     });
     const raw = await res.text();
     if (!res.ok) throw new Error(`HeyGen ${res.status}: ${raw.slice(0, 300)}`);
@@ -66,7 +67,7 @@ export const pollPrimeHeygenVideo = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const res = await fetch(
       `${HEYGEN_API}/v1/video_status.get?video_id=${encodeURIComponent(data.videoId)}`,
-      { headers: heygenHeaders() },
+      { headers: heygenHeaders(), signal: AbortSignal.timeout(20_000) },
     );
     const raw = await res.text();
     if (!res.ok) throw new Error(`HeyGen status ${res.status}: ${raw.slice(0, 300)}`);

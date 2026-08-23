@@ -253,7 +253,7 @@ async function hasAudioStream(path: string): Promise<boolean> {
 }
 
 async function downloadToFile(url: string, destPath: string): Promise<void> {
-  const res = await fetch(url);
+  const res = await fetch(url, { signal: AbortSignal.timeout(60_000) });
   if (!res.ok) throw new Error(`assemble: failed to download ${url}: ${res.status}`);
   const buf = Buffer.from(await res.arrayBuffer());
   await writeFile(destPath, buf);

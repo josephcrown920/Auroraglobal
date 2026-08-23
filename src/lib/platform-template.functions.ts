@@ -363,7 +363,7 @@ export const saveAvatarShot = createServerFn({ method: "POST" })
     // SSRF guard: reject private networks, loopback, and any host outside the
     // known provider CDN allowlist (fal.ai, replicate, googleapis, etc.)
     assertTrustedUrl(data.sourceUrl);
-    const resp = await fetch(data.sourceUrl);
+    const resp = await fetch(data.sourceUrl, { signal: AbortSignal.timeout(30_000) });
     if (!resp.ok) throw new Error(`download failed: ${resp.status}`);
     const contentType =
       resp.headers.get("content-type") ??

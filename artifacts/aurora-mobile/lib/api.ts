@@ -43,16 +43,46 @@ async function getAuthHeaders(): Promise<Record<string, string>> {
 }
 
 /**
+ * fetch() with a hard deadline. React Native's fetch has no built-in
+ * timeout, so a stalled connection (dead wifi, a provider hung mid-render)
+ * would otherwise leave the UI spinning forever instead of surfacing a
+ * retryable error. Generation calls get a long budget since video renders
+ * can legitimately take minutes; short calls should pass a smaller one.
+ */
+async function fetchWithTimeout(
+  url: string,
+  init: RequestInit,
+  timeoutMs: number,
+): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } catch (e: any) {
+    if (e?.name === "AbortError") {
+      throw new Error("Request timed out — check your connection and try again.");
+    }
+    throw e;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/**
  * Permanently delete the signed-in user's account (server wipes profile,
  * credits, generations, uploads + the auth user). Required by App Store
  * 5.1.1(v) and Play's account-deletion policy. Caller signs out afterwards.
  */
 export async function deleteAccount(): Promise<void> {
-  const res = await fetch(`${getApiBase()}/api/public/account-delete`, {
-    method: "POST",
-    headers: await getAuthHeaders(),
-    body: JSON.stringify({ confirm: "DELETE" }),
-  });
+  const res = await fetchWithTimeout(
+    `${getApiBase()}/api/public/account-delete`,
+    {
+      method: "POST",
+      headers: await getAuthHeaders(),
+      body: JSON.stringify({ confirm: "DELETE" }),
+    },
+    30_000,
+  );
   if (!res.ok) {
     let msg = `Account deletion failed (HTTP ${res.status})`;
     try {
@@ -199,6 +229,13 @@ export interface GenerateParams {
    * pass that back here to render at full quality.
    */
   confirmPreviewId?: string;
+  /**
+   * Identifies one logical "Generate" tap so a retry of the exact same
+   * action (not a fresh generation) never creates a second paid render.
+   * Generate once per tap with randomUploadId() from reference-image.ts and
+   * reuse it if you retry that same attempt; omit for a genuinely new one.
+   */
+  idempotencyKey?: string;
 }
 
 export interface GenerateResult {
@@ -226,12 +263,19 @@ export async function generateContent(params: GenerateParams): Promise<GenerateR
   if (params.resolution) body.resolution = params.resolution;
   if (params.motion) body.motion = params.motion;
   if (params.confirmPreviewId) body.confirmPreviewId = params.confirmPreviewId;
+  if (params.idempotencyKey) body.idempotencyKey = params.idempotencyKey;
 
-  const res = await fetch(`${base}/api/public/generate`, {
-    method: "POST",
-    headers,
-    body: JSON.stringify(body),
-  });
+  const res = await fetchWithTimeout(
+    `${base}/api/public/generate`,
+    {
+      method: "POST",
+      headers,
+      body: JSON.stringify(body),
+    },
+    // Video renders legitimately run for minutes; images are much faster
+    // but share the same endpoint, so budget for the slow case.
+    180_000,
+  );
 
   const json = await res.json().catch(() => null);
   if (!res.ok || !json || json.ok === false || json.error) {
@@ -296,11 +340,15 @@ export async function generatePerformanceReskin(params: ReskinParams): Promise<R
   if (params.prompt) body.prompt = params.prompt;
   if (params.confirmPreviewId) body.confirmPreviewId = params.confirmPreviewId;
 
-  const res = await fetch(`${getApiBase()}/api/public/perform`, {
-    method: "POST",
-    headers,
-    body: JSON.stringify(body),
-  });
+  const res = await fetchWithTimeout(
+    `${getApiBase()}/api/public/perform`,
+    {
+      method: "POST",
+      headers,
+      body: JSON.stringify(body),
+    },
+    180_000,
+  );
   const json = await res.json().catch(() => null);
   if (!res.ok || !json || json.ok === false || json.error) {
     const msg: string = json?.error || `HTTP ${res.status}`;

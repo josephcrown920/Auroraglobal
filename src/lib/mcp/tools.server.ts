@@ -60,6 +60,9 @@ async function callGenerate(
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${ctx.bearer}` },
     body: JSON.stringify(body),
+    // Video/lipsync providers can legitimately take many minutes; bound to the
+    // orchestrator's own worst-case ceiling so an MCP client never hangs forever.
+    signal: AbortSignal.timeout(20 * 60_000),
   });
   let json: Record<string, unknown> | null = null;
   try {

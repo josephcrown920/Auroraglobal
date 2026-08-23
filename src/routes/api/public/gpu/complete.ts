@@ -29,6 +29,13 @@ export const Route = createFileRoute("/api/public/gpu/complete")({
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
         const db = supabaseAdmin as unknown as UntypedDb;
         const failed = Boolean(parsed.data.error) || !parsed.data.output_url;
+        // CAS on status="running": a job is only ever completed once. Without
+        // this, a duplicate/late completion POST (e.g. a worker retrying
+        // after a timed-out response whose DB write actually landed) could
+        // silently overwrite an already-finalized job's outcome — flipping a
+        // completed render back to failed or vice versa. Mirrors the same
+        // locked_by+status CAS pattern used by the credit-charging jobs
+        // pipeline's finalize path (see jobs.server.ts).
         const { data, error } = await db.from("render_jobs")
           .update({
             status: failed ? "failed" : "completed",
@@ -38,10 +45,17 @@ export const Route = createFileRoute("/api/public/gpu/complete")({
           })
           .eq("id", parsed.data.job_id)
           .eq("worker_id", parsed.data.worker_id)
+          .eq("status", "running")
           .select()
-          .single();
+          .maybeSingle();
         if (error) {
           return Response.json({ error: error.message }, { status: 500, headers: cors });
+        }
+        if (!data) {
+          // Already completed/failed (or never claimed by this worker) —
+          // treat as a no-op success rather than a hard error so a worker's
+          // retry doesn't loop or alarm on something already settled.
+          return Response.json({ ok: true, job: null, alreadyFinalized: true }, { headers: cors });
         }
         return Response.json({ ok: true, job: data }, { headers: cors });
       },

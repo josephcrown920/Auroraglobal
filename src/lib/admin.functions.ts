@@ -35,7 +35,7 @@ type SchedulerHeartbeat = {
   last_error: string | null;
 };
 
-async function assertAdmin(userId: string) {
+export async function assertAdmin(userId: string) {
   const { data, error } = await supabaseAdmin
     .from("user_roles")
     .select("role")
@@ -179,6 +179,9 @@ export const adminGrantCredits = createServerFn({ method: "POST" })
       _amount: data.amount,
       _reason: "admin_grant",
       _ref: crypto.randomUUID(),
+      // Records which admin made this adjustment (credit_ledger.actor_id) so
+      // manual grants are auditable, not just their amount/reason.
+      _actor: context.userId,
     });
     return { ok: true };
   });
@@ -691,7 +694,7 @@ export const adminSearchLedger = createServerFn({ method: "POST" })
     // ── Build ledger query ────────────────────────────────────────────────
     let q = supabaseAdmin
       .from("credit_ledger")
-      .select("id, user_id, delta, reason, ref_id, created_at")
+      .select("id, user_id, delta, reason, ref_id, actor_id, created_at")
       .order("created_at", { ascending: false })
       .limit(data.limit + 1); // fetch one extra to detect truncation
 
@@ -707,8 +710,13 @@ export const adminSearchLedger = createServerFn({ method: "POST" })
     const truncated = (rows?.length ?? 0) > data.limit;
     const ledgerRows = (rows ?? []).slice(0, data.limit);
 
-    // ── Enrich with profile email / display_name ──────────────────────────
-    const uniqueUserIds = [...new Set(ledgerRows.map((r: { user_id: string }) => r.user_id))];
+    // ── Enrich with profile email / display_name (subject + acting admin) ──
+    const actorIds = ledgerRows
+      .map((r: { actor_id: string | null }) => r.actor_id)
+      .filter((id: string | null): id is string => !!id);
+    const uniqueUserIds = [
+      ...new Set([...ledgerRows.map((r: { user_id: string }) => r.user_id), ...actorIds]),
+    ];
     const profileMap = new Map<string, { email: string | null; display_name: string | null }>();
     if (uniqueUserIds.length > 0) {
       const { data: profs } = await supabaseAdmin
@@ -722,7 +730,7 @@ export const adminSearchLedger = createServerFn({ method: "POST" })
 
     return {
       truncated,
-      rows: ledgerRows.map((r: { id: string; user_id: string; delta: number; reason: string | null; ref_id: string | null; created_at: string }) => ({
+      rows: ledgerRows.map((r: { id: string; user_id: string; delta: number; reason: string | null; ref_id: string | null; actor_id: string | null; created_at: string }) => ({
         id:          r.id,
         user_id:     r.user_id,
         delta:       r.delta,
@@ -731,6 +739,10 @@ export const adminSearchLedger = createServerFn({ method: "POST" })
         created_at:  r.created_at,
         email:       profileMap.get(r.user_id)?.email ?? null,
         displayName: profileMap.get(r.user_id)?.display_name ?? null,
+        actorId:      r.actor_id,
+        // Who performed this adjustment, e.g. for an "admin_grant" row — null
+        // for purchases, system grants, and user-initiated spends.
+        actorEmail:   r.actor_id ? (profileMap.get(r.actor_id)?.email ?? null) : null,
       })),
     };
   });

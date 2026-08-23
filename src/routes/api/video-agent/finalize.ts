@@ -6,6 +6,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import type { UntypedDb } from "@/integrations/supabase/untyped";
 import { z } from "zod";
+import { safeErrorMessage } from "@/lib/safe-error.server";
 
 const CORS = {
   "Content-Type": "application/json",
@@ -115,7 +116,7 @@ export const Route = createFileRoute("/api/video-agent/finalize")({
           url = d.video_url;
         } catch (e) {
           return new Response(
-            JSON.stringify({ ok: false, error: e instanceof Error ? e.message : String(e) }),
+            JSON.stringify({ ok: false, error: safeErrorMessage("video-agent/finalize:heygen-poll", e) }),
             { status: 502, headers: CORS },
           );
         }
@@ -161,7 +162,7 @@ export const Route = createFileRoute("/api/video-agent/finalize")({
             _ref: reservationRef,
           });
           return new Response(
-            JSON.stringify({ ok: false, error: `Failed to commit credits: ${finalizeErr.message}` }),
+            JSON.stringify({ ok: false, error: safeErrorMessage("video-agent/finalize:commit-credits", finalizeErr) }),
             { status: 500, headers: CORS },
           );
         }

@@ -3,6 +3,21 @@ type SentryContext = {
   requestUrl?: string;
 };
 
+// Strips the query string before anything reaches Sentry. Request URLs can
+// carry tokens, signed-URL signatures, or other sensitive values in their
+// query params (e.g. OAuth codes, magic-link tokens); the path alone is
+// enough to identify which route errored.
+function redactUrl(url: string): string {
+  try {
+    const parsed = new URL(url);
+    return `${parsed.origin}${parsed.pathname}`;
+  } catch {
+    // Not a parseable absolute URL (e.g. already just a path) — still strip
+    // anything after a literal `?` defensively.
+    return url.split("?")[0] ?? url;
+  }
+}
+
 function asError(error: unknown): { name: string; message: string; stack?: string } {
   if (error instanceof Error) {
     return { name: error.name, message: error.message, stack: error.stack };
@@ -43,7 +58,7 @@ export function reportServerException(error: unknown, context: SentryContext): v
     level: "error",
     server_name: "aurora",
     tags: { source: context.source },
-    extra: context.requestUrl ? { request_url: context.requestUrl } : undefined,
+    extra: context.requestUrl ? { request_url: redactUrl(context.requestUrl) } : undefined,
     exception: {
       values: [
         {

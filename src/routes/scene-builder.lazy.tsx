@@ -367,10 +367,27 @@ function SceneBuilderPage() {
 
         <div className="px-4 space-y-8">
           <div>
-            <h1 className="text-2xl font-bold text-white mb-1">Build Your Scene.</h1>
+            <h1 className="text-2xl font-bold text-white mb-1">Direct your shoot.</h1>
             <p className="text-sm text-white/60 leading-relaxed">
-              Drop your references — Aurora stages the cinematic world. Upload your selfie, outfit, location and prop, then generate. Optionally animate with your phone performance using Motion Control. Powered by <span className="text-white/80 font-medium">Seedance 5.9 · Kling · Gemini Omni · Grok Imagine</span>.
+              Drop your references — we'll stage the studio. Upload your selfie, outfit, location and prop, then generate. Optionally animate with your phone performance using Motion Control. Powered by <span className="text-white/80 font-medium">Seedance 5.9 · Kling · Gemini Omni · Grok Imagine</span>.
             </p>
+            {/* Lavender slot preview row — mirrors the reference slots below */}
+            <div className="flex items-center gap-2.5 mt-3">
+              {SLOT_LABELS.map((label, idx) => (
+                <div key={label} className="flex flex-col items-center gap-1">
+                  <div className="relative size-10 overflow-hidden rounded-lg border border-violet-300/30 bg-violet-300/10">
+                    {slots[idx] ? (
+                      <img src={slots[idx]!} alt={label} className="absolute inset-0 h-full w-full object-cover" />
+                    ) : (
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <span className="size-1.5 rounded-full bg-violet-300/50" />
+                      </div>
+                    )}
+                  </div>
+                  <span className="text-[8px] font-semibold uppercase tracking-wider text-violet-200/60">{label}</span>
+                </div>
+              ))}
+            </div>
             {/* Model badges */}
             <div className="flex flex-wrap gap-1.5 mt-3">
               {["Seedance 5.9", "Kling", "Gemini Omni", "Grok Imagine"].map((m) => (
@@ -646,7 +663,7 @@ function SceneBuilderPage() {
                 search={{ image: toAbsoluteUrl(baseResult.url) }}
                 className={cn(
                   "mt-3 flex items-center justify-center gap-2 w-full py-3 rounded-xl text-sm font-semibold transition-all",
-                  "bg-primary/20 border border-primary/50 text-primary hover:bg-primary/30",
+                  "bg-cyan-500/15 border border-cyan-400/50 text-cyan-300 hover:bg-cyan-500/25",
                 )}
               >
                 <Play className="w-4 h-4" />

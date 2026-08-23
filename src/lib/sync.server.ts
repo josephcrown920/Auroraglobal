@@ -34,6 +34,7 @@ export async function syncLipsync(
       ],
       options: { output_format: "mp4" },
     }),
+    signal: AbortSignal.timeout(45_000),
   });
   if (!create.ok) {
     const t = await create.text();
@@ -51,6 +52,7 @@ export async function syncLipsync(
     delay = Math.min(delay + 1000, 6000);
     const poll = await fetch(`${SYNC_BASE}/generate/${c.id}`, {
       headers: { "x-api-key": syncKey() },
+      signal: AbortSignal.timeout(20_000),
     });
     if (!poll.ok) {
       const t = await poll.text();

@@ -125,6 +125,7 @@ function AdminPage() {
           <Link to="/admin/ledger" className="text-sm text-muted-foreground hover:text-foreground inline-flex items-center gap-1"><Coins className="size-3.5" /> Ledger</Link>
           <Link to="/admin/design" className="text-sm text-muted-foreground hover:text-foreground inline-flex items-center gap-1"><Store className="size-3.5" /> Design</Link>
            <Link to="/admin/site-map" className="text-sm text-muted-foreground hover:text-foreground inline-flex items-center gap-1"><BookOpen className="size-3.5" /> Site map</Link>
+          <Link to="/admin/observability" className="text-sm text-muted-foreground hover:text-foreground inline-flex items-center gap-1"><Activity className="size-3.5" /> Observability</Link>
           <Link to="/admin/smoke" className="text-sm text-muted-foreground hover:text-foreground">Smoke test</Link>
           <Link to="/dashboard" className="text-sm text-muted-foreground hover:text-foreground">My dashboard</Link>
           <Link to="/studio" className="text-sm text-muted-foreground hover:text-foreground">Studio</Link>

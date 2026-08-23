@@ -4,7 +4,7 @@ import * as ImagePicker from "expo-image-picker";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { useVideoPlayer, VideoView } from "expo-video";
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -30,6 +30,7 @@ import {
   VIDEO_COST_FROM,
   type MotionPreset,
 } from "@/lib/api";
+import { randomUploadId } from "@/lib/reference-image";
 
 const DURATIONS = [5, 8, 10] as const;
 
@@ -106,6 +107,10 @@ export default function VideoScreen() {
   };
 
   async function runGeneration(confirmId?: string) {
+    // Fast double-tap guard: a second tap landing before the button's
+    // disabled state re-renders would otherwise fire a second concurrent
+    // (and separately charged) generation.
+    if (loading) return;
     if (!prompt.trim() && !photo) {
       setError("Describe your video or attach a photo to animate.");
       return;
@@ -127,6 +132,7 @@ export default function VideoScreen() {
         duration,
         motion: motion ?? undefined,
         confirmPreviewId: confirmId,
+        idempotencyKey: randomUploadId(),
       });
       if (res.url) {
         setResultUrl(res.url);

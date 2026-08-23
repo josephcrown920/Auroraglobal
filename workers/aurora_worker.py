@@ -890,4 +890,14 @@ if __name__ == "__main__":
     # restarts. Runs in a daemon thread so a slow/failing register never blocks
     # serving; uvicorn keeps the main thread.
     threading.Thread(target=auto_register_when_ready, args=(port,), daemon=True).start()
-    uvicorn.run(app, host="0.0.0.0", port=port)
+    # Graceful shutdown: process_job() runs synchronously inside the async
+    # /generate handler, so it already blocks uvicorn from closing that
+    # connection until the render actually finishes. Without a generous
+    # timeout_graceful_shutdown, uvicorn's default (5s) would force-kill an
+    # in-flight GPU render on SIGTERM (redeploys, host preemption/spot
+    # reclaim, manual restarts) — wasting the render and leaving Aurora's job
+    # stuck 'processing' until the stale-sweeper reclaims it. 600s covers the
+    # slowest single-job durations with headroom; a job that's still running
+    # past that is treated the same as any other worker crash (Aurora's
+    # stale-sweep + retry ceiling already handle that case correctly).
+    uvicorn.run(app, host="0.0.0.0", port=port, timeout_graceful_shutdown=600)

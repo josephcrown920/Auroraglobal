@@ -306,6 +306,42 @@ export type Database = {
         }
         Relationships: []
       }
+      api_logs: {
+        Row: {
+          created_at: string
+          endpoint: string
+          id: string
+          ip: string | null
+          method: string
+          response_time_ms: number
+          source: string
+          status: number
+          user_agent: string | null
+        }
+        Insert: {
+          created_at?: string
+          endpoint: string
+          id?: string
+          ip?: string | null
+          method: string
+          response_time_ms: number
+          source: string
+          status: number
+          user_agent?: string | null
+        }
+        Update: {
+          created_at?: string
+          endpoint?: string
+          id?: string
+          ip?: string | null
+          method?: string
+          response_time_ms?: number
+          source?: string
+          status?: number
+          user_agent?: string | null
+        }
+        Relationships: []
+      }
       app_settings: {
         Row: {
           key: string
@@ -1007,6 +1043,7 @@ export type Database = {
       }
       credit_ledger: {
         Row: {
+          actor_id: string | null
           created_at: string
           delta: number
           id: string
@@ -1015,6 +1052,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          actor_id?: string | null
           created_at?: string
           delta: number
           id?: string
@@ -1023,6 +1061,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          actor_id?: string | null
           created_at?: string
           delta?: number
           id?: string
@@ -1169,6 +1208,47 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      generation_idempotency_keys: {
+        Row: {
+          created_at: string
+          error: string | null
+          generation_id: string | null
+          idempotency_key: string
+          response: Json | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          error?: string | null
+          generation_id?: string | null
+          idempotency_key: string
+          response?: Json | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          error?: string | null
+          generation_id?: string | null
+          idempotency_key?: string
+          response?: Json | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "generation_idempotency_keys_generation_id_fkey"
+            columns: ["generation_id"]
+            isOneToOne: false
+            referencedRelation: "generations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       generations: {
         Row: {
@@ -2168,6 +2248,7 @@ export type Database = {
           shot_id: string
           status: string
           updated_at: string
+          user_id: string
           worker_id: string | null
         }
         Insert: {
@@ -2184,6 +2265,7 @@ export type Database = {
           shot_id: string
           status?: string
           updated_at?: string
+          user_id?: string
           worker_id?: string | null
         }
         Update: {
@@ -2200,6 +2282,7 @@ export type Database = {
           shot_id?: string
           status?: string
           updated_at?: string
+          user_id?: string
           worker_id?: string | null
         }
         Relationships: []
@@ -3433,10 +3516,26 @@ export type Database = {
       }
       gpu_worker_inflight_dec: { Args: { _worker: string }; Returns: number }
       gpu_worker_inflight_inc: { Args: { _worker: string }; Returns: number }
-      grant_credits: {
-        Args: { _amount: number; _reason: string; _ref: string; _user: string }
-        Returns: undefined
-      }
+      grant_credits:
+        | {
+            Args: {
+              _amount: number
+              _reason: string
+              _ref: string
+              _user: string
+            }
+            Returns: undefined
+          }
+        | {
+            Args: {
+              _actor?: string
+              _amount: number
+              _reason: string
+              _ref: string
+              _user: string
+            }
+            Returns: undefined
+          }
       grant_free_daily_aura_all: { Args: { _day?: string }; Returns: number }
       grant_free_monthly_aura_all: {
         Args: { _month?: string }

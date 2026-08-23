@@ -24,6 +24,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { useColors } from "@/hooks/useColors";
 import { GALLERY_SUCCESS_STATUSES } from "@/lib/gallery-mapping";
+import { randomUploadId } from "@/lib/reference-image";
 import {
   generateContent,
   generatePerformanceReskin,
@@ -335,6 +336,9 @@ export default function PerformScreen() {
   // ── Photo flow (fallback): stage a still, then animate ──
 
   async function stageScene() {
+    // Fast double-tap guard against a second concurrent (separately
+    // charged) generation before the button's disabled state re-renders.
+    if (staging) return;
     if (!photo) {
       setError("Add a photo of yourself first.");
       return;
@@ -350,6 +354,7 @@ export default function PerformScreen() {
         kind: "image",
         prompt: stagePrompt(scene, detail),
         imageUrls: [uploadedPhotoRef.current],
+        idempotencyKey: randomUploadId(),
       });
       if (res.url) {
         setStagedUrl(res.url);
@@ -369,6 +374,9 @@ export default function PerformScreen() {
   }
 
   async function animate(confirmId?: string) {
+    // Fast double-tap guard against a second concurrent (separately
+    // charged) generation before the button's disabled state re-renders.
+    if (animating) return;
     if (!stagedUrl) return;
     setAnimating(true);
     setError(null);
@@ -384,6 +392,7 @@ export default function PerformScreen() {
         duration,
         motion: motion ?? undefined,
         confirmPreviewId: confirmId,
+        idempotencyKey: randomUploadId(),
       });
       if (res.url) {
         setResultUrl(res.url);

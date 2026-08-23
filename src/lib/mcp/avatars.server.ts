@@ -64,6 +64,7 @@ async function submitHeyGenTraining(
     method: "POST",
     headers: { "Content-Type": "application/json", "x-api-key": heygenKey },
     body: JSON.stringify({ avatar_name: name, reference_images: imageUrls }),
+    signal: AbortSignal.timeout(45_000),
   });
   if (!res.ok) throw new Error(`HeyGen API error [${res.status}]: ${await res.text()}`);
   const data = (await res.json()) as {
@@ -89,6 +90,7 @@ async function submitSyncTraining(name: string, imageUrls: string[]): Promise<st
         reference_images: imageUrls,
         auto_optimize: true,
       }),
+      signal: AbortSignal.timeout(45_000),
     });
     if (!res.ok) return "";
     const data = (await res.json()) as { model_id?: string; id?: string };

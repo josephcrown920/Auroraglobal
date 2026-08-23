@@ -34,6 +34,8 @@ async function studioFetch<T>(path: string, opts?: RequestInit): Promise<T> {
       "content-type": "application/json",
       ...(opts?.headers ?? {}),
     },
+    // Never let an unresponsive Comfy Studio host hang a request indefinitely.
+    signal: opts?.signal ?? AbortSignal.timeout(45_000),
   });
   if (!res.ok) {
     const txt = await res.text().catch(() => "");

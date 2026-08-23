@@ -25,7 +25,13 @@ export const Route = createFileRoute("/api/public/cli/device/start")({
           user_code,
           status: "pending",
         });
-        if (error) return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: cors });
+        if (error) {
+          console.error("[cli/device/start] failed to create device code:", error.message);
+          return new Response(JSON.stringify({ error: "Failed to start device authorization. Please try again." }), {
+            status: 500,
+            headers: cors,
+          });
+        }
         return new Response(
           JSON.stringify({
             device_code,

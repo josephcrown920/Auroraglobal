@@ -41,6 +41,7 @@ export const expandTemplatePrompt = createServerFn()
         system: SYSTEM_PROMPT,
         messages: [{ role: "user", content: userMessage }],
       }),
+      signal: AbortSignal.timeout(30_000),
     });
 
     if (!res.ok) {

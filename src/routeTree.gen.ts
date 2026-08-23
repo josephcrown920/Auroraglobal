@@ -100,6 +100,7 @@ import { Route as AdminWorkflowsRouteImport } from './routes/admin.workflows'
 import { Route as ApiEstimateRouteImport } from './routes/api/estimate'
 import { Route as ApiHealthRouteImport } from './routes/api/health'
 import { Route as ApiMcpRouteImport } from './routes/api/mcp'
+import { Route as ApiReadyRouteImport } from './routes/api/ready'
 import { Route as CliIndexRouteImport } from './routes/cli.index'
 import { Route as CliAuthorizeRouteImport } from './routes/cli.authorize'
 import { Route as CreatorDashboardRouteImport } from './routes/creator.dashboard'
@@ -165,6 +166,9 @@ import { Route as ApiPublicCliDeviceStartRouteImport } from './routes/api/public
 import { Route as ApiPublicWorkersFilesNameRouteImport } from './routes/api/public/workers/files/$name'
 
 const BeatReelLazyRouteImport = createFileRoute('/beat-reel')()
+const AdminObservabilityLazyRouteImport = createFileRoute(
+  '/admin/observability',
+)()
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -578,6 +582,13 @@ const AdminModelsRoute = AdminModelsRouteImport.update({
   path: '/models',
   getParentRoute: () => AdminRoute,
 } as any).lazy(() => import('./routes/admin.models.lazy').then((d) => d.Route))
+const AdminObservabilityLazyRoute = AdminObservabilityLazyRouteImport.update({
+  id: '/observability',
+  path: '/observability',
+  getParentRoute: () => AdminRoute,
+} as any).lazy(() =>
+  import('./routes/admin.observability.lazy').then((d) => d.Route),
+)
 const AdminOrchestrationRoute = AdminOrchestrationRouteImport.update({
   id: '/orchestration',
   path: '/orchestration',
@@ -638,6 +649,11 @@ const ApiHealthRoute = ApiHealthRouteImport.update({
 const ApiMcpRoute = ApiMcpRouteImport.update({
   id: '/api/mcp',
   path: '/api/mcp',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiReadyRoute = ApiReadyRouteImport.update({
+  id: '/api/ready',
+  path: '/api/ready',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CliIndexRoute = CliIndexRouteImport.update({
@@ -1066,11 +1082,13 @@ export interface FileRoutesByFullPath {
   '/api/estimate': typeof ApiEstimateRoute
   '/api/health': typeof ApiHealthRoute
   '/api/mcp': typeof ApiMcpRoute
+  '/api/ready': typeof ApiReadyRoute
   '/cli/authorize': typeof CliAuthorizeRoute
   '/creator/dashboard': typeof CreatorDashboardRoute
   '/guides/$slug': typeof GuidesSlugRoute
   '/legal/$slug': typeof LegalSlugRoute
   '/r/$token': typeof RTokenRoute
+  '/admin/observability': typeof AdminObservabilityLazyRoute
   '/cli/': typeof CliIndexRoute
   '/guides/': typeof GuidesIndexRoute
   '/api/admin/feature-visibility': typeof ApiAdminFeatureVisibilityRoute
@@ -1221,11 +1239,13 @@ export interface FileRoutesByTo {
   '/api/estimate': typeof ApiEstimateRoute
   '/api/health': typeof ApiHealthRoute
   '/api/mcp': typeof ApiMcpRoute
+  '/api/ready': typeof ApiReadyRoute
   '/cli/authorize': typeof CliAuthorizeRoute
   '/creator/dashboard': typeof CreatorDashboardRoute
   '/guides/$slug': typeof GuidesSlugRoute
   '/legal/$slug': typeof LegalSlugRoute
   '/r/$token': typeof RTokenRoute
+  '/admin/observability': typeof AdminObservabilityLazyRoute
   '/cli': typeof CliIndexRoute
   '/guides': typeof GuidesIndexRoute
   '/api/admin/feature-visibility': typeof ApiAdminFeatureVisibilityRoute
@@ -1377,11 +1397,13 @@ export interface FileRoutesById {
   '/api/estimate': typeof ApiEstimateRoute
   '/api/health': typeof ApiHealthRoute
   '/api/mcp': typeof ApiMcpRoute
+  '/api/ready': typeof ApiReadyRoute
   '/cli/authorize': typeof CliAuthorizeRoute
   '/creator/dashboard': typeof CreatorDashboardRoute
   '/guides/$slug': typeof GuidesSlugRoute
   '/legal/$slug': typeof LegalSlugRoute
   '/r/$token': typeof RTokenRoute
+  '/admin/observability': typeof AdminObservabilityLazyRoute
   '/cli/': typeof CliIndexRoute
   '/guides/': typeof GuidesIndexRoute
   '/api/admin/feature-visibility': typeof ApiAdminFeatureVisibilityRoute
@@ -1534,11 +1556,13 @@ export interface FileRouteTypes {
     | '/api/estimate'
     | '/api/health'
     | '/api/mcp'
+    | '/api/ready'
     | '/cli/authorize'
     | '/creator/dashboard'
     | '/guides/$slug'
     | '/legal/$slug'
     | '/r/$token'
+    | '/admin/observability'
     | '/cli/'
     | '/guides/'
     | '/api/admin/feature-visibility'
@@ -1689,11 +1713,13 @@ export interface FileRouteTypes {
     | '/api/estimate'
     | '/api/health'
     | '/api/mcp'
+    | '/api/ready'
     | '/cli/authorize'
     | '/creator/dashboard'
     | '/guides/$slug'
     | '/legal/$slug'
     | '/r/$token'
+    | '/admin/observability'
     | '/cli'
     | '/guides'
     | '/api/admin/feature-visibility'
@@ -1844,11 +1870,13 @@ export interface FileRouteTypes {
     | '/api/estimate'
     | '/api/health'
     | '/api/mcp'
+    | '/api/ready'
     | '/cli/authorize'
     | '/creator/dashboard'
     | '/guides/$slug'
     | '/legal/$slug'
     | '/r/$token'
+    | '/admin/observability'
     | '/cli/'
     | '/guides/'
     | '/api/admin/feature-visibility'
@@ -1986,6 +2014,7 @@ export interface RootRouteChildren {
   ApiEstimateRoute: typeof ApiEstimateRoute
   ApiHealthRoute: typeof ApiHealthRoute
   ApiMcpRoute: typeof ApiMcpRoute
+  ApiReadyRoute: typeof ApiReadyRoute
   CliAuthorizeRoute: typeof CliAuthorizeRoute
   CreatorDashboardRoute: typeof CreatorDashboardRoute
   GuidesSlugRoute: typeof GuidesSlugRoute
@@ -2612,6 +2641,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminModelsRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/observability': {
+      id: '/admin/observability'
+      path: '/observability'
+      fullPath: '/admin/observability'
+      preLoaderRoute: typeof AdminObservabilityLazyRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/orchestration': {
       id: '/admin/orchestration'
       path: '/orchestration'
@@ -2680,6 +2716,13 @@ declare module '@tanstack/react-router' {
       path: '/api/mcp'
       fullPath: '/api/mcp'
       preLoaderRoute: typeof ApiMcpRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/ready': {
+      id: '/api/ready'
+      path: '/api/ready'
+      fullPath: '/api/ready'
+      preLoaderRoute: typeof ApiReadyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/cli/': {
@@ -3141,6 +3184,7 @@ interface AdminRouteChildren {
   AdminSocialStudioRoute: typeof AdminSocialStudioRoute
   AdminTemplatesRoute: typeof AdminTemplatesRoute
   AdminWorkflowsRoute: typeof AdminWorkflowsRoute
+  AdminObservabilityLazyRoute: typeof AdminObservabilityLazyRoute
 }
 
 const AdminRouteChildren: AdminRouteChildren = {
@@ -3158,6 +3202,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminSocialStudioRoute: AdminSocialStudioRoute,
   AdminTemplatesRoute: AdminTemplatesRoute,
   AdminWorkflowsRoute: AdminWorkflowsRoute,
+  AdminObservabilityLazyRoute: AdminObservabilityLazyRoute,
 }
 
 const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
@@ -3251,6 +3296,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiEstimateRoute: ApiEstimateRoute,
   ApiHealthRoute: ApiHealthRoute,
   ApiMcpRoute: ApiMcpRoute,
+  ApiReadyRoute: ApiReadyRoute,
   CliAuthorizeRoute: CliAuthorizeRoute,
   CreatorDashboardRoute: CreatorDashboardRoute,
   GuidesSlugRoute: GuidesSlugRoute,

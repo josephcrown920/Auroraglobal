@@ -224,6 +224,23 @@ export async function withRetry<T>(fn: () => Promise<T>, attempts = 2): Promise<
   throw lastErr instanceof Error ? lastErr : new Error(String(lastErr));
 }
 
+// Default timeout budgets for outbound provider HTTP calls that don't already
+// bound themselves via AbortSignal.timeout. Without this, an unresponsive
+// provider can hang a fetch indefinitely — withRetry/orchestrate's fallback
+// chain never gets a chance to move on, and the job can never reach a clean
+// terminal state. Poll calls get a shorter budget since a miss just means
+// "check again next loop iteration"; create/submit calls get more room since
+// some providers take longer to accept a large prompt/payload.
+const PROVIDER_CREATE_TIMEOUT_MS = 45_000;
+const PROVIDER_POLL_TIMEOUT_MS = 20_000;
+const PROVIDER_REF_FETCH_TIMEOUT_MS = 20_000;
+/** Merge an AbortSignal.timeout into a fetch RequestInit that doesn't already
+ * specify one, so every outbound provider call has a hard upper bound. */
+function withTimeout(init: RequestInit = {}, ms = PROVIDER_CREATE_TIMEOUT_MS): RequestInit {
+  if (init.signal) return init;
+  return { ...init, signal: AbortSignal.timeout(ms) };
+}
+
 type ProviderAdapter = {
   name: // Replit AI Integrations proxy — billed to the owner's Replit credits.
     | "replit-openai-image"
@@ -310,11 +327,11 @@ const klingDirect: ProviderAdapter = {
       mode: "std",
     };
     if (isImg2Vid) body.image = r.imageUrls![0];
-    const create = await fetch(`${KLING_BASE}${path}`, {
+    const create = await fetch(`${KLING_BASE}${path}`, withTimeout({
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
       body: JSON.stringify(body),
-    });
+    }));
     if (!create.ok)
       throw new Error(`Kling ${create.status}: ${(await create.text()).slice(0, 200)}`);
     const created = await create.json();
@@ -324,9 +341,9 @@ const klingDirect: ProviderAdapter = {
     while (Date.now() < deadline) {
       await new Promise((s) => setTimeout(s, 6000));
       const t2 = klingJwt(process.env.KLING_ACCESS_KEY!, process.env.KLING_SECRET_KEY!);
-      const poll = await fetch(`${KLING_BASE}${path}/${taskId}`, {
+      const poll = await fetch(`${KLING_BASE}${path}/${taskId}`, withTimeout({
         headers: { Authorization: `Bearer ${t2}` },
-      });
+      }, PROVIDER_POLL_TIMEOUT_MS));
       if (!poll.ok) continue;
       const pj = await poll.json();
       const status = pj?.data?.task_status;
@@ -356,7 +373,7 @@ const heygen: ProviderAdapter = {
     if (!r.videoUrl || !r.audioUrl) throw new Error("heygen: video+audio required");
     const key = process.env.HEYGEN_API_KEY!;
 
-    const create = await fetch("https://api.heygen.com/v3/lipsyncs", {
+    const create = await fetch("https://api.heygen.com/v3/lipsyncs", withTimeout({
       method: "POST",
       headers: { "Content-Type": "application/json", "X-Api-Key": key },
       body: JSON.stringify({
@@ -365,7 +382,7 @@ const heygen: ProviderAdapter = {
         // "speed" = fast audio-only lip-sync; good default for UGC-style clips.
         mode: "speed",
       }),
-    });
+    }));
     if (!create.ok)
       throw new Error(`HeyGen ${create.status}: ${(await create.text()).slice(0, 200)}`);
     const cj = await create.json();
@@ -375,9 +392,9 @@ const heygen: ProviderAdapter = {
     const deadline = Date.now() + 10 * 60_000;
     while (Date.now() < deadline) {
       await new Promise((s) => setTimeout(s, 5000));
-      const st = await fetch(`https://api.heygen.com/v3/lipsyncs/${lipsyncId}`, {
+      const st = await fetch(`https://api.heygen.com/v3/lipsyncs/${lipsyncId}`, withTimeout({
         headers: { "X-Api-Key": key },
-      });
+      }, PROVIDER_POLL_TIMEOUT_MS));
       if (!st.ok) continue;
       const sj = await st.json();
       const status = sj?.data?.status;
@@ -439,7 +456,7 @@ const heygenVideoAgent: ProviderAdapter = {
     console.log("[heygenVideoAgent] resolved:", JSON.stringify(resolved), "finalVoiceId:", finalVoiceId);
     const dimension = orientation === "portrait" ? { width: 720, height: 1280 } : { width: 1280, height: 720 };
 
-    const create = await fetch("https://api.heygen.com/v2/video/generate", {
+    const create = await fetch("https://api.heygen.com/v2/video/generate", withTimeout({
       method: "POST",
       headers: { "Content-Type": "application/json", "X-Api-Key": key },
       body: JSON.stringify({
@@ -452,7 +469,7 @@ const heygenVideoAgent: ProviderAdapter = {
         ],
         dimension,
       }),
-    });
+    }));
     if (!create.ok)
       throw new Error(`HeyGen video/generate ${create.status}: ${(await create.text()).slice(0, 200)}`);
     const cj = await create.json();
@@ -462,9 +479,9 @@ const heygenVideoAgent: ProviderAdapter = {
     const deadline = Date.now() + 20 * 60_000;
     while (Date.now() < deadline) {
       await new Promise((s) => setTimeout(s, 5000));
-      const st = await fetch(`https://api.heygen.com/v2/videos/${videoId}`, {
+      const st = await fetch(`https://api.heygen.com/v2/videos/${videoId}`, withTimeout({
         headers: { "X-Api-Key": key },
-      });
+      }, PROVIDER_POLL_TIMEOUT_MS));
       if (!st.ok) continue;
       const sj = await st.json();
       const status = sj?.data?.status;
@@ -501,7 +518,7 @@ const heygenPhotoVideo: ProviderAdapter = {
       throw new Error("heygen photo-video: photo + audio required");
     const key = process.env.HEYGEN_API_KEY!;
 
-    const create = await fetch("https://api.heygen.com/v3/videos", {
+    const create = await fetch("https://api.heygen.com/v3/videos", withTimeout({
       method: "POST",
       headers: { "Content-Type": "application/json", "X-Api-Key": key },
       body: JSON.stringify({
@@ -509,7 +526,7 @@ const heygenPhotoVideo: ProviderAdapter = {
         image: { type: "url", url: r.imageUrls[0] },
         audio_url: r.audioUrl,
       }),
-    });
+    }));
     if (!create.ok)
       throw new Error(`HeyGen photo-video ${create.status}: ${(await create.text()).slice(0, 200)}`);
     const cj = await create.json();
@@ -519,9 +536,9 @@ const heygenPhotoVideo: ProviderAdapter = {
     const deadline = Date.now() + 10 * 60_000;
     while (Date.now() < deadline) {
       await new Promise((s) => setTimeout(s, 5000));
-      const st = await fetch(`https://api.heygen.com/v3/videos/${videoId}`, {
+      const st = await fetch(`https://api.heygen.com/v3/videos/${videoId}`, withTimeout({
         headers: { "X-Api-Key": key },
-      });
+      }, PROVIDER_POLL_TIMEOUT_MS));
       if (!st.ok) continue;
       const sj = await st.json();
       const status = sj?.data?.status;
@@ -557,7 +574,7 @@ const heygenAvatarTemplate: ProviderAdapter = {
     if (!r.prompt) throw new Error("heygen avatar: script/prompt required");
     const key = process.env.HEYGEN_API_KEY!;
 
-    const create = await fetch("https://api.heygen.com/v3/videos", {
+    const create = await fetch("https://api.heygen.com/v3/videos", withTimeout({
       method: "POST",
       headers: { "Content-Type": "application/json", "X-Api-Key": key },
       body: JSON.stringify({
@@ -566,7 +583,7 @@ const heygenAvatarTemplate: ProviderAdapter = {
         voice_id: voiceId,
         script: r.prompt,
       }),
-    });
+    }));
     if (!create.ok)
       throw new Error(`HeyGen avatar ${create.status}: ${(await create.text()).slice(0, 200)}`);
     const cj = (await create.json()) as { data?: { video_id?: string } };
@@ -576,9 +593,9 @@ const heygenAvatarTemplate: ProviderAdapter = {
     const deadline = Date.now() + 10 * 60_000;
     while (Date.now() < deadline) {
       await new Promise((s) => setTimeout(s, 5000));
-      const st = await fetch(`https://api.heygen.com/v3/videos/${videoId}`, {
+      const st = await fetch(`https://api.heygen.com/v3/videos/${videoId}`, withTimeout({
         headers: { "X-Api-Key": key },
-      });
+      }, PROVIDER_POLL_TIMEOUT_MS));
       if (!st.ok) continue;
       const sj = (await st.json()) as { data?: { status?: string; video_url?: string; error?: string } };
       const status = sj?.data?.status;
@@ -736,11 +753,11 @@ const falFallback: ProviderAdapter = {
         ? FAL_IDENTITY_EDITS[r.model]
         : undefined;
     if (identityPath) {
-      const res = await fetch(`https://fal.run/${identityPath}`, {
+      const res = await fetch(`https://fal.run/${identityPath}`, withTimeout({
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Key ${key}` },
         body: JSON.stringify({ prompt: r.prompt ?? "", image_urls: r.imageUrls }),
-      });
+      }));
       if (!res.ok) throw new Error(`Fal ${res.status}: ${(await res.text()).slice(0, 200)}`);
       const j = await res.json();
       const url = j?.images?.[0]?.url ?? j?.image?.url;
@@ -774,11 +791,11 @@ const falFallback: ProviderAdapter = {
       if (r.duration) input.duration = r.duration;
       if (r.aspectRatio) input.aspect_ratio = r.aspectRatio;
     }
-    const res = await fetch(`https://fal.run/${path}`, {
+    const res = await fetch(`https://fal.run/${path}`, withTimeout({
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Key ${key}` },
       body: JSON.stringify(input),
-    });
+    }));
     if (!res.ok) throw new Error(`Fal ${res.status}: ${(await res.text()).slice(0, 200)}`);
     const j = await res.json();
     const url = j?.video?.url ?? j?.image?.url ?? j?.images?.[0]?.url ?? j?.url ?? j?.output;
@@ -831,7 +848,7 @@ const lovable: ProviderAdapter = {
       r.model && r.model.startsWith("google/") ? r.model : "google/gemini-2.5-flash-image";
     const content: Array<Record<string, unknown>> = [{ type: "text", text: r.prompt ?? "" }];
     for (const url of r.imageUrls ?? []) content.push({ type: "image_url", image_url: { url } });
-    const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", withTimeout({
       method: "POST",
       headers: { "Content-Type": "application/json", "Lovable-API-Key": apiKey },
       body: JSON.stringify({
@@ -839,7 +856,7 @@ const lovable: ProviderAdapter = {
         messages: [{ role: "user", content }],
         modalities: ["image", "text"],
       }),
-    });
+    }));
     if (!res.ok) throw new Error(`Lovable AI ${res.status}: ${(await res.text()).slice(0, 200)}`);
     const json = await res.json();
     const msg = json?.choices?.[0]?.message;
@@ -886,7 +903,7 @@ const geminiDirect: ProviderAdapter = {
     for (const url of r.imageUrls ?? []) {
       try {
         if (!isTrustedUrl(url)) continue; // SSRF guard: skip untrusted ref hosts
-        const fetched = await fetch(url);
+        const fetched = await fetch(url, withTimeout({}, PROVIDER_REF_FETCH_TIMEOUT_MS));
         if (!fetched.ok) continue;
         const buf = Buffer.from(await fetched.arrayBuffer());
         const mime = fetched.headers.get("content-type") || "image/png";
@@ -897,7 +914,7 @@ const geminiDirect: ProviderAdapter = {
     }
     const res = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`,
-      {
+      withTimeout({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -909,7 +926,7 @@ const geminiDirect: ProviderAdapter = {
             ...(r.aspectRatio ? { aspectRatio: r.aspectRatio } : {}),
           },
         }),
-      },
+      }),
     );
     if (!res.ok) throw new Error(`Gemini ${res.status}: ${(await res.text()).slice(0, 200)}`);
     const json = await res.json();
@@ -954,7 +971,7 @@ const geminiVideo: ProviderAdapter = {
     if (refUrl) {
       try {
         if (isTrustedUrl(refUrl)) {
-          const fetched = await fetch(refUrl);
+          const fetched = await fetch(refUrl, withTimeout({}, PROVIDER_REF_FETCH_TIMEOUT_MS));
           if (fetched.ok) {
             const buf = Buffer.from(await fetched.arrayBuffer());
             const mime = fetched.headers.get("content-type") || "image/jpeg";
@@ -965,7 +982,7 @@ const geminiVideo: ProviderAdapter = {
     }
     const res = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_VIDEO_MODEL}:predictLongRunning?key=${key}`,
-      {
+      withTimeout({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -979,7 +996,7 @@ const geminiVideo: ProviderAdapter = {
             durationSeconds: (r.duration ?? 8) <= 5 ? 4 : 8,
           },
         }),
-      },
+      }),
     );
     if (!res.ok) throw new Error(`Gemini video ${res.status}: ${(await res.text()).slice(0, 200)}`);
     const op = await res.json() as { name?: string };
@@ -991,6 +1008,7 @@ const geminiVideo: ProviderAdapter = {
       await new Promise((s) => setTimeout(s, 5_000));
       const poll = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/${opName}?key=${key}`,
+        withTimeout({}, PROVIDER_POLL_TIMEOUT_MS),
       );
       if (!poll.ok) throw new Error(`Gemini video poll ${poll.status}: ${(await poll.text()).slice(0, 100)}`);
       const state = await poll.json() as { done?: boolean; error?: unknown; response?: { generateVideoResponse?: { generatedSamples?: Array<{ video?: { uri?: string } }> } } };
@@ -1442,11 +1460,11 @@ async function openAIChat(opts: {
           ...imgs.map((u) => ({ type: "image_url", image_url: { url: u } })),
         ]
       : opts.prompt;
-  const res = await fetch(opts.url, {
+  const res = await fetch(opts.url, withTimeout({
     method: "POST",
     headers,
     body: JSON.stringify({ model: opts.model, messages: [{ role: "user", content }] }),
-  });
+  }));
   if (!res.ok) throw new Error(`${res.status}: ${(await res.text()).slice(0, 200)}`);
   const j = await res.json();
   const text: unknown = j?.choices?.[0]?.message?.content;
@@ -1540,7 +1558,7 @@ const geminiText: ProviderAdapter = {
     for (const url of r.imageUrls ?? []) {
       if (!isTrustedUrl(url)) continue; // SSRF guard: skip untrusted ref hosts
       try {
-        const resp = await fetch(url);
+        const resp = await fetch(url, withTimeout({}, PROVIDER_REF_FETCH_TIMEOUT_MS));
         if (!resp.ok) continue;
         const mime = resp.headers.get("content-type") || "image/jpeg";
         const buf = Buffer.from(await resp.arrayBuffer());
@@ -1551,11 +1569,11 @@ const geminiText: ProviderAdapter = {
     }
     const res = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`,
-      {
+      withTimeout({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ contents: [{ parts }] }),
-      },
+      }),
     );
     if (!res.ok) throw new Error(`Gemini text ${res.status}: ${(await res.text()).slice(0, 200)}`);
     const j = await res.json();
@@ -1611,6 +1629,7 @@ const pollinations: ProviderAdapter = {
       const model = m?.providerModel ?? "openai";
       const res = await fetch(
         `https://text.pollinations.ai/${encodeURIComponent(r.prompt ?? "")}?model=${encodeURIComponent(model)}`,
+        withTimeout(),
       );
       if (!res.ok)
         throw new Error(`Pollinations text ${res.status}: ${(await res.text()).slice(0, 150)}`);
@@ -1625,7 +1644,7 @@ const pollinations: ProviderAdapter = {
     u.searchParams.set("height", "1024");
     u.searchParams.set("model", model);
     u.searchParams.set("nologo", "true");
-    const res = await fetch(u.toString());
+    const res = await fetch(u.toString(), withTimeout());
     if (!res.ok)
       throw new Error(`Pollinations image ${res.status}: ${(await res.text()).slice(0, 150)}`);
     const contentType = res.headers.get("content-type") || "image/jpeg";
@@ -1669,11 +1688,11 @@ const runware: ProviderAdapter = {
         numberResults: 1,
       },
     ];
-    const res = await fetch("https://api.runware.ai/v1", {
+    const res = await fetch("https://api.runware.ai/v1", withTimeout({
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
       body: JSON.stringify(body),
-    });
+    }));
     if (!res.ok) throw new Error(`Runware ${res.status}: ${(await res.text()).slice(0, 200)}`);
     const j = await res.json();
     const url: unknown = j?.data?.[0]?.imageURL ?? j?.data?.[0]?.imageUrl;
@@ -1790,7 +1809,7 @@ const runway: ProviderAdapter = {
       Authorization: `Bearer ${key}`,
       "X-Runway-Version": "2024-11-06",
     };
-    const create = await fetch("https://api.dev.runwayml.com/v1/image_to_video", {
+    const create = await fetch("https://api.dev.runwayml.com/v1/image_to_video", withTimeout({
       method: "POST",
       headers,
       body: JSON.stringify({
@@ -1802,7 +1821,7 @@ const runway: ProviderAdapter = {
         // default to landscape 1280:720 for any unrecognised value.
         ratio: r.aspectRatio === "9:16" ? "720:1280" : r.aspectRatio === "1:1" ? "1080:1080" : "1280:720",
       }),
-    });
+    }));
     if (!create.ok)
       throw new Error(`Runway ${create.status}: ${(await create.text()).slice(0, 200)}`);
     const cj = await create.json();
@@ -1811,7 +1830,7 @@ const runway: ProviderAdapter = {
     const deadline = Date.now() + 10 * 60_000;
     while (Date.now() < deadline) {
       await new Promise((s) => setTimeout(s, 6000));
-      const st = await fetch(`https://api.dev.runwayml.com/v1/tasks/${id}`, { headers });
+      const st = await fetch(`https://api.dev.runwayml.com/v1/tasks/${id}`, withTimeout({ headers }, PROVIDER_POLL_TIMEOUT_MS));
       if (!st.ok) continue;
       const sj = await st.json();
       const status = sj?.status;
@@ -1838,11 +1857,11 @@ const elevenlabs: ProviderAdapter = {
     const key = process.env.ELEVENLABS_API_KEY!;
     const voiceId =
       (typeof r.params?.voiceId === "string" && r.params.voiceId) || "21m00Tcm4TlvDq8ikWAM";
-    const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
+    const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, withTimeout({
       method: "POST",
       headers: { "Content-Type": "application/json", "xi-api-key": key },
       body: JSON.stringify({ text: r.prompt ?? "", model_id: "eleven_multilingual_v2" }),
-    });
+    }));
     if (!res.ok) throw new Error(`ElevenLabs ${res.status}: ${(await res.text()).slice(0, 200)}`);
     const bytes = new Uint8Array(await res.arrayBuffer());
     const url = await uploadBytesToStudio(r.userId, "tts", bytes, "audio/mpeg", "mp3");
@@ -1922,7 +1941,7 @@ const replitGeminiImage: ProviderAdapter = {
     for (const url of r.imageUrls ?? []) {
       if (!isTrustedUrl(url)) continue; // SSRF guard: skip untrusted ref hosts
       try {
-        const fetched = await fetch(url);
+        const fetched = await fetch(url, withTimeout({}, PROVIDER_REF_FETCH_TIMEOUT_MS));
         if (!fetched.ok) continue;
         const buf = Buffer.from(await fetched.arrayBuffer());
         const mime = fetched.headers.get("content-type") || "image/png";
@@ -2039,7 +2058,7 @@ const replitGeminiText: ProviderAdapter = {
     for (const url of r.imageUrls ?? []) {
       if (!isTrustedUrl(url)) continue; // SSRF guard: skip untrusted ref hosts
       try {
-        const resp = await fetch(url);
+        const resp = await fetch(url, withTimeout({}, PROVIDER_REF_FETCH_TIMEOUT_MS));
         if (!resp.ok) continue;
         const mime = resp.headers.get("content-type") || "image/jpeg";
         const buf = Buffer.from(await resp.arrayBuffer());
@@ -2544,11 +2563,11 @@ const xaiDirect: ProviderAdapter = {
     };
     if (r.imageUrls?.[0]) body.image = { url: r.imageUrls[0] };
 
-    const create = await fetch(`${XAI_VIDEO_BASE}/videos/generations`, {
+    const create = await fetch(`${XAI_VIDEO_BASE}/videos/generations`, withTimeout({
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
       body: JSON.stringify(body),
-    });
+    }));
     if (!create.ok)
       throw new Error(`xAI video ${create.status}: ${(await create.text()).slice(0, 300)}`);
     const created = await create.json();
@@ -2558,9 +2577,9 @@ const xaiDirect: ProviderAdapter = {
     const deadline = Date.now() + 15 * 60_000; // 15-min ceiling
     while (Date.now() < deadline) {
       await new Promise((s) => setTimeout(s, 5_000));
-      const poll = await fetch(`${XAI_VIDEO_BASE}/videos/generations/${requestId}`, {
+      const poll = await fetch(`${XAI_VIDEO_BASE}/videos/generations/${requestId}`, withTimeout({
         headers: { Authorization: `Bearer ${key}` },
-      });
+      }, PROVIDER_POLL_TIMEOUT_MS));
       if (!poll.ok) {
         if (poll.status === 429) continue; // rate-limit — retry
         throw new Error(`xAI poll ${poll.status}: ${(await poll.text()).slice(0, 200)}`);
@@ -2607,14 +2626,14 @@ const soraAdapter: ProviderAdapter = {
     };
     if (r.imageUrls?.[0]) body.image = r.imageUrls[0];
 
-    const create = await fetch("https://api.openai.com/v1/video/generations", {
+    const create = await fetch("https://api.openai.com/v1/video/generations", withTimeout({
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${key}`,
       },
       body: JSON.stringify(body),
-    });
+    }));
     if (!create.ok)
       throw new Error(`Sora create ${create.status}: ${(await create.text()).slice(0, 300)}`);
     const cj = await create.json();
@@ -2624,9 +2643,9 @@ const soraAdapter: ProviderAdapter = {
     const deadline = Date.now() + 20 * 60_000; // 20-min ceiling
     while (Date.now() < deadline) {
       await new Promise((s) => setTimeout(s, 8_000));
-      const poll = await fetch(`https://api.openai.com/v1/video/generations/${jobId}`, {
+      const poll = await fetch(`https://api.openai.com/v1/video/generations/${jobId}`, withTimeout({
         headers: { Authorization: `Bearer ${key}` },
-      });
+      }, PROVIDER_POLL_TIMEOUT_MS));
       if (!poll.ok) {
         if (poll.status === 429) continue;
         throw new Error(`Sora poll ${poll.status}: ${(await poll.text()).slice(0, 200)}`);
@@ -2667,14 +2686,14 @@ const ltxAdapter: ProviderAdapter = {
     };
     if (r.imageUrls?.[0]) body.image_url = r.imageUrls[0];
 
-    const create = await fetch("https://api.ltxstudio.com/api/v1/generate/video", {
+    const create = await fetch("https://api.ltxstudio.com/api/v1/generate/video", withTimeout({
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${key}`,
       },
       body: JSON.stringify(body),
-    });
+    }));
     if (!create.ok)
       throw new Error(`LTX create ${create.status}: ${(await create.text()).slice(0, 300)}`);
     const cj = await create.json();
@@ -2684,9 +2703,9 @@ const ltxAdapter: ProviderAdapter = {
     const deadline = Date.now() + 15 * 60_000;
     while (Date.now() < deadline) {
       await new Promise((s) => setTimeout(s, 6_000));
-      const poll = await fetch(`https://api.ltxstudio.com/api/v1/tasks/${taskId}`, {
+      const poll = await fetch(`https://api.ltxstudio.com/api/v1/tasks/${taskId}`, withTimeout({
         headers: { Authorization: `Bearer ${key}` },
-      });
+      }, PROVIDER_POLL_TIMEOUT_MS));
       if (!poll.ok) {
         if (poll.status === 429) continue;
         throw new Error(`LTX poll ${poll.status}: ${(await poll.text()).slice(0, 200)}`);

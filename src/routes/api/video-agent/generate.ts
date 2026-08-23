@@ -4,11 +4,17 @@
 // standalone artifacts/video-agent SPA.
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
+import { assertRateLimit, RateLimitError } from "@/lib/rate-limit.server";
 
 const CORS = {
   "Content-Type": "application/json",
   "Access-Control-Allow-Origin": "*",
 };
+
+// Abuse guard: each call reserves credits AND calls the HeyGen provider, so
+// cap raw request rate independent of balance (mirrors /api/public/generate).
+const VIDEO_AGENT_RATE_WINDOW_MS = 60_000;
+const VIDEO_AGENT_RATE_MAX_PER_WINDOW = 15;
 
 async function authUserId(req: Request): Promise<string | null> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -50,6 +56,17 @@ export const Route = createFileRoute("/api/video-agent/generate")({
             status: 401,
             headers: CORS,
           });
+        }
+        try {
+          assertRateLimit(`video-agent-generate:${userId}`, VIDEO_AGENT_RATE_MAX_PER_WINDOW, VIDEO_AGENT_RATE_WINDOW_MS);
+        } catch (e) {
+          if (e instanceof RateLimitError) {
+            return new Response(JSON.stringify({ ok: false, error: e.message }), {
+              status: 429,
+              headers: CORS,
+            });
+          }
+          throw e;
         }
         try {
           const body = await request.json();

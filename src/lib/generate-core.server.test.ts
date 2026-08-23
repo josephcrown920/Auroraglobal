@@ -1,5 +1,10 @@
 import { describe, expect, it } from "bun:test";
-import { reserveOrchestrateRecord, type RenderDeps } from "./generate-core.server";
+import {
+  reserveOrchestrateRecord,
+  type IdempotencyDeps,
+  type IdempotencyRow,
+  type RenderDeps,
+} from "./generate-core.server";
 
 // ── Test helpers ──────────────────────────────────────────────────────────────
 //
@@ -464,5 +469,194 @@ describe("premium video/lipsync renders: atomic finalize + no-double-refund guar
       expect(reached).toBe(false);
       expect(calls.map((c) => c.name)).toEqual(["reserve_credits"]);
     }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Idempotency-key wrapper (reserveOrchestrateRecordIdempotent, internal —
+// exercised only through reserveOrchestrateRecord(input) when
+// input.idempotencyKey is set)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** In-memory fake of the (user_id, idempotency_key) keyed store, mirroring the
+ *  real table's semantics closely enough to exercise every branch of the
+ *  claim/finish/clearFailed state machine without a live database. */
+function makeFakeIdempotencyStore() {
+  const rows = new Map<string, IdempotencyRow & { generationId?: string }>();
+  const key = (userId: string, k: string) => `${userId}:${k}`;
+  const finishCalls: Array<{ userId: string; key: string; result: unknown }> = [];
+  const clearFailedCalls: Array<{ userId: string; key: string }> = [];
+
+  const deps: IdempotencyDeps = {
+    async claim(userId, k) {
+      const existing = rows.get(key(userId, k));
+      if (existing) return { claimed: false, row: existing };
+      rows.set(key(userId, k), { status: "pending", response: null, error: null });
+      return { claimed: true };
+    },
+    async finish(userId, k, result) {
+      finishCalls.push({ userId, key: k, result });
+      if (result.status === "succeeded") {
+        rows.set(key(userId, k), {
+          status: "succeeded",
+          response: result.response,
+          error: null,
+        });
+      } else {
+        rows.set(key(userId, k), { status: "failed", response: null, error: result.error });
+      }
+    },
+    async clearFailed(userId, k) {
+      clearFailedCalls.push({ userId, key: k });
+      const existing = rows.get(key(userId, k));
+      if (existing?.status === "failed") rows.delete(key(userId, k));
+    },
+  };
+
+  return { deps, rows, finishCalls, clearFailedCalls, key };
+}
+
+describe("reserveOrchestrateRecord idempotency-key wrapper", () => {
+  it("claims a fresh key, renders once, and records the success (with the outcome as the cached response)", async () => {
+    const store = makeFakeIdempotencyStore();
+    const { deps: renderDeps, calls } = makeDeps({});
+    const deps: RenderDeps = { ...renderDeps, idempotency: store.deps };
+
+    const outcome = await reserveOrchestrateRecord(
+      { ...baseInput, idempotencyKey: "click-1" },
+      deps,
+    );
+
+    expect(outcome.ok).toBe(true);
+    expect(calls.map((c) => c.name)).toEqual(["reserve_credits", "finalize_sync_render"]);
+    expect(store.finishCalls).toHaveLength(1);
+    expect(store.finishCalls[0].result).toMatchObject({ status: "succeeded" });
+    expect(store.rows.get(store.key("user_1", "click-1"))?.status).toBe("succeeded");
+  });
+
+  it("a repeat call with the same key replays the cached result instead of charging or rendering again", async () => {
+    const store = makeFakeIdempotencyStore();
+    const { deps: renderDeps, calls } = makeDeps({});
+    const deps: RenderDeps = { ...renderDeps, idempotency: store.deps };
+    const input = { ...baseInput, idempotencyKey: "click-2" };
+
+    const first = await reserveOrchestrateRecord(input, deps);
+    const second = await reserveOrchestrateRecord(input, deps);
+
+    expect(second).toEqual(first);
+    // Only the first call reserved credits / orchestrated / finalized.
+    expect(calls.map((c) => c.name)).toEqual(["reserve_credits", "finalize_sync_render"]);
+  });
+
+  it("a concurrent duplicate while the first is still pending is rejected as in-progress, never charged", async () => {
+    const store = makeFakeIdempotencyStore();
+    // Simulate "still pending": claim once directly, then invoke reserveOrchestrateRecord
+    // for the same key without ever calling finish.
+    await store.deps.claim("user_1", "click-3");
+    const { deps: renderDeps, calls } = makeDeps({});
+    const deps: RenderDeps = { ...renderDeps, idempotency: store.deps };
+
+    const outcome = await reserveOrchestrateRecord(
+      { ...baseInput, idempotencyKey: "click-3" },
+      deps,
+    );
+
+    expect(outcome.ok).toBe(false);
+    if (!outcome.ok) expect(outcome.error).toMatch(/already in progress/i);
+    expect(calls).toHaveLength(0);
+  });
+
+  it("retries fresh after a stale 'failed' row (prior attempt's reservation was already released)", async () => {
+    const store = makeFakeIdempotencyStore();
+    // Seed a stale failed row as if a prior attempt threw and recorded failure.
+    store.rows.set(store.key("user_1", "click-4"), {
+      status: "failed",
+      response: null,
+      error: "provider timeout",
+    });
+    const { deps: renderDeps, calls } = makeDeps({});
+    const deps: RenderDeps = { ...renderDeps, idempotency: store.deps };
+
+    const outcome = await reserveOrchestrateRecord(
+      { ...baseInput, idempotencyKey: "click-4" },
+      deps,
+    );
+
+    expect(outcome.ok).toBe(true);
+    expect(store.clearFailedCalls).toHaveLength(1);
+    // Fresh attempt actually reserved + rendered — this is a real new charge.
+    expect(calls.map((c) => c.name)).toEqual(["reserve_credits", "finalize_sync_render"]);
+  });
+
+  it("records a clean (non-throwing) failure — e.g. insufficient credits — as 'failed' so a retry can proceed immediately", async () => {
+    const store = makeFakeIdempotencyStore();
+    const { deps: renderDeps } = makeDeps({ reserveResult: { data: false, error: null } });
+    const deps: RenderDeps = { ...renderDeps, idempotency: store.deps };
+
+    const outcome = await reserveOrchestrateRecord(
+      { ...baseInput, idempotencyKey: "click-5" },
+      deps,
+    );
+
+    expect(outcome.ok).toBe(false);
+    expect(store.rows.get(store.key("user_1", "click-5"))?.status).toBe("failed");
+  });
+
+  it("a throw from performRender is recorded as 'failed' and still propagates to the caller", async () => {
+    const store = makeFakeIdempotencyStore();
+    const { deps: renderDeps } = makeDeps({
+      orchestrateImpl: (async () => {
+        throw new Error("provider exploded");
+      }) as RenderDeps["orchestrate"],
+    });
+    const deps: RenderDeps = { ...renderDeps, idempotency: store.deps };
+
+    await expect(
+      reserveOrchestrateRecord({ ...baseInput, idempotencyKey: "click-6" }, deps),
+    ).rejects.toThrow("provider exploded");
+
+    expect(store.rows.get(store.key("user_1", "click-6"))?.status).toBe("failed");
+  });
+
+  it("swallows a finish() write failure on the SUCCESS path — the delivered result is still returned, never lost", async () => {
+    const { deps: renderDeps, calls } = makeDeps({});
+    const idem: IdempotencyDeps = {
+      claim: async () => ({ claimed: true }),
+      finish: async () => {
+        throw new Error("ledger write failed");
+      },
+      clearFailed: async () => {},
+    };
+    const deps: RenderDeps = { ...renderDeps, idempotency: idem };
+
+    const outcome = await reserveOrchestrateRecord(
+      { ...baseInput, idempotencyKey: "click-7" },
+      deps,
+    );
+
+    // The user was already correctly charged and rendered — a bookkeeping
+    // write failure must never turn a delivered result into an error.
+    expect(outcome.ok).toBe(true);
+    expect(calls.map((c) => c.name)).toEqual(["reserve_credits", "finalize_sync_render"]);
+  });
+
+  it("does NOT swallow a finish() write failure on the FAILURE path — combines it with the original error", async () => {
+    const { deps: renderDeps } = makeDeps({ reserveResult: { data: false, error: null } });
+    const idem: IdempotencyDeps = {
+      claim: async () => ({ claimed: true }),
+      finish: async () => {
+        throw new Error("ledger write failed");
+      },
+      clearFailed: async () => {},
+    };
+    const deps: RenderDeps = { ...renderDeps, idempotency: idem };
+
+    // Insufficient credits is a clean (non-throwing) `{ ok: false }` outcome,
+    // but the code path that records it as 'failed' must still surface a
+    // finish() failure loudly rather than silently drop it — losing the
+    // 'failed' marker could strand the key in an unrecoverable state.
+    await expect(
+      reserveOrchestrateRecord({ ...baseInput, idempotencyKey: "click-8" }, deps),
+    ).rejects.toThrow(/ledger write failed/);
   });
 });

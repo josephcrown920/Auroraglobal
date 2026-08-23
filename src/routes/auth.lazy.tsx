@@ -89,6 +89,28 @@ function AuthPage() {
     return () => sub.subscription.unsubscribe();
   }, []);
 
+  // OAuth providers and Supabase's own auth server report failures (denied
+  // consent, expired/invalid code, misconfigured provider, etc.) by
+  // redirecting back here with `error`/`error_description` in the query
+  // string or the hash fragment — never as a thrown exception this
+  // component would otherwise see. Without this, the user just lands back
+  // on a blank sign-in form with no indication anything went wrong.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+    const queryParams = new URLSearchParams(window.location.search);
+    const error = hashParams.get("error") ?? queryParams.get("error");
+    if (!error) return;
+    const description = hashParams.get("error_description") ?? queryParams.get("error_description");
+    toast.error(description ? description.replace(/\+/g, " ") : `Sign-in failed: ${error}`);
+    // Strip the error params so a refresh (or the redirect-back-to-/studio
+    // effect above) doesn't re-show the same toast or leak it into history.
+    const url = new URL(window.location.href);
+    url.hash = "";
+    for (const key of ["error", "error_description", "error_code"]) url.searchParams.delete(key);
+    window.history.replaceState(null, "", url.toString());
+  }, []);
+
   const OAUTH_SIGNUP_INTENT_KEY = "aurora.oauth_signup_intent";
   useEffect(() => {
     if (loading || !session || recoveryMode) return;

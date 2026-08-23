@@ -40,6 +40,13 @@ function heygenHeaders(): Record<string, string> {
   return { "X-Api-Key": apiKey, "Content-Type": "application/json" };
 }
 
+/** Bound every outbound HeyGen call so an unresponsive API can't hang a request
+ * indefinitely — mirrors the same pattern used in orchestrator.server.ts. */
+function withTimeout(init: RequestInit = {}, ms = 45_000): RequestInit {
+  if (init.signal) return init;
+  return { ...init, signal: AbortSignal.timeout(ms) };
+}
+
 interface HeygenAvatar {
   avatar_id: string;
   avatar_name: string;
@@ -121,11 +128,11 @@ export async function submitHeyGenVideo(
     dimension: { width: 720, height: 1280 },
   };
 
-  const response = await fetch(`${HEYGEN_API}/v2/video/generate`, {
+  const response = await fetch(`${HEYGEN_API}/v2/video/generate`, withTimeout({
     method: "POST",
     headers: heygenHeaders(),
     body: JSON.stringify(payload),
-  });
+  }));
 
   if (!response.ok) {
     throw new Error(`HeyGen submission failed [${response.status}]: ${(await response.text()).slice(0, 300)}`);
@@ -140,10 +147,10 @@ export async function submitHeyGenVideo(
  * (GET /v2/videos/{video_id}).
  */
 export async function pollHeyGenVideo(videoId: string): Promise<HeyGenVideoResponse> {
-  const response = await fetch(`${HEYGEN_API}/v2/videos/${videoId}`, {
+  const response = await fetch(`${HEYGEN_API}/v2/videos/${videoId}`, withTimeout({
     method: "GET",
     headers: heygenHeaders(),
-  });
+  }, 20_000));
 
   if (!response.ok) {
     throw new Error(`HeyGen poll failed [${response.status}]: ${(await response.text()).slice(0, 300)}`);
@@ -277,11 +284,11 @@ export async function submitHeyGenTemplateVideo(
   if (!templateId.trim()) throw new Error("HeyGen template: templateId is required");
   const response = await fetch(
     `${HEYGEN_API}/v2/template/${encodeURIComponent(templateId)}/generate`,
-    {
+    withTimeout({
       method: "POST",
       headers: heygenHeaders(),
       body: JSON.stringify(buildTemplateGeneratePayload(variables, opts)),
-    },
+    }),
   );
   if (!response.ok) {
     throw new Error(

@@ -4,6 +4,13 @@ import { defaultStreamHandler, createStartHandler } from "@tanstack/react-start/
 import { consumeLastCapturedError } from "./lib/error-capture";
 import { renderErrorPage } from "./lib/error-page";
 import { reportServerException } from "./lib/sentry.server";
+import { logApiRequest } from "./lib/api-logger.server";
+import { validateEnvAtStartup } from "./lib/env-validation.server";
+
+// Fail fast on a missing core secret (Supabase URL/keys) instead of limping
+// into confusing per-request 500s; log a value-free summary of which
+// optional provider groups are configured. See src/lib/env-validation.server.ts.
+validateEnvAtStartup();
 
 type ServerEntry = {
   fetch: (request: Request, env: unknown, ctx: unknown) => Promise<Response> | Response;
@@ -30,6 +37,23 @@ function startupHealthResponse(request: Request): Response | null {
       "cache-control": "no-store",
     },
   });
+}
+
+// Some deploy targets (Cloudflare Workers, and Workers-compatible runtimes)
+// terminate the isolate shortly after `fetch` returns its Response, which
+// would silently kill an unawaited async write like the api_logs insert.
+// `ctx.waitUntil(promise)` tells the runtime to keep the isolate alive for
+// that promise without blocking the response we already returned. Node
+// (this project's actual dev/prod target) has no such teardown and simply
+// ignores a missing waitUntil, so this stays a no-op fallback there.
+function keepAlive(ctx: unknown, promise: Promise<unknown>): void {
+  const waitUntil = (ctx as { waitUntil?: (p: Promise<unknown>) => void } | null)?.waitUntil;
+  if (typeof waitUntil === "function") {
+    waitUntil.call(ctx, promise);
+  }
+  // Always attach a catch so a rejection never becomes an unhandled
+  // rejection, regardless of whether waitUntil was available.
+  void promise.catch(() => {});
 }
 
 function brandedErrorResponse(): Response {
@@ -89,12 +113,44 @@ export default {
       return healthResponse;
     }
 
+    // Every request to src/routes/api/** passes through this single fetch
+    // entry point, so logging it here (once) gives complete coverage of
+    // every current and future API route without editing each route file.
+    const pathname = new URL(request.url).pathname;
+    const isApiRequest = pathname.startsWith("/api/");
+    const startedAt = Date.now();
+
     try {
       const response = await serverEntry.fetch(request, env, ctx);
-      return await normalizeCatastrophicSsrResponse(response);
+      const normalized = await normalizeCatastrophicSsrResponse(response);
+      if (isApiRequest) {
+        keepAlive(
+          ctx,
+          logApiRequest({
+            endpoint: pathname,
+            method: request.method,
+            status: normalized.status,
+            responseTimeMs: Date.now() - startedAt,
+            request,
+          }),
+        );
+      }
+      return normalized;
     } catch (error) {
       reportServerException(error, { source: "server-fetch", requestUrl: request.url });
       console.error(error);
+      if (isApiRequest) {
+        keepAlive(
+          ctx,
+          logApiRequest({
+            endpoint: pathname,
+            method: request.method,
+            status: 500,
+            responseTimeMs: Date.now() - startedAt,
+            request,
+          }),
+        );
+      }
       return brandedErrorResponse();
     }
   },

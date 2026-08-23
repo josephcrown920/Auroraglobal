@@ -7,11 +7,18 @@
 import { createFileRoute } from "@tanstack/react-router";
 import type { UntypedDb } from "@/integrations/supabase/untyped";
 import { z } from "zod";
+import { assertRateLimit, RateLimitError } from "@/lib/rate-limit.server";
+import { safeErrorMessage } from "@/lib/safe-error.server";
 
 const CORS = {
   "Content-Type": "application/json",
   "Access-Control-Allow-Origin": "*",
 };
+
+// Abuse guard: each call reserves credits AND submits to HeyGen, so cap raw
+// request rate independent of balance (mirrors /api/public/generate).
+const VIDEO_AGENT_SUBMIT_RATE_WINDOW_MS = 60_000;
+const VIDEO_AGENT_SUBMIT_RATE_MAX_PER_WINDOW = 15;
 
 async function authUserId(req: Request): Promise<string | null> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -49,6 +56,14 @@ export const Route = createFileRoute("/api/video-agent/submit")({
         if (!userId) {
           return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: CORS });
         }
+        try {
+          assertRateLimit(`video-agent-submit:${userId}`, VIDEO_AGENT_SUBMIT_RATE_MAX_PER_WINDOW, VIDEO_AGENT_SUBMIT_RATE_WINDOW_MS);
+        } catch (e) {
+          if (e instanceof RateLimitError) {
+            return new Response(JSON.stringify({ error: e.message }), { status: 429, headers: CORS });
+          }
+          throw e;
+        }
 
         let body: unknown;
         try {
@@ -83,7 +98,10 @@ export const Route = createFileRoute("/api/video-agent/submit")({
           _ref: reservationRef,
         });
         if (resErr) {
-          return new Response(JSON.stringify({ ok: false, error: resErr.message }), { status: 500, headers: CORS });
+          return new Response(
+            JSON.stringify({ ok: false, error: safeErrorMessage("video-agent/submit:reserve-credits", resErr) }),
+            { status: 500, headers: CORS },
+          );
         }
         if (!reserved) {
           return new Response(JSON.stringify({ ok: false, error: "Insufficient credits", insufficient: true }), { status: 402, headers: CORS });
@@ -129,8 +147,9 @@ export const Route = createFileRoute("/api/video-agent/submit")({
             _reason: "release_heygen_video_agent",
             _ref: reservationRef,
           });
-          const msg = e instanceof Error ? e.message : String(e);
-          const heygenCredit = /\b(402|insufficient.?credit|credit.?exhausted|40102)\b/i.test(msg);
+          const rawMsg = e instanceof Error ? e.message : String(e);
+          const heygenCredit = /\b(402|insufficient.?credit|credit.?exhausted|40102)\b/i.test(rawMsg);
+          const msg = safeErrorMessage("video-agent/submit:heygen-submit", e);
           return new Response(JSON.stringify({ ok: false, error: msg, heygenCredit }), { status: 502, headers: CORS });
         }
 
@@ -157,7 +176,7 @@ export const Route = createFileRoute("/api/video-agent/submit")({
             _ref: reservationRef,
           });
           return new Response(
-            JSON.stringify({ ok: false, error: `Failed to record submission: ${subErr.message}` }),
+            JSON.stringify({ ok: false, error: safeErrorMessage("video-agent/submit:record-submission", subErr) }),
             { status: 500, headers: CORS },
           );
         }

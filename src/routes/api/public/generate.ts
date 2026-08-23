@@ -7,6 +7,15 @@ import { type GenerateKind } from "@/lib/orchestrator.server";
 import { reserveOrchestrateRecord } from "@/lib/generate-core.server";
 import { assertTrustedUrl } from "@/lib/url-guard";
 import { detectFeatures, computeCost, type Feature } from "@/lib/pricing";
+import { assertRateLimit, RateLimitError } from "@/lib/rate-limit.server";
+
+// Abuse guard: credits already gate cost, but this endpoint also triggers
+// real provider API calls (and SSRF/URL-guard work) per request, so cap the
+// raw request rate independent of balance — a misbehaving script or replay
+// loop shouldn't be able to hammer providers just because the account still
+// has credits.
+const GENERATE_RATE_WINDOW_MS = 60_000;
+const GENERATE_RATE_MAX_PER_WINDOW = 20;
 
 const Schema = z.object({
   kind: z.enum(["image", "video", "lipsync", "upscale", "text", "audio"]),
@@ -50,6 +59,12 @@ const Schema = z.object({
   // that preserve facial likeness when imageUrls is supplied. Equivalent to
   // the editStrict flag used by the Photo Edit and Split Reality tools.
   editStrict: z.boolean().optional(),
+  // Idempotency: identifies one logical "Generate" action so a network-level
+  // retry or a client retry after an ambiguous timeout replays the first
+  // attempt's result instead of paying for and creating a second generation.
+  // Reuse the same key when retrying the exact same action; use a fresh key
+  // for a genuinely new request.
+  idempotencyKey: z.string().min(8).max(200).optional(),
 });
 
 async function authUserId(req: Request): Promise<string | null> {
@@ -93,6 +108,17 @@ export const Route = createFileRoute("/api/public/generate")({
               status: 401,
               headers: cors,
             });
+          }
+          try {
+            assertRateLimit(`generate:${userId}`, GENERATE_RATE_MAX_PER_WINDOW, GENERATE_RATE_WINDOW_MS);
+          } catch (e) {
+            if (e instanceof RateLimitError) {
+              return new Response(JSON.stringify({ ok: false, error: e.message }), {
+                status: 429,
+                headers: cors,
+              });
+            }
+            throw e;
           }
           const body = await request.json();
           const data = Schema.parse(body);
@@ -226,10 +252,12 @@ export const Route = createFileRoute("/api/public/generate")({
             cost,
             reason: previewPass ? `public_generate_${data.kind}_preview` : `public_generate_${data.kind}`,
             mode: previewPass ? "preview" : undefined,
+            idempotencyKey: data.idempotencyKey,
           });
           if (!outcome.ok) {
+            const duplicateInFlight = outcome.error === "A generation with this request is already in progress.";
             return new Response(JSON.stringify({ error: outcome.error }), {
-              status: outcome.insufficient ? 402 : 400,
+              status: outcome.insufficient ? 402 : duplicateInFlight ? 409 : 400,
               headers: cors,
             });
           }

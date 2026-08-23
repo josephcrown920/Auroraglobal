@@ -813,6 +813,71 @@ describe("kling-3.0-omni routing (regression guard)", () => {
   });
 });
 
+// ─── Identity context survives across fallback candidates (audit gap) ─────────
+// The provider-fallback audit flagged that identity/reference context
+// (imageUrls, prompt) is carried via the single shared GenerateRequest object
+// reused across every candidate attempt — never rebuilt or dropped mid-loop.
+// Prove this explicitly for a case where the FIRST candidate fails and a
+// SECOND candidate must still receive the exact same reference image, so a
+// future refactor that clones/narrows the request per-attempt gets caught.
+describe("identity context (imageUrls) is identical across every fallback attempt", () => {
+  beforeEach(() => {
+    for (const k of ENV_KEYS) delete process.env[k];
+    for (const p of PROVIDER_NAMES) markSuccess(p);
+    // Reset provider-SDK stubs to their defaults — a prior describe block
+    // (kling-3.0-omni routing) leaves these pointed at Replicate-succeeds
+    // behavior, which would otherwise leak into this suite's "only lovable
+    // and fal are reachable" assumption.
+    getReplicateKeyImpl = () => undefined;
+    replicateRunImpl = async () => {
+      throw new Error("replicateRun not configured for this test");
+    };
+  });
+  afterEach(() => {
+    globalThis.fetch = realFetch;
+  });
+
+  it("passes the same imageUrls to fal after lovable fails, for an unpinned identity-edit request", async () => {
+    process.env.LOVABLE_API_KEY = "lk";
+    process.env.FAL_KEY = "fk";
+    const LOVABLE_URL = "ai.gateway.lovable.dev";
+    const FAL_URL = "fal.run";
+    const refImage = "https://ref.example/face-lock.jpg";
+    // Same shape as the "falls through to the next provider when the first one
+    // throws" precedent above: pinning a model + providing imageUrls keeps the
+    // candidate list to a single entry, so only lovable then fal are ever hit.
+    const { calls } = installFetch(({ url }) => {
+      if (url.includes(LOVABLE_URL))
+        return fakeResponse({ ok: false, status: 400, text: "bad gateway input" });
+      if (url.includes(FAL_URL))
+        return fakeResponse({ json: { images: [{ url: "https://img/fal.png" }] } });
+      throw new Error(`unexpected fetch ${url}`);
+    });
+
+    const res = await orchestrate({
+      kind: "image",
+      prompt: "same character, different pose",
+      model: "google/gemini-2.5-flash-image",
+      imageUrls: [refImage],
+    } as GenerateRequest);
+
+    expect(res.provider).toBe("fal");
+    const lovableCall = calls.find((c) => c.url.includes(LOVABLE_URL));
+    const falCall = calls.find((c) => c.url.includes(FAL_URL));
+    expect(lovableCall).toBeDefined();
+    expect(falCall).toBeDefined();
+    // The reference image the FIRST candidate saw (embedded in its request
+    // body) must be the exact same URL the fallback candidate received.
+    const lovableBody = JSON.parse(String(lovableCall!.init?.body));
+    const falBody = JSON.parse(String(falCall!.init?.body));
+    const lovableImageUrl = lovableBody?.messages?.[0]?.content?.find?.(
+      (c: { type?: string }) => c.type === "image_url",
+    )?.image_url?.url;
+    expect(lovableImageUrl).toBe(refImage);
+    expect(falBody.image_urls).toEqual([refImage]);
+  });
+});
+
 afterAll(() => {
   for (const k of ENV_KEYS) {
     if (savedEnv[k] === undefined) delete process.env[k];

@@ -3,6 +3,7 @@
 // Bearer token auth. CORS-open for the standalone Video Agent SPA.
 import { createFileRoute } from "@tanstack/react-router";
 import type { UntypedDb } from "@/integrations/supabase/untyped";
+import { safeErrorMessage } from "@/lib/safe-error.server";
 
 const CORS = {
   "Content-Type": "application/json",
@@ -82,7 +83,7 @@ export const Route = createFileRoute("/api/video-agent/status/$videoId")({
           return new Response(JSON.stringify({ status, url, error: errorMsg }), { headers: CORS });
         } catch (e) {
           return new Response(
-            JSON.stringify({ status: "error", error: e instanceof Error ? e.message : String(e) }),
+            JSON.stringify({ status: "error", error: safeErrorMessage("video-agent/status:heygen-poll", e) }),
             { status: 500, headers: CORS },
           );
         }

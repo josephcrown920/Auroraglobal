@@ -23,6 +23,8 @@ type Row = {
   created_at: string;
   email: string | null;
   displayName: string | null;
+  actorId: string | null;
+  actorEmail: string | null;
 };
 
 function LedgerPage() {
@@ -69,7 +71,7 @@ function LedgerPage() {
 
   const exportCsv = () => {
     if (!rows.length) return;
-    const header = ["created_at", "user_email", "display_name", "user_id", "delta", "reason", "ref_id"];
+    const header = ["created_at", "user_email", "display_name", "user_id", "delta", "reason", "ref_id", "actor_email", "actor_id"];
     const escape = (v: unknown) => {
       const s = v == null ? "" : String(v);
       return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
@@ -77,7 +79,7 @@ function LedgerPage() {
     const lines = [header.join(",")];
     for (const r of rows) {
       lines.push(
-        [r.created_at, r.email ?? "", r.displayName ?? "", r.user_id, r.delta, r.reason ?? "", r.ref_id ?? ""]
+        [r.created_at, r.email ?? "", r.displayName ?? "", r.user_id, r.delta, r.reason ?? "", r.ref_id ?? "", r.actorEmail ?? "", r.actorId ?? ""]
           .map(escape)
           .join(","),
       );
@@ -177,13 +179,14 @@ function LedgerPage() {
                       <th className="px-4 py-3 text-left">User</th>
                       <th className="px-4 py-3 text-left">Reason</th>
                       <th className="px-4 py-3 text-left">Ref</th>
+                      <th className="px-4 py-3 text-left">By</th>
                       <th className="px-4 py-3 text-right">Δ Aura</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border/50">
                     {rows.length === 0 && (
                       <tr>
-                        <td colSpan={5} className="px-4 py-8 text-center text-sm text-muted-foreground">
+                        <td colSpan={6} className="px-4 py-8 text-center text-sm text-muted-foreground">
                           No entries match these filters.
                         </td>
                       </tr>
@@ -199,6 +202,9 @@ function LedgerPage() {
                         </td>
                         <td className="px-4 py-2.5 text-muted-foreground">{r.reason ?? "—"}</td>
                         <td className="px-4 py-2.5 font-mono text-xs text-muted-foreground">{r.ref_id ?? "—"}</td>
+                        <td className="px-4 py-2.5 text-muted-foreground">
+                          {r.actorEmail ?? (r.actorId ? <span className="font-mono text-[11px]">{r.actorId}</span> : "—")}
+                        </td>
                         <td
                           className={`px-4 py-2.5 text-right tabular-nums font-semibold ${
                             r.delta >= 0 ? "text-emerald-400" : "text-destructive"

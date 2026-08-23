@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { hasBackendEnv } from "@/integrations/backend-config";
 import type { Session, User } from "@supabase/supabase-js";
+import { hasAnalyticsConsent } from "@/lib/consent";
+import { identifyPosthogUser, resetPosthogUser } from "@/lib/posthog";
 
 // Supabase stores the session under this key in localStorage.
 // Project ref is derived from VITE_SUPABASE_URL: tpzmvbczwahxajujvnrq
@@ -43,15 +45,30 @@ export function useAuth() {
     const sessionPromise = supabase.auth.getSession().then(({ data }) => {
       setSession(data.session);
       setUser(data.session?.user ?? null);
-      setLoading(false);
+      // Associate this session's future analytics events with the user id.
+      // Never awaited/blocking; identify() itself no-ops without consent.
+      if (data.session?.user) {
+        if (hasAnalyticsConsent()) identifyPosthogUser(data.session.user.id);
+      } else {
+        // No signed-in user on this load — clear any identity PostHog may
+        // have persisted from a previous session on a shared browser, so
+        // a signed-out visitor is never attributed to the last logged-in
+        // user's id.
+        resetPosthogUser();
+      }
     });
 
     // 2. Listen for subsequent auth events (sign-in, sign-out, token refresh).
     //    onAuthStateChange can fire SIGNED_OUT before getSession resolves on
     //    some Supabase versions, so we intentionally do NOT use it to set loading.
-    const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => {
+    const { data: sub } = supabase.auth.onAuthStateChange((event, s) => {
       setSession(s);
       setUser(s?.user ?? null);
+      if (event === "SIGNED_IN" && s?.user && hasAnalyticsConsent()) {
+        identifyPosthogUser(s.user.id);
+      } else if (event === "SIGNED_OUT") {
+        resetPosthogUser();
+      }
     });
 
     // Safety net: only unblock the UI if getSession truly stalls.

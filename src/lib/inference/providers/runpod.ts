@@ -52,6 +52,7 @@ export const runpodAdapter: ProviderAdapter = {
         Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({ input: jobBody(input) }),
+      signal: AbortSignal.timeout(60_000),
     });
 
     if (!res.ok) {

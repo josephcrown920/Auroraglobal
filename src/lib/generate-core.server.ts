@@ -22,8 +22,40 @@
 // unit-testable without a live database or provider.
 import { orchestrate, type GenerateKind } from "@/lib/orchestrator.server";
 import { persistResultUrl, resultMediaTypeForKind } from "./result-store.server";
+import type { Json } from "@/integrations/supabase/types";
 
 type RpcResult = { data: unknown; error: { message: string } | null };
+
+/**
+ * Generation-level idempotency (task: "one logical user action cannot create
+ * multiple paid generations because of double clicks, network retries, or
+ * provider timeouts"). Backed by public.generation_idempotency_keys, primary
+ * keyed on (user_id, idempotency_key) so only one concurrent attempt can
+ * "claim" a given key.
+ */
+export type IdempotencyRow = {
+  status: "pending" | "succeeded" | "failed";
+  response: unknown | null;
+  error: string | null;
+};
+
+export type IdempotencyDeps = {
+  /** Try to claim (userId, key) as a new in-flight attempt. */
+  claim: (
+    userId: string,
+    key: string,
+  ) => Promise<{ claimed: true } | { claimed: false; row: IdempotencyRow }>;
+  /** Record the terminal outcome of a claimed attempt. */
+  finish: (
+    userId: string,
+    key: string,
+    result:
+      | { status: "succeeded"; generationId: string; response: unknown }
+      | { status: "failed"; error: string },
+  ) => Promise<void>;
+  /** Delete a stale 'failed' row so a fresh attempt with the same key can proceed. */
+  clearFailed: (userId: string, key: string) => Promise<void>;
+};
 
 export type RenderDeps = {
   rpc: (name: string, args: Record<string, unknown>) => Promise<RpcResult>;
@@ -32,6 +64,8 @@ export type RenderDeps = {
   persistUrl?: typeof persistResultUrl;
   /** Injectable daily-budget guard (omit to use live Supabase; inject in tests). */
   dailyBudget?: import("./cost-guardrails.server").DailyBudgetDeps;
+  /** Injectable idempotency-key store (omit to use live Supabase; inject in tests). */
+  idempotency?: IdempotencyDeps;
 };
 
 export type RenderInput = {
@@ -64,6 +98,15 @@ export type RenderInput = {
   segments?: Array<{ start: number; end: number; text: string }>;
   /** Aspect ratio forwarded to the provider (e.g. "16:9", "9:16", "1:1"). */
   aspectRatio?: string;
+  /**
+   * Opaque client-supplied key identifying one logical user action (e.g. one
+   * "Generate" click). When set, a repeat call with the same (userId, key) —
+   * from a double click, a network-level retry, or a client retry after an
+   * ambiguous provider timeout — reuses the first attempt's outcome instead
+   * of reserving credits and calling a provider again. Omit for internal
+   * callers (agent shots, templates, etc.) — behavior is unchanged when unset.
+   */
+  idempotencyKey?: string;
 };
 
 export type RenderOutcome =
@@ -90,11 +133,152 @@ async function buildDefaultDeps(): Promise<RenderDeps> {
   };
 }
 
+async function buildDefaultIdempotencyDeps(): Promise<IdempotencyDeps> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const table = () => supabaseAdmin.from("generation_idempotency_keys");
+  return {
+    async claim(userId, key) {
+      const { error } = await table().insert({
+        user_id: userId,
+        idempotency_key: key,
+        status: "pending",
+      });
+      if (!error) return { claimed: true };
+      // 23505 = unique_violation on the (user_id, idempotency_key) primary key —
+      // another attempt already holds or finished this key.
+      if ((error as { code?: string }).code !== "23505") {
+        throw new Error(`Failed to claim idempotency key: ${error.message}`);
+      }
+      const { data, error: selErr } = await table()
+        .select("status, response, error")
+        .eq("user_id", userId)
+        .eq("idempotency_key", key)
+        .maybeSingle();
+      if (selErr || !data) {
+        throw new Error(
+          `Failed to read existing idempotency key after conflict: ${selErr?.message ?? "row not found"}`,
+        );
+      }
+      return { claimed: false, row: data as unknown as IdempotencyRow };
+    },
+    async finish(userId, key, result) {
+      const patch =
+        result.status === "succeeded"
+          ? {
+              status: "succeeded" as const,
+              generation_id: result.generationId,
+              response: result.response as Json,
+              updated_at: new Date().toISOString(),
+            }
+          : { status: "failed" as const, error: result.error, updated_at: new Date().toISOString() };
+      const { error } = await table().update(patch).eq("user_id", userId).eq("idempotency_key", key);
+      if (error) throw new Error(`Failed to record idempotency key result: ${error.message}`);
+    },
+    async clearFailed(userId, key) {
+      const { error } = await table()
+        .delete()
+        .eq("user_id", userId)
+        .eq("idempotency_key", key)
+        .eq("status", "failed");
+      if (error) throw new Error(`Failed to clear stale idempotency key: ${error.message}`);
+    },
+  };
+}
+
 export async function reserveOrchestrateRecord(
   input: RenderInput,
   deps?: RenderDeps,
 ): Promise<RenderOutcome> {
   const d = deps ?? (await buildDefaultDeps());
+  if (!input.idempotencyKey) {
+    return performRender(input, d);
+  }
+  return reserveOrchestrateRecordIdempotent(input, input.idempotencyKey, d);
+}
+
+/**
+ * Idempotency wrapper around performRender. See IdempotencyDeps for the
+ * claim/finish/clearFailed contract. Bounded to two attempts: the first
+ * claim, and — only if that claim finds a stale 'failed' row from a prior,
+ * already-refunded attempt — one fresh retry after clearing it.
+ */
+async function reserveOrchestrateRecordIdempotent(
+  input: RenderInput,
+  key: string,
+  d: RenderDeps,
+): Promise<RenderOutcome> {
+  const idem = d.idempotency ?? (await buildDefaultIdempotencyDeps());
+
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const claim = await idem.claim(input.userId, key);
+
+    if (claim.claimed) {
+      try {
+        const outcome = await performRender(input, d);
+        if (outcome.ok) {
+          try {
+            await idem.finish(input.userId, key, {
+              status: "succeeded",
+              generationId: outcome.generationId,
+              response: outcome,
+            });
+          } catch (finishErr) {
+            // The render itself succeeded and the user was already charged
+            // correctly — never fail a delivered result over a bookkeeping
+            // write. Worst case: a genuine retry with this exact key later
+            // sees a stuck 'pending' row and is told "already in progress"
+            // instead of getting the cached result — it can never double-charge.
+            console.error(
+              `[idempotency] failed to record success for key ${key} (generation ${outcome.generationId}):`,
+              finishErr instanceof Error ? finishErr.message : finishErr,
+            );
+          }
+        } else {
+          // A clean (non-throwing) failure such as insufficient credits never
+          // reserved anything — record it as failed so a retry with the same
+          // key is free to try again immediately.
+          try {
+            await idem.finish(input.userId, key, { status: "failed", error: outcome.error });
+          } catch (finishErr) {
+            const finishMsg = finishErr instanceof Error ? finishErr.message : String(finishErr);
+            throw new Error(`${outcome.error}; additionally failed to record idempotency-key failure: ${finishMsg}`);
+          }
+        }
+        return outcome;
+      } catch (e) {
+        const message = e instanceof Error ? e.message : String(e);
+        try {
+          await idem.finish(input.userId, key, { status: "failed", error: message });
+        } catch (finishErr) {
+          const finishMsg = finishErr instanceof Error ? finishErr.message : String(finishErr);
+          throw new Error(`${message}; additionally failed to record idempotency-key failure: ${finishMsg}`);
+        }
+        throw e;
+      }
+    }
+
+    if (claim.row.status === "succeeded") {
+      if (claim.row.response) return claim.row.response as RenderOutcome;
+      return {
+        ok: false,
+        error: "This generation already completed, but its cached result could not be found. Please refresh.",
+      };
+    }
+    if (claim.row.status === "pending") {
+      return { ok: false, error: "A generation with this request is already in progress." };
+    }
+    // status === "failed": the earlier attempt already released its credit
+    // reservation (performRender's catch block guarantees this). Clear the
+    // stale marker and loop once to claim fresh.
+    await idem.clearFailed(input.userId, key);
+  }
+
+  // Defensive fallback — should be unreachable outside a claim/clearFailed
+  // race against itself. Fail closed rather than risk a silent double-charge.
+  return { ok: false, error: "Could not process this request due to a conflicting retry. Please try again." };
+}
+
+async function performRender(input: RenderInput, d: RenderDeps): Promise<RenderOutcome> {
   const reservationRef = crypto.randomUUID();
   let reservedAmount = 0;
 

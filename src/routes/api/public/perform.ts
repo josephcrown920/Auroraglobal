@@ -7,6 +7,13 @@
 // web /motion wizard (_enqueuePerformanceReskin) so guards, the
 // preview-confirm gate, and pricing never drift between surfaces.
 import { createFileRoute } from "@tanstack/react-router";
+import { assertRateLimit, RateLimitError } from "@/lib/rate-limit.server";
+
+// Abuse guard: performance reskins call real video-generation providers, so
+// cap raw request rate independent of the credit balance (mirrors
+// /api/public/generate's guard).
+const PERFORM_RATE_WINDOW_MS = 60_000;
+const PERFORM_RATE_MAX_PER_WINDOW = 15;
 
 async function authUserId(req: Request): Promise<string | null> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -47,6 +54,17 @@ export const Route = createFileRoute("/api/public/perform")({
               status: 401,
               headers: cors,
             });
+          }
+          try {
+            assertRateLimit(`perform:${userId}`, PERFORM_RATE_MAX_PER_WINDOW, PERFORM_RATE_WINDOW_MS);
+          } catch (e) {
+            if (e instanceof RateLimitError) {
+              return new Response(JSON.stringify({ ok: false, error: e.message }), {
+                status: 429,
+                headers: cors,
+              });
+            }
+            throw e;
           }
           const body = await request.json();
           const { _enqueuePerformanceReskin, PerformanceReskinSchema, NO_MOTION_BACKEND_MSG } =

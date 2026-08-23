@@ -1,7 +1,7 @@
 import { createLazyFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, ArrowRight, BookOpen, Sparkles } from "lucide-react";
+import { ArrowLeft, ArrowRight, BookOpen, Camera, Film, Sparkles } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { getMyProfile } from "@/lib/billing.functions";
 import {
@@ -134,6 +134,9 @@ function TemplatesPage() {
                   </span>
                 </div>
                 <div className="no-scrollbar -mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-1">
+                  {cat === shownCategories[0] && (
+                    <DirectYourShootCard onSelect={() => navigateTo({ to: "/scene-builder" })} />
+                  )}
                   {items.map((t) => (
                     <TemplateCard
                       key={t.id}
@@ -168,6 +171,49 @@ function TemplatesPage() {
         />
       )}
     </main>
+  );
+}
+
+/** Quick-access shortcut into the Scene Builder — always the first card in the grid. */
+function DirectYourShootCard({ onSelect }: { onSelect: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      className="group relative w-40 shrink-0 snap-start overflow-hidden rounded-2xl bg-card text-left shadow-[var(--shadow-card)] transition-transform active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+    >
+      <div className="relative aspect-[3/4] w-full overflow-hidden bg-gradient-to-br from-violet-600/40 via-violet-950 to-black">
+        {/* SHOOT badge */}
+        <span className="absolute top-2.5 left-2.5 z-10 inline-flex items-center gap-1 rounded-full bg-violet-500/90 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wider text-white shadow-[var(--shadow-glow-soft)] backdrop-blur">
+          <Camera className="size-2.5" /> Shoot
+        </span>
+        {/* Mini reference-slot mockup */}
+        <div className="absolute inset-x-3 top-1/2 grid -translate-y-1/2 grid-cols-3 gap-1.5">
+          {["You", "Outfit", "Scene"].map((label) => (
+            <div
+              key={label}
+              className="flex items-end justify-center rounded-md border border-violet-300/30 bg-violet-300/10 pb-1"
+              style={{ aspectRatio: "3/4" }}
+            >
+              <span className="text-[7px] font-bold uppercase tracking-wider text-violet-200/70">{label}</span>
+            </div>
+          ))}
+        </div>
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
+        <div className="absolute inset-x-0 bottom-0 p-3">
+          <div className="flex items-center gap-1.5">
+            <Film className="size-3.5 text-violet-300" />
+            <span className="text-[13px] uppercase tracking-[0.14em] text-white/70">Scene Builder</span>
+          </div>
+          <h3 className="mt-0.5 text-sm font-semibold text-white leading-tight">Direct Your Shoot</h3>
+        </div>
+      </div>
+      <div className="p-3">
+        <p className="text-xs text-muted-foreground leading-snug line-clamp-2">
+          Drop your references — we'll stage the studio.
+        </p>
+      </div>
+    </button>
   );
 }
 

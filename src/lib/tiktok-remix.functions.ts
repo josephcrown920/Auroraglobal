@@ -170,6 +170,7 @@ export async function generateConcepts(
           },
         ],
       }),
+      signal: AbortSignal.timeout(30_000),
     });
     if (!res.ok) throw new Error(`gemini ${res.status}`);
     const j = await res.json();

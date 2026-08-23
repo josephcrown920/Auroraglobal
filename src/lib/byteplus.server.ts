@@ -84,6 +84,7 @@ export async function bytePlusImage(opts: {
     method: "POST",
     headers: authHeaders(),
     body: JSON.stringify(body),
+    signal: AbortSignal.timeout(45_000),
   });
   if (!res.ok) {
     const t = await res.text();
@@ -135,6 +136,7 @@ export async function bytePlusVideo(opts: BytePlusVideoOpts): Promise<string> {
     method: "POST",
     headers: authHeaders(),
     body: JSON.stringify({ model: opts.model, content }),
+    signal: AbortSignal.timeout(45_000),
   });
   if (!create.ok) {
     const t = await create.text();
@@ -155,6 +157,7 @@ export async function bytePlusVideo(opts: BytePlusVideoOpts): Promise<string> {
     delay = Math.min(delay + 1_000, 6_000);
     const poll = await fetch(`${base}/contents/generations/tasks/${encodeURIComponent(taskId)}`, {
       headers: authHeaders(),
+      signal: AbortSignal.timeout(20_000),
     });
     if (!poll.ok) {
       // Transient outages (5xx / rate-limit) → keep polling; hard 4xx → give up.

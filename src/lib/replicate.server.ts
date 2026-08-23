@@ -120,6 +120,7 @@ export async function replicateRun(
     method: "POST",
     headers: authHeaders(),
     body: JSON.stringify({ input }),
+    signal: AbortSignal.timeout(45_000),
   });
   if (!create.ok) {
     const t = await create.text();
@@ -137,6 +138,7 @@ export async function replicateRun(
     delay = Math.min(delay + 1000, 6000);
     const poll = await fetch(`${REPLICATE_API}/predictions/${created.id}`, {
       headers: authHeaders(),
+      signal: AbortSignal.timeout(20_000),
     });
     if (!poll.ok) {
       const t = await poll.text();
@@ -176,7 +178,7 @@ export function pickReplicateUrl(output: unknown): string {
 }
 
 export async function fetchToBytes(url: string): Promise<{ bytes: Buffer; mime: string }> {
-  const r = await fetch(url);
+  const r = await fetch(url, { signal: AbortSignal.timeout(20_000) });
   if (!r.ok) throw new Error(`Failed to fetch ${url}`);
   const buf = Buffer.from(await r.arrayBuffer());
   return { bytes: buf, mime: r.headers.get("content-type") || "application/octet-stream" };

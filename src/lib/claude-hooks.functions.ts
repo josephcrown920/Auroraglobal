@@ -274,6 +274,7 @@ async function callClaude(
       system: BASE_SYSTEM,
       messages: [{ role: "user", content: userMsg }],
     }),
+    signal: AbortSignal.timeout(45_000),
   });
 
   if (!res.ok) {
@@ -365,6 +366,7 @@ Output a JSON object with exactly these fields:
         system: systemPrompt,
         messages: [{ role: "user", content: userMsg }],
       }),
+      signal: AbortSignal.timeout(30_000),
     });
 
     if (!res.ok) throw new Error(`Claude API error ${res.status}`);

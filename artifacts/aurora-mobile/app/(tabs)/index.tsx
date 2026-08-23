@@ -5,6 +5,7 @@ import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
 import { LinearGradient } from "expo-linear-gradient";
 import React, { useCallback, useMemo, useRef, useState } from "react";
+import { randomUploadId } from "@/lib/reference-image";
 import {
   ActivityIndicator,
   Alert,
@@ -345,6 +346,10 @@ export default function HomeScreen() {
   };
 
   const handleGenerate = async () => {
+    // Fast double-tap guard: the button disables on the next render, but a
+    // second tap that lands before that re-render would otherwise fire a
+    // second concurrent (and separately charged) generation.
+    if (generating) return;
     if (credits < CREDIT_COST) {
       Alert.alert(
         "Not enough Aura",
@@ -376,6 +381,7 @@ export default function HomeScreen() {
         kind: selectedPreset.kind,
         prompt: finalPrompt,
         imageUrls,
+        idempotencyKey: randomUploadId(),
       });
 
       if (gen.url) {

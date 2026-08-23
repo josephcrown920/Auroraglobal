@@ -807,6 +807,50 @@ function StudioPage() {
         )}
 
 
+        {/* Direct Your Shoot — quick-access shortcut into the Scene Builder */}
+        <div className="px-4 pt-5 pb-2">
+          <Link
+            to="/scene-builder"
+            className="group relative block overflow-hidden rounded-2xl border border-[#8b5cf6]/30 bg-gradient-to-br from-[#8b5cf6]/12 via-zinc-900 to-zinc-950 no-underline transition-all hover:border-[#8b5cf6]/55 active:scale-[0.99]"
+          >
+            <div aria-hidden className="pointer-events-none absolute -top-10 right-0 h-32 w-56 rounded-full bg-[#8b5cf6]/15 blur-[60px]" />
+            <div className="relative p-4 space-y-3">
+              <div className="flex items-center justify-between gap-2">
+                <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-[#a78bfa]">
+                  <Camera className="size-3" /> Direct Your Shoot
+                </p>
+                <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-white/12 bg-white/5 px-2 py-0.5 text-[10px] font-semibold text-zinc-400">
+                  <Film className="size-2.5 text-[#a78bfa]" /> Motion Clip (optional)
+                </span>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                {([["You", selfie], ["Outfit", outfit], ["Scene", scene]] as const).map(([label, url]) => (
+                  <div
+                    key={label}
+                    className="relative overflow-hidden rounded-xl border border-[#8b5cf6]/25 bg-[#8b5cf6]/6"
+                    style={{ aspectRatio: "3/4" }}
+                  >
+                    {url ? (
+                      <img src={url} alt={`${label} reference`} className="absolute inset-0 h-full w-full object-cover" />
+                    ) : (
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <Camera className="size-4 text-[#8b5cf6]/50" />
+                      </div>
+                    )}
+                    <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent px-1.5 pb-1 pt-4 text-center text-[9px] font-bold uppercase tracking-wider text-white/80">
+                      {label}
+                    </span>
+                  </div>
+                ))}
+              </div>
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-xs text-zinc-500">Drop your references — we'll stage the studio.</p>
+                <span className="shrink-0 text-xs font-semibold text-[#a78bfa] transition-transform group-hover:translate-x-0.5">Open →</span>
+              </div>
+            </div>
+          </Link>
+        </div>
+
         {/* Ad Creative Studio — Meta + TikTok entry cards */}
         <AdCreativeSection />
 
