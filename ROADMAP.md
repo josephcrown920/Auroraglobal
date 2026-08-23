@@ -12,7 +12,7 @@ remains. ⛔ **Blocked** — needs something outside this session's tool access
 (dashboard config, business decision, paid tier). ⬜ **Remaining** —
 identified, not yet started, no blocker.
 
-Last full audit: 2026-08-22.
+Last full audit: 2026-08-22. Last update: 2026-08-23 (§11 sign-in providers).
 
 ---
 
@@ -255,6 +255,34 @@ side effects, both **ran successfully against the live DB**):
   unrelated `webServer` boot-timeout issue, not a regression introduced by
   this session's changes.
 
+## 11. Sign-in providers — 🔶 Fixed in-app / ⛔ enabling more providers is dashboard-blocked
+
+**Found 2026-08-23 (user report: sign-in says "provider is not enabled").**
+The live Supabase project (checked via its public `/auth/v1/settings`
+endpoint) has only **email/password, GitHub OAuth, and passkeys** enabled.
+Google and Apple OAuth are **disabled** at the Supabase level, but the
+`/auth` page rendered all three OAuth buttons unconditionally — so clicking
+"Continue with Google" or "Continue with Apple" always failed with
+Supabase's "provider is not enabled" error.
+
+**Fixed in-app:** `src/routes/auth.lazy.tsx` now fetches the same public
+settings endpoint on mount and only renders OAuth buttons for providers that
+are actually enabled (currently: GitHub only). If the settings fetch fails,
+it falls back to showing every button rather than hiding a working provider.
+No code change is needed later — the moment a provider is switched on in the
+Supabase dashboard, its button reappears automatically.
+
+**⛔ Blocked on dashboard access (manual owner action):** actually offering
+Google/Apple sign-in requires enabling each provider in the Supabase
+dashboard (**Authentication → Providers**) with real credentials:
+- **Google:** an OAuth client ID/secret from Google Cloud Console, with the
+  Supabase callback URL registered.
+- **Apple:** an Apple Developer account (paid), a Services ID, and a signed
+  client secret key.
+
+Until then, the sign-in page correctly offers email/password, GitHub, and
+passkeys only.
+
 ---
 
 ## Summary scorecard
@@ -271,6 +299,7 @@ side effects, both **ran successfully against the live DB**):
 | 8. Performance | 🔶 In progress (deliberate) |
 | 9. Concurrency / idempotency tests | ✅ Verified complete |
 | 10. Final validation | ✅ Verified complete |
+| 11. Sign-in providers | 🔶 Fixed in-app / ⛔ Google & Apple need dashboard enable |
 
 ## Historical feature roadmap
 

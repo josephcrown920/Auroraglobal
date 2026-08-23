@@ -84,6 +84,33 @@ function AuthPage() {
   // Passkeys only work in a real browser tab — in-app/embedded webviews deny
   // the Face ID prompt before we can authenticate.
   const canUsePasskeys = biometricSupported && !embeddedBrowser;
+  // Which OAuth providers are actually enabled on the Supabase project.
+  // Clicking a disabled provider's button just errors with "provider is not
+  // enabled", so we ask Supabase's public settings endpoint and only render
+  // buttons for providers that will actually work. `null` = unknown (fetch
+  // pending/failed) — in that case we fall back to showing every button
+  // rather than hiding a working provider behind a transient network error.
+  const [enabledProviders, setEnabledProviders] = useState<Record<string, boolean> | null>(null);
+  useEffect(() => {
+    const url = import.meta.env.VITE_SUPABASE_URL;
+    const key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+    if (!url || !key) return;
+    const controller = new AbortController();
+    void fetch(`${url}/auth/v1/settings`, { headers: { apikey: key }, signal: controller.signal })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((json: { external?: Record<string, boolean> } | null) => {
+        if (json?.external && typeof json.external === "object") {
+          setEnabledProviders(json.external);
+        }
+      })
+      .catch(() => {
+        /* unknown — keep showing all buttons */
+      });
+    return () => controller.abort();
+  }, []);
+  const providerEnabled = (name: "google" | "github" | "apple") =>
+    enabledProviders === null || enabledProviders[name] === true;
+  const anyOAuthEnabled = providerEnabled("google") || providerEnabled("github") || providerEnabled("apple");
 
   useEffect(() => {
     setHydrated(true);
@@ -636,37 +663,45 @@ function AuthPage() {
           </p>
         )}
 
-        <div className="mt-5 flex items-center gap-3">
-          <span className="h-px flex-1 bg-border" />
-          <span className="text-[10px] uppercase tracking-wider text-muted-foreground">or</span>
-          <span className="h-px flex-1 bg-border" />
-        </div>
-        <Button
-          type="button"
-          variant="outline"
-          disabled={googleBusy}
-          onClick={handleGoogleSignIn}
-          className="mt-3 w-full h-11"
-        >
-          {googleBusy ? "Signing in..." : <><GoogleIcon className="mr-2 size-4" /> Continue with Google</>}
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          disabled={githubBusy}
-          onClick={handleGithubSignIn}
-          className="mt-2 w-full h-11"
-        >
-          {githubBusy ? "Signing in..." : <><Github className="mr-2 size-4" /> Continue with GitHub</>}
-        </Button>
-        <Button
-          type="button"
-          disabled={appleBusy}
-          onClick={handleAppleSignIn}
-          className="mt-2 w-full h-11 bg-black hover:bg-zinc-900 text-white border border-zinc-700"
-        >
-          {appleBusy ? "Signing in..." : <><AppleIcon className="mr-2 size-4" /> Continue with Apple</>}
-        </Button>
+        {anyOAuthEnabled && (
+          <div className="mt-5 flex items-center gap-3">
+            <span className="h-px flex-1 bg-border" />
+            <span className="text-[10px] uppercase tracking-wider text-muted-foreground">or</span>
+            <span className="h-px flex-1 bg-border" />
+          </div>
+        )}
+        {providerEnabled("google") && (
+          <Button
+            type="button"
+            variant="outline"
+            disabled={googleBusy}
+            onClick={handleGoogleSignIn}
+            className="mt-3 w-full h-11"
+          >
+            {googleBusy ? "Signing in..." : <><GoogleIcon className="mr-2 size-4" /> Continue with Google</>}
+          </Button>
+        )}
+        {providerEnabled("github") && (
+          <Button
+            type="button"
+            variant="outline"
+            disabled={githubBusy}
+            onClick={handleGithubSignIn}
+            className="mt-2 w-full h-11"
+          >
+            {githubBusy ? "Signing in..." : <><Github className="mr-2 size-4" /> Continue with GitHub</>}
+          </Button>
+        )}
+        {providerEnabled("apple") && (
+          <Button
+            type="button"
+            disabled={appleBusy}
+            onClick={handleAppleSignIn}
+            className="mt-2 w-full h-11 bg-black hover:bg-zinc-900 text-white border border-zinc-700"
+          >
+            {appleBusy ? "Signing in..." : <><AppleIcon className="mr-2 size-4" /> Continue with Apple</>}
+          </Button>
+        )}
 
         <div className="mt-6 flex items-center justify-between text-sm text-muted-foreground">
           <span />
