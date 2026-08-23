@@ -22,16 +22,17 @@ AI video, AI image generator, performance video, creative studio, music video, c
 
 ## Screenshot deliverables
 
-Run `npm run store-assets` from `artifacts/aurora-mobile` to recreate the gallery.
+Run `npm run store-assets` from `artifacts/aurora-mobile` to recreate the launch-creative gallery.
 
-- `store-assets/ios/` — four 1290 × 2796 PNGs for the required 6.7-inch iPhone App Store slot.
-- `store-assets/android/` — four 1440 × 2560 PNGs (9:16) plus `feature-graphic.png` at 1024 × 500 for Google Play.
-- Order the screenshots as numbered. The first three communicate the primary value, the Perform Anywhere differentiator, and the gallery outcome.
+- `store-assets/ios/` — four 1290 × 2796 PNG source graphics for the 6.7-inch iPhone App Store slot.
+- `store-assets/android/` — four 1440 × 2560 PNG source graphics (9:16) plus `feature-graphic.png` at 1024 × 500 for Google Play.
+- For the Play listing, capture the matching screens from the actual Android app at the recommended 1080 × 1920 portrait size; these generated graphics are reference/launch creative and do not replace device captures.
+- Keep the screenshot order numbered. The first three communicate the primary value, the Perform Anywhere differentiator, and the gallery outcome.
 
 ## Pre-submission checklist
 
 1. Confirm the App Store Connect and Google Play Console app records use `com.aurorastudio.app`.
-2. Upload the matching gallery from `store-assets/`; do not mix device sizes in an App Store screenshot set.
+2. Capture and upload the matching device gallery; do not mix device sizes in an App Store screenshot set. Use `store-assets/` as the visual source when composing those captures.
 3. Complete each store’s data-safety/privacy questionnaire with the actual product behavior. This repo’s privacy policy URL is already set in `app.json`, but the questionnaires still require a human review.
 4. Aurora currently hands billing off to web-based Paystack checkout. Review Apple and Google’s digital-goods payment rules with counsel or the relevant store policy team before submitting a build that exposes credit purchases. Android v1 remains consumption-only: no Play Billing or Aura top-ups.
 5. Test sign-in, generation, gallery, sharing, image-library permission, and the Paystack handoff on a real device before promoting beyond internal testing.

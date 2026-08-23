@@ -1,6 +1,6 @@
 # Aurora Studio — Store Submission Guide
 
-> Last updated: 2026-08-15
+> Last updated: 2026-08-23
 
 ## Current Status
 
@@ -16,10 +16,10 @@
 | `eas.json` production build profiles | ✅ | Android AAB + iOS store build distribution; no submission profiles |
 | EAS project linked | ✅ | ID `9927fad2-c399-4ae3-8727-614a2c751184` (`@nbajoshs-organization/aurora-performance-studio`) |
 | EXPO_TOKEN authenticated | ✅ | Account: `nbajosh` / org: `nbajoshs-organization` |
-| **Android production AAB** | ✅ | Build `1c5efc61-5ec9-47d8-a26b-26a079732e63` finished 2026-07-21 |
-| **Local AAB copy (never expires)** | ✅ | `store/builds/aurora-studio-v1.0.0-vc1-1c5efc61.aab` (65.5 MB, gitignored). sha256 `63688d070518e62c5bed6663ae123ab8328357c4b1de0658d4643324064c981f`. The EAS download link expires **2026-08-20** — after that, use this local copy. ⚠️ vc1 predates the store-policy fixes below — fine for a first internal-track smoke, but upload **vc2** for anything reviewers see. |
+| **Android production AAB — upload this** | ✅ | Build `70a20985-edf7-4ebc-92fe-a215b9fc8d31` finished 2026-08-15; versionCode 2 |
+| **Local AAB copy (never expires)** | ✅ | `store/builds/aurora-studio-v1.0.0-vc2-70a20985.aab` (66.9 MB, gitignored). sha256 `f60c0ec1f6fc5980809c31ae5a9cd64694cc3c9f442a9400e8b527387e2eeb0f`. The EAS download link expires around **2026-09-14**; the local copy does not. |
 | **Store-policy compliance fixes (2026-08-15)** | ✅ | Purchase links AND all "top up" copy removed (Play/Apple digital-goods rule), in-app **account deletion** added (endpoint verified end-to-end incl. every storage namespace), unfinished Canvas tab hidden, `android.versionCode` → **2**. Ships in the vc2 build. |
-| **Web account-deletion page** | ✅ | `/delete-account` — required by Play's account-deletion policy (web resource usable without reinstalling). Goes live with the next web publish. Use `https://auroraperformancestudio.com/delete-account` as the **deletion URL in the Play Data safety form**. Privacy policy updated to disclose it + retention. |
+| **Web account-deletion page** | ✅ | `/delete-account` — required by Play's account-deletion policy (web resource usable without reinstalling). Verified in the current app; publish the web app before submitting the Play listing. Use `https://auroraperformancestudio.com/delete-account` as the **deletion URL in the Play Data safety form**. Privacy policy updated to disclose it + retention. |
 | **vc2 Android production AAB — UPLOAD THIS** | ✅ | `store/builds/aurora-studio-v1.0.0-vc2-70a20985.aab` (66.9 MB, gitignored) — EAS build `70a20985-edf7-4ebc-92fe-a215b9fc8d31`, finished 2026-08-15, versionCode 2. sha256 `f60c0ec1f6fc5980809c31ae5a9cd64694cc3c9f442a9400e8b527387e2eeb0f`. EAS download link expires ~2026-09-14; the local copy does not. |
 | `.gitignore` excludes store binaries | ✅ | `store/builds/`, `*.aab` |
 | Google Play Developer account | ⬜ | **Required first** — $25 one-time at play.google.com/console/signup (identity verification can take ~48h) |
@@ -60,7 +60,7 @@ The signed AAB is already built and saved in this workspace. Per Replit's mobile
 
 ### 3a. Download the AAB to your computer
 
-Use the **vc2** file in `artifacts/aurora-mobile/store/builds/` (named `...-vc2-70a20985.aab` once the build lands) → right-click → **Download**. It contains the store-policy fixes; the older `...-vc1-1c5efc61.aab` predates them and should only be used if you need to smoke-test before vc2 finishes.
+Use `artifacts/aurora-mobile/store/builds/aurora-studio-v1.0.0-vc2-70a20985.aab` → right-click → **Download**. It is the versionCode 2 build containing the store-policy fixes. The older `...-vc1-1c5efc61.aab` is retained only as an archive and must not be uploaded.
 
 ### 3b. Create the app record in Play Console
 
@@ -130,7 +130,7 @@ Copy content from `store-listing.md` into Play Console:
 
 ### Content rating
 1. Play Console → **Content rating → Start questionnaire**
-2. Category: **Utilities**
+2. Store category: **Photography** (matches `store-listing.md`; the content-rating questionnaire itself determines the rating)
 3. Answer: No violence, no sexual content, no user-generated content sharing publicly
 4. Expected rating: **Everyone**
 
