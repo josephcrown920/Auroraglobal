@@ -1251,7 +1251,9 @@ const BYTEPLUS_DEFAULTS: Record<string, BytePlusEntry> = {
   // that supports this model key: with BYTEPLUS_API_KEY absent, `supports()`
   // returns false and orchestrate() throws (no other adapter maps this key),
   // it does not silently degrade to a different model.
-  "fal-ai/seedream-5": { modelId: "seedream-5-0-260128", kind: "image" },
+  // Screenshot-confirmed ModelArk model (ap-southeast):
+  // dola-seedream-5-0-pro-260628.
+  "fal-ai/seedream-5": { modelId: "dola-seedream-5-0-pro-260628", kind: "image" },
   // seedance-1-0-pro-250528 (May 2025) was the original slug; the real
   // ByteDance "Seedance 2.0" branded checkpoint is dreamina-seedance-2-0-260128
   // (Jan 2026, confirmed present in the ModelArk catalog 2026-08-06 with
@@ -2964,7 +2966,7 @@ export const MODEL_REGISTRY: Record<string, ModelEntry> = (() => {
     // Runway video (official REST, image-to-video)
     "runway/gen4-turbo": { provider: "runway", kind: "video", cost: 0.5 },
     "runway/gen3a-turbo": { provider: "runway", kind: "video", cost: 0.4 },
-    // Seedance 3.0 (seedance-1-5-pro) — ByteDance-direct only, no verified
+    // Seedance 1.5 Pro (historical Aurora key: seedance-3.0) — ByteDance-direct only, no verified
     // Replicate slug, so it isn't in REPLICATE_MAP and must be registered by
     // hand here. Cost is a conservative estimate above the existing pro tier
     // ($0.65) pending real invoice data.

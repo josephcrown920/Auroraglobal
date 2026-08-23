@@ -5,7 +5,7 @@ export type ModelMeta = {
   value: string;
   label: string;
   short: string;
-  group: "Lovable AI" | "Replicate" | "Sync" | "Self-hosted" | "Replit";
+  group: "Lovable AI" | "Replicate" | "BytePlus" | "Sync" | "Self-hosted" | "Replit";
   icon: LucideIcon;
   color: string;
   bg: string;
@@ -85,14 +85,13 @@ export const MODEL_LIST: ModelMeta[] = [
   },
   {
     value: "fal-ai/seedream-5",
-    // BytePlus-direct only (see BYTEPLUS_DEFAULTS in orchestrator.server.ts) —
-    // no verified Replicate/fal slug exists yet, so `endpoint` below is a
-    // placeholder label, not a real dispatchable path. Actual routing keys
-    // off `value` (fal-ai/seedream-5), not this field.
-    endpoint: "fal-ai/bytedance/seedream/v5/edit",
-    label: "Seedream 5.0",
-    short: "Seedream 5",
-    group: "Replicate",
+    // BytePlus-direct only (see BYTEPLUS_DEFAULTS in orchestrator.server.ts).
+    // The internal value stays fal-ai/seedream-5 for backwards compatibility
+    // with saved preferences and existing server callers.
+    endpoint: "byteplus/seedream-5.0-pro",
+    label: "Seedream 5.0 Pro",
+    short: "Seedream 5 Pro",
+    group: "BytePlus",
     icon: Flame,
     color: "text-fuchsia-400",
     bg: "bg-fuchsia-500/15 border-fuchsia-500/30",
@@ -132,20 +131,19 @@ export const VIDEO_MODEL_LIST: ModelMeta[] = [
   },
   {
     value: "seedance-3.0",
-    endpoint: "fal-ai/bytedance/seedance/v1.5/pro/image-to-video",
-    label: "Seedance 3.0",
-    short: "Seedance 3.0",
-    group: "Replicate",
+    endpoint: "byteplus/seedance-1.5-pro",
+    label: "Seedance 1.5 Pro",
+    short: "Seedance 1.5 Pro",
+    group: "BytePlus",
     icon: Film,
     color: "text-violet-500",
     bg: "bg-violet-600/15 border-violet-600/30",
     tagline: "High-fidelity motion · cinematic detail",
     status: "live",
     category: "video",
-    // BytePlus-direct only (see BYTEPLUS_DEFAULTS in orchestrator.server.ts) —
-    // no verified Replicate/fal slug exists yet, so `endpoint` above is a
-    // placeholder label, not a real dispatchable path. Actual routing keys
-    // off `value` (seedance-3.0), not this field.
+    // BytePlus-direct only (see BYTEPLUS_DEFAULTS in orchestrator.server.ts).
+    // The internal value stays seedance-3.0 for backwards compatibility with
+    // saved preferences and existing server callers.
   },
   {
     value: "seedance-2.5",
@@ -429,12 +427,13 @@ export function getModelMeta(value?: string | null): ModelMeta {
 
 export function resolveImageEndpoint(value: string): {
   endpoint: string;
-  provider: "lovable" | "replicate" | "replit";
+  provider: "lovable" | "replicate" | "byteplus" | "replit";
 } {
   const m = ALL[value];
   if (m && m.category === "image") {
     const provider =
       m.group === "Lovable AI" ? "lovable" :
+      m.group === "BytePlus" ? "byteplus" :
       m.group === "Replit" ? "replit" : "replicate";
     return { endpoint: m.endpoint, provider };
   }

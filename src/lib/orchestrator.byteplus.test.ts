@@ -58,6 +58,7 @@ mock.module("@/integrations/supabase/client.server", () => ({ supabaseAdmin: sup
 mock.module("./replicate.server", () => ({
   getReplicateKey: () => getReplicateKeyImpl(),
   replicateRun: (slug: string, input: unknown, t?: number) => replicateRunImpl(slug, input, t),
+  replicateProgressPct: () => null,
   pickReplicateUrl: (output: unknown) =>
     typeof output === "string" ? output : ((output as { url?: string })?.url ?? ""),
   fetchToBytes: async () => ({ bytes: Buffer.from(""), mime: "application/octet-stream" }),
@@ -251,7 +252,7 @@ describe("orchestrate — ByteDance direct preference for Seed models", () => {
     const res = await orchestrate(req);
 
     expect(res.provider).toBe("byteplus");
-    expect(res.endpoint).toBe("byteplus:seedream-5-0-260128");
+    expect(res.endpoint).toBe("byteplus:dola-seedream-5-0-pro-260628");
     expect(res.url).toBe("https://byteplus/img5.png");
   });
 
