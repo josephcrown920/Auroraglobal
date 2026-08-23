@@ -4,6 +4,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import React, { useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -22,7 +23,13 @@ import { useColors } from "@/hooks/useColors";
 export default function AuthScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { signIn, signUp } = useAuth();
+  const {
+    signIn,
+    signUp,
+    biometricAvailable,
+    biometricEnabled,
+    enableBiometrics,
+  } = useAuth();
 
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
@@ -49,6 +56,23 @@ export default function AuthScreen() {
         );
       } else {
         await signIn(email.trim(), password);
+        if (biometricAvailable && !biometricEnabled) {
+          Alert.alert(
+            "Enable Face ID?",
+            "Unlock Aurora faster next time with Face ID, Touch ID, or your device fingerprint.",
+            [
+              { text: "Not now", style: "cancel" },
+              {
+                text: "Enable Face ID",
+                onPress: () => {
+                  void enableBiometrics().catch(() => {
+                    setError("Face ID could not be enabled. You can try again from Account settings.");
+                  });
+                },
+              },
+            ],
+          );
+        }
       }
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (e: any) {

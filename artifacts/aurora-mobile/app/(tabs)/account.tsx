@@ -8,6 +8,7 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   View,
 } from "react-native";
@@ -33,9 +34,10 @@ interface SettingRowProps {
   destructive?: boolean;
   value?: string;
   chevron?: boolean;
+  control?: React.ReactNode;
 }
 
-function SettingRow({ icon, label, onPress, destructive, value, chevron = true }: SettingRowProps) {
+function SettingRow({ icon, label, onPress, destructive, value, chevron = true, control }: SettingRowProps) {
   const colors = useColors();
   return (
     <Pressable
@@ -62,6 +64,7 @@ function SettingRow({ icon, label, onPress, destructive, value, chevron = true }
       </Text>
       <View style={{ flex: 1 }} />
       {value && <Text style={[styles.rowValue, { color: colors.mutedForeground }]}>{value}</Text>}
+      {control}
       {chevron && <Feather name="chevron-right" size={16} color={colors.mutedForeground} />}
     </Pressable>
   );
@@ -70,9 +73,17 @@ function SettingRow({ icon, label, onPress, destructive, value, chevron = true }
 export default function AccountScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { user, signOut } = useAuth();
+  const {
+    user,
+    signOut,
+    biometricAvailable,
+    biometricEnabled,
+    enableBiometrics,
+    disableBiometrics,
+  } = useAuth();
   const [signingOut, setSigningOut] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [biometricBusy, setBiometricBusy] = useState(false);
   // Ref guard: state updates lag Alert callbacks, so a queued second Alert
   // could otherwise start a concurrent deletion request.
   const deletingRef = useRef(false);
@@ -110,6 +121,22 @@ export default function AccountScreen() {
   const openWeb = async (path: string) => {
     const base = getApiBase();
     await WebBrowser.openBrowserAsync(`${base}${path}`);
+  };
+
+  const handleBiometricToggle = async (enabled: boolean) => {
+    if (biometricBusy) return;
+    setBiometricBusy(true);
+    try {
+      if (enabled) {
+        await enableBiometrics();
+      } else {
+        await disableBiometrics();
+      }
+    } catch {
+      Alert.alert("Could not update Face ID", "Please try again.");
+    } finally {
+      setBiometricBusy(false);
+    }
   };
 
   // In-app account deletion — required by App Store 5.1.1(v) and Google
@@ -188,6 +215,33 @@ export default function AccountScreen() {
               onPress={() => openWeb("/")}
             />
           </View>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>Security</Text>
+          <View style={[styles.group, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <SettingRow
+              icon="lock"
+              label="Face ID / fingerprint"
+              value={!biometricAvailable ? "Unavailable" : biometricEnabled ? "On" : "Off"}
+              chevron={false}
+              onPress={biometricAvailable ? () => void handleBiometricToggle(!biometricEnabled) : undefined}
+              control={
+                <Switch
+                  testID="biometric-toggle"
+                  accessibilityLabel="Face ID or fingerprint unlock"
+                  value={biometricEnabled}
+                  onValueChange={handleBiometricToggle}
+                  disabled={!biometricAvailable || biometricBusy}
+                  trackColor={{ false: colors.muted, true: `${colors.primary}88` }}
+                  thumbColor={biometricEnabled ? colors.primary : colors.mutedForeground}
+                />
+              }
+            />
+          </View>
+          <Text style={[styles.deleteHint, { color: colors.mutedForeground }]}>
+            Unlock Aurora with your device biometrics when the app opens.
+          </Text>
         </View>
 
         <View style={styles.section}>
