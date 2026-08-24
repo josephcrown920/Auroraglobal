@@ -18,18 +18,18 @@
  * retryDelaysMs:[] skips the row-polling backoff because the payments row is
  * already guaranteed to exist before this endpoint runs.
  *
- * Auth: standard cron credential (SUPABASE_PUBLISHABLE_KEY via `apikey` header
- *       — same as /api/public/jobs/tick).
+ * Auth: server-only CRON_SECRET via the `apikey` header.
  *
  * Schedule: every 6 hours so stuck payments are caught within ~6 hours of
  * Paystack's 72-hour window closing.
  *
  * curl -X POST https://<domain>/api/public/payments/sweep-stuck \
- *      -H "apikey: <SUPABASE_PUBLISHABLE_KEY>"
+ *      -H "apikey: <CRON_SECRET>"
  */
 import { createFileRoute } from "@tanstack/react-router";
+import { safeErrorMessage } from "@/lib/safe-error.server";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { authorizeCron } from "@/lib/cron-auth";
+import { authorizeCronStrict } from "@/lib/cron-auth";
 import {
   canRecoverStuckPayment,
   processPaymentSuccess,
@@ -41,7 +41,7 @@ export const Route = createFileRoute("/api/public/payments/sweep-stuck")({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        if (!authorizeCron(request)) {
+        if (!authorizeCronStrict(request)) {
           return new Response("Unauthorized", { status: 401 });
         }
 
@@ -56,8 +56,7 @@ export const Route = createFileRoute("/api/public/payments/sweep-stuck")({
           .lt("created_at", cutoff);
 
         if (error) {
-          console.error("[payments-sweep] DB error", error.message);
-          return new Response(JSON.stringify({ error: error.message }), {
+          return new Response(JSON.stringify({ error: safeErrorMessage("payments-sweep", error.message) }), {
             status: 500,
             headers: { "content-type": "application/json" },
           });

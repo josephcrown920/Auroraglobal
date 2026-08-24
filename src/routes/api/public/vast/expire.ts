@@ -1,19 +1,17 @@
 // POST /api/public/vast/expire — cron endpoint that destroys every
 // Aurora-managed Vast instance past its 1-hour destroy deadline. Authed via
-// the Supabase anon `apikey` header, same pattern as /api/public/workers/health.
+// the server-only CRON_SECRET.
 // Retry-safe: failed destroys stay active and are retried on the next sweep.
 
+import { authorizeCronStrict } from "@/lib/cron-auth";
+import { safeErrorMessage } from "@/lib/safe-error.server";
 import { createFileRoute } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/api/public/vast/expire")({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        const apikey =
-          request.headers.get("apikey") ||
-          request.headers.get("Authorization")?.replace(/^Bearer\s+/i, "");
-        const expected = process.env.SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_ANON_KEY;
-        if (!expected || apikey !== expected) {
+        if (!authorizeCronStrict(request)) {
           return new Response(JSON.stringify({ error: "Unauthorized" }), {
             status: 401,
             headers: { "Content-Type": "application/json" },
@@ -39,8 +37,7 @@ export const Route = createFileRoute("/api/public/vast/expire")({
             headers: { "Content-Type": "application/json" },
           });
         } catch (e) {
-          const msg = e instanceof Error ? e.message : String(e);
-          return new Response(JSON.stringify({ ok: false, error: msg }), {
+          return new Response(JSON.stringify({ ok: false, error: safeErrorMessage("vast/expire", e) }), {
             status: 500,
             headers: { "Content-Type": "application/json" },
           });

@@ -42,21 +42,30 @@ export function useAuth() {
     // 1. Authoritative initial load: read the persisted session from localStorage.
     //    We only set loading=false once this resolves so we never flash a redirect
     //    to /auth while a valid stored session is still being retrieved.
-    const sessionPromise = supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session);
-      setUser(data.session?.user ?? null);
-      // Associate this session's future analytics events with the user id.
-      // Never awaited/blocking; identify() itself no-ops without consent.
-      if (data.session?.user) {
-        if (hasAnalyticsConsent()) identifyPosthogUser(data.session.user.id);
-      } else {
-        // No signed-in user on this load — clear any identity PostHog may
-        // have persisted from a previous session on a shared browser, so
-        // a signed-out visitor is never attributed to the last logged-in
-        // user's id.
-        resetPosthogUser();
-      }
-    });
+    const sessionPromise = supabase.auth
+      .getSession()
+      .then(({ data }) => {
+        setSession(data.session);
+        setUser(data.session?.user ?? null);
+        // Associate this session's future analytics events with the user id.
+        // Never awaited/blocking; identify() itself no-ops without consent.
+        if (data.session?.user) {
+          if (hasAnalyticsConsent()) identifyPosthogUser(data.session.user.id);
+        } else {
+          // No signed-in user on this load — clear any identity PostHog may
+          // have persisted from a previous session on a shared browser, so
+          // a signed-out visitor is never attributed to the last logged-in
+          // user's id.
+          resetPosthogUser();
+        }
+      })
+      .finally(() => {
+        // getSession settled (session or not) — the UI can stop waiting.
+        // Without this, only the safety-net timeout below ever cleared
+        // `loading`, which left every loading-gated page (admin, kids,
+        // video-agent, …) on a spinner for up to 30 s after a full page load.
+        setLoading(false);
+      });
 
     // 2. Listen for subsequent auth events (sign-in, sign-out, token refresh).
     //    onAuthStateChange can fire SIGNED_OUT before getSession resolves on

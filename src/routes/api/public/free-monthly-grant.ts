@@ -11,6 +11,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { timingSafeEqual } from "crypto";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { safeErrorMessage } from "@/lib/safe-error.server";
 
 export const Route = createFileRoute("/api/public/free-monthly-grant")({
   server: {
@@ -42,8 +43,7 @@ export const Route = createFileRoute("/api/public/free-monthly-grant")({
         );
 
         if (error) {
-          console.error("[free-monthly-grant] RPC error:", error.message);
-          return new Response(JSON.stringify({ error: error.message }), {
+          return new Response(JSON.stringify({ error: safeErrorMessage("free-monthly-grant", error.message) }), {
             status: 500,
             headers: { "Content-Type": "application/json" },
           });

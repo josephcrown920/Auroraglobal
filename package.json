@@ -12,7 +12,8 @@
     "format": "prettier --write .",
     "typecheck": "tsc --noEmit",
     "test": "bun test src/",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "production:gate": "npm run lint && npm run typecheck && bun test src/ && bash scripts/check-migrations.sh && node scripts/ci/audit-worker-entry.mjs && npm run build"
   },
   "dependencies": {
     "@ai-sdk/openai-compatible": "^2.0.48",

@@ -1,7 +1,7 @@
 /**
  * /api/public/check-api-balances
  *
- * Cron-called endpoint (anon-key auth, same as other public cron routes).
+ * Cron-called endpoint (server-only scheduler auth).
  * Checks remaining credits at each AI provider and the accumulated API-budget
  * pool from Paystack payments, then logs warnings when any are running low.
  *
@@ -16,10 +16,10 @@
  * in the Aurora admin panel.
  */
 
+import { authorizeCronStrict } from "@/lib/cron-auth";
 import { createFileRoute } from "@tanstack/react-router";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
-const ANON_KEY = process.env.SUPABASE_ANON_KEY ?? process.env.VITE_SUPABASE_ANON_KEY ?? "";
 
 /** Minimum balance thresholds that trigger a warning */
 const THRESHOLDS = {
@@ -79,9 +79,8 @@ export const Route = createFileRoute("/api/public/check-api-balances")({
   server: {
     handlers: {
       GET: async ({ request }) => {
-        // Auth: anon key header (same pattern as other public cron endpoints)
-        const apiKey = request.headers.get("apikey") ?? request.headers.get("x-api-key") ?? "";
-        if (!ANON_KEY || apiKey !== ANON_KEY) {
+        // Auth: server-only CRON_SECRET
+        if (!authorizeCronStrict(request)) {
           return new Response("Unauthorized", { status: 401 });
         }
 

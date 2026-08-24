@@ -4,6 +4,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import type { UntypedDb } from "@/integrations/supabase/untyped";
 import { z } from "zod";
+import { safeErrorMessage } from "@/lib/safe-error.server";
 
 const Body = z.object({
   name: z.string().min(1).max(120),
@@ -48,7 +49,7 @@ export const Route = createFileRoute("/api/public/gpu/register")({
               .single();
         const { data, error } = await q;
         if (error) {
-          return Response.json({ error: error.message }, { status: 500, headers: cors });
+          return Response.json({ error: safeErrorMessage("gpu-register", error) }, { status: 500, headers: cors });
         }
         return Response.json({ ok: true, worker_id: (data as { id: string }).id }, { headers: cors });
       },

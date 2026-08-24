@@ -10,11 +10,17 @@
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 import { cartographer } from "@replit/vite-plugin-cartographer";
 
-// TanStack's server packages must be external only in the Nitro production
-// bundle. Applying that rule to `vite dev` makes Node resolve the package
-// directly, which bypasses Vite's virtual router-entry module and breaks
-// server-function RPCs at runtime.
-const isProductionBuild = process.argv.includes("build");
+// NOTE: do NOT mark @tanstack/react-start/server, @tanstack/react-start-server
+// or @tanstack/start-server-core as ssr.external here. That was tried (Aug 2026)
+// to work around an unbound createRequestHandler in the Nitro bundle, but it is
+// fatal: when start-server-core is bundled outside the TanStack Start plugin
+// pipeline, its `#tanstack-start-server-fn-resolver` subpath import resolves to
+// the package's FAKE resolver (returns undefined), so EVERY server function in
+// the production build resolves to undefined — SSR loaders crash with
+// "Cannot destructure property 'hidden' of '(intermediate value)'" and every
+// /_serverFn RPC 500s with "Cannot read properties of undefined (reading
+// 'method')". The Start plugin must own these packages so it can wire the real
+// generated server-fn manifest into the server bundle.
 
 // Replit's Visual Edits tool reads per-element source-location metadata that
 // @replit/vite-plugin-cartographer injects at transform time. It is passed
@@ -153,20 +159,6 @@ export default defineConfig({
     // Pre-bundle heavy client-side dependencies so Vite doesn't have to
     // transform them lazily on first request — shaves several seconds off
     // the first meaningful paint on cold start.
-    ssr: {
-      // Keep TanStack's server namespace as a native Node import. Bundling
-      // its export-star chain through Nitro can emit createRequestHandler as
-      // an unbound identifier in the production SSR chunk.
-      external: [
-        ...(isProductionBuild
-          ? [
-              "@tanstack/react-start/server",
-              "@tanstack/react-start-server",
-              "@tanstack/start-server-core",
-            ]
-          : []),
-      ],
-    },
     optimizeDeps: {
       // Commit the first optimization run as soon as the deps are bundled
       // instead of holding it until the static-import crawl ends. In this app

@@ -20,7 +20,7 @@
 - [Supabase RLS privileged columns](supabase-rls-privileged-columns.md) — tables granting authenticated direct writes need privileged flags (is_public/created_by_admin) in the with-check; server fns are service-role & bypass RLS.
 - [Test setup (Bun runner)](test-setup.md) — `bun test src/` runs `*.test.ts`; they're excluded from tsconfig (no `bun:test` types); eslint is not type-aware; export privates to test them.
 - [Bun mock.module is process-global](bun-mock-module-leakage.md) — never mock.module a module other suites import real; it leaks the stub across files (order-dependent); dependency-inject instead.
-- [Cron endpoints pattern](cron-endpoints.md) — scheduled work = protected `/api/public/*` route authed via anon-key `apikey` header (NOT CRON_SECRET); scheduling is external (no pg_cron in dev/migrations).
+- [Cron endpoints pattern](cron-endpoints.md) — Replit’s cron workflow calls protected `/api/public/*` routes with CRON_SECRET; use shared auth to retain safe legacy-key compatibility.
 - [Worker self-registration tokens](worker-self-registration-tokens.md) — register/health auth = Supabase anon key (AURORA_REGISTER_KEY, `apikey` header); /generate bearer = AURORA_WORKER_TOKEN; keep them separate, don't merge.
 - [Worker register preserves admin status](worker-register-preserves-admin-status.md) — auto-registration on reconnect must not stamp active over an existing paused/draining row; treat draining like paused.
 - [Aurora MCP server](aurora-mcp-server.md) — hand-rolled stateless JSON-RPC at /api/mcp (MCP SDK is Node-only, won't run on Workers); tools reuse /api/public/generate + jobs RPC; avatars live in DB but not in generated types.ts.

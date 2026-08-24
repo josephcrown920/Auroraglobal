@@ -6,10 +6,11 @@
  * the operator when 2+ failures occur in a row.  Sends a recovery email
  * when the endpoint comes back after a reported outage.
  *
- * Auth: standard cron credential (SUPABASE_PUBLISHABLE_KEY via `apikey` header).
+ * Auth: shared scheduler credential (CRON_SECRET or legacy anon key).
  *
  * Called by scripts/aurora-cron-daemon.sh every 60 s.
  */
+import { authorizeCronStrict } from "@/lib/cron-auth";
 import { createFileRoute } from "@tanstack/react-router";
 import { SITE_URL } from "@/lib/site-url";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
@@ -32,10 +33,8 @@ export const Route = createFileRoute("/api/public/uptime-monitor")({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        // ── Auth ──────────────────────────────────────────────────────────────
-        const apiKey = request.headers.get("apikey") ?? request.headers.get("x-api-key") ?? "";
-        const expected = process.env.SUPABASE_PUBLISHABLE_KEY ?? process.env.SUPABASE_ANON_KEY ?? "";
-        if (!apiKey || !expected || apiKey !== expected) {
+        // ── Auth (server-only CRON_SECRET) ────────────────────────────────────
+        if (!authorizeCronStrict(request)) {
           return new Response("Unauthorized", { status: 401 });
         }
 

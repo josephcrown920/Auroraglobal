@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { safeErrorMessage } from "@/lib/safe-error.server";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
 export const Route = createFileRoute("/api/public/site-copy")({
@@ -21,7 +22,7 @@ export const Route = createFileRoute("/api/public/site-copy")({
               headers: { "Content-Type": "application/json" },
             });
           }
-          return new Response(JSON.stringify({ error: error.message }), {
+          return new Response(JSON.stringify({ error: safeErrorMessage("site-copy", error.message) }), {
             status: 500,
             headers: { "Content-Type": "application/json" },
           });

@@ -3,6 +3,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import type { UntypedDb } from "@/integrations/supabase/untyped";
 import { z } from "zod";
+import { safeErrorMessage } from "@/lib/safe-error.server";
 
 const Body = z.object({
   job_id: z.string().uuid(),
@@ -49,7 +50,7 @@ export const Route = createFileRoute("/api/public/gpu/complete")({
           .select()
           .maybeSingle();
         if (error) {
-          return Response.json({ error: error.message }, { status: 500, headers: cors });
+          return Response.json({ error: safeErrorMessage("gpu-complete", error) }, { status: 500, headers: cors });
         }
         if (!data) {
           // Already completed/failed (or never claimed by this worker) —

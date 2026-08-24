@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { safeErrorMessage } from "@/lib/safe-error.server";
 
 const BUCKET = "site-images";
 const MAX_BYTES = 10 * 1024 * 1024; // 10MB per image
@@ -54,7 +55,10 @@ async function storeOne(key: string, file: File): Promise<UploadResult> {
   const { error: uploadErr } = await supabaseAdmin.storage
     .from(BUCKET)
     .upload(path, buffer, { contentType: file.type, upsert: true });
-  if (uploadErr) return { key, url: "", skipped: uploadErr.message };
+  if (uploadErr) {
+    safeErrorMessage(`upload-site-image:${key}`, uploadErr.message);
+    return { key, url: "", skipped: "storage upload failed" };
+  }
 
   const { data: urlData } = supabaseAdmin.storage.from(BUCKET).getPublicUrl(path);
   const publicUrl = urlData.publicUrl;
@@ -63,7 +67,10 @@ async function storeOne(key: string, file: File): Promise<UploadResult> {
   const { error: rowErr } = await (supabaseAdmin as any)
     .from("site_images")
     .upsert({ key, url: publicUrl, updated_at: new Date().toISOString() }, { onConflict: "key" });
-  if (rowErr) return { key, url: "", skipped: rowErr.message };
+  if (rowErr) {
+    safeErrorMessage(`upload-site-image:${key}`, rowErr.message);
+    return { key, url: "", skipped: "database write failed" };
+  }
 
   return { key, url: publicUrl };
 }
@@ -97,7 +104,7 @@ export const Route = createFileRoute("/api/admin/upload-site-image")({
           .from("site_images")
           .select("key");
         if (slotErr) {
-          return json({ error: `Could not load image slots: ${slotErr.message}` }, 500);
+          return json({ error: safeErrorMessage("upload-site-image:slots", slotErr.message) }, 500);
         }
         const knownKeys = new Set<string>(((slotRows ?? []) as { key: string }[]).map((r) => r.key));
         if (knownKeys.size === 0) {

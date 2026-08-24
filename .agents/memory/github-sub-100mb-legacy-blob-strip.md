@@ -30,6 +30,16 @@ task description named one `Collab_inference_slim_*.zip` timestamp but a
 second identical-content duplicate under a different timestamp also existed
 on Main and would have been missed by the naive check).
 
+**Secret-bearing blobs need the same treatment.** GitHub push protection
+blocks a push if ANY commit in the pushed history contains a detected
+secret (e.g. a pasted script with a provider access key) — same failure
+mode as oversized blobs, same remedy: delete the file from the working
+tree AND add its path(s) to `EXTRA_STRIP_PATHS`. Note the sync's Safety-1
+check ("strip must not change tip tree") means the sync keeps failing
+until the working-tree deletion lands as a commit and becomes HEAD; that's
+expected, not a bug. Treat the leaked credential as exposed and have the
+owner rotate it.
+
 **Also verify the named files actually exist on the branch in scope.** A
 task description's filenames can be stale/typo'd (e.g. a hash suffix off by
 one character) or describe files that only exist on unpublished side

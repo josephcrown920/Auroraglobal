@@ -18,8 +18,9 @@
 #                                                        deletion final sweeps
 #                                                        until the purge completes
 #
-# Auth: public Supabase key for ordinary maintenance endpoints, plus the
-# private INTER_APP_API_KEY for the account-deletion sweep.
+# Auth: CRON_SECRET for ordinary maintenance endpoints (the legacy Supabase
+# public key remains accepted by routes during migration), plus private
+# INTER_APP_API_KEY for the account-deletion sweep.
 # App:  localhost:8080 (same container as this daemon).
 
 set -euo pipefail

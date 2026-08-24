@@ -12,8 +12,9 @@ remains. ⛔ **Blocked** — needs something outside this session's tool access
 (dashboard config, business decision, paid tier). ⬜ **Remaining** —
 identified, not yet started, no blocker.
 
-Last full audit: 2026-08-22. Last update: 2026-08-23 (§11 sign-in providers,
-§12 lifecycle emails).
+Last full audit: 2026-08-22. Last update: 2026-08-24 (§4 redaction sweep
+complete, §8 provider_logs fix, §10 re-validation, §13 prod server-fn
+regression fixed, §14 CI gate, §15 blocked items).
 
 ---
 
@@ -104,7 +105,7 @@ tradeoff already documented and not treated as a new finding.
 **Remaining watch item (⬜):** object storage itself has no backup/replication
 story — see §5.
 
-## 4. Secret / log redaction (error handling) — 🔶 In progress
+## 4. Secret / log redaction (error handling) — ✅ Verified complete (2026-08-24)
 
 Two related but distinct concerns, both partially addressed:
 
@@ -125,14 +126,30 @@ Zod input-validation messages (describing the caller's own malformed
 request) and HeyGen's own status message about the caller's own video were
 deliberately left as-is — they're not infrastructure leaks.
 
-**⬜ Remaining (lower priority, lower exposure):** the same raw-message
-pattern exists on admin/worker/CLI-authenticated routes audited this pass —
+**Remaining-routes sweep — done 2026-08-24.** All ten routes flagged in the
+previous pass now route client-visible failure text through
+`safeErrorMessage()` (raw error still logged server-side):
 `src/routes/api/public/gpu/complete.ts`, `gpu/register.ts`,
 `free-daily-grant.ts`, `free-monthly-grant.ts`, `payments/sweep-stuck.ts`,
 `site-images.ts`, `site-copy.ts`, `workers/register.ts`, `cli/vast.ts`,
-`admin/upload-site-image.ts`. These are not exposed to arbitrary
-unauthenticated users the way the Video Agent endpoints were, so they were
-consciously deprioritized this pass rather than fixed blind.
+`admin/upload-site-image.ts`. Deliberate carve-outs, unchanged: Zod
+validation messages (describe the caller's own malformed request);
+`worker_register_attempts.error` keeps the raw message (it is the sanctioned
+worker-registration diagnostic surface, service-role-read only); the Vast
+CLI's `VastGuardrailError` texts (locally generated guardrail messages for
+the authenticated owner CLI — never upstream echo). `VastApiError` responses
+are **not** carved out: their messages can embed Vast's raw upstream response
+body (which for provision calls could echo the worker register secret sent in
+the instance env), so the route now logs the raw message server-side and
+returns only a bounded HTTP-status summary.
+
+**Repo secret hygiene (found + fixed 2026-08-24):** two pasted script files
+in `attached_assets/` contained a live VolcEngine access key. They were
+deleted from the working tree and added to the GitHub sync's unconditional
+history strip list (their blobs in legacy commits were what GitHub push
+protection was blocking — the root cause of the ~9h sync outage on
+2026-08-24). **Action item for the owner: rotate that VolcEngine key** — it
+must be treated as exposed.
 
 **Other secret handling (verified, no gap found):** SSR-level unhandled
 exceptions are already safely caught and replaced with a branded generic
@@ -185,15 +202,16 @@ only. A GPU-worker-pool summary could be added as a second check if the team
 wants readiness to also reflect generation-capacity health, not just DB
 reachability.
 
-## 7. Error handling — 🔶 In progress
+## 7. Error handling — ✅ Verified complete (2026-08-24)
 
-See §4 for the redaction half of this. Separately verified: the SSR crash
-boundary and React `ErrorBoundary` are sound (see §4); all generation-path
-errors funnel through `error-toasts.ts` with provider-specific classification
-(out-of-credit checked before rate-limited, since Replicate's low-balance
-error is itself a 429 with "rate limit" in the text — order matters).
-
-**⬜ Remaining:** the admin/worker/CLI raw-error-message routes listed in §4.
+See §4 for the redaction half of this (now complete). Separately verified:
+the SSR crash boundary and React `ErrorBoundary` are sound (see §4); all
+generation-path errors funnel through `error-toasts.ts` with
+provider-specific classification (out-of-credit checked before rate-limited,
+since Replicate's low-balance error is itself a 429 with "rate limit" in the
+text — order matters). `error-toasts.ts`'s unknown-error→raw-message
+fallback is a deliberate client-side design choice (the raw text there comes
+from responses the server has already sanitized), not a leak path.
 
 ## 8. Performance — 🔶 In progress (deliberately not blind-patched)
 
@@ -213,9 +231,16 @@ Audited for unbounded queries and N+1s. Findings, in priority order:
 5. Synchronous full-buffer upload up to 200MB in `src/routes/api/audio/upload.ts`
    — real, but a bigger architectural change (streaming) than fits this pass.
 
-**⬜ Remaining:** add the `(kind, created_at)` index and a sane row cap to
-item 1 (safe, no correctness tradeoff — do this first if picking performance
-work back up). Item 2 needs a dedicated test suite proving an incremental
+**Item 1 — done 2026-08-24.** `provider-health-check.ts` now scans
+provider_logs with one bounded query **per monitored kind** (1,000
+most-recent rows each — per-kind, not global, so a burst on one kind can
+never displace another kind's rows and fake a "no traffic → recovered"
+signal; this is health monitoring, not financial aggregation), and migration
+`20260824030000_provider_logs_health_scan_index.sql` adds the
+`(kind, created_at DESC)` composite index — applied live and recorded in
+`schema_migrations` (verified: index present in `pg_indexes`).
+
+**⬜ Remaining:** item 2 needs a dedicated test suite proving an incremental
 running-total approach can't undercount before it's touched. Item 5 needs a
 streaming-upload design, not a one-line fix.
 
@@ -240,21 +265,29 @@ side effects, both **ran successfully against the live DB**):
   rejects a second reservation that would jointly exceed the cap even though
   the raw balance alone could otherwise cover it.
 
-## 10. Final validation — ✅ Verified complete (this pass, as of last edit)
+## 10. Final validation — ✅ Verified complete (re-run 2026-08-24)
 
-- `npx tsc --noEmit` — clean, no errors.
-- `npx eslint` (touched files, and full-repo baseline previously) — 0 errors;
-  41 pre-existing warnings unchanged.
-- `bun test src/` — **1210 pass / 0 fail** across 92 files (5519 assertions).
-  The stderr noise in the run (ffmpeg "moov atom not found", a Supabase-client
-  TypeError, missing-env-var FATAL logs, etc.) is deliberate negative-path
-  test logging — those tests assert on that exact failure behavior, not
-  actual failures.
-- `Start application` workflow restarted clean after all route changes;
-  `/api/health` and the new `/api/ready` both verified live via curl.
-- `test:e2e` — not re-run this pass; last known status was a pre-existing,
-  unrelated `webServer` boot-timeout issue, not a regression introduced by
-  this session's changes.
+All gate steps re-run after the 2026-08-24 changes (§4 sweep, §8 item 1,
+§13 fix):
+
+- `tsc --noEmit` — clean, no errors.
+- `eslint .` — 0 errors; 41 pre-existing warnings unchanged.
+- `bun test src/` — **1211 pass / 0 fail** across 92 files (5442+
+  assertions). The stderr noise in the run (ffmpeg "moov atom not found", a
+  Supabase-client TypeError, missing-env-var FATAL logs, etc.) is deliberate
+  negative-path test logging — those tests assert on that exact failure
+  behavior, not actual failures.
+- `scripts/check-migrations.sh` — OK, 126 migration files, no collisions.
+- `scripts/ci/audit-worker-entry.mjs` — passed, 20 native imports confined
+  to documented Node-only files.
+- Full production build (`vite build`) — succeeded; built server boot +
+  route/RPC probes verified (see §13).
+- `Start application` workflow running clean after all route changes.
+- Playwright e2e (full suite, 2026-08-24) — **23 passed / 0 failed** (one
+  browser-crash flake during a screenshot, passed on automatic retry). The 6
+  failures from the prior pass were fixed in `src/hooks/use-auth.tsx`
+  (loading-state now always resolves via `.finally`) without weakening any
+  test.
 
 ## 11. Sign-in providers — 🔶 Fixed in-app / ⛔ enabling more providers is dashboard-blocked
 
@@ -309,6 +342,57 @@ The sender defaults to
 `Aurora Studio <noreply@auroraperformancestudio.com>`; set
 `AURORA_FROM_EMAIL` if a different verified Resend sender is preferred.
 
+## 13. Production build server-fn regression — ✅ Root-caused and fixed (2026-08-24)
+
+**Symptom:** the live site's feature routes (`/spin`, `/ugc`, …) returned
+HTTP 500 (a `hidden` destructuring TypeError) while dev worked fine. Every
+server function and SSR loader in the production build resolved `undefined`.
+
+**Root cause:** a 2026-08-20 change marked `@tanstack/react-start/server`,
+`@tanstack/react-start-server`, and `@tanstack/start-server-core` as
+production `ssr.external` (to work around a "createRequestHandler unbound"
+build issue). Externalizing `start-server-core` makes Nitro bundle it from
+`node_modules` outside the Start plugin pipeline, where its
+`#tanstack-start-server-fn-resolver` subpath import resolves to the
+package's built-in **no-op resolver** instead of the generated server-fn
+manifest — so `getServerFnById()` returns nothing, for every function.
+
+**Fix:** removed the `ssr.external` block from `vite.config.ts` (with an
+explanatory comment so it can't be reintroduced blind). The original
+"createRequestHandler unbound" problem no longer reproduces.
+
+**Verified on the rebuilt output (`.output/`):** server boots; `/`, `/spin`,
+`/ugc`, `/kids`, `/content-machine`, `/avatar` all 200; a real
+`/_serverFn/<id>` RPC probe (id extracted from the built manifest) returns a
+correctly serialized response (a proper "Unauthorized" business error for an
+unauthenticated call — exactly right); the fake resolver is absent from the
+emitted bundle.
+
+**⚠️ The currently published deployment still runs the broken build — it
+needs a republish to pick up this fix.**
+
+## 14. CI production gate — ✅ Added (2026-08-24)
+
+`npm run production:gate` chains the full pre-deploy validation: lint →
+typecheck → `bun test src/` → migration-collision check → worker-boundary
+audit → production build. `.github/workflows/ci.yml`'s quality job now runs
+it as a single step, so CI enforces the same gate documented here. Each
+component step was executed green on 2026-08-24 (see §10).
+
+## 15. Explicitly blocked items — ⛔ (outside this workspace's tool access)
+
+- **Supabase backup drill (§5):** confirming the backup tier/retention and
+  performing a restore drill require the Supabase dashboard and a disposable
+  project — owner action.
+- **iOS signing / App Store submission:** requires a paid Apple Developer
+  account and signing credentials that cannot be provisioned from this
+  workspace.
+- **GitHub Actions billing:** CI runs depend on the repo owner's Actions
+  billing/quota state on GitHub — if the quota is exhausted, the `ci.yml`
+  gate silently won't run; owner must check GitHub → Settings → Billing.
+- **Google/Apple OAuth (§11):** Supabase dashboard provider enablement with
+  real credentials — owner action.
+
 ---
 
 ## Summary scorecard
@@ -318,15 +402,18 @@ The sender defaults to
 | 1. RLS / authz | ✅ Verified complete |
 | 2. Rate limiting | ✅ Verified complete |
 | 3. Storage / signed URLs | ✅ Verified complete (no gap found) |
-| 4. Secret / log redaction | 🔶 In progress |
-| 5. Backup / restore / DR docs | 🔶 In progress / ⛔ partially blocked |
+| 4. Secret / log redaction | ✅ Verified complete (2026-08-24) |
+| 5. Backup / restore / DR docs | 🔶 Runbook done / ⛔ drill blocked (owner) |
 | 6. Health checks | ✅ Verified complete |
-| 7. Error handling | 🔶 In progress |
-| 8. Performance | 🔶 In progress (deliberate) |
+| 7. Error handling | ✅ Verified complete (2026-08-24) |
+| 8. Performance | 🔶 Item 1 fixed; items 2 & 5 deliberately deferred |
 | 9. Concurrency / idempotency tests | ✅ Verified complete |
-| 10. Final validation | ✅ Verified complete |
+| 10. Final validation | ✅ Re-verified 2026-08-24 |
 | 11. Sign-in providers | 🔶 Fixed in-app / ⛔ Google & Apple need dashboard enable |
 | 12. Lifecycle emails | ✅ Configured and verified |
+| 13. Prod server-fn regression | ✅ Fixed 2026-08-24 — **needs republish** |
+| 14. CI production gate | ✅ Added 2026-08-24 |
+| 15. Blocked items | ⛔ Backup drill, iOS signing, GH Actions billing, OAuth providers |
 
 ## Historical feature roadmap
 

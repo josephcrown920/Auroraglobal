@@ -1,7 +1,7 @@
 /**
  * /api/public/provider-health-check
  *
- * Cron-called endpoint (anon-key auth, same as other public cron routes).
+ * Cron-called endpoint (server-only CRON_SECRET auth).
  * Inspects recent `provider_logs` error rates per generation kind (image /
  * video / lipsync / audio / …) and sends an operator alert email when a kind
  * goes dark (>80 % errors in the last hour with ≥3 attempts, or zero successes
@@ -14,6 +14,8 @@
  * Called by scripts/aurora-cron-daemon.sh every 15 minutes.
  */
 
+import { authorizeCronStrict } from "@/lib/cron-auth";
+import { safeErrorMessage } from "@/lib/safe-error.server";
 import { createFileRoute } from "@tanstack/react-router";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
@@ -32,15 +34,21 @@ const ERROR_RATE_THRESH  = 0.8; // >80 % errors → alert
 // Alert dedup: don't re-alert if we already sent one within this window.
 const ALERT_COOLDOWN_H = 4;
 
-// ─── Auth ────────────────────────────────────────────────────────────────────
-const ANON_KEY = process.env.SUPABASE_PUBLISHABLE_KEY ?? process.env.SUPABASE_ANON_KEY ?? "";
+// Hard cap on rows scanned per kind per run. The cap MUST be per-kind, not
+// global: with a single global limit a burst on one busy kind could displace
+// another kind's rows entirely, making the displaced kind look like "no
+// traffic" (darkTotal=0 → treated as healthy) and trigger a false recovery
+// email. 1000 rows per kind in a 2-hour window is far beyond real traffic;
+// error-rate math only needs the most recent activity, so truncating an
+// extreme burst is safe here (health monitoring, not financial aggregation).
+const PROVIDER_LOGS_SCAN_CAP_PER_KIND = 1000;
 
 export const Route = createFileRoute("/api/public/provider-health-check")({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        const apiKey = request.headers.get("apikey") ?? request.headers.get("x-api-key") ?? "";
-        if (!ANON_KEY || apiKey !== ANON_KEY) {
+        // Auth: server-only CRON_SECRET.
+        if (!authorizeCronStrict(request)) {
           return new Response("Unauthorized", { status: 401 });
         }
 
@@ -84,18 +92,29 @@ export async function runHealthCheck(
   const cutoffRecent = new Date(now.getTime() - WINDOW_RECENT_H * 3600_000).toISOString();
   const cutoffDark   = new Date(now.getTime() - WINDOW_DARK_H   * 3600_000).toISOString();
 
-  // Fetch all logs in the longer window (covers both checks)
-  const { data: logs, error: logsError } = await supabaseAdmin
-    .from("provider_logs")
-    .select("kind, status, created_at")
-    .in("kind", MONITORED_KINDS)
-    .gte("created_at", cutoffDark)
-    .order("created_at", { ascending: false });
+  // Fetch logs in the longer window (covers both checks), one bounded query
+  // per kind so a burst on one kind can never displace another kind's rows
+  // (see PROVIDER_LOGS_SCAN_CAP_PER_KIND). Each query rides the
+  // (kind, created_at DESC) composite index; under a runaway burst the
+  // most-recent rows (desc order) are exactly the ones that matter.
+  const perKindResults = await Promise.all(
+    MONITORED_KINDS.map((kind) =>
+      supabaseAdmin
+        .from("provider_logs")
+        .select("kind, status, created_at")
+        .eq("kind", kind)
+        .gte("created_at", cutoffDark)
+        .order("created_at", { ascending: false })
+        .limit(PROVIDER_LOGS_SCAN_CAP_PER_KIND),
+    ),
+  );
 
-  if (logsError) {
-    console.error("[provider-health-check] DB error reading provider_logs:", logsError.message);
-    return { ok: false, error: logsError.message };
+  const firstError = perKindResults.find((r) => r.error)?.error;
+  if (firstError) {
+    console.error("[provider-health-check] DB error reading provider_logs:", firstError.message);
+    return { ok: false, error: safeErrorMessage("provider-health-check:provider-logs", firstError.message) };
   }
+  const logs = perKindResults.flatMap((r) => r.data ?? []);
 
   // Aggregate per kind
   type KindStats = {

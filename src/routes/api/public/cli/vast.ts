@@ -8,6 +8,7 @@
 
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
+import { safeErrorMessage } from "@/lib/safe-error.server";
 
 const JSON_H = { "Content-Type": "application/json" };
 
@@ -136,10 +137,22 @@ export const Route = createFileRoute("/api/public/cli/vast")({
             return new Response(JSON.stringify({ ok: false, error: e.message }), { status: 409, headers: JSON_H });
           }
           if (e instanceof VastApiError) {
-            return new Response(JSON.stringify({ ok: false, error: e.message }), { status: 502, headers: JSON_H });
+            // VastApiError messages can embed Vast's raw upstream response
+            // body, which for provision calls may echo request payload fields
+            // (the instance env includes the worker register secret). Log the
+            // raw message server-side; return only a bounded, non-echoing
+            // summary to the CLI.
+            console.error("[cli-vast] VastApiError:", e.message);
+            const summary = e.status
+              ? `Vast.ai API request failed (HTTP ${e.status}). Details logged server-side.`
+              : "Vast.ai API request failed. Details logged server-side.";
+            return new Response(JSON.stringify({ ok: false, error: summary }), { status: 502, headers: JSON_H });
           }
-          const msg = e instanceof Error ? e.message : String(e);
-          return new Response(JSON.stringify({ ok: false, error: msg }), { status: 500, headers: JSON_H });
+          // VastGuardrailError above carries deliberately user-facing,
+          // locally generated operational text for the authenticated CLI
+          // owner (price ceiling, confirm token, etc.) — never upstream echo.
+          // Anything else is an internal failure — log raw, return generic.
+          return new Response(JSON.stringify({ ok: false, error: safeErrorMessage("cli-vast", e) }), { status: 500, headers: JSON_H });
         }
       },
     },

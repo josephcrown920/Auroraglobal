@@ -12,6 +12,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { createHash } from "node:crypto";
 import { z } from "zod";
 import { normalizeWorkerBase } from "@/lib/gpu-worker-health";
+import { safeErrorMessage } from "@/lib/safe-error.server";
 import type { Database } from "@/integrations/supabase/types";
 
 // One-way, non-reversible fingerprint used ONLY for self-diagnosis of a
@@ -148,7 +149,10 @@ export const Route = createFileRoute("/api/public/workers/register")({
           .select("id, endpoint_url, status");
         if (listErr) {
           await logAttempt(supabaseAdmin, { name: data.name, endpoint_url: data.endpoint_url, protocol: data.protocol, ok: false, error: listErr.message });
-          return json({ error: listErr.message }, 500);
+          // Raw DB error text stays in worker_register_attempts (the ops
+          // diagnostic surface); the anon-key-authed HTTP response gets a
+          // generic message only.
+          return json({ error: safeErrorMessage("workers-register", listErr.message) }, 500);
         }
         const match = (existing ?? []).find((w) => normalizeWorkerBase(w.endpoint_url) === base);
 
@@ -181,7 +185,7 @@ export const Route = createFileRoute("/api/public/workers/register")({
             .eq("id", match.id);
           if (error) {
             await logAttempt(supabaseAdmin, { name: data.name, endpoint_url: data.endpoint_url, protocol: data.protocol, ok: false, error: error.message });
-            return json({ error: error.message }, 500);
+            return json({ error: safeErrorMessage("workers-register", error.message) }, 500);
           }
           await logAttempt(supabaseAdmin, { name: data.name, endpoint_url: data.endpoint_url, protocol: data.protocol, ok: true, outcome: "updated" });
           return json({ ok: true, id: match.id, updated: true, registration_status: match.status });
@@ -199,7 +203,7 @@ export const Route = createFileRoute("/api/public/workers/register")({
           .single();
         if (error) {
           await logAttempt(supabaseAdmin, { name: data.name, endpoint_url: data.endpoint_url, protocol: data.protocol, ok: false, error: error.message });
-          return json({ error: error.message }, 500);
+          return json({ error: safeErrorMessage("workers-register", error.message) }, 500);
         }
         await logAttempt(supabaseAdmin, {
           name: data.name,

@@ -43,6 +43,12 @@ EXTRA_STRIP_PATHS=(
   "attached_assets/Collab_inference_slim_1782509661894.zip"
   "attached_assets/49f23e5347eb41e69ccfb1aeeafb9ba7_1782179904593.mp4"
   "attached_assets/c076509be6eb4ecc9c3e0cb16ad2ba38_1782179904594.mp4"
+  # Pasted scripts containing a live VolcEngine access key (GitHub push
+  # protection blocks any lineage containing their blobs — 2026-08-24 sync
+  # outage). Deleted from the working tree the same day; stripped from
+  # history unconditionally so no rebase can resurrect them.
+  "attached_assets/Pasted--coding-utf-8-from-future-import-print-function-import-_1787506293708.txt"
+  "attached_assets/Pasted--coding-utf-8-from-future-import-print-function-import-_1787506348124.txt"
 )
 
 # Only the primary workspace may publish to GitHub. Task-agent clones of this

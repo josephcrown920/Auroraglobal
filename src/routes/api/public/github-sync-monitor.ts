@@ -18,6 +18,7 @@
  *
  * Called by scripts/aurora-cron-daemon.sh every 5 minutes.
  */
+import { authorizeCronStrict } from "@/lib/cron-auth";
 import { createFileRoute } from "@tanstack/react-router";
 import fs from "node:fs";
 import path from "node:path";
@@ -40,10 +41,8 @@ export const Route = createFileRoute("/api/public/github-sync-monitor")({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        // ── Auth (standard cron credential) ──────────────────────────────────
-        const apiKey = request.headers.get("apikey") ?? request.headers.get("x-api-key") ?? "";
-        const expected = process.env.SUPABASE_PUBLISHABLE_KEY ?? process.env.SUPABASE_ANON_KEY ?? "";
-        if (!apiKey || !expected || apiKey !== expected) {
+        // ── Auth (server-only CRON_SECRET) ────────────────────────────────────
+        if (!authorizeCronStrict(request)) {
           return new Response("Unauthorized", { status: 401 });
         }
 

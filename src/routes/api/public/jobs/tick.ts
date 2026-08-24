@@ -1,16 +1,16 @@
 // Worker tick endpoint — the single recurring driver of the job queue.
-// Invoked by an external Supabase dashboard pg_cron job (Replit autoscale is
-// request-driven, so there is no durable in-process timer). See the README
-// section "Scheduling the worker tick" for the dashboard SQL.
+// Invoked by the managed Replit cron workflow. See
+// scripts/aurora-cron-daemon.sh for the scheduling contract.
 //
 // Each tick: (1) records a heartbeat so a stalled scheduler is observable in
 // admin, (2) recovers jobs orphaned in `processing` by a dead worker, (3) re-
 // enqueues orphaned `failed` jobs/generations that should still be retried, then
-// (4) processes a batch of queued jobs. Auth accepts CRON_SECRET (preferred) or
-// the legacy Supabase anon key — see src/lib/cron-auth.ts.
+// (4) processes a batch of queued jobs. Auth requires the server-only
+// CRON_SECRET — see src/lib/cron-auth.ts.
 
 import { createFileRoute } from "@tanstack/react-router";
-import { authorizeCron } from "@/lib/cron-auth";
+import { authorizeCronStrict } from "@/lib/cron-auth";
+import { safeErrorMessage } from "@/lib/safe-error.server";
 
 const HEARTBEAT_NAME = "jobs_tick";
 
@@ -18,7 +18,7 @@ export const Route = createFileRoute("/api/public/jobs/tick")({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        if (!authorizeCron(request)) {
+        if (!authorizeCronStrict(request)) {
           return new Response(JSON.stringify({ error: "Unauthorized" }), {
             status: 401,
             headers: { "Content-Type": "application/json" },
@@ -53,7 +53,7 @@ export const Route = createFileRoute("/api/public/jobs/tick")({
           try {
             spin = await advanceSpinQueueAdmin();
           } catch (e) {
-            spin = { error: e instanceof Error ? e.message : String(e) };
+            spin = { error: safeErrorMessage("jobs/tick:spin", e) };
           }
           await recordSchedulerHeartbeat(HEARTBEAT_NAME, true);
           return new Response(JSON.stringify({ ok: true, sweptHighValue, swept, recovered, reconciled, results, spin }), {
@@ -65,7 +65,7 @@ export const Route = createFileRoute("/api/public/jobs/tick")({
           // Record the failure so the admin staleness banner can surface it, then
           // return 5xx so external cron monitoring sees the breakage.
           await recordSchedulerHeartbeat(HEARTBEAT_NAME, false, msg);
-          return new Response(JSON.stringify({ ok: false, error: msg }), {
+          return new Response(JSON.stringify({ ok: false, error: safeErrorMessage("jobs/tick", e) }), {
             status: 500,
             headers: { "Content-Type": "application/json" },
           });

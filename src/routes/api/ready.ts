@@ -7,7 +7,7 @@ import { createFileRoute } from "@tanstack/react-router";
 // /api/health keep behaving exactly as before).
 //
 // Returns 200 only when a real DB round-trip succeeds within budget;
-// otherwise 503 with the failure reason, so this endpoint can be attached to
+// otherwise 503 with a stable machine-readable error code, so this endpoint can be attached to
 // an external uptime monitor or a deployment health-check path when needed.
 const DB_CHECK_TIMEOUT_MS = 3000;
 
@@ -32,9 +32,11 @@ export const Route = createFileRoute("/api/ready")({
             (r) => r as { error: { message: string } | null },
             (e: Error) => ({ error: { message: e.message } }),
           );
-          checks.database = { ok: !error, ms: Date.now() - dbStart, ...(error ? { error: error.message } : {}) };
+          if (error) console.error("[ready] database check failed:", error.message);
+          checks.database = { ok: !error, ms: Date.now() - dbStart, ...(error ? { error: "database_unavailable" } : {}) };
         } catch (e) {
-          checks.database = { ok: false, ms: Date.now() - startedAt, error: e instanceof Error ? e.message : String(e) };
+          console.error("[ready] database check failed:", e);
+          checks.database = { ok: false, ms: Date.now() - startedAt, error: "database_unavailable" };
         }
 
         const allOk = Object.values(checks).every((c) => c.ok);

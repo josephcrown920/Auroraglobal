@@ -1,10 +1,14 @@
 ---
-name: TanStack Nitro namespace exports
-description: Production Nitro bundling can break TanStack Start server export-star namespaces.
+name: TanStack Start server packages must NOT be ssr.external
+description: Externalizing start-server-core breaks ALL server fns in prod; the old namespace-export fix is obsolete and was actively harmful.
 ---
 
-Keep TanStack Start server packages external during the SSR/Nitro build instead of bundling their export-star chain.
+Never mark `@tanstack/react-start/server`, `@tanstack/react-start-server`, or `@tanstack/start-server-core` as `ssr.external` / Nitro externals. Bundle them through the Start plugin pipeline.
 
-**Why:** The bundled namespace can emit `createRequestHandler` as a free identifier, making every production request return HTTP 500 even though the dev server and package imports work.
+**Why:** `start-server-core` resolves its server-fn lookup via the `#tanstack-start-server-fn-resolver` subpath import. Inside the Start plugin pipeline that import maps to the generated manifest; when the package is externalized, Nitro pulls it from node_modules where the subpath resolves to the package's FAKE no-op resolver (`async function getServerFnById() {}`). Result: every server fn and SSR loader resolves `undefined` → prod-wide 500s (`hidden` destructuring error) while dev works fine. This took the live site's feature routes down in Aug 2026.
 
-**How to apply:** Configure Vite SSR externals for `@tanstack/react-start/server`, `@tanstack/react-start-server`, and `@tanstack/start-server-core`; verify the emitted Nitro server with both `/api/health` and `/`.
+The earlier "createRequestHandler unbound" namespace-export problem this external was added for (2026-08-20) no longer reproduces after removal — verified full prod build + boot + `/` + feature routes 200 + a real `/_serverFn/<id>` RPC probe returning a proper serialized response.
+
+**How to apply:** If a prod build breaks inside these packages, fix it another way (version alignment, npm overrides) — never externals. Verify any change with a full prod build, then boot `.output/server/index.mjs` and probe BOTH a page route and a real server-fn id extracted from the built manifest (`grep -B2 'functionName: "<fn>' .output/server/_ssr/index.mjs`).
+
+**Build memory note:** the nitro transform phase needs ~4GB free; with the dev server, tsserver, and the github-sync `git pack-objects` (~1.7GB spikes) running, the 8GB container OOM-kills the build silently at the same "transforming (…)" line. Free memory first (kill tsserver, pause sync daemon, restart dev workflow) before blaming the build itself.

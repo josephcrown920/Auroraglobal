@@ -1,9 +1,10 @@
 import { afterAll, afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
 
-// The health-sweep endpoint is triggered by an external cron (Supabase pg_cron)
-// hitting POST /api/public/workers/health with the Supabase anon `apikey`. It
-// must reject anything else, and on success it must actually invoke the sweep
-// (checkGPUWorkerHealth) rather than just echoing ok:true.
+// The health-sweep endpoint is triggered by the Replit cron workflow hitting
+// POST /api/public/workers/health with the server-only CRON_SECRET `apikey`.
+// It must reject anything else (including the public Supabase anon key), and
+// on success it must actually invoke the sweep (checkGPUWorkerHealth) rather
+// than just echoing ok:true.
 const checkCalls: unknown[] = [];
 mock.module("@/integrations/supabase/client.server", () => ({
   supabaseAdmin: { marker: "fake-admin" },
@@ -35,19 +36,20 @@ async function post(headers?: Record<string, string>) {
 }
 
 describe("POST /api/public/workers/health", () => {
+  const realCronSecret = process.env.CRON_SECRET;
   const realPublishable = process.env.SUPABASE_PUBLISHABLE_KEY;
-  const realAnon = process.env.SUPABASE_ANON_KEY;
 
   beforeEach(() => {
     checkCalls.length = 0;
+    process.env.CRON_SECRET = "test-cron-secret";
     process.env.SUPABASE_PUBLISHABLE_KEY = "test-anon-key";
   });
 
   afterEach(() => {
+    if (realCronSecret === undefined) delete process.env.CRON_SECRET;
+    else process.env.CRON_SECRET = realCronSecret;
     if (realPublishable === undefined) delete process.env.SUPABASE_PUBLISHABLE_KEY;
     else process.env.SUPABASE_PUBLISHABLE_KEY = realPublishable;
-    if (realAnon === undefined) delete process.env.SUPABASE_ANON_KEY;
-    else process.env.SUPABASE_ANON_KEY = realAnon;
   });
 
   // mock.module is process-global in bun: the stub above replaces
@@ -71,23 +73,28 @@ describe("POST /api/public/workers/health", () => {
     expect(checkCalls).toHaveLength(0);
   });
 
-  it("returns 200 and runs the sweep for the correct apikey header", async () => {
+  it("returns 401 for the public Supabase anon key (browser-bundle credential)", async () => {
     const res = await post({ apikey: "test-anon-key" });
+    expect(res.status).toBe(401);
+    expect(checkCalls).toHaveLength(0);
+  });
+
+  it("returns 200 and runs the sweep for the correct CRON_SECRET apikey header", async () => {
+    const res = await post({ apikey: "test-cron-secret" });
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ ok: true, autoPaused: 0 });
     expect(checkCalls).toHaveLength(1);
   });
 
-  it("also accepts the key via Authorization: Bearer", async () => {
-    const res = await post({ Authorization: "Bearer test-anon-key" });
+  it("also accepts the secret via Authorization: Bearer", async () => {
+    const res = await post({ Authorization: "Bearer test-cron-secret" });
     expect(res.status).toBe(200);
     expect(checkCalls).toHaveLength(1);
   });
 
-  it("fails closed when no expected key is configured at all", async () => {
-    delete process.env.SUPABASE_PUBLISHABLE_KEY;
-    delete process.env.SUPABASE_ANON_KEY;
-    const res = await post({ apikey: "anything" });
+  it("fails closed when CRON_SECRET is not configured at all", async () => {
+    delete process.env.CRON_SECRET;
+    const res = await post({ apikey: "test-anon-key" });
     expect(res.status).toBe(401);
     expect(checkCalls).toHaveLength(0);
   });
