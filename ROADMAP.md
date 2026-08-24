@@ -12,7 +12,8 @@ remains. ⛔ **Blocked** — needs something outside this session's tool access
 (dashboard config, business decision, paid tier). ⬜ **Remaining** —
 identified, not yet started, no blocker.
 
-Last full audit: 2026-08-22. Last update: 2026-08-23 (§11 sign-in providers).
+Last full audit: 2026-08-22. Last update: 2026-08-23 (§11 sign-in providers,
+§12 lifecycle emails).
 
 ---
 
@@ -283,6 +284,31 @@ dashboard (**Authentication → Providers**) with real credentials:
 Until then, the sign-in page correctly offers email/password, GitHub, and
 passkeys only.
 
+## 12. Lifecycle emails — ✅ Configured and verified
+
+Interpreting “lifetime emails” as the existing lifecycle-email system, the
+delivery path is now wired into the managed `cron` workflow:
+
+- `RESEND_API_KEY` is configured.
+- The daemon calls `POST /api/public/lifecycle-emails` every 6 hours using the
+  shared cron credential.
+- The endpoint uses the same `authorizeCron` guard as the other scheduled
+  routes; it no longer requires the privileged Supabase service-role key in a
+  scheduler request.
+- Each email is logged in `email_log` and deduplicated by the template's
+  cooldown/window: re-engagement, first-purchase nudge, onboarding resume,
+  weekly digest, and daily creative tip.
+- A live scheduled run on 2026-08-23 was accepted successfully by Resend:
+  15 re-engagement, 27 first-purchase, 3 onboarding-resume, 1 weekly-digest,
+  and 9 daily-tip messages.
+- The run safely skipped 1,517 stale profile records whose auth users no
+  longer exist, preserving the `email_log.user_id` foreign-key guarantee
+  instead of aborting the entire batch.
+
+The sender defaults to
+`Aurora Studio <noreply@auroraperformancestudio.com>`; set
+`AURORA_FROM_EMAIL` if a different verified Resend sender is preferred.
+
 ---
 
 ## Summary scorecard
@@ -300,6 +326,7 @@ passkeys only.
 | 9. Concurrency / idempotency tests | ✅ Verified complete |
 | 10. Final validation | ✅ Verified complete |
 | 11. Sign-in providers | 🔶 Fixed in-app / ⛔ Google & Apple need dashboard enable |
+| 12. Lifecycle emails | ✅ Configured and verified |
 
 ## Historical feature roadmap
 

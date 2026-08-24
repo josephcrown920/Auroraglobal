@@ -29,9 +29,6 @@ const AppScreenshotsSection = lazy(() =>
 const CliSection = lazy(() =>
   import("@/components/landing/CliSection").then((m) => ({ default: m.CliSection })),
 );
-const ViralPresetsSection = lazy(() =>
-  import("@/components/landing/ViralPresetsSection").then((m) => ({ default: m.ViralPresetsSection })),
-);
 const UGCAdsSection = lazy(() =>
   import("@/components/landing/UGCAdsSection").then((m) => ({ default: m.UGCAdsSection })),
 );
@@ -661,9 +658,6 @@ function LandingPage() {
 
       {/* ── Frontier Model Spotlight ───────────────────────────────────── */}
       <Suspense fallback={null}><ModelSpotlight /></Suspense>
-
-      {/* ── Viral Presets ────────────────────────────────────────────── */}
-      <Suspense fallback={null}><ViralPresetsSection /></Suspense>
 
       {/* ── App Screenshots — "Inside Aurora" ────────────────────────── */}
       <Suspense fallback={null}><AppScreenshotsSection /></Suspense>

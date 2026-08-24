@@ -33,3 +33,19 @@ export function authorizeCron(request: Request): boolean {
 
   return false;
 }
+
+/**
+ * Strict variant for endpoints with real-world side effects (e.g. sending
+ * emails): once CRON_SECRET is configured, ONLY that secret is accepted —
+ * the Supabase anon/publishable key is embedded in every browser bundle and
+ * must not be able to trigger side-effectful work. Until CRON_SECRET exists
+ * it falls back to the legacy shared credential so the scheduler keeps
+ * running (harden-without-outage, same policy as authorizeCron).
+ */
+export function authorizeCronStrict(request: Request): boolean {
+  const cronSecret = process.env.CRON_SECRET;
+  if (cronSecret) {
+    return extractCronCredential(request) === cronSecret;
+  }
+  return authorizeCron(request);
+}

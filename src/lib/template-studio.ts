@@ -924,56 +924,6 @@ export const STUDIO_TEMPLATES: StudioTemplate[] = [
   },
 ];
 
-/**
- * Landing "Viral Presets" tag → manifest template id. The single source of
- * truth for the ViralPresetsSection tag cloud: every advertised name MUST
- * resolve to a runnable template here (enforced by template-studio.test.ts),
- * so the landing page can never advertise a preset that doesn't exist.
- */
-export const VIRAL_PRESET_TAGS: ReadonlyArray<{ tag: string; templateId: string }> = [
-  { tag: "Bullet Time", templateId: "bullet-time" },
-  { tag: "Moonwalk", templateId: "moonwalk" },
-  { tag: "Earth Zoom", templateId: "earth-zoom" },
-  { tag: "Cold Vision", templateId: "cold-vision" },
-  { tag: "Broken Mirror", templateId: "broken-mirror" },
-  { tag: "Fragments", templateId: "fragments" },
-  { tag: "Palette", templateId: "palette" },
-  { tag: "Ink Riot", templateId: "ink-riot" },
-  { tag: "Fallen Angel", templateId: "fallen-angel" },
-  { tag: "Agamemnon", templateId: "agamemnon" },
-  { tag: "Concert Lip-sync", templateId: "concert-lipsync" },
-  { tag: "Music Video Mini", templateId: "music-video-mini" },
-  { tag: "Cinematic Selfie Reel", templateId: "cinematic-reel" },
-  { tag: "Golden Hour Orbit", templateId: "rooftop-golden" },
-  { tag: "Neon Night Move", templateId: "neon-night-move" },
-  { tag: "UGC Talking Ad", templateId: "ugc-talking-ad" },
-  { tag: "Product Lifestyle Ad", templateId: "product-lifestyle" },
-  { tag: "App Hero", templateId: "app-hero" },
-  { tag: "Product Promo", templateId: "product-promo-video" },
-  { tag: "Creator Walk & Talk", templateId: "ugc-creator-walk" },
-  { tag: "Virtual Try-On", templateId: "fashion-tryon" },
-  { tag: "Beat-Drop Reel", templateId: "beat-reel" },
-  { tag: "Viral Spin", templateId: "viral-spin" },
-  { tag: "Trend Remix", templateId: "trend-remix-spin" },
-  { tag: "Storybook Character", templateId: "kids-storybook" },
-  { tag: "Bedtime Reel", templateId: "kids-bedtime" },
-  { tag: "Looping Officers", templateId: "looping-officers" },
-  { tag: "AutoCut Hype", templateId: "autocut-hype" },
-  { tag: "AutoCut Cinematic", templateId: "autocut-cinematic" },
-  { tag: "Talking Head", templateId: "autocut-talking-head" },
-  { tag: "TikTok Hook", templateId: "autocut-tiktok-hook" },
-  { tag: "Editorial Cover", templateId: "editorial-cover" },
-  { tag: "Neon Street", templateId: "neon-street" },
-  { tag: "Rooftop Golden", templateId: "rooftop-golden-hour" },
-  { tag: "Urban Alley", templateId: "urban-alley" },
-  { tag: "Urban Subway", templateId: "urban-subway" },
-  { tag: "Colors Wide", templateId: "colors-wide" },
-  { tag: "Colors Close-Up", templateId: "colors-closeup" },
-  { tag: "Music Video Scene", templateId: "music-video-scene" },
-  { tag: "Urban Cut", templateId: "urban-cut" },
-  { tag: "Get Ready With Me", templateId: "grwm-reel" },
-];
-
 // Category display order for the gallery. Viral leads — it's the discovery hook.
 export const CATEGORY_ORDER: TemplateCategory[] = ["Viral", "Lip-sync", "Motion", "UGC/Ad", "Spin", "Kids", "Editing"];
 

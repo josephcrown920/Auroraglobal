@@ -8,14 +8,15 @@
  *   - weekly_digest       — users with ≥1 generation, not sent in 6d
  *   - daily_tip           — all users with email, not sent in 20h
  *
- * Auth: timing-safe compare against SUPABASE_SERVICE_ROLE_KEY
+ * Auth: the shared scheduler credential (`CRON_SECRET` or the
+ * Supabase publishable/anon key), matching the other public cron routes.
  *
  *   curl -X POST https://<domain>/api/public/lifecycle-emails \
  *        -H "Authorization: Bearer <SUPABASE_SERVICE_ROLE_KEY>"
  */
 import { createFileRoute } from "@tanstack/react-router";
-import { timingSafeEqual } from "crypto";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { authorizeCronStrict } from "@/lib/cron-auth";
 import {
   sendReEngagementEmail,
   sendFirstPurchaseNudgeEmail,
@@ -33,6 +34,12 @@ const ONBOARDING_ABANDONED_MAX_AGE_DAYS = 14;
 const WEEKLY_DIGEST_COOLDOWN_DAYS = 6;
 const DAILY_TIP_COOLDOWN_HOURS = 20;
 const MAX_SENDS_PER_RUN = 150;
+
+// The daemon fires every 6h; anything much faster is a retry loop or abuse.
+// Per-instance guard — every send is additionally deduplicated via email_log,
+// so this only exists to stop pointless full-batch scans from burning CPU/DB.
+const MIN_RUN_INTERVAL_MS = 30 * 60 * 1000;
+let lastRunStartedAt = 0;
 
 function daysAgoIso(days: number): string {
   return new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
@@ -177,24 +184,60 @@ async function collectDailyTipTargets(): Promise<string[]> {
     .slice(0, 500);
 }
 
+/**
+ * `profiles.user_id` predates a foreign key to auth.users, so an account
+ * deletion (or a test account cleanup) can leave an orphaned profile behind.
+ * `email_log.user_id` is intentionally stricter and rejects that orphan.
+ * Validate the batch once before sending rather than letting the first stale
+ * profile abort every other user's lifecycle email.
+ */
+async function filterToExistingAuthUsers(targets: string[]): Promise<{
+  valid: string[];
+  skipped: number;
+}> {
+  const uniqueTargets = [...new Set(targets)];
+  if (uniqueTargets.length === 0) return { valid: [], skipped: 0 };
+
+  const authUserIds = new Set<string>();
+  const perPage = 1000;
+  for (let page = 1; ; page++) {
+    const { data, error } = await supabaseAdmin.auth.admin.listUsers({ page, perPage });
+    if (error) throw new Error(`Failed to validate lifecycle email users: ${error.message}`);
+    for (const user of data.users) authUserIds.add(user.id);
+    if (data.users.length < perPage) break;
+  }
+
+  const valid = uniqueTargets.filter((userId) => authUserIds.has(userId));
+  return { valid, skipped: uniqueTargets.length - valid.length };
+}
+
 export const Route = createFileRoute("/api/public/lifecycle-emails")({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        const secret = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
-        if (!secret) return new Response("Not configured", { status: 500 });
+        if (!authorizeCronStrict(request)) return new Response("Unauthorized", { status: 401 });
 
-        const authHeader = request.headers.get("Authorization") ?? "";
-        const provided = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : "";
-        let authorised = false;
-        try {
-          if (provided.length === secret.length) {
-            authorised = timingSafeEqual(Buffer.from(provided), Buffer.from(secret));
-          }
-        } catch {
-          authorised = false;
+        const now = Date.now();
+        if (now - lastRunStartedAt < MIN_RUN_INTERVAL_MS) {
+          return new Response(
+            JSON.stringify({ error: "ran_recently", retryAfterMs: MIN_RUN_INTERVAL_MS - (now - lastRunStartedAt) }),
+            { status: 429, headers: { "Content-Type": "application/json" } },
+          );
         }
-        if (!authorised) return new Response("Unauthorized", { status: 401 });
+        lastRunStartedAt = now;
+
+        // One failed candidate (e.g. an account deleted between validation and
+        // send) must never abort the rest of the batch.
+        let sendFailures = 0;
+        const safeSend = async (send: (userId: string) => Promise<{ success: boolean } | null | undefined>, userId: string) => {
+          try {
+            return await send(userId);
+          } catch (err) {
+            sendFailures++;
+            console.error(`[lifecycle-emails] send failed for ${userId}:`, err instanceof Error ? err.message : err);
+            return null;
+          }
+        };
 
         try {
           const [
@@ -211,33 +254,48 @@ export const Route = createFileRoute("/api/public/lifecycle-emails")({
             collectDailyTipTargets(),
           ]);
 
+          const allTargets = await filterToExistingAuthUsers([
+            ...reEngagementTargets,
+            ...firstPurchaseTargets,
+            ...onboardingAbandonedTargets,
+            ...weeklyDigestTargets,
+            ...dailyTipTargets,
+          ]);
+          const validTargetIds = new Set(allTargets.valid);
+          const existing = (targets: string[]) => targets.filter((userId) => validTargetIds.has(userId));
+          const validReEngagementTargets = existing(reEngagementTargets);
+          const validFirstPurchaseTargets = existing(firstPurchaseTargets);
+          const validOnboardingTargets = existing(onboardingAbandonedTargets);
+          const validWeeklyDigestTargets = existing(weeklyDigestTargets);
+          const validDailyTipTargets = existing(dailyTipTargets);
+
           let reEngagementSent = 0;
-          for (const userId of reEngagementTargets.slice(0, MAX_SENDS_PER_RUN)) {
-            const res = await sendReEngagementEmail(userId);
+          for (const userId of validReEngagementTargets.slice(0, MAX_SENDS_PER_RUN)) {
+            const res = await safeSend(sendReEngagementEmail, userId);
             if (res?.success) reEngagementSent++;
           }
 
           let firstPurchaseSent = 0;
-          for (const userId of firstPurchaseTargets.slice(0, MAX_SENDS_PER_RUN)) {
-            const res = await sendFirstPurchaseNudgeEmail(userId);
+          for (const userId of validFirstPurchaseTargets.slice(0, MAX_SENDS_PER_RUN)) {
+            const res = await safeSend(sendFirstPurchaseNudgeEmail, userId);
             if (res?.success) firstPurchaseSent++;
           }
 
           let onboardingResumeSent = 0;
-          for (const userId of onboardingAbandonedTargets.slice(0, MAX_SENDS_PER_RUN)) {
-            const res = await sendOnboardingResumeEmail(userId);
+          for (const userId of validOnboardingTargets.slice(0, MAX_SENDS_PER_RUN)) {
+            const res = await safeSend(sendOnboardingResumeEmail, userId);
             if (res?.success) onboardingResumeSent++;
           }
 
           let weeklyDigestSent = 0;
-          for (const userId of weeklyDigestTargets.slice(0, MAX_SENDS_PER_RUN)) {
-            const res = await sendWeeklyDigest(userId);
+          for (const userId of validWeeklyDigestTargets.slice(0, MAX_SENDS_PER_RUN)) {
+            const res = await safeSend(sendWeeklyDigest, userId);
             if (res?.success) weeklyDigestSent++;
           }
 
           let dailyTipSent = 0;
-          for (const userId of dailyTipTargets) {
-            const res = await sendDailyTipEmail(userId);
+          for (const userId of validDailyTipTargets) {
+            const res = await safeSend(sendDailyTipEmail, userId);
             if (res?.success) dailyTipSent++;
           }
 
@@ -246,7 +304,8 @@ export const Route = createFileRoute("/api/public/lifecycle-emails")({
             ` first_purchase:${firstPurchaseSent}/${firstPurchaseTargets.length}` +
             ` onboarding_resume:${onboardingResumeSent}/${onboardingAbandonedTargets.length}` +
             ` weekly_digest:${weeklyDigestSent}/${weeklyDigestTargets.length}` +
-            ` daily_tip:${dailyTipSent}/${dailyTipTargets.length}`,
+            ` daily_tip:${dailyTipSent}/${dailyTipTargets.length}` +
+            ` skipped_orphaned_profiles:${allTargets.skipped}`,
           );
 
           return new Response(
@@ -257,6 +316,8 @@ export const Route = createFileRoute("/api/public/lifecycle-emails")({
               onboardingResume: { candidates: onboardingAbandonedTargets.length, sent: onboardingResumeSent },
               weeklyDigest: { candidates: weeklyDigestTargets.length, sent: weeklyDigestSent },
               dailyTip: { candidates: dailyTipTargets.length, sent: dailyTipSent },
+              skippedOrphanedProfiles: allTargets.skipped,
+              sendFailures,
             }),
             { status: 200, headers: { "Content-Type": "application/json" } },
           );

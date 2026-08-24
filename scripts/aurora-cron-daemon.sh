@@ -12,6 +12,8 @@
 #   POST /api/public/free-daily-grant    once per UTC day — +4 Aura to every user
 #                                                        (idempotent; retried each
 #                                                        tick until it succeeds)
+#   POST /api/public/lifecycle-emails   every 6 h    — sends deduplicated
+#                                                        lifecycle + engagement emails
 #   POST /api/public/deletion-sweep      every 1 h    — retries failed account-
 #                                                        deletion final sweeps
 #                                                        until the purge completes
@@ -30,9 +32,10 @@ SWEEP_INTERVAL=21600     # seconds between stuck-payment sweeps (6 hours)
 DELSWEEP_INTERVAL=3600   # seconds between account-deletion sweep retries (1 hour)
 MODELWATCH_INTERVAL=21600  # seconds between new-AI-model catalog scans (6 hours)
 GENHEALTH_INTERVAL=900     # seconds between generation health checks (15 min)
+LIFECYCLE_INTERVAL=21600   # seconds between lifecycle email runs (6 hours)
 
 # ── Auth key ────────────────────────────────────────────────────────────────
-APIKEY="${SUPABASE_PUBLISHABLE_KEY:-${SUPABASE_ANON_KEY:-${CRON_SECRET:-}}}"
+APIKEY="${CRON_SECRET:-${SUPABASE_PUBLISHABLE_KEY:-${SUPABASE_ANON_KEY:-}}}"
 if [ -z "$APIKEY" ]; then
   echo "[cron] ERROR: no auth key found. Set SUPABASE_PUBLISHABLE_KEY or CRON_SECRET." >&2
   exit 1
@@ -77,6 +80,7 @@ last_sweep=0
 last_delsweep=0
 last_modelwatch=0
 last_genhealth=0
+last_lifecycle=0
 last_vast=0
 last_ghsync=0
 last_grant_day=""
@@ -199,6 +203,24 @@ while true; do
     else
       echo "[$ts][daily-grant] WARN — $resp (rc=$rc)"
     fi
+  fi
+
+  # Lifecycle + engagement emails (every 6 hours).
+  # The endpoint deduplicates each template via email_log and only sends
+  # candidates inside each template's own cooldown/window.
+  if [ $((now - last_lifecycle)) -ge $LIFECYCLE_INTERVAL ]; then
+    resp=$(curl -sf "$APP/api/public/lifecycle-emails" \
+      -X POST \
+      -H "apikey: $APIKEY" \
+      -H "content-type: application/json" \
+      --max-time 300 2>&1) && rc=0 || rc=$?
+    ts=$(date -u +"%H:%M:%S")
+    if [ $rc -eq 0 ]; then
+      echo "[$ts][lifecycle-emails] OK — $resp"
+    else
+      echo "[$ts][lifecycle-emails] WARN — $resp (rc=$rc)"
+    fi
+    last_lifecycle=$now
   fi
 
   # Generation health check (every 15 min) — alerts when image/video/lipsync
