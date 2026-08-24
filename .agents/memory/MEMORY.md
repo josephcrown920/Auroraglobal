@@ -144,4 +144,5 @@
 - [render_jobs is a live separate pipeline](render-jobs-separate-pipeline.md) — GPU render_jobs table/routes are a second active job system alongside the main `jobs` table; audit finalization races in BOTH independently.
 - [Sibling describe-scoped test consts](test-scoped-const-shadowing.md) — a const declared in one describe() isn't visible in a sibling describe() in the same file; silently resolves undefined → `.includes(undefined)` false-fallthrough masquerades as a prod bug.
 - [Generation idempotency-key pattern](generation-idempotency-key-pattern.md) — optional key, dedicated claim table, claim/replay/reject/retry states; swallow success-write failures, throw failure-write failures.
+- [Ark CLI (BytePlus) on Replit](ark-cli-byteplus.md) — installed at .local/ark-cli with wrapper (global npm + home dir don't persist); SSO state symlinked into workspace; API-key-only mode needs ep- endpoint ids.
 - [Schema drift + open RLS discovery](supabase-schema-drift-and-open-rls-discovery.md) — a live table can have zero migration file AND fully permissive RLS (`USING (true)`) despite owning a user_id column; check both independently per table.
