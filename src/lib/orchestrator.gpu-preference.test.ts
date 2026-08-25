@@ -69,6 +69,7 @@ mock.module("@/integrations/supabase/client.server", () => ({ supabaseAdmin: sup
 let replicateCallCount = 0;
 mock.module("./replicate.server", () => ({
   getReplicateKey: () => process.env.REPLICATE_API_KEY,
+  replicateProgressPct: () => null,
   replicateRun: async () => {
     replicateCallCount++;
     return { output: "https://replicate.delivery/should-not-be-used.mp4" };

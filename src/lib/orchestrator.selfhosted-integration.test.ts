@@ -69,6 +69,7 @@ mock.module("@/integrations/supabase/client.server", () => ({ supabaseAdmin: sup
 
 mock.module("./replicate.server", () => ({
   getReplicateKey: () => process.env.REPLICATE_API_KEY,
+  replicateProgressPct: () => null,
   replicateRun: async () => {
     replicateCallCount++;
     return { output: "https://replicate.delivery/hosted-result.mp4" };

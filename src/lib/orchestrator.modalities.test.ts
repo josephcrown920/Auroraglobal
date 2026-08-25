@@ -65,6 +65,7 @@ const supabaseStub = {
 mock.module("@/integrations/supabase/client.server", () => ({ supabaseAdmin: supabaseStub }));
 mock.module("./replicate.server", () => ({
   getReplicateKey: () => getReplicateKeyImpl(),
+  replicateProgressPct: () => null,
   replicateRun: (slug: string, input: unknown, t?: number) => replicateRunImpl(slug, input, t),
   pickReplicateUrl: (output: unknown) =>
     typeof output === "string" ? output : ((output as { url?: string })?.url ?? ""),
