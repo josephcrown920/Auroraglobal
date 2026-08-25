@@ -441,4 +441,3 @@ export const verifyAndProcessWebhook = createServerFn({ method: "POST" })
 
     return processPaymentSuccess(event);
   });
-

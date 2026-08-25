@@ -433,7 +433,6 @@ function StudioPage() {
   });
 
 
-
   const reangleMut = useMutation({
     mutationFn: async (anglePrompt: string) => {
       if (!latest?.result_image_url) throw new Error("Generate a base shot first");

@@ -796,8 +796,19 @@ function BatchLipSyncForm() {
           <p className="mt-1.5 text-[11px] text-white/40">
             {isPhotoEngine
               ? "Each photo is used directly as the source still for this engine."
-              : "Non-photo engines treat each photo as a single-frame source clip."}
+              : "This engine requires a video clip as its source, so it cannot render the uploaded still photos."}
           </p>
+          {!isPhotoEngine && (
+            <div
+              role="alert"
+              className="mt-3 flex items-start gap-2 rounded-xl border border-amber-400/30 bg-amber-500/10 p-3 text-xs text-amber-100"
+            >
+              <Info className="mt-0.5 size-4 shrink-0 text-amber-300" />
+              <p>
+                These engines need a video clip — use HeyGen Photo or xAI UGC for still photos.
+              </p>
+            </div>
+          )}
         </div>
 
         <label className="mt-5 flex items-start gap-3 cursor-pointer select-none">

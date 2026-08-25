@@ -65,6 +65,13 @@ const supabaseAdmin = {
   },
 };
 
+const {
+  canRecoverStuckPayment,
+  verifyPaystackSignature,
+  processPaymentSuccess,
+} =
+  await import("./paystack-webhook.server");
+
 mock.module("@/integrations/supabase/client.server", () => ({ supabaseAdmin }));
 
 const {
@@ -90,7 +97,7 @@ beforeEach(() => {
 describe("verifyPaystackSignature", () => {
   it("accepts a correct HMAC-SHA512 signature and rejects bad ones", () => {
     const secret = "sk_test_x";
-    const body = JSON.stringify({ event: "charge.success" });
+    const body = "{}";
     const sig = createHmac("sha512", secret).update(body).digest("hex");
     expect(verifyPaystackSignature(sig, body, secret)).toBe(true);
     expect(verifyPaystackSignature(sig, body, "wrong-secret")).toBe(false);
@@ -110,7 +117,13 @@ describe("processPaymentSuccess", () => {
       error: null,
     };
     const r = await processPaymentSuccess(
-      ev({ reference: "ref1", status: "success", amount: 1000 }),
+      ev({
+        reference: "ref-race2",
+        status: "success",
+        amount: 1000,
+        metadata: { user_id: "u1", credits: 500 },
+      }),
+      { retryDelaysMs: [] },
     );
     expect(r).toMatchObject({ status: "success", paymentId: "p1" });
 
@@ -142,7 +155,15 @@ describe("processPaymentSuccess", () => {
       },
       error: null,
     };
-    const r = await processPaymentSuccess(ev({ reference: "ref1", status: "success" }));
+    const r = await processPaymentSuccess(
+      ev({
+        reference: "ref-race2",
+        status: "success",
+        amount: 1000,
+        metadata: { user_id: "u1", credits: 500 },
+      }),
+      { retryDelaysMs: [] },
+    );
     expect(r).toEqual({ status: "already_processed" });
     expect(calls.rpc.find((c) => c.name === "grant_credits")).toBeUndefined();
   });
@@ -241,8 +262,13 @@ describe("processPaymentSuccess", () => {
       },
     ];
     const r = await processPaymentSuccess(
-      ev({ reference: "ref1", status: "success", amount: 1000 }),
-      { retryDelaysMs: [0, 0] },
+      ev({
+        reference: "ref-race2",
+        status: "success",
+        amount: 1000,
+        metadata: { user_id: "u1", credits: 500 },
+      }),
+      { retryDelaysMs: [] },
     );
     expect(r).toMatchObject({ status: "success", paymentId: "p1" });
     expect(calls.rpc.find((c) => c.name === "grant_credits")).toBeTruthy();
@@ -256,7 +282,7 @@ describe("processPaymentSuccess", () => {
     };
     const r = await processPaymentSuccess(
       ev({
-        reference: "ref-race",
+        reference: "ref-race2",
         status: "success",
         amount: 1000,
         metadata: { user_id: "u1", credits: 500 },

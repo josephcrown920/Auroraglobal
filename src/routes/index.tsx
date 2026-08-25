@@ -29,6 +29,10 @@ const AppScreenshotsSection = lazy(() =>
 const CliSection = lazy(() =>
   import("@/components/landing/CliSection").then((m) => ({ default: m.CliSection })),
 );
+
+const PhotoStrip = lazy(() =>
+  import("@/components/landing/PhotoStrip").then((m) => ({ default: m.PhotoStrip })),
+);
 const UGCAdsSection = lazy(() =>
   import("@/components/landing/UGCAdsSection").then((m) => ({ default: m.UGCAdsSection })),
 );
