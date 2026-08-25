@@ -37,10 +37,6 @@ const UGCAdsSection = lazy(() =>
   import("@/components/landing/UGCAdsSection").then((m) => ({ default: m.UGCAdsSection })),
 );
 
-const PhotoStrip = lazy(() =>
-  import("@/components/landing/PhotoStrip").then((m) => ({ default: m.PhotoStrip })),
-);
-
 const ModelSpotlight = lazy(() =>
   import("@/components/landing/ModelSpotlight").then((m) => ({ default: m.ModelSpotlight })),
 );
