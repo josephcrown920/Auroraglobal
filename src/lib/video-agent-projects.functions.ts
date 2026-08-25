@@ -3,6 +3,22 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { computeCost } from "./pricing";
+import {
+  NBA_JOSH_DURATION_SECONDS,
+  NBA_JOSH_LAYER_A_SECONDS,
+  NBA_JOSH_STILL_MODEL,
+  NBA_JOSH_VIDEO_MODEL,
+  NbaJoshProductionSchema,
+  defaultNbaJoshProduction,
+  nbaJoshPlanHash,
+  quoteNbaJoshPreview,
+  quoteNbaJoshStill,
+  quoteNbaJoshVideo,
+  refreshNbaJoshQuotes,
+  resetNbaJoshOutfit,
+  validateNbaJoshProduction,
+  type NbaJoshProduction,
+} from "./nba-josh-production";
 
 const StyleSchema = z.enum(["cinematic", "minimal", "vibrant", "documentary"]);
 const VoiceSchema = z.enum(["narrator-deep", "narrator-warm", "news-anchor", "conversational"]);
@@ -44,6 +60,7 @@ type ProjectRow = {
   export_url: string | null;
   thumbnail_url: string | null;
   error: string | null;
+  production: unknown;
   created_at: string;
   updated_at: string;
 };
@@ -96,6 +113,12 @@ function parseScenes(value: unknown): SceneRecord[] {
   return parsed.success ? parsed.data : [];
 }
 
+function parseProduction(value: unknown): NbaJoshProduction | null {
+  if (!value) return null;
+  const parsed = NbaJoshProductionSchema.safeParse(value);
+  return parsed.success ? refreshNbaJoshQuotes(parsed.data) : null;
+}
+
 export type VideoAgentProjectDto = ReturnType<typeof mapVideoAgentProject>;
 
 export function mapVideoAgentProject(row: ProjectRow) {
@@ -114,6 +137,7 @@ export function mapVideoAgentProject(row: ProjectRow) {
     exportUrl: row.export_url,
     thumbnailUrl: row.thumbnail_url,
     error: row.error,
+    production: parseProduction(row.production),
     createdAt: new Date(row.created_at).getTime(),
     updatedAt: new Date(row.updated_at).getTime(),
   };
@@ -152,6 +176,30 @@ export const createVideoAgentProject = createServerFn({ method: "POST" })
     return mapVideoAgentProject(row);
   });
 
+export const createNbaJoshProductionProject = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const production = defaultNbaJoshProduction();
+    const { data: row, error } = await projectTable()
+      .insert({
+        user_id: context.userId,
+        prompt:
+          "NBA Josh stands calm in the foreground while aggressive officers run endlessly behind him. He glances, smirks, and walks away.",
+        title: "Looping Officers",
+        style: "cinematic",
+        voice: "narrator-warm",
+        target_duration: NBA_JOSH_DURATION_SECONDS,
+        scenes: [],
+        production,
+        status: "editing",
+        status_message: "Production plan ready for asset review",
+      })
+      .select("*")
+      .single();
+    if (error || !row) throw new Error(error?.message ?? "Could not create NBA Josh project");
+    return mapVideoAgentProject(row);
+  });
+
 export const listVideoAgentProjects = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
@@ -178,6 +226,7 @@ export const updateVideoAgentProject = createServerFn({ method: "POST" })
     id: z.string().uuid(),
     title: z.string().min(1).max(160).optional(),
     scenes: SceneListSchema.max(12).optional(),
+    production: NbaJoshProductionSchema.optional(),
   }).parse(data))
   .handler(async ({ data, context }) => {
     const current = await fetchOwnedProject(data.id, context.userId);
@@ -202,6 +251,28 @@ export const updateVideoAgentProject = createServerFn({ method: "POST" })
           : "Planning storyboard";
       }
     }
+    if (data.production !== undefined) {
+      if (current.status === "queued" || current.status === "processing") {
+        throw new Error("The production plan is locked while a render is in progress");
+      }
+      const next = validateNbaJoshProduction(data.production);
+      const previous = parseProduction(current.production);
+      if (previous && nbaJoshPlanHash(previous) !== nbaJoshPlanHash(next)) {
+        patch.production = {
+          ...next,
+          revision: previous.revision + 1,
+          outfits: next.outfits.map(resetNbaJoshOutfit),
+        };
+        patch.status = "editing";
+        patch.status_message = "Production changed — approvals need to be renewed";
+        patch.job_id = null;
+        patch.generation_id = null;
+        patch.export_url = null;
+        patch.error = null;
+      } else {
+        patch.production = next;
+      }
+    }
     if (!Object.keys(patch).length) return mapVideoAgentProject(current);
     const { data: row, error } = await projectTable()
       .update(patch)
@@ -211,6 +282,342 @@ export const updateVideoAgentProject = createServerFn({ method: "POST" })
       .single();
     if (error || !row) throw new Error(error?.message ?? "Could not update project");
     return mapVideoAgentProject(row);
+  });
+
+const NbaJoshActionInput = z.object({
+  projectId: z.string().uuid(),
+  outfitId: z.string().min(1).max(80),
+  planHash: z.string().min(1).max(40),
+});
+
+async function fetchNbaJoshProject(id: string, userId: string) {
+  const row = await fetchOwnedProject(id, userId);
+  const production = parseProduction(row.production);
+  if (!production || production.template !== "nba-josh-looping-officers") {
+    throw new Error("This project is not an NBA Josh production");
+  }
+  return { row, production };
+}
+
+function findNbaJoshOutfit(plan: NbaJoshProduction, outfitId: string) {
+  const item = plan.outfits.find((outfit) => outfit.id === outfitId);
+  if (!item) throw new Error("Outfit not found in this production");
+  return item;
+}
+
+function assertCurrentPlanHash(plan: NbaJoshProduction, supplied: string) {
+  if (nbaJoshPlanHash(plan) !== supplied) {
+    throw new Error("This production changed. Refresh, review, and approve the current plan.");
+  }
+}
+
+async function assertOwnedGenerationAssets(
+  plan: NbaJoshProduction,
+  outfit: NbaJoshProduction["outfits"][number],
+  userId: string,
+) {
+  // Bundled refs are visual briefing aids only. Paid generation may use only
+  // references the creator uploaded to their own Studio namespace.
+  const identity = plan.identityRefs.filter((ref) => ref.source === "user-upload" && ref.generationUrl);
+  const wardrobe = outfit.refs.filter((ref) => ref.source === "user-upload" && ref.generationUrl);
+  if (!identity.length || !wardrobe.length) {
+    throw new Error("Upload at least one identity reference and one wardrobe reference for this outfit before generating");
+  }
+  const refs = [...identity, ...wardrobe];
+  const { assertOwnedReferenceImage } = await import("./url-guard");
+  for (const ref of refs) await assertOwnedReferenceImage(ref.generationUrl!, userId);
+  return refs.map((ref) => ref.generationUrl!);
+}
+
+async function persistProduction(
+  projectId: string,
+  userId: string,
+  production: NbaJoshProduction,
+  statusMessage: string,
+) {
+  const { error } = await projectTable()
+    .update({ production, status: "editing", status_message: statusMessage })
+    .eq("id", projectId)
+    .eq("user_id", userId)
+    .select("id")
+    .single();
+  if (error) throw new Error(error.message);
+}
+
+export const quoteNbaJoshProduction = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) => z.object({
+    projectId: z.string().uuid(),
+    outfitId: z.string().min(1).max(80),
+  }).parse(data))
+  .handler(async ({ data, context }) => {
+    const { production } = await fetchNbaJoshProject(data.projectId, context.userId);
+    const outfit = findNbaJoshOutfit(production, data.outfitId);
+    return {
+      planHash: nbaJoshPlanHash(production),
+      stills: quoteNbaJoshStill(outfit.variationCount),
+      preview: quoteNbaJoshPreview(),
+      video: quoteNbaJoshVideo(),
+      variationCount: outfit.variationCount,
+      models: { still: NBA_JOSH_STILL_MODEL, video: NBA_JOSH_VIDEO_MODEL },
+    };
+  });
+
+export const approveNbaJoshStill = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) => NbaJoshActionInput.extend({ creatorAttested: z.literal(true) }).parse(data))
+  .handler(async ({ data, context }) => {
+    const { row, production } = await fetchNbaJoshProject(data.projectId, context.userId);
+    assertCurrentPlanHash(production, data.planHash);
+    if (!Object.values(production.authorization).every(Boolean)) {
+      throw new Error("Confirm rights to the likeness, audio, supplied media, and wardrobe before approving paid work");
+    }
+    const outfit = findNbaJoshOutfit(production, data.outfitId);
+    await assertOwnedGenerationAssets(production, outfit, context.userId);
+    if (!production.identityRefs.some((ref) => ref.approved)) {
+      throw new Error("Approve at least one identity reference before generating");
+    }
+    const next: NbaJoshProduction = {
+      ...production,
+      outfits: production.outfits.map((item) => item.id === outfit.id ? {
+        ...item,
+        stillStatus: "queued",
+        approvals: {
+          ...item.approvals,
+          still: { approved: true, planHash: data.planHash, approvedAt: new Date().toISOString() },
+        },
+      } : item),
+    };
+    await persistProduction(row.id, context.userId, next, `${outfit.name} still approval recorded`);
+    return { ok: true, planHash: data.planHash };
+  });
+
+export const generateNbaJoshStills = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) => NbaJoshActionInput.parse(data))
+  .handler(async ({ data, context }) => {
+    const { row, production } = await fetchNbaJoshProject(data.projectId, context.userId);
+    assertCurrentPlanHash(production, data.planHash);
+    const outfit = findNbaJoshOutfit(production, data.outfitId);
+    if (!outfit.approvals.still.approved || outfit.approvals.still.planHash !== data.planHash) {
+      throw new Error("Approve this outfit's still plan before generating");
+    }
+    const imageUrls = await assertOwnedGenerationAssets(production, outfit, context.userId);
+    const { reserveOrchestrateRecord } = await import("./generate-core.server");
+    const working: NbaJoshProduction = {
+      ...production,
+      outfits: production.outfits.map((item) => item.id === outfit.id ? { ...item, stillStatus: "processing", stillError: undefined } : item),
+    };
+    await persistProduction(row.id, context.userId, working, `Generating ${outfit.name} Seedream stills`);
+
+    const outputs: Array<{ url: string; generationId: string }> = [];
+    const failures: string[] = [];
+    for (let index = 0; index < outfit.variationCount; index++) {
+      try {
+        const result = await reserveOrchestrateRecord({
+          userId: context.userId,
+          kind: "image",
+          cost: quoteNbaJoshStill(1),
+          reason: `nba_josh_still_${outfit.id}`,
+          prompt: `${outfit.prompt} Variation ${index + 1} of ${outfit.variationCount}.`,
+          imageUrls,
+          model: NBA_JOSH_STILL_MODEL,
+          pinnedModelOnly: true,
+          aspectRatio: "16:9",
+          idempotencyKey: `${row.id}:still:${outfit.id}:${data.planHash}:${index}`,
+        });
+        if (!result.ok) throw new Error(result.error);
+        outputs.push({ url: result.url, generationId: result.generationId });
+      } catch (error) {
+        failures.push(error instanceof Error ? error.message : String(error));
+      }
+    }
+    const succeeded = outputs.length > 0;
+    const next: NbaJoshProduction = {
+      ...working,
+      outfits: working.outfits.map((item) => item.id === outfit.id ? {
+        ...item,
+        stillStatus: succeeded ? "succeeded" : "failed",
+        videoStatus: succeeded ? "awaiting_motion_approval" : "idle",
+        stillUrls: outputs.map((output) => output.url),
+        stillGenerationIds: outputs.map((output) => output.generationId),
+        stillError: failures.length ? failures.join("; ").slice(0, 1000) : undefined,
+      } : item),
+    };
+    await persistProduction(row.id, context.userId, next, succeeded ? `${outfit.name} stills ready for selection` : `${outfit.name} still generation failed`);
+    if (!succeeded) throw new Error(failures[0] ?? "Still generation failed");
+    return { stillUrls: outputs.map((output) => output.url), generationIds: outputs.map((output) => output.generationId), failedVariations: failures.length };
+  });
+
+export const selectNbaJoshStill = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) => NbaJoshActionInput.extend({ stillUrl: z.string().url() }).parse(data))
+  .handler(async ({ data, context }) => {
+    const { row, production } = await fetchNbaJoshProject(data.projectId, context.userId);
+    assertCurrentPlanHash(production, data.planHash);
+    const outfit = findNbaJoshOutfit(production, data.outfitId);
+    if (!outfit.stillUrls.includes(data.stillUrl)) throw new Error("That still is not part of this outfit");
+    const next: NbaJoshProduction = {
+      ...production,
+      outfits: production.outfits.map((item) => item.id === outfit.id ? {
+        ...item,
+        selectedStillUrl: data.stillUrl,
+        videoStatus: "awaiting_motion_approval",
+        approvals: { ...item.approvals, motion: { approved: false } },
+      } : item),
+    };
+    await persistProduction(row.id, context.userId, next, `${outfit.name} still selected — review motion`);
+    return { selectedStillUrl: data.stillUrl };
+  });
+
+export const approveNbaJoshMotion = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) => NbaJoshActionInput.extend({ stillUrl: z.string().url() }).parse(data))
+  .handler(async ({ data, context }) => {
+    const { row, production } = await fetchNbaJoshProject(data.projectId, context.userId);
+    assertCurrentPlanHash(production, data.planHash);
+    const outfit = findNbaJoshOutfit(production, data.outfitId);
+    if (outfit.selectedStillUrl !== data.stillUrl || !outfit.stillUrls.includes(data.stillUrl)) {
+      throw new Error("Select a generated still before approving motion");
+    }
+    const next: NbaJoshProduction = {
+      ...production,
+      outfits: production.outfits.map((item) => item.id === outfit.id ? {
+        ...item,
+        videoStatus: "preview_queued",
+        approvals: {
+          ...item.approvals,
+          motion: { approved: true, planHash: data.planHash, approvedAt: new Date().toISOString() },
+        },
+      } : item),
+    };
+    await persistProduction(row.id, context.userId, next, `${outfit.name} motion approved — preview gate required`);
+    return { ok: true, previewCost: quoteNbaJoshPreview() };
+  });
+
+export const generateNbaJoshMotionPreview = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) => NbaJoshActionInput.parse(data))
+  .handler(async ({ data, context }) => {
+    const { row, production } = await fetchNbaJoshProject(data.projectId, context.userId);
+    assertCurrentPlanHash(production, data.planHash);
+    const outfit = findNbaJoshOutfit(production, data.outfitId);
+    if (!outfit.approvals.motion.approved || outfit.approvals.motion.planHash !== data.planHash) {
+      throw new Error("Approve motion before requesting a preview");
+    }
+    if (!outfit.selectedStillUrl) throw new Error("Select a still before requesting a motion preview");
+    const { reserveOrchestrateRecord } = await import("./generate-core.server");
+    const working: NbaJoshProduction = {
+      ...production,
+      outfits: production.outfits.map((item) => item.id === outfit.id ? { ...item, videoStatus: "preview_queued", videoError: undefined } : item),
+    };
+    await persistProduction(row.id, context.userId, working, `Generating ${outfit.name} Seedance preview`);
+    try {
+      const result = await reserveOrchestrateRecord({
+        userId: context.userId,
+        kind: "video",
+        cost: quoteNbaJoshPreview(),
+        reason: `nba_josh_motion_preview_${outfit.id}`,
+        prompt: `${outfit.prompt} Five-beat motion preview: opening, build, tension peak, glance and smirk, exit.`,
+        imageUrls: [outfit.selectedStillUrl],
+        model: NBA_JOSH_VIDEO_MODEL,
+        pinnedModelOnly: true,
+        duration: 5,
+        resolution: "480p",
+        aspectRatio: "16:9",
+        mode: "preview",
+        idempotencyKey: `${row.id}:motion-preview:${outfit.id}:${data.planHash}`,
+      });
+      if (!result.ok) throw new Error(result.error);
+      const next: NbaJoshProduction = {
+        ...working,
+        outfits: working.outfits.map((item) => item.id === outfit.id ? {
+          ...item,
+          videoStatus: "preview_succeeded",
+          videoUrl: result.url,
+          videoGenerationId: result.generationId,
+        } : item),
+      };
+      await persistProduction(row.id, context.userId, next, `${outfit.name} preview ready for review`);
+      return { url: result.url, generationId: result.generationId };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      const next: NbaJoshProduction = {
+        ...working,
+        outfits: working.outfits.map((item) => item.id === outfit.id ? {
+          ...item,
+          videoStatus: "failed",
+          videoError: message.slice(0, 1000),
+        } : item),
+      };
+      await persistProduction(row.id, context.userId, next, `${outfit.name} preview failed`);
+      throw error;
+    }
+  });
+
+export const generateNbaJoshVideo = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) => NbaJoshActionInput.extend({ previewAccepted: z.literal(true) }).parse(data))
+  .handler(async ({ data, context }) => {
+    const { row, production } = await fetchNbaJoshProject(data.projectId, context.userId);
+    assertCurrentPlanHash(production, data.planHash);
+    const outfit = findNbaJoshOutfit(production, data.outfitId);
+    if (outfit.videoStatus !== "preview_succeeded" || !outfit.videoUrl) {
+      throw new Error("Review the temporal preview before rendering the final Layer A clip");
+    }
+    if (!outfit.approvals.motion.approved || outfit.approvals.motion.planHash !== data.planHash || !outfit.selectedStillUrl) {
+      throw new Error("Approve the selected still's motion plan before rendering");
+    }
+    const { reserveOrchestrateRecord } = await import("./generate-core.server");
+    const working: NbaJoshProduction = {
+      ...production,
+      outfits: production.outfits.map((item) => item.id === outfit.id ? { ...item, videoStatus: "processing", videoError: undefined } : item),
+    };
+    await persistProduction(row.id, context.userId, working, `Generating ${outfit.name} Layer A`);
+    try {
+      const result = await reserveOrchestrateRecord({
+        userId: context.userId,
+        kind: "video",
+        cost: quoteNbaJoshVideo(),
+        reason: `nba_josh_layer_a_${outfit.id}`,
+        prompt: `${outfit.prompt} Final 10-second Layer A foreground clip. Follow the five beats exactly: opening, build, tension peak, glance and smirk, exit. Keep the foreground clean for external compositing.`,
+        imageUrls: [outfit.selectedStillUrl],
+        model: NBA_JOSH_VIDEO_MODEL,
+        pinnedModelOnly: true,
+        duration: NBA_JOSH_LAYER_A_SECONDS,
+        resolution: "720p",
+        aspectRatio: "16:9",
+        idempotencyKey: `${row.id}:motion-final:${outfit.id}:${data.planHash}`,
+      });
+      if (!result.ok) throw new Error(result.error);
+      const next: NbaJoshProduction = {
+        ...working,
+        layers: [
+          { ...working.layers[0], status: "ready_for_delivery", url: result.url },
+          working.layers[1],
+        ],
+        outfits: working.outfits.map((item) => item.id === outfit.id ? {
+          ...item,
+          videoStatus: "succeeded",
+          videoUrl: result.url,
+          videoGenerationId: result.generationId,
+        } : item),
+      };
+      await persistProduction(row.id, context.userId, next, `${outfit.name} Layer A ready — package with Layer B`);
+      return { url: result.url, generationId: result.generationId, cost: quoteNbaJoshVideo() };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      const next: NbaJoshProduction = {
+        ...working,
+        outfits: working.outfits.map((item) => item.id === outfit.id ? {
+          ...item,
+          videoStatus: "failed",
+          videoError: message.slice(0, 1000),
+        } : item),
+      };
+      await persistProduction(row.id, context.userId, next, `${outfit.name} Layer A generation failed`);
+      throw error;
+    }
   });
 
 // ─── Previs Pro: upgrade one scene's plate to a premium paid render ──────────

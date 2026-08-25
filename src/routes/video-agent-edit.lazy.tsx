@@ -11,6 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
+import { NbaJoshProductionStudio, NbaJoshProductionStudioSkeleton } from "@/components/video-agent/NbaJoshProductionStudio";
 import { useAuth } from "@/hooks/use-auth";
 import {
   getVideoAgentProject,
@@ -310,12 +311,12 @@ function VideoEditor() {
   if (authLoading || !user || projectQuery.isLoading) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
-        <Loader2 className="size-5 animate-spin text-muted-foreground" />
+        {projectQuery.isLoading ? <NbaJoshProductionStudioSkeleton /> : <Loader2 className="size-5 animate-spin text-muted-foreground" />}
       </div>
     );
   }
 
-  if (projectQuery.isError || !project || !draft) {
+  if (projectQuery.isError || !project || (!draft && !project.production)) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
         <div className="glass rounded-xl p-10 text-center max-w-sm">
@@ -331,6 +332,23 @@ function VideoEditor() {
       </div>
     );
   }
+
+  if (project.production?.template === "nba-josh-looping-officers") {
+    return (
+      <NbaJoshProductionStudio
+        project={project}
+        production={project.production}
+        onProjectUpdated={(updated) => {
+          if (updated.id === project.id) {
+            queryClient.setQueryData(["video-agent-project", project.id], updated);
+          }
+          void projectQuery.refetch();
+        }}
+      />
+    );
+  }
+
+  if (!draft) return null;
 
   const selectedScene = draft.scenes[Math.min(selectedIdx, draft.scenes.length - 1)];
   const saveLabel =

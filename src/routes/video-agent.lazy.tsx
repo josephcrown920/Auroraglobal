@@ -22,6 +22,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/hooks/use-auth";
 import {
+  createNbaJoshProductionProject,
   createVideoAgentProject,
   listVideoAgentProjects,
   type VideoAgentProjectDto,
@@ -88,7 +89,10 @@ const STATUS_CHIP: Record<string, { label: string; tone: "muted" | "active" | "d
 
 function DraftCard({ project }: { project: VideoAgentProjectDto }) {
   const chip = STATUS_CHIP[project.status] ?? STATUS_CHIP.draft;
-  const thumb = project.thumbnailUrl ?? project.scenes.find((s) => s.frame)?.frame ?? null;
+  const thumb = project.production?.layers[1]?.asset.previewUrl
+    ?? project.thumbnailUrl
+    ?? project.scenes.find((s) => s.frame)?.frame
+    ?? null;
   // Unplanned drafts resume in the planner; everything else opens the editor.
   const target = project.status === "draft" && project.scenes.length === 0
     ? ("/video-agent-process" as const)
@@ -142,6 +146,7 @@ function VideoAgentHome() {
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
   const createProject = useServerFn(createVideoAgentProject);
+  const createNbaJoshProject = useServerFn(createNbaJoshProductionProject);
   const listProjects = useServerFn(listVideoAgentProjects);
 
   const [prompt, setPrompt] = useState("");
@@ -182,6 +187,18 @@ function VideoAgentHome() {
         data: { prompt: trimmed, style, voice, targetDuration: duration },
       });
       await navigate({ to: "/video-agent-process", search: { id: project.id } });
+    } catch (err) {
+      toast.error((err as Error).message);
+      setLoading(false);
+    }
+  }
+
+  async function handleCreateNbaJosh() {
+    if (loading) return;
+    setLoading(true);
+    try {
+      const project = await createNbaJoshProject();
+      await navigate({ to: "/video-agent-edit", search: { id: project.id } });
     } catch (err) {
       toast.error((err as Error).message);
       setLoading(false);
@@ -254,6 +271,33 @@ function VideoAgentHome() {
             <BriefStep icon={Layers3} label="Plan" detail="Script + shots" />
             <BriefStep icon={Clapperboard} label="Build" detail="Storyboard + frames" />
             <BriefStep icon={Film} label="Finish" detail="Edit + final MP4" />
+          </div>
+        </section>
+
+        <section className="mb-5 overflow-hidden rounded-2xl border border-primary/30 bg-card/60" aria-label="Looping Officers production template">
+          <img
+            src="/josh/looping-officers-hero.png"
+            alt="NBA Josh stands calm beneath a hanging microphone as officers run behind him in rain and neon police lights"
+            className="aspect-video w-full object-cover"
+            loading="lazy"
+          />
+          <div className="space-y-3 p-4">
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-primary">Production template</p>
+              <h2 className="mt-1 text-base font-semibold">NBA Josh — Looping Officers</h2>
+              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                Build a clean Layer A performance plate while officers run at full speed in the rain but never close the distance. Aurora delivers Layer A and Layer B for your final composite.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => void handleCreateNbaJosh()}
+              disabled={loading}
+              className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90 disabled:opacity-60"
+            >
+              {loading ? <Loader2 className="size-4 animate-spin" /> : <Clapperboard className="size-4" />}
+              Open production plan
+            </button>
           </div>
         </section>
 
