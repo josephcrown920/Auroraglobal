@@ -153,9 +153,27 @@ export function getStyleTracks(styleId: string): MusicTrack[] {
 
 // ─── Storage helpers ──────────────────────────────────────────────────────────
 
+/** Minimal storage surface signedAutocutUrl needs — lets tests inject a real
+ * client even when another test suite has globally mock.module'd
+ * client.server (bun module mocks are process-global and leak across files). */
+type StorageClient = {
+  storage: {
+    from(bucket: string): {
+      createSignedUrl(
+        path: string,
+        expiresIn: number,
+      ): Promise<{ data: { signedUrl: string } | null; error: unknown }>;
+    };
+  };
+};
+
 /** Return a signed download URL for a studio-bucket path, or null if unavailable. */
-export async function signedAutocutUrl(path: string, expiresIn = 3600): Promise<string | null> {
-  const { data, error } = await supabaseAdmin.storage
+export async function signedAutocutUrl(
+  path: string,
+  expiresIn = 3600,
+  client: StorageClient = supabaseAdmin,
+): Promise<string | null> {
+  const { data, error } = await client.storage
     .from("studio")
     .createSignedUrl(path, expiresIn);
   if (error || !data?.signedUrl) return null;

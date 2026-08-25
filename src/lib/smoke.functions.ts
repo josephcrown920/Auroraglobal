@@ -1,4 +1,10 @@
 import { createServerFn } from "@tanstack/react-start";
+// Static named import — NEVER `await import("@tanstack/react-start/server")`.
+// A dynamic import of that package forces Rollup to emit its full namespace
+// object in the prod SSR chunk, which references `createRequestHandler` after
+// tree-shaking dropped it → `ReferenceError: createRequestHandler is not
+// defined` at module load, taking the whole deployed server down.
+import { getRequest } from "@tanstack/react-start/server";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
@@ -587,7 +593,6 @@ export const runSmokeTest = createServerFn({ method: "POST" })
           // Forward the caller's Bearer token so /api/public/generate can
           // authenticate the request with the same user identity that triggered
           // the smoke run.
-          const { getRequest } = await import("@tanstack/react-start/server");
           const req = getRequest();
           const authHeader = req.headers.get("authorization") ?? req.headers.get("Authorization") ?? "";
           if (!authHeader.startsWith("Bearer ")) {
@@ -680,7 +685,6 @@ export const runSmokeTest = createServerFn({ method: "POST" })
         try {
           // Forward the caller's Bearer token so /api/public/generate can
           // authenticate the user without a separate credentials lookup.
-          const { getRequest } = await import("@tanstack/react-start/server");
           const incomingReq = getRequest();
           const authHeader = incomingReq.headers.get("authorization") ?? "";
           const port = process.env.PORT ?? "8080";

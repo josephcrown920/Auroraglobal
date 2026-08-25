@@ -140,7 +140,7 @@ export function LiveJobsPanel() {
     setDismissed(new Set(getDismissed()));
   }, []);
 
-  const isPro = profile?.plan === "pro" || profile?.isAdmin === true;
+  const isPro = !!profile?.is_pro || profile?.isAdmin === true;
 
   // Show jobs that are:
   //   - actively running/processing (any age)

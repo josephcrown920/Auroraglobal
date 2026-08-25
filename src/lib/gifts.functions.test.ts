@@ -1,156 +1,134 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- the isolated Supabase-chain double intentionally models only the fluent calls under test. */
 import { describe, expect, it } from "bun:test";
-import { issueGiftCardCore, redeemGiftCardCore } from "./gifts.functions";
+import {
+  createPendingPurchasedGiftCard,
+  issueGiftCardCore,
+  redeemGiftCardCore,
+} from "./gifts.functions";
+import { GIFT_CARD_PRODUCTS } from "./gift-card-catalog";
 
-// Gift cards are a money-path: issuing is admin-gated and redeeming must grant
-// credits exactly once and fail closed when the conditional claim loses a race.
-// The createServerFn handlers can't run without a Start request context, so we
-// exercise the deps-injected cores with an in-memory admin stub.
+// Money paths delegate redemption to a single SECURITY DEFINER transaction.
+// These tests assert that the JS caller cannot reintroduce the old
+// select → claim → grant split that was vulnerable to partial settlement.
 
 function fakeAdmin(opts: {
   role?: unknown;
-  card?: unknown;
-  updateResult?: { data: unknown; error: { message: string } | null };
   insertResult?: { data: unknown; error: { message: string } | null };
-  grantError?: { message: string } | null;
+  redeemResult?: unknown;
+  rpcError?: { message: string } | null;
 }) {
   const calls = {
-    rpc: [] as Array<{ name: string; args: unknown }>,
+    rpc: [] as Array<{ name: string; args: Record<string, unknown> }>,
     inserts: [] as Array<{ table: string; row: Record<string, unknown> }>,
-    updates: [] as Array<{ table: string; patch: unknown }>,
   };
   function table(name: string) {
-    let op: "select" | "insert" | "update" = "select";
     let insertedRow: Record<string, unknown> = {};
-    const b: Record<string, unknown> = {};
-    for (const m of ["select", "eq", "is", "order", "limit"]) b[m] = () => b;
-    b.insert = (row: Record<string, unknown>) => {
-      op = "insert";
+    const builder: Record<string, any> = {};
+    for (const method of ["select", "eq", "is", "order", "limit"]) builder[method] = () => builder;
+    builder.insert = (row: Record<string, unknown>) => {
       insertedRow = row;
       calls.inserts.push({ table: name, row });
-      return b;
+      return builder;
     };
-    b.update = (patch: unknown) => {
-      op = "update";
-      calls.updates.push({ table: name, patch });
-      return b;
-    };
-    b.maybeSingle = async () => {
-      if (name === "user_roles") return { data: opts.role ?? null, error: null };
-      if (name === "gift_cards") return { data: opts.card ?? null, error: null };
-      return { data: null, error: null };
-    };
-    b.single = async () => {
-      if (op === "insert") return opts.insertResult ?? { data: insertedRow, error: null };
-      if (op === "update") return opts.updateResult ?? { data: { id: "c1" }, error: null };
-      return { data: null, error: null };
-    };
-    return b;
+    builder.maybeSingle = async () => ({
+      data: name === "user_roles" ? opts.role ?? null : null,
+      error: null,
+    });
+    builder.single = async () => opts.insertResult ?? { data: insertedRow, error: null };
+    return builder;
   }
-  const admin = {
-    from: (n: string) => table(n),
-    rpc: async (name: string, args: unknown) => {
-      calls.rpc.push({ name, args });
-      return { data: null, error: opts.grantError ?? null };
+  return {
+    admin: {
+      from: (name: string) => table(name),
+      rpc: async (name: string, args: Record<string, unknown>) => {
+        calls.rpc.push({ name, args });
+        if (name === "redeem_gift_card") return { data: opts.redeemResult ?? null, error: opts.rpcError ?? null };
+        return { data: null, error: opts.rpcError ?? null };
+      },
     },
+    calls,
   };
-  return { admin, calls };
 }
 
-describe("issueGiftCardCore", () => {
-  it("rejects non-admins before creating a card", async () => {
+describe("gift card issuance", () => {
+  it("rejects non-admins before creating a reseller card", async () => {
     const { admin, calls } = fakeAdmin({ role: null });
-    await expect(
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      issueGiftCardCore({ admin } as any, "u1", { credits: 100, amountUsd: 5, design: "aurora" }),
-    ).rejects.toThrow(/Admins only/);
+    await expect(issueGiftCardCore({ admin } as any, "u1", {
+      credits: 100, amountUsd: 5, design: "aurora",
+    })).rejects.toThrow(/Admins only/);
     expect(calls.inserts).toHaveLength(0);
   });
 
-  it("creates a gift card for an admin with a generated AURA- code", async () => {
-    const { admin, calls } = fakeAdmin({
-      role: { role: "admin" },
-      insertResult: { data: { id: "c1" }, error: null },
+  it("creates a Pro reseller card as active without a customer payment reference", async () => {
+    const { admin, calls } = fakeAdmin({ role: { role: "admin" } });
+    await issueGiftCardCore({ admin } as any, "admin1", {
+      credits: 0, amountUsd: 15, kind: "pro", proDays: 30, design: "neon",
     });
-    const row = await issueGiftCardCore(
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      { admin } as any,
-      "admin1",
-      { credits: 250, amountUsd: 10, design: "neon", note: "vip" },
-    );
-    expect(row).toMatchObject({ id: "c1" });
-    const ins = calls.inserts[0];
-    expect(ins.row).toMatchObject({
-      credits: 250,
-      amount_usd: 10,
-      design: "neon",
-      note: "vip",
-      created_by: "admin1",
+    expect(calls.inserts[0]?.row).toMatchObject({
+      kind: "pro", pro_days: 30, payment_status: "succeeded", status: "active",
     });
-    expect(String(ins.row.code)).toMatch(/^AURA-/);
+    expect(String(calls.inserts[0]?.row.code)).toMatch(/^AURA-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$/);
+  });
+
+  it("creates customer purchases as pending, never active", async () => {
+    const { admin, calls } = fakeAdmin({});
+    await createPendingPurchasedGiftCard({ admin } as any, "buyer1", {
+      productId: "creator", design: "rose", note: "For your next release", recipientEmail: "buyer@example.test",
+    });
+    expect(calls.inserts[0]?.row).toMatchObject({
+      purchaser_id: "buyer1",
+      payment_status: "pending",
+      status: "pending",
+      kind: "aura",
+    });
   });
 });
 
 describe("redeemGiftCardCore", () => {
-  it("rejects an unknown code", async () => {
-    const { admin } = fakeAdmin({ card: null });
-    await expect(
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      redeemGiftCardCore({ admin } as any, "u1", "AURA-XXXX-YYYY"),
-    ).rejects.toThrow(/Invalid gift card code/);
-  });
-
-  it("rejects an already-redeemed card", async () => {
-    const { admin } = fakeAdmin({
-      card: { id: "c1", credits: 100, redeemed_by: "someone", design: "aurora" },
-    });
-    await expect(
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      redeemGiftCardCore({ admin } as any, "u1", "code"),
-    ).rejects.toThrow(/already been redeemed/);
-  });
-
-  it("fails closed (no credit grant) when the conditional claim loses the race", async () => {
+  it("uses exactly one atomic redemption RPC for an Aura card", async () => {
     const { admin, calls } = fakeAdmin({
-      card: { id: "c1", credits: 100, redeemed_by: null, design: "aurora" },
-      updateResult: { data: null, error: null },
+      redeemResult: [{ credits: 300, kind: "aura", pro_days: 0, design: "rose" }],
     });
-    await expect(
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      redeemGiftCardCore({ admin } as any, "u1", "code"),
-    ).rejects.toThrow(/just redeemed by someone else/);
-    expect(calls.rpc.find((c) => c.name === "grant_credits")).toBeUndefined();
+    const result = await redeemGiftCardCore({ admin } as any, "u1", "  aura-abcd-efgh-1234  ");
+    expect(result).toMatchObject({ credits: 300, kind: "aura", design: "rose" });
+    expect(calls.rpc).toEqual([{
+      name: "redeem_gift_card",
+      args: { _user: "u1", _code: "AURA-ABCD-EFGH-1234" },
+    }]);
   });
 
-  it("grants credits exactly once on a successful redemption", async () => {
-    const { admin, calls } = fakeAdmin({
-      card: { id: "c1", credits: 300, redeemed_by: null, design: "rose" },
-      updateResult: { data: { id: "c1", redeemed_by: "u1" }, error: null },
-    });
-    const r = await redeemGiftCardCore(
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      { admin } as any,
-      "u1",
-      "  aura-abcd-efgh  ",
-    );
-    expect(r).toMatchObject({ credits: 300, design: "rose" });
-    const grant = calls.rpc.find((c) => c.name === "grant_credits");
-    expect(grant?.args).toMatchObject({
-      _user: "u1",
-      _amount: 300,
-      _reason: "gift_card_redeem",
-      _ref: "c1",
-    });
-  });
-
-  it("surfaces a grant_credits RPC error", async () => {
+  it("returns a Pro term from the same atomic redemption path", async () => {
     const { admin } = fakeAdmin({
-      card: { id: "c1", credits: 100, redeemed_by: null, design: "aurora" },
-      updateResult: { data: { id: "c1" }, error: null },
-      grantError: { message: "ledger down" },
+      redeemResult: [{ credits: 0, kind: "pro", pro_days: 90, design: "midnight" }],
     });
-    await expect(
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      redeemGiftCardCore({ admin } as any, "u1", "code"),
-    ).rejects.toThrow(/ledger down/);
+    await expect(redeemGiftCardCore({ admin } as any, "u1", "AURA-PRO-90D")).resolves.toMatchObject({
+      kind: "pro", pro_days: 90,
+    });
   });
+
+  it("fails without a grant when the database denies a duplicate or invalid redemption", async () => {
+    const { admin, calls } = fakeAdmin({ rpcError: { message: "This card has already been redeemed" } });
+    await expect(redeemGiftCardCore({ admin } as any, "u1", "AURA-USED-CARD")).rejects.toThrow(/already been redeemed/);
+    expect(calls.rpc).toHaveLength(1);
+  });
+});
+// The live gift_cards table enforces kind-aware invariants:
+//   gift_cards_credits_kind_check: (aura AND credits > 0) OR (pro AND credits = 0)
+//   gift_cards_pro_days_check:     (aura AND pro_days = 0) OR (pro AND pro_days > 0)
+// Every sellable product must satisfy them, or checkout inserts are rejected
+// by PostgreSQL before an invoice is ever created.
+describe("gift card catalog obeys the DB kind/credits invariants", () => {
+  for (const product of Object.values(GIFT_CARD_PRODUCTS)) {
+    it(`${product.id} satisfies gift_cards_credits_kind_check + pro_days check`, () => {
+      if (product.kind === "aura") {
+        expect(product.credits).toBeGreaterThan(0);
+        expect(product.proDays).toBe(0);
+      } else {
+        expect(product.kind).toBe("pro");
+        expect(product.credits).toBe(0);
+        expect(product.proDays).toBeGreaterThan(0);
+      }
+      expect(product.usdMinor).toBeGreaterThan(0);
+    });
+  }
 });

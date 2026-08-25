@@ -49,6 +49,9 @@ EXTRA_STRIP_PATHS=(
   # history unconditionally so no rebase can resurrect them.
   "attached_assets/Pasted--coding-utf-8-from-future-import-print-function-import-_1787506293708.txt"
   "attached_assets/Pasted--coding-utf-8-from-future-import-print-function-import-_1787506348124.txt"
+  # Pasted curl containing a live BytePlus Ark bearer key (2026-08-25).
+  # Deleted from the working tree; strip unconditionally from history.
+  "attached_assets/Pasted-curl-X-POST-https-ark-ap-southeast-bytepluses-com-api-v_1787678409785.txt"
 )
 
 # Only the primary workspace may publish to GitHub. Task-agent clones of this

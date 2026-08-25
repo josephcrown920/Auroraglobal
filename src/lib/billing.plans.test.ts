@@ -6,6 +6,7 @@ import {
   computePaystackPrice,
   durationCapMessage,
   getPppMultiplier,
+  hasActiveProEntitlement,
   HEAVY_JOB_KINDS,
   tierFor,
 } from "./billing.plans";
@@ -196,5 +197,56 @@ describe("tierFor", () => {
   it("returns free for unknown plan string", () => {
     expect(tierFor("enterprise")).toBe("free");
     expect(tierFor("basic")).toBe("free");
+  });
+});
+
+describe("hasActiveProEntitlement", () => {
+  const now = Date.parse("2026-08-25T12:00:00.000Z");
+
+  it("grants a one-time Pro purchase only until its explicit expiry", () => {
+    expect(
+      hasActiveProEntitlement(
+        { plan: "pro", subscription_expires_at: "2026-09-24T12:00:00.000Z" },
+        null,
+        now,
+      ),
+    ).toBe(true);
+    expect(
+      hasActiveProEntitlement(
+        { plan: "pro", subscription_expires_at: "2026-08-24T12:00:00.000Z" },
+        null,
+        now,
+      ),
+    ).toBe(false);
+  });
+
+  it("keeps an active paid recurring subscription entitled through its provider date", () => {
+    expect(
+      hasActiveProEntitlement(
+        { plan: "pro", subscription_expires_at: "2026-08-24T12:00:00.000Z" },
+        { status: "cancellation_pending", next_payment_date: "2026-08-31T12:00:00.000Z" },
+        now,
+      ),
+    ).toBe(true);
+  });
+
+  it("preserves an overlapping one-time Pro term after a recurring subscription ends", () => {
+    expect(
+      hasActiveProEntitlement(
+        { plan: "pro", subscription_expires_at: "2026-09-24T12:00:00.000Z" },
+        { status: "cancelled", next_payment_date: "2026-08-24T12:00:00.000Z" },
+        now,
+      ),
+    ).toBe(true);
+  });
+
+  it("never treats an active status without a future paid-through date as Pro", () => {
+    expect(
+      hasActiveProEntitlement(
+        { plan: "pro", subscription_expires_at: null },
+        { status: "active", next_payment_date: null },
+        now,
+      ),
+    ).toBe(false);
   });
 });

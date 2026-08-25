@@ -233,17 +233,20 @@ describe("processSubscriptionRenewal", () => {
 // ── processSubscriptionDisable ────────────────────────────────────────────────
 
 describe("processSubscriptionDisable", () => {
-  it("deactivates the Pro subscription and marks the row cancelled", async () => {
-    tables.subscriptions = { data: { user_id: "u1" }, error: null };
+  it("keeps the paid Pro period and marks the row cancellation_pending", async () => {
+    tables.subscriptions = {
+      data: { user_id: "u1", next_payment_date: "2026-09-15T00:00:00Z" },
+      error: null,
+    };
 
     const result = await processSubscriptionDisable({ subscription_code: "SUB_abc" });
     expect(result).toMatchObject({ status: "success", userId: "u1", subscriptionCode: "SUB_abc" });
 
     const deactivate = calls.rpc.find((c) => c.name === "deactivate_pro_subscription");
-    expect(deactivate?.args).toMatchObject({ _user: "u1" });
+    expect(deactivate).toBeUndefined();
 
     const upd = calls.updates.find((u) => u.table === "subscriptions");
-    expect(upd?.patch).toMatchObject({ status: "cancelled" });
+    expect(upd?.patch).toMatchObject({ status: "cancellation_pending" });
   });
 
   it("returns ignored when subscription_code is absent", async () => {

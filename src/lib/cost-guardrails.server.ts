@@ -3,7 +3,12 @@
 // plan-lookup + cap validation here. The only server-side dependency is a single
 // Supabase profile read; all other helpers are pure functions.
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { tierFor, durationCapMessage, hdEntitlementMessage, type SubscriptionTier } from "./billing.plans";
+import {
+  hasActiveProEntitlement,
+  durationCapMessage,
+  hdEntitlementMessage,
+  type SubscriptionTier,
+} from "./billing.plans";
 
 // ─── User-tier lookup ─────────────────────────────────────────────────────────
 
@@ -11,10 +16,23 @@ import { tierFor, durationCapMessage, hdEntitlementMessage, type SubscriptionTie
 export async function getUserTier(userId: string): Promise<SubscriptionTier> {
   const { data } = await supabaseAdmin
     .from("profiles")
-    .select("plan")
+    .select("plan, subscription_expires_at")
     .eq("user_id", userId)
     .maybeSingle();
-  return tierFor((data as { plan?: string | null } | null)?.plan ?? null);
+  const profile = data as {
+    plan?: string | null;
+    subscription_expires_at?: string | null;
+  } | null;
+  if (!profile) return "free";
+  const { data: subscription } = await supabaseAdmin
+    .from("subscriptions")
+    .select("status, next_payment_date")
+    .eq("user_id", userId)
+    .in("status", ["active", "cancellation_pending"])
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  return hasActiveProEntitlement(profile, subscription) ? "pro" : "free";
 }
 
 // ─── Duration cap ─────────────────────────────────────────────────────────────

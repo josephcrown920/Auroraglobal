@@ -11,6 +11,7 @@ import {
   COST_SOCIAL_PACK,
   computeCost,
 } from "@/lib/pricing";
+import { hasActiveProEntitlement } from "@/lib/billing.plans";
 
 // ─── Simple credit helpers (pure LLM jobs — no orchestrator/media pipeline) ──
 
@@ -58,15 +59,23 @@ async function releaseReservation(admin: AdminClient, ref: string, reason: strin
 async function checkPro(admin: AdminClient, userId: string): Promise<boolean> {
   const { data } = await admin
     .from("profiles")
-    .select("plan")
+    .select("plan, subscription_expires_at")
     .eq("user_id", userId)
+    .maybeSingle();
+  const { data: subscription } = await admin
+    .from("subscriptions")
+    .select("status, next_payment_date")
+    .eq("user_id", userId)
+    .in("status", ["active", "cancellation_pending"])
+    .order("created_at", { ascending: false })
+    .limit(1)
     .maybeSingle();
   const { data: roles } = await admin
     .from("user_roles")
     .select("role")
     .eq("user_id", userId);
   const isAdmin = (roles ?? []).some((r) => r.role === "admin");
-  return data?.plan === "pro" || isAdmin;
+  return hasActiveProEntitlement(data, subscription) || isAdmin;
 }
 
 // ─── Growth Tool run history ────────────────────────────────────────────────

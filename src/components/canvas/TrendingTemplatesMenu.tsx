@@ -565,7 +565,7 @@ export function TrendingTemplatesMenu({ onPick }: { onPick: (g: TemplateGraph) =
     enabled: open,
   });
 
-  const isPro = profile?.plan === "pro" || profile?.isAdmin === true;
+  const isPro = !!profile?.is_pro || profile?.isAdmin === true;
 
   const categories: TemplateDef["category"][] = [
     "Product & App",

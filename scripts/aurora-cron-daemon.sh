@@ -34,6 +34,7 @@ DELSWEEP_INTERVAL=3600   # seconds between account-deletion sweep retries (1 hou
 MODELWATCH_INTERVAL=21600  # seconds between new-AI-model catalog scans (6 hours)
 GENHEALTH_INTERVAL=900     # seconds between generation health checks (15 min)
 LIFECYCLE_INTERVAL=21600   # seconds between lifecycle email runs (6 hours)
+PRO_ENTITLEMENT_INTERVAL=900 # seconds between expired one-time Pro reconciliations
 
 # ── Auth key ────────────────────────────────────────────────────────────────
 APIKEY="${CRON_SECRET:-${SUPABASE_PUBLISHABLE_KEY:-${SUPABASE_ANON_KEY:-}}}"
@@ -82,6 +83,7 @@ last_delsweep=0
 last_modelwatch=0
 last_genhealth=0
 last_lifecycle=0
+last_pro_entitlement=0
 last_vast=0
 last_ghsync=0
 last_grant_day=""
@@ -130,6 +132,24 @@ while true; do
       echo "[$ts][health] WARN — $resp (rc=$rc)"
     fi
     last_health=$now
+  fi
+
+  # Expire finite Pro access every 15 min. The database function is idempotent
+  # and retains access for active/cancellation-pending subscriptions whose
+  # paid-through provider date is still in the future.
+  if [ $((now - last_pro_entitlement)) -ge $PRO_ENTITLEMENT_INTERVAL ]; then
+    resp=$(curl -sf "$APP/api/public/pro-access/reconcile" \
+      -X POST \
+      -H "apikey: $APIKEY" \
+      -H "content-type: application/json" \
+      --max-time 30 2>&1) && rc=0 || rc=$?
+    ts=$(date -u +"%H:%M:%S")
+    if [ $rc -eq 0 ]; then
+      echo "[$ts][pro-access] OK — $resp"
+    else
+      echo "[$ts][pro-access] WARN — $resp (rc=$rc)"
+    fi
+    last_pro_entitlement=$now
   fi
 
   # Account-deletion sweep retry (every hour). Drains account_deletion_sweeps:

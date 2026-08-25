@@ -301,6 +301,42 @@ export function tierFor(plan: string | null | undefined): SubscriptionTier {
   return plan === "pro" ? "pro" : "free";
 }
 
+/**
+ * Central policy for time-bounded Pro access.
+ *
+ * One-time purchases and gift cards are Pro only until their profile expiry.
+ * A recurring Paystack subscription may carry a newer future
+ * `next_payment_date` before the profile cache is refreshed; that date keeps
+ * access valid. A missing or past date never grants Pro access.
+ */
+export function hasActiveProEntitlement(
+  profile: {
+    plan?: string | null;
+    subscription_expires_at?: string | null;
+  } | null | undefined,
+  subscription?: {
+    status?: string | null;
+    next_payment_date?: string | null;
+  } | null,
+  nowMs = Date.now(),
+): boolean {
+  if (profile?.plan !== "pro") return false;
+
+  const isFuture = (value: string | null | undefined) => {
+    const parsed = value ? Date.parse(value) : NaN;
+    return Number.isFinite(parsed) && parsed > nowMs;
+  };
+
+  if (isFuture(profile.subscription_expires_at)) return true;
+
+  // Recurring subscriptions have an explicit, provider-supplied end of the
+  // currently paid period. `cancellation_pending` remains entitled until it.
+  return (
+    (subscription?.status === "active" || subscription?.status === "cancellation_pending") &&
+    isFuture(subscription.next_payment_date)
+  );
+}
+
 /** Per-tier maximum video/motion generation duration in seconds. */
 export const DURATION_CAPS: Record<SubscriptionTier, number> = {
   free: 10,

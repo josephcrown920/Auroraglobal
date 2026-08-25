@@ -4,9 +4,19 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { getRequest } from "@tanstack/react-start/server";
 import { createHash } from "crypto";
 import { z } from "zod";
-import { PLANS, SUBSCRIPTION_TIERS, computePaystackPrice } from "./billing.plans";
+import {
+  PLANS,
+  SUBSCRIPTION_TIERS,
+  computePaystackPrice,
+  hasActiveProEntitlement,
+} from "./billing.plans";
 import { applyPromoAtCheckout } from "./promo.functions";
 import { countryFromRequestHeaders } from "./geo.functions";
+import {
+  GiftCardPurchaseSchema,
+  createPendingPurchasedGiftCard,
+  linkPurchasedGiftCardPayment,
+} from "./gifts.functions";
 // Stable MD5-based UUID matching the SQL expression in grant_free_monthly_aura_all().
 // Lives in a .server module: exporting it from here would keep the node "crypto"
 // import in the client bundle and break the production build.
@@ -100,7 +110,7 @@ export const getMyProfile = createServerFn({ method: "GET" })
     }
     return {
       ...data,
-      is_pro: data.plan === "pro",
+      is_pro: hasActiveProEntitlement(data, subData),
       subscription_status,
       isAdmin,
     };
@@ -264,6 +274,80 @@ export const createPaystackCheckout = createServerFn({ method: "POST" })
       status: "pending",
       ...(appliedPromoCodeId ? { promo_code_id: appliedPromoCodeId, discount_percent_off: appliedPercentOff } : {}),
     } as never);
+    return { authorizationUrl: json.data.authorization_url, reference: json.data.reference };
+  });
+
+/**
+ * Purchases a shareable card instead of funding the buyer's Aura balance. The
+ * card remains pending until the signed provider webhook settles its payment.
+ */
+export const createGiftCardPaystackCheckout = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => GiftCardPurchaseSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    const key = process.env.PAYSTACK_SECRET_KEY;
+    if (!key) throw new Error("Paystack not configured");
+    const { userId } = context;
+    const request = getRequest();
+    const country = countryFromRequestHeaders(request.headers);
+    const { data: profile } = await supabaseAdmin
+      .from("profiles")
+      .select("email")
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (!profile?.email) throw new Error("Profile email missing — please re-login");
+
+    const order = await createPendingPurchasedGiftCard(
+      { admin: supabaseAdmin },
+      userId,
+      { ...data, recipientEmail: profile.email },
+    );
+    const localPrice = computePaystackPrice(order.product.usdMinor, country);
+    const reference = `aurora_gift_${userId.replace(/-/g, "")}_${Date.now()}`;
+    let origin = process.env.SITE_URL;
+    if (!origin) {
+      try { origin = new URL(request.url).origin; } catch { origin = ""; }
+    }
+    const callbackUrl = origin
+      ? `${origin}/gifts?paid=1&ref=${encodeURIComponent(reference)}`
+      : undefined;
+    const res = await fetch("https://api.paystack.co/transaction/initialize", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email: profile.email,
+        amount: localPrice.amountMinor,
+        currency: localPrice.currency,
+        reference,
+        ...(callbackUrl ? { callback_url: callbackUrl } : {}),
+        metadata: {
+          user_id: userId,
+          type: "gift_card",
+          gift_card_id: (order.card as { id: string }).id,
+          product_id: data.productId,
+          currency: localPrice.currency,
+          country,
+          pppMultiplier: localPrice.pppMultiplier,
+        },
+      }),
+    });
+    if (!res.ok) throw new Error(`Paystack init failed: ${(await res.text()).slice(0, 200)}`);
+    const json = await res.json() as { status: boolean; data: { authorization_url: string; reference: string } };
+    if (!json.status) throw new Error("Paystack gift checkout init failed");
+    const cardId = (order.card as { id: string }).id;
+    const { error } = await supabaseAdmin.from("payments").insert({
+      user_id: userId,
+      reference: json.data.reference,
+      amount_kobo: localPrice.amountMinor,
+      currency: localPrice.currency,
+      credits_granted: 0,
+      status: "pending",
+      purpose: "gift_card",
+      gift_card_id: cardId,
+      pro_days: 0,
+    } as never);
+    if (error) throw new Error(error.message);
+    await linkPurchasedGiftCardPayment({ admin: supabaseAdmin }, cardId, json.data.reference, "paystack");
     return { authorizationUrl: json.data.authorization_url, reference: json.data.reference };
   });
 

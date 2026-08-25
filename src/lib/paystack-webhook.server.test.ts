@@ -65,13 +65,6 @@ const supabaseAdmin = {
   },
 };
 
-const {
-  canRecoverStuckPayment,
-  verifyPaystackSignature,
-  processPaymentSuccess,
-} =
-  await import("./paystack-webhook.server");
-
 mock.module("@/integrations/supabase/client.server", () => ({ supabaseAdmin }));
 
 const {
@@ -293,7 +286,7 @@ describe("processPaymentSuccess", () => {
 
     const insertedRow = calls.inserts.find((i) => i.table === "payments");
     expect(insertedRow?.row).toMatchObject({
-      reference: "ref-race",
+      reference: "ref-race2",
       user_id: "u1",
       credits_granted: 500,
       status: "pending",

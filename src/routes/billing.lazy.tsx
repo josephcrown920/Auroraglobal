@@ -5,10 +5,11 @@ import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { getMyProfile, createPaystackCheckout, createProSubscriptionCheckout, cancelProSubscription, setDailySpendLimit, getCryptoEnabled, getDailySpend } from "@/lib/billing.functions";
-import { createCryptoCheckout } from "@/lib/crypto-checkout.functions";
+import { createCryptoCheckout, createCryptoProMonthCheckout } from "@/lib/crypto-checkout.functions";
 import { amIAdmin } from "@/lib/admin.functions";
 import { markFirstPurchaseComplete } from "@/lib/first-run";
 import { redeemPromoCode } from "@/lib/promo.functions";
+import { redeemGiftCard } from "@/lib/gifts.functions";
 import {
   PLANS,
   SUBSCRIPTION_TIERS,
@@ -22,7 +23,7 @@ import { toast } from "sonner";
 import {
   ArrowLeft, Zap, Star, CheckCircle2, XCircle, CreditCard, Loader2,
   Crown, Tag, Rocket, Gauge, Lock, Calendar, RefreshCw, Bell,
-  Sparkles, Image, Film, Mic2, TrendingUp, ChevronRight, Globe,
+  Sparkles, Image, Film, Mic2, TrendingUp, ChevronRight, Globe, Bitcoin, Gift,
 } from "lucide-react";
 import { PageSpinner } from "@/components/PageSpinner";
 import { AuthRedirect } from "@/components/AuthRedirect";
@@ -63,9 +64,11 @@ function BillingPage() {
   const profileFn = useServerFn(getMyProfile);
   const checkoutFn = useServerFn(createPaystackCheckout);
   const cryptoFn = useServerFn(createCryptoCheckout);
+  const cryptoProFn = useServerFn(createCryptoProMonthCheckout);
   const proCheckoutFn = useServerFn(createProSubscriptionCheckout);
   const cancelFn = useServerFn(cancelProSubscription);
   const redeemFn = useServerFn(redeemPromoCode);
+  const redeemGiftFn = useServerFn(redeemGiftCard);
   const setLimitFn = useServerFn(setDailySpendLimit);
   const getDailySpendFn = useServerFn(getDailySpend);
   const detectCurrencyFn = useServerFn(detectCurrency);
@@ -73,6 +76,7 @@ function BillingPage() {
   const [cancelConfirm, setCancelConfirm] = useState(false);
   const [promoCode, setPromoCode] = useState("");
   const [redeemCode, setRedeemCode] = useState("");
+  const [giftCode, setGiftCode] = useState("");
   const [dailyLimitInput, setDailyLimitInput] = useState("");
   // Pack key currently awaiting the "won't fund a performance render" confirmation.
   const [confirmPack, setConfirmPack] = useState<"starter" | "creator" | "studio" | null>(null);
@@ -142,7 +146,7 @@ function BillingPage() {
   });
   const spentToday = dailySpendData?.spentToday ?? 0;
 
-  const isPro = profile?.plan === "pro";
+  const isPro = !!profile?.is_pro;
   const isCancellationPending = profile?.subscription_status === "cancellation_pending";
   const tier = SUBSCRIPTION_TIERS[isPro ? "pro" : "free"];
   const credits = profile?.credits ?? 0;
@@ -167,6 +171,11 @@ function BillingPage() {
     onSuccess: ({ authorizationUrl }) => { window.location.href = authorizationUrl; },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Checkout failed"),
   });
+  const cryptoProMut = useMutation({
+    mutationFn: () => cryptoProFn({ data: undefined }),
+    onSuccess: ({ authorizationUrl }) => { window.location.href = authorizationUrl; },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Crypto Pro checkout failed"),
+  });
 
   const packMut = useMutation({
     mutationFn: (plan: "day1" | "day2" | "starter" | "creator" | "studio") =>
@@ -190,6 +199,15 @@ function BillingPage() {
       qc.invalidateQueries({ queryKey: ["profile"] });
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Couldn't redeem that code"),
+  });
+  const giftRedeemMut = useMutation({
+    mutationFn: () => redeemGiftFn({ data: { code: giftCode.trim() } }),
+    onSuccess: (res) => {
+      toast.success(res.kind === "pro" ? `Aurora Pro extended by ${res.pro_days} days` : `+${res.credits} Aura added to your balance!`);
+      setGiftCode("");
+      qc.invalidateQueries({ queryKey: ["profile"] });
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Couldn't redeem that gift card"),
   });
 
   const cancelMut = useMutation({
@@ -391,7 +409,18 @@ function BillingPage() {
                   )}
                   Upgrade to Pro — {proPriceLabel}
                 </Button>
-                <p className="text-xs text-muted-foreground mt-2.5 text-center">Cancel anytime · Secure payment via Paystack</p>
+                {cryptoEnabled && (
+                  <Button
+                    variant="outline"
+                    className="w-full mt-2"
+                    onClick={() => cryptoProMut.mutate()}
+                    disabled={proMut.isPending || cryptoProMut.isPending || previewing}
+                  >
+                    {cryptoProMut.isPending ? <Loader2 className="size-4 animate-spin mr-2" /> : <Bitcoin className="size-4 mr-2" />}
+                    Pay one Pro month with crypto
+                  </Button>
+                )}
+                <p className="text-xs text-muted-foreground mt-2.5 text-center">Card starts a subscription · Crypto is a one-time month · both settle securely</p>
               </div>
             </div>
           </section>
@@ -541,9 +570,33 @@ function BillingPage() {
                       {cryptoMut.isPending ? <Loader2 className="size-3 animate-spin" /> : confirmPack === key ? <>₿ Continue anyway — pay with crypto</> : <>₿ Pay with crypto</>}
                     </Button>
                   )}
+                  <Link to="/gifts" className="text-center text-xs font-semibold text-primary hover:underline">
+                    <Gift className="inline size-3 mr-1" /> Buy this as a gift
+                  </Link>
                 </div>
               );
             })}
+          </div>
+        </section>
+
+        {/* ── Redeem a purchased gift card ── */}
+        <section className="rounded-2xl border border-primary/25 bg-primary/5 p-5">
+          <div className="flex items-center gap-2 mb-1">
+            <Gift className="size-4 text-primary" />
+            <h2 className="text-base font-semibold">Have an Aurora gift card?</h2>
+          </div>
+          <p className="text-sm text-muted-foreground mb-3">Redeem Aura or add a Pro term. Your code only works once.</p>
+          <div className="flex flex-wrap gap-2">
+            <Input
+              aria-label="Gift card code"
+              placeholder="AURA-XXXX-XXXX-XXXX"
+              className="flex-1 min-w-[220px] tracking-widest"
+              value={giftCode}
+              onChange={(event) => setGiftCode(event.target.value.toUpperCase())}
+            />
+            <Button variant="premium" onClick={() => giftRedeemMut.mutate()} disabled={!giftCode.trim() || giftRedeemMut.isPending}>
+              {giftRedeemMut.isPending ? <Loader2 className="size-4 animate-spin" /> : "Redeem gift"}
+            </Button>
           </div>
         </section>
 

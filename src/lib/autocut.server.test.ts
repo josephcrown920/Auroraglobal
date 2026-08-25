@@ -5,6 +5,7 @@ import { mkdtemp, readFile, writeFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawn } from "node:child_process";
+import { createClient } from "@supabase/supabase-js";
 
 import { AUTOCUT_STYLES, getStyleCutRule, runLocalFfmpegAssemble, MUSIC_TRACKS, signedAutocutUrl } from "./autocut.server";
 
@@ -279,11 +280,20 @@ describe("signedAutocutUrl — music track smoke tests", () => {
     return;
   }
 
+  // Build a real client directly instead of relying on the module-level
+  // supabaseAdmin: other suites mock.module client.server and bun module
+  // mocks leak process-globally, which would leave storage undefined here.
+  const realAdmin = createClient(
+    process.env.SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { persistSession: false } },
+  );
+
   for (const track of MUSIC_TRACKS) {
     it(
       `${track.id} (${track.storagePath}) resolves to a signed URL`,
       async () => {
-        const url = await signedAutocutUrl(track.storagePath);
+        const url = await signedAutocutUrl(track.storagePath, 3600, realAdmin);
         expect(url).not.toBeNull();
         expect(typeof url).toBe("string");
         expect(url!.length).toBeGreaterThan(0);

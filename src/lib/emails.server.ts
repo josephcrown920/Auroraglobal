@@ -10,6 +10,7 @@ export type EmailTemplate =
   | "weekly-digest"
   | "payment-receipt"
   | "gift-redeemed"
+  | "gift-card-delivery"
   | "first_generation_complete"
   | "daily_tip";
 
@@ -108,6 +109,8 @@ function subjectFor(template: string, data: Record<string, unknown>): string {
       return `Receipt — ${data.creditsGranted ?? ""} Aura added`;
     case "gift-redeemed":
       return "You received Aura";
+    case "gift-card-delivery":
+      return "Your Aurora gift card is ready";
     case "password_reset_acknowledged":
       return "Your Aurora password was reset";
     case "re_engagement":
@@ -236,6 +239,17 @@ function renderTemplate(template: string, data: Record<string, unknown>): string
         "Make Another",
         STUDIO_URL,
       );
+    case "gift-card-delivery": {
+      const kind = data.kind === "pro" ? `Aurora Pro for ${data.proDays} days` : `${data.credits} Aura`;
+      return shell(
+        name,
+        p(`Your gift card is active and ready to share. It contains ${hl(kind)}.`) +
+        p(`Your private redemption code: <strong style="display:inline-block;margin:6px 0;padding:12px 14px;border-radius:8px;background:#171a31;color:#f5f3ff;letter-spacing:1.5px">${escapeHtml(String(data.code ?? ""))}</strong>`) +
+        p("Keep this code private until you send it to the person receiving the gift. They can redeem it from Aurora's Billing or Gifts page."),
+        "Open Gift Cards",
+        `${SITE}/gifts`,
+      );
+    }
 
     case "daily_tip": {
       const tip = DAILY_TIPS[day % DAILY_TIPS.length]!;

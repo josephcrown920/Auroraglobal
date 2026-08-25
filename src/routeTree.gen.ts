@@ -154,6 +154,7 @@ import { Route as ApiPublicGpuCompleteRouteImport } from './routes/api/public/gp
 import { Route as ApiPublicGpuRegisterRouteImport } from './routes/api/public/gpu/register'
 import { Route as ApiPublicJobsTickRouteImport } from './routes/api/public/jobs/tick'
 import { Route as ApiPublicPaymentsSweepStuckRouteImport } from './routes/api/public/payments/sweep-stuck'
+import { Route as ApiPublicProAccessReconcileRouteImport } from './routes/api/public/pro-access/reconcile'
 import { Route as ApiPublicTiktokCallbackRouteImport } from './routes/api/public/tiktok/callback'
 import { Route as ApiPublicVastExpireRouteImport } from './routes/api/public/vast/expire'
 import { Route as ApiPublicWorkersHealthRouteImport } from './routes/api/public/workers/health'
@@ -936,6 +937,12 @@ const ApiPublicPaymentsSweepStuckRoute =
     path: '/api/public/payments/sweep-stuck',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicProAccessReconcileRoute =
+  ApiPublicProAccessReconcileRouteImport.update({
+    id: '/api/public/pro-access/reconcile',
+    path: '/api/public/pro-access/reconcile',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicTiktokCallbackRoute = ApiPublicTiktokCallbackRouteImport.update({
   id: '/api/public/tiktok/callback',
   path: '/api/public/tiktok/callback',
@@ -1137,6 +1144,7 @@ export interface FileRoutesByFullPath {
   '/api/public/gpu/register': typeof ApiPublicGpuRegisterRoute
   '/api/public/jobs/tick': typeof ApiPublicJobsTickRoute
   '/api/public/payments/sweep-stuck': typeof ApiPublicPaymentsSweepStuckRoute
+  '/api/public/pro-access/reconcile': typeof ApiPublicProAccessReconcileRoute
   '/api/public/tiktok/callback': typeof ApiPublicTiktokCallbackRoute
   '/api/public/vast/expire': typeof ApiPublicVastExpireRoute
   '/api/public/workers/health': typeof ApiPublicWorkersHealthRoute
@@ -1294,6 +1302,7 @@ export interface FileRoutesByTo {
   '/api/public/gpu/register': typeof ApiPublicGpuRegisterRoute
   '/api/public/jobs/tick': typeof ApiPublicJobsTickRoute
   '/api/public/payments/sweep-stuck': typeof ApiPublicPaymentsSweepStuckRoute
+  '/api/public/pro-access/reconcile': typeof ApiPublicProAccessReconcileRoute
   '/api/public/tiktok/callback': typeof ApiPublicTiktokCallbackRoute
   '/api/public/vast/expire': typeof ApiPublicVastExpireRoute
   '/api/public/workers/health': typeof ApiPublicWorkersHealthRoute
@@ -1452,6 +1461,7 @@ export interface FileRoutesById {
   '/api/public/gpu/register': typeof ApiPublicGpuRegisterRoute
   '/api/public/jobs/tick': typeof ApiPublicJobsTickRoute
   '/api/public/payments/sweep-stuck': typeof ApiPublicPaymentsSweepStuckRoute
+  '/api/public/pro-access/reconcile': typeof ApiPublicProAccessReconcileRoute
   '/api/public/tiktok/callback': typeof ApiPublicTiktokCallbackRoute
   '/api/public/vast/expire': typeof ApiPublicVastExpireRoute
   '/api/public/workers/health': typeof ApiPublicWorkersHealthRoute
@@ -1611,6 +1621,7 @@ export interface FileRouteTypes {
     | '/api/public/gpu/register'
     | '/api/public/jobs/tick'
     | '/api/public/payments/sweep-stuck'
+    | '/api/public/pro-access/reconcile'
     | '/api/public/tiktok/callback'
     | '/api/public/vast/expire'
     | '/api/public/workers/health'
@@ -1768,6 +1779,7 @@ export interface FileRouteTypes {
     | '/api/public/gpu/register'
     | '/api/public/jobs/tick'
     | '/api/public/payments/sweep-stuck'
+    | '/api/public/pro-access/reconcile'
     | '/api/public/tiktok/callback'
     | '/api/public/vast/expire'
     | '/api/public/workers/health'
@@ -1925,6 +1937,7 @@ export interface FileRouteTypes {
     | '/api/public/gpu/register'
     | '/api/public/jobs/tick'
     | '/api/public/payments/sweep-stuck'
+    | '/api/public/pro-access/reconcile'
     | '/api/public/tiktok/callback'
     | '/api/public/vast/expire'
     | '/api/public/workers/health'
@@ -2068,6 +2081,7 @@ export interface RootRouteChildren {
   ApiPublicGpuRegisterRoute: typeof ApiPublicGpuRegisterRoute
   ApiPublicJobsTickRoute: typeof ApiPublicJobsTickRoute
   ApiPublicPaymentsSweepStuckRoute: typeof ApiPublicPaymentsSweepStuckRoute
+  ApiPublicProAccessReconcileRoute: typeof ApiPublicProAccessReconcileRoute
   ApiPublicTiktokCallbackRoute: typeof ApiPublicTiktokCallbackRoute
   ApiPublicVastExpireRoute: typeof ApiPublicVastExpireRoute
   ApiPublicWorkersHealthRoute: typeof ApiPublicWorkersHealthRoute
@@ -3096,6 +3110,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicPaymentsSweepStuckRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/pro-access/reconcile': {
+      id: '/api/public/pro-access/reconcile'
+      path: '/api/public/pro-access/reconcile'
+      fullPath: '/api/public/pro-access/reconcile'
+      preLoaderRoute: typeof ApiPublicProAccessReconcileRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/tiktok/callback': {
       id: '/api/public/tiktok/callback'
       path: '/api/public/tiktok/callback'
@@ -3350,6 +3371,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicGpuRegisterRoute: ApiPublicGpuRegisterRoute,
   ApiPublicJobsTickRoute: ApiPublicJobsTickRoute,
   ApiPublicPaymentsSweepStuckRoute: ApiPublicPaymentsSweepStuckRoute,
+  ApiPublicProAccessReconcileRoute: ApiPublicProAccessReconcileRoute,
   ApiPublicTiktokCallbackRoute: ApiPublicTiktokCallbackRoute,
   ApiPublicVastExpireRoute: ApiPublicVastExpireRoute,
   ApiPublicWorkersHealthRoute: ApiPublicWorkersHealthRoute,

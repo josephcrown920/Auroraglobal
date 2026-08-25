@@ -11,4 +11,6 @@ The earlier "createRequestHandler unbound" namespace-export problem this externa
 
 **How to apply:** If a prod build breaks inside these packages, fix it another way (version alignment, npm overrides) — never externals. Verify any change with a full prod build, then boot `.output/server/index.mjs` and probe BOTH a page route and a real server-fn id extracted from the built manifest (`grep -B2 'functionName: "<fn>' .output/server/_ssr/index.mjs`).
 
+**Dynamic imports are a second trigger:** any dynamic `await import("@tanstack/react-start/server")` in app code makes Rollup emit the package's frozen namespace object in the prod SSR bundle while tree-shaking drops `createRequestHandler`, leaving an unbound reference that crashes the whole server at module load. Always use static named imports from that package.
+
 **Build memory note:** the nitro transform phase needs ~4GB free; with the dev server, tsserver, and the github-sync `git pack-objects` (~1.7GB spikes) running, the 8GB container OOM-kills the build silently at the same "transforming (…)" line. Free memory first (kill tsserver, pause sync daemon, restart dev workflow) before blaming the build itself.

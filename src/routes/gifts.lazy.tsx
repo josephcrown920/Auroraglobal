@@ -4,10 +4,17 @@ import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
-import { issueGiftCard, listGiftCards, redeemGiftCard } from "@/lib/gifts.functions";
-import { getMyProfile } from "@/lib/billing.functions";
-import { PLANS } from "@/lib/billing.plans";
-import { Sparkles, Loader2, ArrowLeft, Gift, Copy, Check, Shield } from "lucide-react";
+import {
+  issueGiftCard,
+  issueGiftCardBatch,
+  listGiftCards,
+  listMyPurchasedGiftCards,
+  redeemGiftCard,
+} from "@/lib/gifts.functions";
+import { createGiftCardPaystackCheckout, getMyProfile } from "@/lib/billing.functions";
+import { createCryptoGiftCardCheckout } from "@/lib/crypto-checkout.functions";
+import { GIFT_CARD_PRODUCTS, type GiftCardProductId } from "@/lib/gift-card-catalog";
+import { Sparkles, Loader2, ArrowLeft, Gift, Copy, Check, Shield, Crown, CreditCard, Bitcoin, Share2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
@@ -77,8 +84,12 @@ function GiftsPage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const issueFn = useServerFn(issueGiftCard);
+  const issueBatchFn = useServerFn(issueGiftCardBatch);
   const listFn = useServerFn(listGiftCards);
+  const listMineFn = useServerFn(listMyPurchasedGiftCards);
   const redeemFn = useServerFn(redeemGiftCard);
+  const paystackGiftFn = useServerFn(createGiftCardPaystackCheckout);
+  const cryptoGiftFn = useServerFn(createCryptoGiftCardCheckout);
   const profileFn = useServerFn(getMyProfile);
 
   const { data: profile } = useQuery({ queryKey: ["profile", user?.id], queryFn: () => profileFn(), enabled: !!user });
@@ -92,9 +103,10 @@ function GiftsPage() {
   const redeemMut = useMutation({
     mutationFn: async () => redeemFn({ data: { code: redeemCode } }),
     onSuccess: (r) => {
-      toast.success(`+${r.credits} Aura added`);
+      toast.success(r.kind === "pro" ? `Aurora Pro extended by ${r.pro_days} days` : `+${r.credits} Aura added`);
       setRedeemCode("");
       qc.invalidateQueries({ queryKey: ["profile"] });
+      qc.invalidateQueries({ queryKey: ["my-gift-cards"] });
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Failed"),
   });
@@ -104,11 +116,24 @@ function GiftsPage() {
   const [issueCredits, setIssueCredits] = useState(800);
   const [issueUsd, setIssueUsd] = useState(10);
   const [issueNote, setIssueNote] = useState("");
+  const [issueKind, setIssueKind] = useState<"aura" | "pro">("aura");
+  const [issueProDays, setIssueProDays] = useState(30);
+  const [batchCount, setBatchCount] = useState(10);
+  const [productId, setProductId] = useState<GiftCardProductId>("creator");
+  const [purchaseDesign, setPurchaseDesign] = useState<Design>("aurora");
+  const [purchaseNote, setPurchaseNote] = useState("");
 
   const issueMut = useMutation({
     mutationFn: async () =>
       issueFn({
-        data: { credits: issueCredits, amountUsd: issueUsd, design: issueDesign, note: issueNote || null },
+        data: {
+          credits: issueKind === "aura" ? issueCredits : 0,
+          amountUsd: issueUsd,
+          kind: issueKind,
+          proDays: issueKind === "pro" ? issueProDays : 0,
+          design: issueDesign,
+          note: issueNote || null,
+        },
       }),
     onSuccess: () => {
       toast.success("Gift card created");
@@ -117,11 +142,45 @@ function GiftsPage() {
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Failed"),
   });
+  const batchMut = useMutation({
+    mutationFn: () => issueBatchFn({
+      data: {
+        count: batchCount,
+        credits: issueKind === "aura" ? issueCredits : 0,
+        amountUsd: issueUsd,
+        kind: issueKind,
+        proDays: issueKind === "pro" ? issueProDays : 0,
+        design: issueDesign,
+        note: issueNote || null,
+      },
+    }),
+    onSuccess: (newCards) => {
+      toast.success(`${newCards.length} active cards created`);
+      qc.invalidateQueries({ queryKey: ["gift-cards"] });
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Failed"),
+  });
+  const paystackGiftMut = useMutation({
+    mutationFn: () => paystackGiftFn({ data: { productId, design: purchaseDesign, note: purchaseNote || null } }),
+    onSuccess: ({ authorizationUrl }) => { window.location.href = authorizationUrl; },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Checkout failed"),
+  });
+  const cryptoGiftMut = useMutation({
+    mutationFn: () => cryptoGiftFn({ data: { productId, design: purchaseDesign, note: purchaseNote || null } }),
+    onSuccess: ({ authorizationUrl }) => { window.location.href = authorizationUrl; },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Crypto checkout failed"),
+  });
 
   const { data: cards } = useQuery({
     queryKey: ["gift-cards"],
     queryFn: () => listFn(),
     enabled: !!profile?.isAdmin,
+  });
+  const { data: myCards } = useQuery({
+    queryKey: ["my-gift-cards", user?.id],
+    queryFn: () => listMineFn(),
+    enabled: !!user,
+    refetchOnWindowFocus: true,
   });
 
   const showAdmin = !!profile?.isAdmin;
@@ -149,22 +208,77 @@ function GiftsPage() {
 
       <div className="relative z-10 max-w-6xl mx-auto p-6 md:p-10 space-y-10">
         <div>
-          <h1 className="text-3xl md:text-4xl font-semibold tracking-tight">Aurora Gift Cards</h1>
-          <p className="text-muted-foreground mt-1">Beautiful, designed cards matched to our pricing tiers.</p>
+          <h1 className="text-3xl md:text-4xl font-semibold tracking-tight">Give a creative run.</h1>
+          <p className="text-muted-foreground mt-1">Choose Aura or a fixed Pro term, then share a private code after payment clears.</p>
         </div>
 
-        {/* Showcase — three cards matching pricing tiers */}
-        <section className="grid md:grid-cols-3 gap-5">
-          {(Object.keys(PLANS) as Array<keyof typeof PLANS>).map((k, i) => {
-            const p = PLANS[k];
-            const design: Design = (["aurora", "midnight", "rose"] as Design[])[i];
-            return (
-              <div key={k} className="space-y-2">
-                <GiftCardArt design={design} credits={p.credits} amountUsd={p.usd} />
-                <div className="text-xs text-muted-foreground capitalize">{k} tier · ${p.usd}</div>
+        {/* Visual-first gift shop: the card shows the entitlement before copy. */}
+        <section className="space-y-4" aria-label="Buy a gift card">
+          <div className="grid md:grid-cols-2 gap-4">
+            {Object.values(GIFT_CARD_PRODUCTS).map((product, i) => {
+              const design: Design = (["aurora", "midnight", "neon", "rose"] as Design[])[i % 4]!;
+              const selected = productId === product.id;
+              return (
+                <button
+                  key={product.id}
+                  type="button"
+                  onClick={() => setProductId(product.id)}
+                  aria-pressed={selected}
+                  className={`rounded-2xl border p-2 text-left transition-colors ${selected ? "border-primary bg-primary/5 ring-1 ring-primary/30" : "border-border hover:border-primary/40"}`}
+                >
+                  <GiftCardArt
+                    design={design}
+                    credits={product.kind === "aura" ? product.credits : product.proDays}
+                    amountUsd={product.usdMinor / 100}
+                  />
+                  <div className="px-2 pt-3 pb-2 flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-semibold">{product.kind === "pro" ? `${product.proDays}-day Aurora Pro` : product.label}</p>
+                      <p className="text-xs text-muted-foreground">{product.kind === "pro" ? "One-time access, no renewal" : "Aura never expires once redeemed"}</p>
+                    </div>
+                    {product.kind === "pro" ? <Crown className="size-4 text-primary shrink-0" /> : <Sparkles className="size-4 text-primary shrink-0" />}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+          <div className="grid lg:grid-cols-[1fr_1.15fr] gap-5 aurora-panel p-5">
+            <div className="space-y-3">
+              <p className="aurora-kicker">Choose the card art</p>
+              <div className="grid grid-cols-4 gap-2">
+                {(Object.keys(DESIGNS) as Design[]).map((design) => (
+                  <button
+                    key={design}
+                    type="button"
+                    onClick={() => setPurchaseDesign(design)}
+                    aria-label={`Use ${DESIGNS[design].name} card art`}
+                    className={`rounded-xl border p-1 ${purchaseDesign === design ? "border-primary ring-1 ring-primary/40" : "border-transparent"}`}
+                  >
+                    <GiftCardArt
+                      design={design}
+                      credits={GIFT_CARD_PRODUCTS[productId].kind === "aura" ? GIFT_CARD_PRODUCTS[productId].credits : GIFT_CARD_PRODUCTS[productId].proDays}
+                      size="sm"
+                    />
+                  </button>
+                ))}
               </div>
-            );
-          })}
+            </div>
+            <div className="space-y-3">
+              <p className="text-sm font-semibold">{GIFT_CARD_PRODUCTS[productId].label}</p>
+              <Input placeholder="Optional gift note" value={purchaseNote} maxLength={200} onChange={(e) => setPurchaseNote(e.target.value)} />
+              <div className="grid sm:grid-cols-2 gap-2">
+                <Button variant="premium" onClick={() => paystackGiftMut.mutate()} disabled={paystackGiftMut.isPending || cryptoGiftMut.isPending}>
+                  {paystackGiftMut.isPending ? <Loader2 className="size-4 animate-spin" /> : <CreditCard className="size-4 mr-2" />}
+                  Pay with card
+                </Button>
+                <Button variant="outline" onClick={() => cryptoGiftMut.mutate()} disabled={paystackGiftMut.isPending || cryptoGiftMut.isPending}>
+                  {cryptoGiftMut.isPending ? <Loader2 className="size-4 animate-spin" /> : <Bitcoin className="size-4 mr-2" />}
+                  Pay with crypto
+                </Button>
+              </div>
+              <p className="text-[11px] leading-relaxed text-muted-foreground">Cards activate only after the verified Paystack or NOWPayments webhook settles the payment. The code is then shown here and emailed to you.</p>
+            </div>
+          </div>
         </section>
 
         {/* Redeem */}
@@ -181,6 +295,22 @@ function GiftsPage() {
               {redeemMut.isPending ? <Loader2 className="size-4 animate-spin" /> : "Redeem"}
             </Button>
           </div>
+        </section>
+
+        <section className="space-y-3" aria-label="My purchased gift cards">
+          <div className="flex items-center gap-2">
+            <Share2 className="size-4 text-primary" />
+            <h2 className="text-base font-semibold">My gift cards</h2>
+          </div>
+          {(myCards?.items ?? []).length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-border p-6 text-sm text-muted-foreground">
+              Paid cards appear here with a copyable private code once the payment is confirmed.
+            </div>
+          ) : (
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {(myCards?.items ?? []).map((card: unknown) => <IssuedCard key={(card as { id: string }).id} card={card as Parameters<typeof IssuedCard>[0]["card"]} />)}
+            </div>
+          )}
         </section>
 
         {/* Admin issue panel (only renders when server returned rows = admin) */}
@@ -205,19 +335,29 @@ function GiftsPage() {
                   ))}
                 </div>
                 <div className="grid grid-cols-2 gap-2">
+                  <button type="button" onClick={() => setIssueKind("aura")} className={`rounded-lg border px-3 py-2 text-xs font-semibold ${issueKind === "aura" ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground"}`}>Aura card</button>
+                  <button type="button" onClick={() => setIssueKind("pro")} className={`rounded-lg border px-3 py-2 text-xs font-semibold ${issueKind === "pro" ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground"}`}>Pro access</button>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
                   <label className="text-xs space-y-1">
                     <span className="text-muted-foreground">Aura</span>
-                    <Input type="number" value={issueCredits} onChange={(e) => setIssueCredits(parseInt(e.target.value || "0"))} />
+                    <Input type="number" disabled={issueKind === "pro"} value={issueCredits} onChange={(e) => setIssueCredits(parseInt(e.target.value || "0"))} />
                   </label>
                   <label className="text-xs space-y-1">
-                    <span className="text-muted-foreground">USD value</span>
-                    <Input type="number" value={issueUsd} onChange={(e) => setIssueUsd(parseFloat(e.target.value || "0"))} />
+                    <span className="text-muted-foreground">{issueKind === "pro" ? "Pro days" : "USD value"}</span>
+                    <Input type="number" value={issueKind === "pro" ? issueProDays : issueUsd} onChange={(e) => issueKind === "pro" ? setIssueProDays(parseInt(e.target.value || "0")) : setIssueUsd(parseFloat(e.target.value || "0"))} />
                   </label>
                 </div>
                 <Input placeholder="Optional note (e.g. Happy Birthday!)" value={issueNote} onChange={(e) => setIssueNote(e.target.value)} />
                 <Button variant="premium" onClick={() => issueMut.mutate()} disabled={issueMut.isPending} className="w-full">
                   {issueMut.isPending ? <Loader2 className="size-4 animate-spin" /> : "Create gift card"}
                 </Button>
+                <div className="flex gap-2">
+                  <Input aria-label="Batch card count" type="number" min={1} max={50} value={batchCount} onChange={(e) => setBatchCount(parseInt(e.target.value || "1"))} />
+                  <Button variant="outline" onClick={() => batchMut.mutate()} disabled={batchMut.isPending} className="shrink-0">
+                    {batchMut.isPending ? <Loader2 className="size-4 animate-spin" /> : `Create ${batchCount}`}
+                  </Button>
+                </div>
               </div>
               <div className="space-y-2">
                 <div className="text-xs text-muted-foreground">Preview</div>

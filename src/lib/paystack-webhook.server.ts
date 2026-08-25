@@ -1,9 +1,11 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- settlement calls use columns/RPCs supplied by the pending migration, which are not in generated types until it is applied. */
 import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { SUBSCRIPTION_TIERS } from "@/lib/billing.plans";
 import { computeProfitSplit } from "@/lib/profit-split";
+import { sendEmail } from "@/lib/emails.server";
 import { z } from "zod";
 
 /**
@@ -27,6 +29,8 @@ const PaymentEventSchema = z.object({
         pppMultiplier: z.number().min(0).max(1).optional(),
       /** Set for day1/day2 passes — auto-applied as daily_spend_limit on success. */
       daily_limit: z.number().optional(),
+      type: z.string().optional(),
+      gift_card_id: z.string().uuid().optional(),
     }).optional(),
   }),
 });
@@ -48,7 +52,7 @@ export function verifyPaystackSignature(
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-const PAYMENT_COLUMNS = "id, user_id, credits_granted, status, currency, amount_kobo";
+const PAYMENT_COLUMNS = "id, user_id, credits_granted, status, currency, amount_kobo, gift_card_id, purpose, pro_days";
 
 type PaymentRow = {
   id: string;
@@ -57,6 +61,9 @@ type PaymentRow = {
   status: string;
   currency: string;
   amount_kobo: number;
+  gift_card_id: string | null;
+  purpose: "aura" | "gift_card" | "pro_one_time";
+  pro_days: number;
 };
 
 export type StuckPaymentRecoveryRow = {
@@ -85,7 +92,7 @@ async function fetchPayment(reference: string): Promise<PaymentRow | null> {
     .select(PAYMENT_COLUMNS)
     .eq("reference", reference)
     .maybeSingle();
-  return (data as PaymentRow | null) ?? null;
+  return (data as unknown as PaymentRow | null) ?? null;
 }
 
 /**
@@ -131,7 +138,7 @@ async function findOrRecoverPayment(
     .maybeSingle();
 
   if (!insertErr && inserted) {
-    return inserted as PaymentRow;
+    return inserted as unknown as PaymentRow;
   }
 
   const recovered = await fetchPayment(reference);
@@ -139,6 +146,92 @@ async function findOrRecoverPayment(
     throw new Error(`Payment not found: ${reference}`);
   }
   return recovered;
+}
+
+async function markPaymentSucceeded(
+  payment: PaymentRow,
+  event: z.infer<typeof PaymentEventSchema>,
+) {
+  const split = computeProfitSplit(payment.amount_kobo);
+  await supabaseAdmin
+    .from("payments")
+    .update({
+      status: "succeeded",
+      raw: event,
+      profit_amount_minor: split.profit_minor,
+      credit_funding_amount_minor: split.credit_funding_minor,
+      split_profit_pct: split.profit_pct,
+    } as never)
+    .eq("id", payment.id);
+}
+
+async function settleGiftCardPayment(
+  payment: PaymentRow,
+  event: z.infer<typeof PaymentEventSchema>,
+) {
+  const admin = supabaseAdmin as any;
+  if (!payment.gift_card_id) throw new Error(`Gift card missing for payment ${event.data.reference}`);
+  const { data: card, error } = await admin
+    .from("gift_cards")
+    .select("id, code, kind, credits, pro_days, design, purchaser_id, recipient_email, payment_status")
+    .eq("id", payment.gift_card_id)
+    .maybeSingle();
+  if (error || !card) throw new Error(error?.message ?? "Gift card order not found");
+
+  if (card.payment_status === "succeeded") {
+    await markPaymentSucceeded(payment, event);
+    return { status: "already_processed" as const, paymentId: payment.id };
+  }
+
+  const { data: activated, error: activateError } = await admin
+    .from("gift_cards")
+    .update({ payment_status: "succeeded", status: "active" } as never)
+    .eq("id", card.id)
+    .eq("payment_status", "pending")
+    .select("id")
+    .maybeSingle();
+  if (activateError) throw new Error(activateError.message);
+  if (!activated) return { status: "already_processed" as const, paymentId: payment.id };
+
+  await markPaymentSucceeded(payment, event);
+  const destination = card.recipient_email;
+  if (destination) {
+    try {
+      await sendEmail({
+        to: destination,
+        template: "gift-card-delivery",
+        userId: card.purchaser_id ?? undefined,
+        data: {
+          code: card.code,
+          credits: card.credits,
+          proDays: card.pro_days,
+          kind: card.kind,
+          design: card.design,
+        },
+      });
+    } catch (mailError) {
+      // Payment settlement must never be retried solely because a transactional
+      // email provider is temporarily unavailable; the card remains visible in
+      // the buyer's secure gift-card list.
+      console.error(`[gift-card] delivery email failed ref=${event.data.reference}`, mailError);
+    }
+  }
+  return { status: "success" as const, paymentId: payment.id };
+}
+
+async function settleOneTimeProPayment(
+  payment: PaymentRow,
+  event: z.infer<typeof PaymentEventSchema>,
+) {
+  if (payment.pro_days <= 0) throw new Error(`Invalid Pro duration for payment ${event.data.reference}`);
+  const { error } = await (supabaseAdmin as any).rpc("grant_pro_access", {
+    _user: payment.user_id,
+    _days: payment.pro_days,
+    _source_ref: payment.id,
+  });
+  if (error) throw new Error(error.message);
+  await markPaymentSucceeded(payment, event);
+  return { status: "success" as const, paymentId: payment.id };
 }
 
 const DEFAULT_RETRY_DELAYS_MS = [200, 500, 1000, 2000];
@@ -282,7 +375,10 @@ export async function processSubscriptionRenewal(data: PaystackSubscriptionRenew
 }
 
 /**
- * End Pro access only after Paystack confirms the subscription is disabled.
+ * Stop future billing after Paystack confirms the subscription is disabled.
+ *
+ * The customer retains their already-paid period. The reconciliation job marks
+ * the subscription cancelled and removes Pro only after that period ends.
  */
 export async function processSubscriptionDisable(data: PaystackSubscriptionDisableData) {
   const subCode = data.subscription_code ?? "";
@@ -297,10 +393,9 @@ export async function processSubscriptionDisable(data: PaystackSubscriptionDisab
 
   if (!userId) return { status: "ignored" as const };
 
-  await supabaseAdmin.rpc("deactivate_pro_subscription", { _user: userId });
   await supabaseAdmin
     .from("subscriptions")
-    .update({ status: "cancelled", updated_at: new Date().toISOString() })
+    .update({ status: "cancellation_pending", updated_at: new Date().toISOString() })
     .eq("paystack_subscription_code", subCode);
 
   return { status: "success" as const, userId, subscriptionCode: subCode };
@@ -341,6 +436,9 @@ export async function processPaymentSuccess(
     throw new Error(`Invalid PPP multiplier on signed payment event: ${pppMultiplier}`);
   }
 
+  if (payment.purpose === "gift_card") return settleGiftCardPayment(payment, event);
+  if (payment.purpose === "pro_one_time") return settleOneTimeProPayment(payment, event);
+
   // Grant credits to user
   await supabaseAdmin.rpc("grant_credits", {
     _user: payment.user_id,
@@ -361,17 +459,7 @@ export async function processPaymentSuccess(
   }
 
   // Mark payment as succeeded and persist the owner profit / credit-funding split.
-  const split = computeProfitSplit(payment.amount_kobo);
-  await supabaseAdmin
-    .from("payments")
-    .update({
-      status: "succeeded",
-      raw: event,
-      profit_amount_minor: split.profit_minor,
-      credit_funding_amount_minor: split.credit_funding_minor,
-      split_profit_pct: split.profit_pct,
-    })
-    .eq("id", payment.id);
+  await markPaymentSucceeded(payment, event);
 
   // Track affiliate conversion if buyer was referred. Prefer the ref carried
   // on the payment/webhook itself; fall back to the buyer's profile-level

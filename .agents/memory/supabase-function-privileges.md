@@ -9,6 +9,6 @@ description: Every new public function ships anon-EXECUTABLE by default; credit 
 
 **Rule 2:** Date-keyed idempotency (`to_char(now(), 'YYYY-MM-DD')` refs) must use `now() AT TIME ZONE 'utc'` — bare `to_char(now(),…)` follows the SESSION TimeZone, so a west-of-UTC session mints a previous-day key and double-grants. DB default is UTC but sessions can override; don't rely on it.
 
-**How to apply:** Any migration adding/replacing a public function: append the revoke/grant pair. Any dedup key derived from the clock: pin the timezone explicitly, and prove idempotency with a `SET timezone='America/Los_Angeles'` re-call test.
+**How to apply:** Any migration adding/replacing a public function: append the revoke/grant pair. Treat legacy SECURITY DEFINER functions as suspect too—verify their live ACL before reusing or extending them. Any dedup key derived from the clock: pin the timezone explicitly, and prove idempotency with a `SET timezone='America/Los_Angeles'` re-call test.
 
 **Verify a suspect fn:** `select grantee, privilege_type from information_schema.routine_privileges where routine_name='<fn>'`.

@@ -14,7 +14,12 @@ import {
 // The critical invariant under test: a Free user must NEVER reach
 // `reserve_credits` — the Pro gate must short-circuit before any RPC call.
 
-function fakeAdmin(opts: { plan?: string | null; isAdmin?: boolean; reserveOk?: boolean }) {
+function fakeAdmin(opts: {
+  plan?: string | null;
+  expiresAt?: string | null;
+  isAdmin?: boolean;
+  reserveOk?: boolean;
+}) {
   const calls = {
     rpc: [] as Array<{ name: string; args: unknown }>,
   };
@@ -25,7 +30,14 @@ function fakeAdmin(opts: { plan?: string | null; isAdmin?: boolean; reserveOk?: 
       b.select = () => b;
       b.eq = () => b;
       b.maybeSingle = async () => ({
-        data: opts.plan === undefined ? null : { plan: opts.plan },
+        data: opts.plan === undefined
+          ? null
+          : {
+              plan: opts.plan,
+              subscription_expires_at: opts.plan === "pro"
+                ? (opts.expiresAt ?? "2030-01-01T00:00:00.000Z")
+                : null,
+            },
         error: null,
       });
       return b;
@@ -36,6 +48,15 @@ function fakeAdmin(opts: { plan?: string | null; isAdmin?: boolean; reserveOk?: 
       // in that branch), so `.eq()` must resolve like a promise.
       b.eq = async () =>
         opts.isAdmin ? { data: [{ role: "admin" }], error: null } : { data: [], error: null };
+      return b;
+    }
+    if (name === "subscriptions") {
+      b.select = () => b;
+      b.eq = () => b;
+      b.in = () => b;
+      b.order = () => b;
+      b.limit = () => b;
+      b.maybeSingle = async () => ({ data: null, error: null });
       return b;
     }
     if (name === "growth_tool_runs") {
@@ -114,6 +135,21 @@ describe("generateDailyPostsCore", () => {
     );
     expect(result).toMatchObject({ ok: false, insufficient: true });
     expect(calls.rpc.find((c) => c.name === "reserve_credits")).toBeDefined();
+  });
+
+  it("blocks an expired one-time Pro grant before reserving Aura", async () => {
+    const { admin, calls } = fakeAdmin({
+      plan: "pro",
+      expiresAt: "2020-01-01T00:00:00.000Z",
+    });
+    const result = await generateDailyPostsCore(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      { admin, generate: unusedGenerate() } as any,
+      "u1",
+      dailyPostsInput,
+    );
+    expect(result).toMatchObject({ ok: false, proRequired: true });
+    expect(calls.rpc.find((c) => c.name === "reserve_credits")).toBeUndefined();
   });
 });
 

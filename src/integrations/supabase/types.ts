@@ -1354,9 +1354,17 @@ export type Database = {
           credits: number
           design: string
           id: string
+          kind: string
           note: string | null
+          payment_provider: string | null
+          payment_status: string
+          pro_days: number
+          purchase_reference: string | null
+          purchaser_id: string | null
+          recipient_email: string | null
           redeemed_at: string | null
           redeemed_by: string | null
+          status: string
         }
         Insert: {
           amount_usd?: number
@@ -1366,9 +1374,17 @@ export type Database = {
           credits: number
           design?: string
           id?: string
+          kind?: string
           note?: string | null
+          payment_provider?: string | null
+          payment_status?: string
+          pro_days?: number
+          purchase_reference?: string | null
+          purchaser_id?: string | null
+          recipient_email?: string | null
           redeemed_at?: string | null
           redeemed_by?: string | null
+          status?: string
         }
         Update: {
           amount_usd?: number
@@ -1378,9 +1394,17 @@ export type Database = {
           credits?: number
           design?: string
           id?: string
+          kind?: string
           note?: string | null
+          payment_provider?: string | null
+          payment_status?: string
+          pro_days?: number
+          purchase_reference?: string | null
+          purchaser_id?: string | null
+          recipient_email?: string | null
           redeemed_at?: string | null
           redeemed_by?: string | null
+          status?: string
         }
         Relationships: []
       }
@@ -1985,10 +2009,13 @@ export type Database = {
           credits_granted: number
           currency: string
           discount_percent_off: number | null
+          gift_card_id: string | null
           id: string
+          pro_days: number
           profit_amount_minor: number | null
           promo_code_id: string | null
           provider: string
+          purpose: string
           raw: Json | null
           reference: string
           split_profit_pct: number | null
@@ -2003,10 +2030,13 @@ export type Database = {
           credits_granted?: number
           currency?: string
           discount_percent_off?: number | null
+          gift_card_id?: string | null
           id?: string
+          pro_days?: number
           profit_amount_minor?: number | null
           promo_code_id?: string | null
           provider?: string
+          purpose?: string
           raw?: Json | null
           reference: string
           split_profit_pct?: number | null
@@ -2021,10 +2051,13 @@ export type Database = {
           credits_granted?: number
           currency?: string
           discount_percent_off?: number | null
+          gift_card_id?: string | null
           id?: string
+          pro_days?: number
           profit_amount_minor?: number | null
           promo_code_id?: string | null
           provider?: string
+          purpose?: string
           raw?: Json | null
           reference?: string
           split_profit_pct?: number | null
@@ -2034,6 +2067,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "payments_gift_card_id_fkey"
+            columns: ["gift_card_id"]
+            isOneToOne: false
+            referencedRelation: "gift_cards"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "payments_promo_code_id_fkey"
             columns: ["promo_code_id"]
             isOneToOne: false
@@ -2041,6 +2081,30 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      pro_access_grants: {
+        Row: {
+          created_at: string
+          days: number
+          id: string
+          source_ref: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          days: number
+          id?: string
+          source_ref: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          days?: number
+          id?: string
+          source_ref?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       profiles: {
         Row: {
@@ -3545,11 +3609,26 @@ export type Database = {
         Args: { _amount: number; _ref: string; _user: string }
         Returns: boolean
       }
+      grant_pro_access: {
+        Args: { _days: number; _source_ref: string; _user: string }
+        Returns: boolean
+      }
+      has_active_pro_access: { Args: { _user: string }; Returns: boolean }
       has_role: {
         Args: { _role: Database["public"]["Enums"]["app_role"]; _user: string }
         Returns: boolean
       }
+      reconcile_expired_pro_access: { Args: never; Returns: number }
       reconcile_stuck_reservation: { Args: { _job: string }; Returns: string }
+      redeem_gift_card: {
+        Args: { _code: string; _user: string }
+        Returns: {
+          credits: number
+          design: string
+          kind: string
+          pro_days: number
+        }[]
+      }
       release_reservation: {
         Args: { _amount: number; _reason: string; _ref: string; _user: string }
         Returns: undefined
