@@ -83,8 +83,10 @@ export function StudioWorkspace() {
       {/* Right Column */}
       <div className="w-[340px] shrink-0 h-full relative z-10">
         <AssistantSidebar 
+          artistName={artistName}
           brief={brief}
           mood={mood}
+          scenes={scenes}
           messages={messages}
           onMessagesChange={setMessages}
         />

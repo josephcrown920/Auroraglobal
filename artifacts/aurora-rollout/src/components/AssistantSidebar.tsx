@@ -2,6 +2,7 @@ import React, { useRef, useState, useEffect } from "react";
 import { Send, Sparkles, Loader2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { sendAssistantMessage } from "@/lib/api";
+import type { AssistantContext, AssistantScene } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 export interface Message {
@@ -10,19 +11,25 @@ export interface Message {
 }
 
 interface Props {
+  artistName: string;
   brief: string;
   mood: string;
+  scenes: AssistantScene[];
   messages: Message[];
   onMessagesChange: (msgs: Message[]) => void;
 }
 
-const SUGGESTIONS = [
-  "Wide establishing shot",
-  "Tight closeup",
-  "Motion blur tracking",
-];
+const SUGGESTIONS_BY_MOOD: Record<string, string[]> = {
+  Cinematic: ["Slow push-in opener", "Wide anamorphic establish", "Golden-hour silhouette"],
+  "Dark Trap": ["Low-angle performance shot", "Handheld alley tracking", "Hard-light closeup"],
+  "Lo-Fi": ["Static room portrait", "Soft handheld detail", "Grainy over-the-shoulder"],
+  Luxury: ["Dolly through the set", "Polished product closeup", "Slow-motion fabric detail"],
+  Street: ["Whip-pan transition", "Low-angle street walk", "Candid long-lens reaction"],
+  Afrobeats: ["Dance-floor wide shot", "Circular camera move", "Rhythmic cutaway detail"],
+  default: ["Wide establishing shot", "Tight closeup", "Motion blur tracking"],
+};
 
-export function AssistantSidebar({ brief, mood, messages, onMessagesChange }: Props) {
+export function AssistantSidebar({ artistName, brief, mood, scenes, messages, onMessagesChange }: Props) {
   const [inputValue, setInputValue] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -44,7 +51,7 @@ export function AssistantSidebar({ brief, mood, messages, onMessagesChange }: Pr
     setIsTyping(true);
 
     try {
-      const context = `Context: The brief is "${brief}" and the mood is "${mood}".`;
+      const context: AssistantContext = { artistName, brief, mood, scenes };
       const reply = await sendAssistantMessage(newMsgs, context);
       onMessagesChange([...newMsgs, { role: "ai", content: reply }]);
     } catch (err) {
@@ -102,7 +109,7 @@ export function AssistantSidebar({ brief, mood, messages, onMessagesChange }: Pr
 
       <div className="p-4 border-t border-border shrink-0 bg-card/30">
         <div className="flex gap-2 overflow-x-auto pb-3 no-scrollbar snap-x">
-          {SUGGESTIONS.map(s => (
+          {(SUGGESTIONS_BY_MOOD[mood] ?? SUGGESTIONS_BY_MOOD.default).map(s => (
             <button
               key={s}
               type="button"
