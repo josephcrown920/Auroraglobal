@@ -1,0 +1,301 @@
+ P R O D U C T I O N     P L A N   ·   M U S I C   V I D E O   ·   V E R S I O N   2
+
+
+
+
+ LOOPING OFFICERS
+ VIDEO PLAN
+ NBA JOSH · SURREAL URBAN NIGHT SCENE · 15 SECONDS
+
+
+ DU RATION
+
+ 15 seconds
+
+
+ STAT U S
+                       F ORMAT
+
+                       16:9 Cinematic
+                                              LAYE R S
+
+                                              2 + Composite
+                                                                      GE N TO OL       PLAN
+                                                                      Kling v3 via fal.ai
+                                                                                            E D IT TO OL
+
+                                                                                            CapCut
+
+
+
+
+ Officers clip ✓ DONE
+
+
+
+
+01 Th e C o nce p t
+
+   A cinematic 15-second urban night scene. NBA Josh stands calmly performing his hook
+   — fearless, untouchable. Behind him, two police officers run aggressively toward him but are
+   stuck in a loop — running hard, going nowhere.
+
+
+   A vintage hanging microphone drops from above into the scene — a surreal music video
+   touch that bridges the studio world with the street. Camera is completely static. Josh
+   glances back with a smirk, then casually walks away while the officers are still looping.
+   Unreachable.
+
+
+
+
+  The Loop Effect: Not an AI trick — take 2–3 seconds of the officer clip and repeat it back-to-back
+  in CapCut for 15 seconds. Simple. Clean. Surreal.
+
+
+
+
+02 Ass et Statu s — Wh at Yo u Have
+✓ Progress: Officers clip already generated on Kling. Layer B is DONE. Now you only need to
+generate Layer A (NBA Josh) and composite in CapCut.
+
+
+
+
+                                                                        ✓   GENERATED
+
+                                                                       Officers — Layer B
+                                                                       Kling 3.0 output. Two officers
+ REFERENCE                          REFERENCE                          running on night street. Ready
+                                                                       to loop in CapCut.
+NBA Josh — Hero Shot               Josh — Full Leather Outfit
+Best face reference for Kling.     Full body reference. Black
+Use this as your upload when       leather jacket + pants + boots.
+generating Layer A.                Best for street scene outfit.
+
+
+
+
+ PROP     REF                       REFERENCE
+
+Vintage Mic — Scene                Josh — Profile + Mic Pose
+Element                            Side angle reference. Shows the
+Include in Josh's Layer A          mic interaction pose. Great for
+prompt. Hanging mic drops into     Kling composition reference.
+frame — surreal music video
+energy.
+03 Up dated Charact er Deta ils
+N B A    J O S H       —       U P D A T E D    I D E N T I F I E R S
+
+
+                                               HA IR                    Long red dreadlocks, full red dye (not just tips)
+
+                                               S UN G L AS SE S           Red snake/reptile frame — sculptural, unique
+
+                                               C HAI N                                            Heavy diamond Cuban link
+
+                                               P EN DA N T                       "NEVER JUST" iced-out letter pendant
+
+                                               S HO UL DE R TAT TO O       "NBA JOSH" tattooed on right shoulder/arm
+
+                                               F OREA RM TAT TO O S                                 Both arms fully tattooed
+
+                                               OU TF IT A                     Black leather jacket + leather pants + boots
+
+                                               OU TF IT B                                  Dark maroon/black sport jersey
+
+                                               BUIL D                                                      Lean, tall, athletic
+
+                                               EXP R ES S IO N                                 Calm. Unbothered. Zero fear.
+
+
+
+
+04 Th e T wo L ayers
+
+        LAYER      A       —    TO   GENERATE                             LAYER    B   —   ✓    DONE
+
+
+
+
+   NBA Josh — Foreground                                                 Officers — Background Loop
+          → Position: bottom right of frame                                  → Already generated on Kling 3.0
+
+          → Shot: waist up, medium                                           → Two officers running on night street
+
+          → Performs hook, subtle gestures                                   → Position: top left of frame
+
+          → Vintage mic hanging above him                                    → 2–3 seconds to loop x5 = 15s
+
+          → Glances over shoulder with smirk                                 → Add motion blur in CapCut
+
+          → Turns and walks out of frame                                     → Add background blur for depth
+
+          → Static camera, zero movement                                     → Runs the full duration
+
+          → Duration: 10 seconds
+05 Up dated L aye r A Prom p t — C o py In to K lin g
+
+Upload the close-up blue-lit photo as your reference image in Kling, then paste this prompt:
+
+                                                                                  LAYER   A   —   COPY   INTO   KLING
+
+   Cinematic music video scene. A tall lean athletic Black male rapper with long
+   fully red dreadlocks past his shoulders, wearing sculptural red snake-frame
+   sunglasses, heavy diamond Cuban link chain with "NEVER JUST" iced-out pendant,
+   "NBA JOSH" tattoo on right shoulder, full forearm tattoos on both arms. Wearing a
+   black leather jacket, black leather pants, black boots. Stands in the bottom right
+   of frame, waist up, facing slightly left toward camera. A vintage silver hanging
+   microphone dangles from above near his face. Dark wet urban street at night. He
+   performs his hook with calm fearless energy, subtle hand gestures, completely
+   unbothered. Static locked-off camera. No camera movement. Dramatic overhead
+   streetlight, high contrast, deep shadows, moody atmosphere. Near the end he slowly
+   glances over his left shoulder with a calm smirk, then turns and walks out of
+   frame. Realistic, cinematic, music video aesthetic, shallow depth of field.
+
+
+
+
+   Reference image to upload: Use the close-up blue-lit shot — it shows the snake glasses, chain,
+   and face clearly. That is the strongest likeness reference for Kling.
+
+
+
+
+06 K ling S et tin g s
+
+  M ODE L             kling-video/v3/standard               M OD E                                Image to Video
+
+
+
+  DU RATION                            10 seconds           A S P E CT R AT I O                                 16:9
+
+
+
+  VAR IATIONS            Generate 3, pick best              L AY E R B                            Already done ✓
+
+
+
+
+07 Fra me C ompos ition
+
+
+                                                      MIC
+                                                   HANGING
+                                                                   HANGING
+                           Officers                                 PROP
+            TO P L E F T · LO O P I N G · F U L L B O DY
+
+
+
+
+                                                           EMPTY   SPACE
+                                                           =   CINEMATIC
+                                                               TENSION
+
+
+                                                                                                 NBA Josh
+                                                                             B OT TO M R I G H T · WA I ST U P · F O R E G R O U N D
+
+
+
+
+  Diagonal tension: Officers top-left chasing toward Josh bottom-right creates natural visual pull
+  across the entire frame. The mic in the centre-top ties it all together as a music video element.
+
+
+
+
+08 15-Se c ond S c ene T im eli n e
+   0:00     –   0:03
+
+   Opening
+   Josh appears bottom-right, vintage mic drops from above. Officers begin looping in top-left. Scene
+   established.
+
+   0:03     –   0:08
+
+   Build
+   Josh performs hook into the hanging mic. Subtle hand gestures. Officers loop — going nowhere.
+   Surreal energy builds.
+
+   0:08     –   0:12
+
+   Tension Peak
+   Officers still stuck in the loop. Running hard, gaining nothing. Josh completely calm and unbothered.
+   Contrast is maximum.
+
+   0:12     –   0:14
+
+   The Look
+   Josh finishes his hook. Brief pause. Slow glance over left shoulder at the officers — calm, confident
+   smirk.
+
+   0:14     –   0:15
+
+   Exit
+   Josh casually turns and walks out of frame. Officers still looping. Scene ends. He was never catchable.
+09 Ca pC ut C omp os it e — St ep by S te p
+
+ 1      Import Officers clip as base track
+        Open CapCut → New Project → Add officers clip to main timeline first. This is your background
+        layer.
+
+
+ 2      Loop officers to 15 seconds
+        Tap clip → Copy → paste repeatedly until timeline hits 15 seconds. Trim last copy to fit exactly.
+
+
+ 3      Add Josh clip as overlay
+        Tap + → Overlay → import Josh clip. Position him to the bottom-right of frame. Scale to fit.
+
+
+ 4      Blur the officers layer
+        Select officers clip → Effects → apply soft gaussian blur. Pushes them into background, creates
+        depth.
+
+
+ 5      Add motion blur to officers
+        Select officers layer → Video Effects → search Motion Blur . Medium intensity. Makes the loop
+        feel like real running energy.
+
+
+ 6      Colour grade the full scene
+        Select all → Adjust : Brightness -10, Contrast +20, Saturation -15. Add a cinematic LUT
+        (teal/orange) from CapCut filters.
+
+
+ 7      Add vignette
+         Effects   → Vignette at 30–40%. Darkens corners, focuses eye on Josh.
+
+
+ 8      Export
+        Tap Export → 1080p at 60fps . Save to camera roll. Done.
+
+
+
+
+10 Tool s, Statu s & C os t
+
+ TOOL                               PURPOSE                        STATUS                COST
+
+
+
+ Kling v3 via fal.ai                Generate Layer A (Josh)           Next step          Free tier
+
+
+
+ Kling v3 — Officers                Layer B background             ✓ DONE                Already generated
+
+
+
+ CapCut                             Loop + composite + grade       After generation      Free
+  Next action: Go to fal.ai → Kling v3/standard/image-to-video → Upload the blue-lit Josh close-up
+  → paste the Layer A prompt from Section 05 → generate 3 variations → pick best one → go to
+  CapCut.
+
+
+
+
+OUT THE MUD RECORDS                                      VIDEO   PLAN   v2   ·   NBA   JOSH   ·   REF-003
+
