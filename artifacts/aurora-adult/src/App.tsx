@@ -5,6 +5,7 @@ import { Auth } from "@/components/Auth";
 import { ModelGrid } from "@/components/ModelGrid";
 import { ModelStudio } from "@/components/ModelStudio";
 import { FeatureVisibilityGate } from "@/components/FeatureVisibilityGate";
+import { AgeGate } from "@/components/AgeGate";
 import { supabase } from "@/lib/supabase";
 import type { Model } from "@/lib/models";
 
@@ -22,6 +23,13 @@ export default function App() {
 
 function AdultSchoolApp() {
   const [entered, setEntered] = useState(false);
+  const [ageConfirmed, setAgeConfirmed] = useState(() => {
+    try {
+      return localStorage.getItem("aurora_adult_age_confirmed") === "1";
+    } catch {
+      return false;
+    }
+  });
   const [session, setSession] = useState<Session | null>(null);
   const [sessionLoaded, setSessionLoaded] = useState(false);
   const [selectedModel, setSelectedModel] = useState<Model | null>(null);
@@ -39,6 +47,7 @@ function AdultSchoolApp() {
   }, []);
 
   if (!entered) return <Landing onEnter={() => setEntered(true)} />;
+  if (!ageConfirmed) return <AgeGate onConfirm={() => setAgeConfirmed(true)} />;
   if (!sessionLoaded) return null;
   if (!session) return <Auth />;
 
