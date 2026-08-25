@@ -1625,13 +1625,20 @@ function MotionStudio() {
             )}
 
             {shotResults.length === 0 && !shotLoading && (
-              <div className="text-center py-12 text-muted-foreground/50">
-                <div className="text-4xl mb-3">🎨</div>
+              <div className="mx-auto max-w-sm overflow-hidden rounded-2xl border border-primary/20 bg-card/50 text-center">
+                <img
+                  src={shotEngine === "kling" ? "/gallery/josh-neon-tech.png" : "/gallery/josh-blue-portrait.png"}
+                  alt={shotEngine === "kling" ? "Neon-lit avatar video inspiration" : "Portrait generation inspiration"}
+                  loading="lazy"
+                  className="h-44 w-full object-cover"
+                />
+                <div className="px-4 py-4 text-muted-foreground/70">
                 <p className="text-sm">
                   {shotEngine === "kling"
                     ? "Describe a scene and KlingAI will create a live avatar video"
                     : "Describe your avatar and get an AI-generated portrait"}
                 </p>
+                </div>
               </div>
             )}
           </div>
@@ -1640,6 +1647,12 @@ function MotionStudio() {
         {/* ── Live Avatar ───────────────────────────────────────────────── */}
         {mode === "live-avatar" && (
           <div className="max-w-2xl mx-auto space-y-6">
+            <figure className="relative overflow-hidden rounded-2xl border border-primary/20 bg-card">
+              <img src="/gallery/josh-neon-tech.png" alt="Neon-lit creator portrait demonstrating a live avatar scene" loading="lazy" className="h-48 w-full object-cover" />
+              <figcaption className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 to-transparent px-4 pb-3 pt-10 text-xs text-white/80">
+                Turn a scene direction into a talking-head performance.
+              </figcaption>
+            </figure>
             <div>
               <h1 className="text-2xl font-semibold tracking-tight">Live Avatar</h1>
               <p className="text-muted-foreground text-sm mt-1">Describe a scene and KlingAI animates your avatar as a live talking-head video.</p>
@@ -1708,6 +1721,13 @@ function MotionStudio() {
               <h1 className="text-2xl font-semibold tracking-tight">Music Video Maker</h1>
               <p className="text-muted-foreground text-sm mt-1">Build cinematic music videos with AI — beat-sync, lyric video, or AI performance.</p>
             </div>
+            <figure className="relative overflow-hidden rounded-2xl border border-primary/20 bg-card">
+              <img src="/gallery/josh-pink-mic.png" alt="Performance portrait demonstrating an AI music video direction" loading="lazy" className="h-52 w-full object-cover" />
+              <figcaption className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 to-transparent px-4 pb-3 pt-12">
+                <span className="block text-[10px] font-bold uppercase tracking-[0.2em] text-primary">Performance direction</span>
+                <span className="block text-sm font-semibold text-white">Start with a look. Build the cut around the song.</span>
+              </figcaption>
+            </figure>
 
             {/* Genre / Style */}
             <section className="space-y-3">

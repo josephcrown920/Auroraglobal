@@ -500,8 +500,10 @@ function ColorsStudio() {
           <div className="grid grid-cols-2 gap-3">
             <Link
               to="/colors-show"
-              className="group aurora-glass rounded-2xl border border-white/10 p-4 transition-all hover:border-primary/40 hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+              className="group overflow-hidden aurora-glass rounded-2xl border border-white/10 transition-all hover:border-primary/40 hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
             >
+              <img src="/gallery/josh-pink-mic.png" alt="Cinematic performance portrait with a pink microphone" loading="lazy" className="h-24 w-full object-cover transition duration-500 group-hover:scale-[1.03]" />
+              <div className="p-4">
               <div className="flex items-start justify-between gap-3">
                 <span className="flex size-10 items-center justify-center rounded-xl bg-primary/15 text-primary">
                   <Film className="size-5" />
@@ -512,11 +514,14 @@ function ColorsStudio() {
               <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
                 Turn your look into a cinematic performance show.
               </p>
+              </div>
             </Link>
             <Link
               to="/scene-builder"
-              className="group aurora-glass rounded-2xl border border-white/10 p-4 transition-all hover:border-primary/40 hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+              className="group overflow-hidden aurora-glass rounded-2xl border border-white/10 transition-all hover:border-primary/40 hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
             >
+              <img src="/gallery/violet-haze.webp" alt="Violet-haze scene reference for a custom set" loading="lazy" className="h-24 w-full object-cover transition duration-500 group-hover:scale-[1.03]" />
+              <div className="p-4">
               <div className="flex items-start justify-between gap-3">
                 <span className="flex size-10 items-center justify-center rounded-xl bg-primary/15 text-primary">
                   <Layers className="size-5" />
@@ -527,6 +532,7 @@ function ColorsStudio() {
               <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
                 Compose your set, wardrobe, props, and camera angles.
               </p>
+              </div>
             </Link>
           </div>
 

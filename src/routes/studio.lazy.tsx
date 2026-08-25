@@ -70,7 +70,6 @@ import { loadStudioSession, saveStudioSession } from "@/lib/studio-session";
 import { HiggsHero, StepGuide, HiggsDivider, type GuideStep } from "@/components/studio/HiggsLayout";
 import { StudioHeroComposer, type ComposerMode } from "@/components/studio/StudioHeroComposer";
 import { EditableCopy } from "@/components/EditableCopy";
-import { ExampleOutputGrid } from "@/components/studio/ExampleOutputGrid";
 
 export const Route = createLazyFileRoute("/studio")({ component: StudioPage });
 
@@ -118,6 +117,14 @@ const PRESET_IMAGES: Record<string, string> = {
   "Urban Cut": MEDIA_ASSETS.photo,
   "Get Ready With Me": MEDIA_ASSETS.grwm,
 };
+
+const STUDIO_GALLERY_SAMPLES = [
+  { src: "/gallery/josh-pink-mic.png", label: "Performance portrait", caption: "Studio light · vocal close-up" },
+  { src: "/gallery/josh-neon-tech.png", label: "Neon campaign", caption: "Night scene · cinematic color" },
+  { src: "/gallery/violet-haze.webp", label: "Violet editorial", caption: "Fashion mood · soft haze" },
+  { src: "/gallery/josh-meme-fire.png", label: "High-energy social", caption: "Creator cut · graphic moment" },
+  { src: "/gallery/ichroma-cover.webp", label: "Cover art", caption: "Album world · polished finish" },
+] as const;
 
 const REANGLES = [
   { label: "Side profile", prompt: "super close up, from the side front angle of the subject, keep bokeh depth of field, preserve identity, outfit, and environment exactly" },
@@ -752,16 +759,37 @@ function StudioPage() {
                 fallback="Upload your photo above, then hit Generate"
                 className="text-xs text-zinc-600 text-center"
               />
-              <ExampleOutputGrid
-                title="Made in Studio"
-                subtitle="Real Aurora renders — tap a style chip above to start with one of these looks."
-                columns={2}
-                items={STUDIO_EXAMPLE_PRESETS.filter((p) => p.imageUrl).slice(0, 4).map((p) => ({
-                  src: p.imageUrl!,
-                  label: p.label,
-                  caption: p.hint,
-                }))}
-              />
+              <section aria-labelledby="studio-sample-gallery-title">
+                <div className="mb-2 flex items-end justify-between gap-3">
+                  <div>
+                    <h2 id="studio-sample-gallery-title" className="text-sm font-semibold text-zinc-100">
+                      Made in Studio
+                    </h2>
+                    <p className="mt-0.5 text-xs text-zinc-500">
+                      Real Aurora output — choose a style above to make the next one yours.
+                    </p>
+                  </div>
+                  <Link to="/gallery" className="shrink-0 text-xs font-medium text-[#a78bfa] hover:text-[#c4b5fd]">
+                    Browse gallery
+                  </Link>
+                </div>
+                <div className="columns-2 gap-2" aria-label="Studio inspiration gallery">
+                  {STUDIO_GALLERY_SAMPLES.map((sample) => (
+                    <figure key={sample.src} className="group relative mb-2 break-inside-avoid overflow-hidden rounded-xl border border-white/10 bg-zinc-950">
+                      <img
+                        src={sample.src}
+                        alt={`${sample.label}: ${sample.caption}`}
+                        loading="lazy"
+                        className="w-full object-cover transition duration-500 group-hover:scale-[1.03]"
+                      />
+                      <figcaption className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 via-black/45 to-transparent px-2.5 pb-2 pt-8">
+                        <span className="block text-xs font-semibold text-white">{sample.label}</span>
+                        <span className="block text-[10px] text-white/65">{sample.caption}</span>
+                      </figcaption>
+                    </figure>
+                  ))}
+                </div>
+              </section>
               <Link
                 to="/video-agent"
                 className="group flex items-center gap-3 rounded-2xl border border-[#8b5cf6]/25 bg-[#8b5cf6]/8 px-4 py-3 no-underline transition hover:border-[#8b5cf6]/50 hover:bg-[#8b5cf6]/12"

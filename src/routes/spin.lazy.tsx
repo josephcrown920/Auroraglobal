@@ -52,6 +52,15 @@ type Variant = {
 
 type AvatarOption = { id: string; name: string; previewUrl: string | null };
 
+const SPIN_GALLERY_PREVIEWS: Record<SpinTemplateId, string> = {
+  default: "/gallery/ski-selfie.jpg",
+  rapper: "/gallery/rapper-grid.jpg",
+  product_showcase: "/gallery/coca-cola-kling.jpg",
+  fitness_creator: "/gallery/josh-blue-portrait.png",
+  fashion_lookbook: "/gallery/josh-pink-mic.png",
+  beauty_glam: "/gallery/glitter-bath.jpg",
+};
+
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 // Fetch → Blob → objectURL so the browser actually saves the file even when
@@ -428,10 +437,10 @@ function SpinPage() {
                   templateId === t.id ? "border-primary" : "border-white/10 hover:border-white/25"
                 }`}
               >
-                {t.image ? (
+                {SPIN_GALLERY_PREVIEWS[t.id] || t.image ? (
                   <img
-                    src={t.image}
-                    alt={t.label}
+                    src={SPIN_GALLERY_PREVIEWS[t.id] ?? t.image ?? ""}
+                    alt={`${t.label} example creator post`}
                     className="absolute inset-0 h-full w-full object-cover transition group-hover:scale-105"
                     loading="lazy"
                   />

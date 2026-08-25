@@ -1865,10 +1865,10 @@ function BriefField({ label, value, onChange, placeholder }: { label: string; va
 
 function StoryDirectionsSideBySide({ onLaunch }: { onLaunch: (t: string) => void }) {
   const directions = [
-    { name: "Hyper-Real Documentary", aesthetic: "Grounded · natural light · 35mm",       palette: ["#1a1613","#c98a5a","#e7d7c5","#7a2020"], shots: ["/prime/shot-alley.jpg",  "/prime/shot-chef.jpg",      "/prime/shot-highway.jpg"], beat: "Ordinary morning → tension pulse → decision made." },
-    { name: "Cinematic Anamorphic",   aesthetic: "2.39:1 · Kodak 500T · neon spill",       palette: ["#0b0d1a","#5b2fd1","#e14a6b","#c9d1e0"], shots: ["/prime/shot-alley.jpg",  "/prime/shot-neon-face.jpg", "/prime/shot-highway.jpg"], beat: "Rain sheen intro → chase escalate → reveal on kick." },
-    { name: "Photo-Real High Fashion", aesthetic: "Editorial · anamorphic close · silk",   palette: ["#080606","#b0836a","#f5ecd6","#2a1616"], shots: ["/prime/shot-dancer.jpg", "/prime/shot-chef.jpg",      "/prime/shot-eye.jpg"],    beat: "Icon reveal → fabric motion → knowing look to lens." },
-    { name: "Grounded Sci-Fi Real",   aesthetic: "2049 tactile · monolithic · patient",    palette: ["#0a1112","#2d5f6b","#d4a24a","#efe6d4"], shots: ["/prime/shot-desert.jpg", "/prime/shot-eye.jpg",       "/prime/shot-highway.jpg"], beat: "Silhouette in vastness → object activates → threshold crossed." },
+    { name: "Hyper-Real Documentary", aesthetic: "Grounded · natural light · 35mm",       palette: ["#1a1613","#c98a5a","#e7d7c5","#7a2020"], shots: [{ src: "/gallery/ski-selfie.jpg", alt: "Natural-light ski selfie" }, { src: "/gallery/josh-balloon.jpg", alt: "Candid portrait holding a balloon" }, { src: "/gallery/blonde-selfie.png", alt: "Natural creator selfie" }], beat: "Ordinary morning → tension pulse → decision made." },
+    { name: "Cinematic Anamorphic",   aesthetic: "2.39:1 · Kodak 500T · neon spill",       palette: ["#0b0d1a","#5b2fd1","#e14a6b","#c9d1e0"], shots: [{ src: "/gallery/josh-neon-tech.png", alt: "Neon-lit cinematic portrait" }, { src: "/gallery/violet-haze.webp", alt: "Violet-haze fashion scene" }, { src: "/gallery/josh-meme-fire.png", alt: "High-contrast fire-lit creator scene" }], beat: "Rain sheen intro → chase escalate → reveal on kick." },
+    { name: "Photo-Real High Fashion", aesthetic: "Editorial · anamorphic close · silk",   palette: ["#080606","#b0836a","#f5ecd6","#2a1616"], shots: [{ src: "/gallery/josh-pink-mic.png", alt: "Editorial portrait with a pink microphone" }, { src: "/gallery/glitter-bath.jpg", alt: "Glitter beauty editorial" }, { src: "/gallery/ichroma-cover.webp", alt: "Polished editorial cover art" }], beat: "Icon reveal → fabric motion → knowing look to lens." },
+    { name: "Grounded Sci-Fi Real",   aesthetic: "2049 tactile · monolithic · patient",    palette: ["#0a1112","#2d5f6b","#d4a24a","#efe6d4"], shots: [{ src: "/gallery/coca-cola-kling.jpg", alt: "Tactile product performance scene" }, { src: "/gallery/josh-blue-portrait.png", alt: "Blue-lit portrait" }, { src: "/gallery/rapper-grid.jpg", alt: "Urban artist grid" }], beat: "Silhouette in vastness → object activates → threshold crossed." },
   ];
   return (
     <section className="fade-up space-y-4 rounded-sm border border-prime/40 bg-panel/60 p-5">
@@ -1897,9 +1897,9 @@ function StoryDirectionsSideBySide({ onLaunch }: { onLaunch: (t: string) => void
               </button>
             </div>
             <div className="grid grid-cols-3 gap-2">
-              {d.shots.map((src, i) => (
+              {d.shots.map((shot, i) => (
                 <figure key={i} className="relative aspect-video overflow-hidden rounded-sm border border-line bg-panel">
-                  <img src={src} alt="" loading="lazy" className="h-full w-full object-cover opacity-90 transition-transform duration-500 hover:scale-105" />
+                  <img src={shot.src} alt={shot.alt} loading="lazy" className="h-full w-full object-cover opacity-90 transition-transform duration-500 hover:scale-105" />
                   <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-canvas/70 via-transparent to-transparent" />
                   <span className="absolute left-1.5 top-1.5 rounded-sm bg-canvas/60 px-1.5 py-0.5 text-xs font-bold uppercase tracking-widest text-ink backdrop-blur-sm">{`sh_0${i + 1}`}</span>
                 </figure>
