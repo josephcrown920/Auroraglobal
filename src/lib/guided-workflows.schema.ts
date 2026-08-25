@@ -23,6 +23,7 @@ export const TOOL_LINK_ROUTES = [
   "/templates",
   "/agent",
   "/edit",
+  "/video-agent",
 ] as const;
 export type ToolLinkRoute = (typeof TOOL_LINK_ROUTES)[number];
 

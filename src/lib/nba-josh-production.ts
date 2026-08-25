@@ -5,8 +5,18 @@ export const NBA_JOSH_TEMPLATE = "nba-josh-looping-officers" as const;
 export const NBA_JOSH_STILL_MODEL = "fal-ai/seedream-4.5" as const;
 export const NBA_JOSH_VIDEO_MODEL = "seedance-2.0-fast" as const;
 export const NBA_JOSH_DURATION_SECONDS = 15 as const;
+export const NBA_JOSH_MIN_DURATION_SECONDS = 15 as const;
+export const NBA_JOSH_MAX_DURATION_SECONDS = 30 as const;
 export const NBA_JOSH_LAYER_A_SECONDS = 10 as const;
 export const NBA_JOSH_VARIATION_LIMIT = 3 as const;
+
+export const NBA_JOSH_SCENE_IDS = [
+  "rainy-neon-chase",
+  "blue-hour-city",
+  "warehouse-fire",
+  "sunset-street",
+] as const;
+export type NbaJoshSceneId = (typeof NBA_JOSH_SCENE_IDS)[number];
 
 export const NbaJoshAssetRoleSchema = z.enum([
   "identity",
@@ -31,6 +41,15 @@ export const NbaJoshAssetSchema = z.object({
   approved: z.boolean().default(false),
 });
 export type NbaJoshAsset = z.infer<typeof NbaJoshAssetSchema>;
+
+export const NbaJoshSceneSchema = z.object({
+  id: z.enum(NBA_JOSH_SCENE_IDS),
+  label: z.string().min(1).max(120),
+  previewUrl: z.string().min(1).max(4000),
+  prompt: z.string().min(40).max(1600),
+  reference: NbaJoshAssetSchema.optional(),
+});
+export type NbaJoshScene = z.infer<typeof NbaJoshSceneSchema>;
 
 const ApprovalSchema = z.object({
   approved: z.boolean(),
@@ -90,30 +109,31 @@ export const NbaJoshProductionSchema = z.object({
   identityRefs: z.array(NbaJoshAssetSchema).min(1).max(4),
   audioRef: NbaJoshAssetSchema,
   delivery: z.object({
-    durationSeconds: z.literal(NBA_JOSH_DURATION_SECONDS),
+    durationSeconds: z.number().int().min(NBA_JOSH_MIN_DURATION_SECONDS).max(NBA_JOSH_MAX_DURATION_SECONDS),
     aspectRatio: z.literal("16:9"),
     fps: z.literal(60),
   }),
+  scene: NbaJoshSceneSchema,
   layers: z.tuple([
     z.object({
       id: z.literal("layer-a"),
       role: z.literal("foreground"),
-      durationSeconds: z.literal(NBA_JOSH_LAYER_A_SECONDS),
+      durationSeconds: z.number().int().min(NBA_JOSH_LAYER_A_SECONDS).max(NBA_JOSH_MAX_DURATION_SECONDS),
       status: z.enum(["missing", "ready", "processing", "ready_for_delivery"]),
       url: z.string().url().optional(),
     }),
     z.object({
       id: z.literal("layer-b"),
       role: z.literal("background"),
-      durationSeconds: z.literal(NBA_JOSH_DURATION_SECONDS),
+      durationSeconds: z.number().int().min(NBA_JOSH_MIN_DURATION_SECONDS).max(NBA_JOSH_MAX_DURATION_SECONDS),
       status: z.enum(["missing", "ready"]),
       asset: NbaJoshAssetSchema,
     }),
   ]),
   outfits: z.array(NbaJoshOutfitSchema).min(1).max(3),
   timeline: z.array(z.object({
-    start: z.number().min(0).max(15),
-    end: z.number().min(0).max(15),
+    start: z.number().min(0).max(NBA_JOSH_MAX_DURATION_SECONDS),
+    end: z.number().min(0).max(NBA_JOSH_MAX_DURATION_SECONDS),
     label: z.string().min(1).max(80),
     direction: z.string().min(1).max(600),
   })).length(5),
@@ -127,6 +147,73 @@ export const NbaJoshProductionSchema = z.object({
   revision: z.number().int().min(1),
 });
 export type NbaJoshProduction = z.infer<typeof NbaJoshProductionSchema>;
+
+export const NBA_JOSH_SCENE_PRESETS: Array<Omit<NbaJoshScene, "reference"> & { reference: NbaJoshAsset }> = [
+  {
+    id: "rainy-neon-chase",
+    label: "Rainy neon chase",
+    previewUrl: "/josh/looping-officers-rain-red.png",
+    prompt:
+      "Rain-soaked wet city street at night with saturated blue and red emergency-light reflections, hanging vintage silver microphone, cinematic police chase atmosphere.",
+    reference: {
+      id: "scene-rainy-neon",
+      role: "scene",
+      label: "Rainy neon chase reference",
+      source: "bundled",
+      sourceFilename: "supplied rainy neon police chase reference",
+      previewUrl: "/josh/looping-officers-rain-red.png",
+      approved: false,
+    },
+  },
+  {
+    id: "blue-hour-city",
+    label: "Blue-hour city",
+    previewUrl: "/josh/looping-officers-city.png",
+    prompt:
+      "Wet blue-hour city street with reflective pavement, blue police strobes, warm storefront practicals, and a hanging vintage silver microphone above the performance.",
+    reference: {
+      id: "scene-blue-hour-city",
+      role: "scene",
+      label: "Blue-hour city reference",
+      source: "bundled",
+      sourceFilename: "supplied blue-hour city reference",
+      previewUrl: "/josh/looping-officers-city.png",
+      approved: false,
+    },
+  },
+  {
+    id: "warehouse-fire",
+    label: "Warehouse firelight",
+    previewUrl: "/josh/looping-officers-fire.png",
+    prompt:
+      "Industrial warehouse edge at night with controlled firelight, rain-slick pavement, red-blue emergency strobes, and the hanging vintage silver microphone in view.",
+    reference: {
+      id: "scene-warehouse-fire",
+      role: "scene",
+      label: "Warehouse firelight reference",
+      source: "bundled",
+      sourceFilename: "supplied firelight police chase reference",
+      previewUrl: "/josh/looping-officers-fire.png",
+      approved: false,
+    },
+  },
+  {
+    id: "sunset-street",
+    label: "Sunset street",
+    previewUrl: "/josh/looping-officers-sunset.png",
+    prompt:
+      "Wet suburban street at golden sunset with police light reflections cutting through the warm sky and a hanging vintage silver microphone framing the calm performance.",
+    reference: {
+      id: "scene-sunset-street",
+      role: "scene",
+      label: "Sunset street reference",
+      source: "bundled",
+      sourceFilename: "supplied sunset chase reference",
+      previewUrl: "/josh/looping-officers-sunset.png",
+      approved: false,
+    },
+  },
+];
 
 const JOSH_LOCKED_PROMPT =
   "NBA Josh, 6'3 tall lean long-limbed athletic build, long fully red dreadlocks past the shoulders, exact shoulder tattoos: NBA with stars and JOSH gothic lettering on the right, portrait tattoo on the left, full cloud rose and star sleeves on both forearms, zero face or neck tattoos, diamond NBA JOSH 444 pendant on a heavy Cuban chain, iced-out AP watch, vintage silver microphone hanging from above always visible, calm unbothered energy.";
@@ -191,6 +278,7 @@ export function defaultNbaJoshProduction(): NbaJoshProduction {
     "/josh/looping-officers-hero.png",
     "supplied officers clip — upload required for delivery",
   );
+  const scene = NBA_JOSH_SCENE_PRESETS[0];
   return {
     template: NBA_JOSH_TEMPLATE,
     authorization: { creatorAttested: false, likeness: false, audio: false, media: false },
@@ -203,6 +291,7 @@ export function defaultNbaJoshProduction(): NbaJoshProduction {
       "The_one_hook2_20secs_1787628338902.mp3",
     ),
     delivery: { durationSeconds: 15, aspectRatio: "16:9", fps: 60 },
+    scene,
     layers: [
       { id: "layer-a", role: "foreground", durationSeconds: 10, status: "missing" },
       { id: "layer-b", role: "background", durationSeconds: 15, status: "missing", asset: layerB },
@@ -285,18 +374,18 @@ export function quoteNbaJoshPreview() {
   }).total * 0.5));
 }
 
-export function quoteNbaJoshVideo() {
+export function quoteNbaJoshVideo(durationSeconds: number = NBA_JOSH_LAYER_A_SECONDS) {
   return computeCost({
     features: ["video"],
     model: NBA_JOSH_VIDEO_MODEL,
     resolution: "720p",
-    durationSeconds: NBA_JOSH_LAYER_A_SECONDS,
+    durationSeconds,
   }).total;
 }
 
 export function refreshNbaJoshQuotes(plan: NbaJoshProduction): NbaJoshProduction {
   const preview = quoteNbaJoshPreview();
-  const video = quoteNbaJoshVideo();
+  const video = quoteNbaJoshVideo(plan.layers[0].durationSeconds);
   return {
     ...plan,
     outfits: plan.outfits.map((item) => ({
@@ -330,6 +419,15 @@ export function validateNbaJoshProduction(value: unknown): NbaJoshProduction {
     }
   }
   if (parsed.layers[1].asset.role !== "background") throw new Error("Layer B must use a background asset");
+  if (parsed.layers[1].durationSeconds !== parsed.delivery.durationSeconds) {
+    throw new Error("Layer B duration must match the selected delivery duration");
+  }
+  if (parsed.layers[0].durationSeconds > parsed.delivery.durationSeconds) {
+    throw new Error("Layer A cannot be longer than the selected delivery duration");
+  }
+  if (parsed.timeline.some((beat) => beat.end > parsed.delivery.durationSeconds)) {
+    throw new Error("Timeline beats cannot extend past the selected delivery duration");
+  }
   return refreshNbaJoshQuotes(parsed);
 }
 

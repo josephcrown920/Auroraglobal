@@ -30,6 +30,7 @@ import { supabase } from "@/integrations/supabase/client";
 
 import {
   nbaJoshPlanHash,
+  NBA_JOSH_SCENE_PRESETS,
   type NbaJoshOutfit,
   type NbaJoshProduction,
 } from "@/lib/nba-josh-production";
@@ -153,7 +154,7 @@ function LayerBMissingCard({
           </p>
           <p className="text-sm font-semibold mt-0.5">{layerB.asset.label}</p>
           <p className="text-xs text-muted-foreground mt-1">
-            15-second officers clip — looped cleanly behind the foreground performance.
+            {layerB.durationSeconds}-second officers clip — looped cleanly behind the foreground performance.
             Upload your supplied media to unlock delivery.
           </p>
         </div>
@@ -822,16 +823,138 @@ function IdentityRefsStrip({ refs }: { refs: NbaJoshProduction["identityRefs"] }
   );
 }
 
+function SceneAndTimingControls({
+  production,
+  projectId,
+  onProjectUpdated,
+}: {
+  production: NbaJoshProduction;
+  projectId: string;
+  onProjectUpdated: (project: VideoAgentProjectDto) => void;
+}) {
+  const updateProject = useServerFn(updateVideoAgentProject);
+  const queryClient = useQueryClient();
+  const [saving, setSaving] = useState(false);
+
+  async function persist(next: NbaJoshProduction, successMessage: string) {
+    if (saving) return;
+    setSaving(true);
+    try {
+      const updated = await updateProject({ data: { id: projectId, production: next } });
+      queryClient.setQueryData(["video-agent-project", projectId], updated);
+      onProjectUpdated(updated);
+      toast.success(successMessage);
+    } catch (err) {
+      toast.error((err as Error).message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function selectScene(scene: NbaJoshProduction["scene"]) {
+    void persist(
+      { ...production, scene },
+      "Scene changed — review the refreshed production plan before rerendering",
+    );
+  }
+
+  function selectDuration(durationSeconds: number) {
+    if (durationSeconds === production.delivery.durationSeconds) return;
+    const factor = durationSeconds / production.delivery.durationSeconds;
+    const timeline = production.timeline.map((beat, index, beats) => {
+      const start = index === 0 ? 0 : Math.min(durationSeconds - 1, Math.round(beat.start * factor));
+      const end = index === beats.length - 1
+        ? durationSeconds
+        : Math.max(start + 1, Math.min(durationSeconds, Math.round(beat.end * factor)));
+      return { ...beat, start, end };
+    });
+    const layerADuration = durationSeconds === 15 ? 10 : durationSeconds;
+    void persist(
+      {
+        ...production,
+        delivery: { ...production.delivery, durationSeconds },
+        layers: [
+          { ...production.layers[0], durationSeconds: layerADuration },
+          { ...production.layers[1], durationSeconds },
+        ],
+        timeline,
+        compositeRecipe: {
+          ...production.compositeRecipe,
+          loop: `Loop Layer B cleanly to exactly ${durationSeconds} seconds with no speed change.`,
+        },
+      },
+      `${durationSeconds}-second delivery selected — review the refreshed production plan`,
+    );
+  }
+
+  return (
+    <section aria-label="Scene and timing controls" className="space-y-3">
+      <div className="flex items-end justify-between gap-3">
+        <div>
+          <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
+            Scene treatment
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Pick a visual world before generation. Changing it resets pending approvals and media.
+          </p>
+        </div>
+        <label className="shrink-0 text-xs text-muted-foreground">
+          <span className="mr-2">Length</span>
+          <select
+            value={production.delivery.durationSeconds}
+            onChange={(event) => selectDuration(Number(event.target.value))}
+            disabled={saving}
+            aria-label="Select delivery length"
+            className="rounded-md border border-border bg-background px-2 py-1.5 text-xs font-semibold text-foreground"
+          >
+            <option value={15}>15 sec</option>
+            <option value={20}>20 sec</option>
+            <option value={30}>30 sec</option>
+          </select>
+        </label>
+      </div>
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        {NBA_JOSH_SCENE_PRESETS.map((scene) => {
+          const selected = production.scene.id === scene.id && production.scene.previewUrl === scene.previewUrl;
+          return (
+            <button
+              key={scene.id}
+              type="button"
+              disabled={saving}
+              onClick={() => selectScene(scene)}
+              aria-pressed={selected}
+              aria-label={`Use ${scene.label} scene`}
+              className={cn(
+                "overflow-hidden rounded-lg border text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60",
+                selected ? "border-primary ring-1 ring-primary/70" : "border-border hover:border-primary/50",
+              )}
+            >
+              <img
+                src={scene.previewUrl}
+                alt={`${scene.label} scene reference`}
+                className="aspect-video w-full object-cover"
+                loading="lazy"
+              />
+              <span className="block px-2 py-1.5 text-[11px] font-semibold">{scene.label}</span>
+            </button>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
 function ReferenceUploadPanel({
   outfits,
   onUpload,
   uploadingTarget,
 }: {
   outfits: NbaJoshProduction["outfits"];
-  onUpload: (target: "identity" | string, file: File) => void;
+  onUpload: (target: "identity" | "scene" | string, file: File) => void;
   uploadingTarget: string | null;
 }) {
   const identityInput = useRef<HTMLInputElement>(null);
+  const sceneInput = useRef<HTMLInputElement>(null);
   const outfitInputs = useRef<Record<string, HTMLInputElement | null>>({});
   return (
     <section aria-label="Verified production references" className="rounded-xl border border-primary/20 bg-primary/5 p-4 space-y-4">
@@ -862,6 +985,27 @@ function ReferenceUploadPanel({
         >
           <span>Upload primary artist reference</span>
           {uploadingTarget === "identity" ? <Loader2 className="size-3.5 animate-spin" /> : <Upload className="size-3.5" />}
+        </Button>
+        <input
+          ref={sceneInput}
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          className="sr-only"
+          onChange={(event) => {
+            const file = event.target.files?.[0];
+            if (file) onUpload("scene", file);
+            event.target.value = "";
+          }}
+        />
+        <Button
+          size="sm"
+          variant="outline"
+          className="justify-between gap-2"
+          disabled={uploadingTarget !== null}
+          onClick={() => sceneInput.current?.click()}
+        >
+          <span>Upload a custom scene reference</span>
+          {uploadingTarget === "scene" ? <Loader2 className="size-3.5 animate-spin" /> : <Upload className="size-3.5" />}
         </Button>
         {outfits.map((outfit) => (
           <div key={outfit.id}>
@@ -895,11 +1039,17 @@ function ReferenceUploadPanel({
 
 // ─── Timeline read-only view ───────────────────────────────────────────────────
 
-function TimelineView({ timeline }: { timeline: NbaJoshProduction["timeline"] }) {
+function TimelineView({
+  timeline,
+  durationSeconds,
+}: {
+  timeline: NbaJoshProduction["timeline"];
+  durationSeconds: number;
+}) {
   return (
     <section aria-label="Production timeline" className="space-y-2">
       <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
-        Production timeline · 15s
+        Production timeline · {durationSeconds}s
       </p>
       <ol className="space-y-1.5" role="list">
         {timeline.map((beat) => (
@@ -1137,14 +1287,14 @@ export function NbaJoshProductionStudio({ project, production, onProjectUpdated 
     }
   }
 
-  async function handleReferenceUpload(target: "identity" | string, file: File) {
+  async function handleReferenceUpload(target: "identity" | "scene" | string, file: File) {
     if (uploadingTarget) return;
     setUploadingTarget(target);
     try {
       const signedUrl = await uploadToStudio(file, "image");
       const asset = {
         id: `upload-${crypto.randomUUID()}`,
-        role: target === "identity" ? "identity" as const : "wardrobe" as const,
+        role: target === "identity" ? "identity" as const : target === "scene" ? "scene" as const : "wardrobe" as const,
         label: file.name,
         source: "user-upload" as const,
         sourceFilename: file.name,
@@ -1154,6 +1304,16 @@ export function NbaJoshProductionStudio({ project, production, onProjectUpdated 
       };
       const next: NbaJoshProduction = target === "identity"
         ? { ...production, identityRefs: [...production.identityRefs, asset] }
+        : target === "scene"
+          ? {
+              ...production,
+              scene: {
+                ...production.scene,
+                label: `${production.scene.label} · custom reference`,
+                previewUrl: signedUrl,
+                reference: asset,
+              },
+            }
         : {
             ...production,
             outfits: production.outfits.map((item) =>
@@ -1163,7 +1323,13 @@ export function NbaJoshProductionStudio({ project, production, onProjectUpdated 
       const updated = await updateProject({ data: { id: project.id, production: next } });
       queryClient.setQueryData(["video-agent-project", project.id], updated);
       onProjectUpdated(updated);
-      toast.success(target === "identity" ? "Primary artist reference added" : "Wardrobe reference added");
+      toast.success(
+        target === "identity"
+          ? "Primary artist reference added"
+          : target === "scene"
+            ? "Custom scene reference added"
+            : "Wardrobe reference added",
+      );
     } catch (err) {
       toast.error((err as Error).message);
     } finally {
@@ -1202,6 +1368,12 @@ export function NbaJoshProductionStudio({ project, production, onProjectUpdated 
 
       {/* ── Identity references — visual first ── */}
       <IdentityRefsStrip refs={production.identityRefs} />
+
+      <SceneAndTimingControls
+        production={production}
+        projectId={project.id}
+        onProjectUpdated={onProjectUpdated}
+      />
 
       <ReferenceUploadPanel
         outfits={production.outfits}
@@ -1277,7 +1449,10 @@ export function NbaJoshProductionStudio({ project, production, onProjectUpdated 
       <Separator />
 
       {/* ── Timeline ── */}
-      <TimelineView timeline={production.timeline} />
+      <TimelineView
+        timeline={production.timeline}
+        durationSeconds={production.delivery.durationSeconds}
+      />
 
       <Separator />
 

@@ -22,6 +22,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/hooks/use-auth";
 import {
+  createNbaJoshCampaign as createNbaJoshCampaignFn,
   createNbaJoshProductionProject,
   createVideoAgentProject,
   listVideoAgentProjects,
@@ -147,12 +148,14 @@ function VideoAgentHome() {
   const { user, loading: authLoading } = useAuth();
   const createProject = useServerFn(createVideoAgentProject);
   const createNbaJoshProject = useServerFn(createNbaJoshProductionProject);
+  const createNbaJoshCampaign = useServerFn(createNbaJoshCampaignFn);
   const listProjects = useServerFn(listVideoAgentProjects);
 
   const [prompt, setPrompt] = useState("");
   const [style, setStyle] = useState<VideoStyle>("cinematic");
   const [duration, setDuration] = useState(60);
   const [loading, setLoading] = useState(false);
+  const [campaignCount, setCampaignCount] = useState(1);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [voice, setVoice] = useState<VideoVoice>("narrator-warm");
   const [creativeStarter, setCreativeStarter] = useState<(typeof CREATIVE_STARTERS)[number]["id"]>("product");
@@ -166,7 +169,7 @@ function VideoAgentHome() {
     queryFn: () => listProjects(),
     enabled: !!user,
   });
-  const recent = (projectsQuery.data ?? []).slice(0, 4);
+  const projects = projectsQuery.data ?? [];
   const selectedStarter = CREATIVE_STARTERS.find((starter) => starter.id === creativeStarter) ?? CREATIVE_STARTERS[0];
 
   function applyCreativeStarter(id: (typeof CREATIVE_STARTERS)[number]["id"]) {
@@ -199,6 +202,22 @@ function VideoAgentHome() {
     try {
       const project = await createNbaJoshProject();
       await navigate({ to: "/video-agent-edit", search: { id: project.id } });
+    } catch (err) {
+      toast.error((err as Error).message);
+      setLoading(false);
+    }
+  }
+
+  async function handleCreateNbaJoshCampaign() {
+    if (loading) return;
+    if (campaignCount === 1) return handleCreateNbaJosh();
+    setLoading(true);
+    try {
+      const campaign = await createNbaJoshCampaign({ data: { count: campaignCount } });
+      const first = campaign.projects[0];
+      if (!first) throw new Error("Campaign was created without a first production run");
+      toast.success(`${campaignCount} campaign drafts are ready — no Aura has been spent`);
+      await navigate({ to: "/video-agent-edit", search: { id: first.id } });
     } catch (err) {
       toast.error((err as Error).message);
       setLoading(false);
@@ -286,18 +305,36 @@ function VideoAgentHome() {
               <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-primary">Production template</p>
               <h2 className="mt-1 text-base font-semibold">NBA Josh — Looping Officers</h2>
               <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                Build a clean Layer A performance plate while officers run at full speed in the rain but never close the distance. Aurora delivers Layer A and Layer B for your final composite.
+                Build 15–30 second performance plates while officers run at full speed but never close the distance. Every campaign draft can have its own artist, outfit, scene, and review path.
               </p>
             </div>
-            <button
-              type="button"
-              onClick={() => void handleCreateNbaJosh()}
-              disabled={loading}
-              className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90 disabled:opacity-60"
-            >
-              {loading ? <Loader2 className="size-4 animate-spin" /> : <Clapperboard className="size-4" />}
-              Open production plan
-            </button>
+            <div className="flex gap-2">
+              <label className="flex min-w-0 flex-1 items-center justify-between gap-2 rounded-lg border border-border bg-background/60 px-3 py-2 text-xs text-muted-foreground">
+                Campaign drafts
+                <select
+                  value={campaignCount}
+                  onChange={(event) => setCampaignCount(Number(event.target.value))}
+                  disabled={loading}
+                  aria-label="Number of The One campaign drafts"
+                  className="bg-transparent font-semibold text-foreground outline-none"
+                >
+                  <option value={1}>1 video</option>
+                  <option value={5}>5 videos</option>
+                  <option value={10}>10 videos</option>
+                  <option value={25}>25 videos</option>
+                  <option value={50}>50 videos</option>
+                </select>
+              </label>
+              <button
+                type="button"
+                onClick={() => void handleCreateNbaJoshCampaign()}
+                disabled={loading}
+                className="flex min-w-[11rem] items-center justify-center gap-2 rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90 disabled:opacity-60"
+              >
+                {loading ? <Loader2 className="size-4 animate-spin" /> : <Clapperboard className="size-4" />}
+                {campaignCount === 1 ? "Open production plan" : `Create ${campaignCount} drafts`}
+              </button>
+            </div>
           </div>
         </section>
 
@@ -390,14 +427,14 @@ function VideoAgentHome() {
             <div className="rounded-xl border border-destructive/30 bg-card/40 p-4 text-sm text-destructive">
               Couldn't load your projects — {(projectsQuery.error as Error).message}
             </div>
-          ) : recent.length === 0 ? (
+          ) : projects.length === 0 ? (
             <div className="rounded-xl border border-dashed border-border/50 p-4 text-sm text-muted-foreground">
               No projects yet. Describe an idea above and the agent plans the whole video —
               script, storyboard, narration, final MP4.
             </div>
           ) : (
             <div className="grid gap-2">
-              {recent.map((project) => <DraftCard key={project.id} project={project} />)}
+              {projects.map((project) => <DraftCard key={project.id} project={project} />)}
             </div>
           )}
         </section>

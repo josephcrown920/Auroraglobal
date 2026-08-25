@@ -5,7 +5,6 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { computeCost } from "./pricing";
 import {
   NBA_JOSH_DURATION_SECONDS,
-  NBA_JOSH_LAYER_A_SECONDS,
   NBA_JOSH_STILL_MODEL,
   NBA_JOSH_VIDEO_MODEL,
   NbaJoshProductionSchema,
@@ -115,7 +114,14 @@ function parseScenes(value: unknown): SceneRecord[] {
 
 function parseProduction(value: unknown): NbaJoshProduction | null {
   if (!value) return null;
-  const parsed = NbaJoshProductionSchema.safeParse(value);
+  // Production plans created before editable scene choices shipped did not have
+  // a `scene` field. Keep those projects usable by adding the default visual
+  // treatment before validating the rest of their stored contract.
+  const candidate =
+    typeof value === "object" && value !== null && !("scene" in value)
+      ? { ...value as Record<string, unknown>, scene: defaultNbaJoshProduction().scene }
+      : value;
+  const parsed = NbaJoshProductionSchema.safeParse(candidate);
   return parsed.success ? refreshNbaJoshQuotes(parsed.data) : null;
 }
 
@@ -200,6 +206,45 @@ export const createNbaJoshProductionProject = createServerFn({ method: "POST" })
     return mapVideoAgentProject(row);
   });
 
+export const createNbaJoshCampaign = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) => z.object({
+    count: z.number().int().min(1).max(50),
+  }).parse(data))
+  .handler(async ({ data, context }) => {
+    const campaignId = crypto.randomUUID().slice(0, 8).toUpperCase();
+    const projects: VideoAgentProjectDto[] = [];
+
+    for (let index = 0; index < data.count; index++) {
+      const production = defaultNbaJoshProduction();
+      const title = `The One · ${String(index + 1).padStart(2, "0")}/${String(data.count).padStart(2, "0")}`;
+      const { data: row, error } = await projectTable()
+        .insert({
+          user_id: context.userId,
+          prompt:
+            "The One campaign: a lead artist stays calm in the foreground while officers sprint intensely behind them without ever closing the distance.",
+          title,
+          style: "cinematic",
+          voice: "narrator-warm",
+          target_duration: NBA_JOSH_DURATION_SECONDS,
+          scenes: [],
+          production,
+          status: "editing",
+          status_message: `Campaign ${campaignId} · production plan ready for asset review`,
+        })
+        .select("*")
+        .single();
+      if (error || !row) {
+        throw new Error(
+          `Campaign draft ${index + 1} could not be created: ${error?.message ?? "unknown error"}`,
+        );
+      }
+      projects.push(mapVideoAgentProject(row));
+    }
+
+    return { campaignId, projects };
+  });
+
 export const listVideoAgentProjects = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
@@ -207,7 +252,7 @@ export const listVideoAgentProjects = createServerFn({ method: "GET" })
       .select("*")
       .eq("user_id", context.userId)
       .order("updated_at", { ascending: false })
-      .limit(30);
+      .limit(100);
     if (error) throw new Error(error.message);
     return (data ?? []).map(mapVideoAgentProject);
   });
@@ -323,7 +368,10 @@ async function assertOwnedGenerationAssets(
   if (!identity.length || !wardrobe.length) {
     throw new Error("Upload at least one identity reference and one wardrobe reference for this outfit before generating");
   }
-  const refs = [...identity, ...wardrobe];
+  const scene = plan.scene.reference?.source === "user-upload" && plan.scene.reference.generationUrl
+    ? [plan.scene.reference]
+    : [];
+  const refs = [...identity, ...wardrobe, ...scene];
   const { assertOwnedReferenceImage } = await import("./url-guard");
   for (const ref of refs) await assertOwnedReferenceImage(ref.generationUrl!, userId);
   return refs.map((ref) => ref.generationUrl!);
@@ -357,7 +405,7 @@ export const quoteNbaJoshProduction = createServerFn({ method: "POST" })
       planHash: nbaJoshPlanHash(production),
       stills: quoteNbaJoshStill(outfit.variationCount),
       preview: quoteNbaJoshPreview(),
-      video: quoteNbaJoshVideo(),
+      video: quoteNbaJoshVideo(production.layers[0].durationSeconds),
       variationCount: outfit.variationCount,
       models: { still: NBA_JOSH_STILL_MODEL, video: NBA_JOSH_VIDEO_MODEL },
     };
@@ -419,7 +467,7 @@ export const generateNbaJoshStills = createServerFn({ method: "POST" })
           kind: "image",
           cost: quoteNbaJoshStill(1),
           reason: `nba_josh_still_${outfit.id}`,
-          prompt: `${outfit.prompt} Variation ${index + 1} of ${outfit.variationCount}.`,
+          prompt: `${outfit.prompt} Scene treatment: ${production.scene.prompt} Variation ${index + 1} of ${outfit.variationCount}.`,
           imageUrls,
           model: NBA_JOSH_STILL_MODEL,
           pinnedModelOnly: true,
@@ -518,7 +566,7 @@ export const generateNbaJoshMotionPreview = createServerFn({ method: "POST" })
         kind: "video",
         cost: quoteNbaJoshPreview(),
         reason: `nba_josh_motion_preview_${outfit.id}`,
-        prompt: `${outfit.prompt} Five-beat motion preview: opening, build, tension peak, glance and smirk, exit.`,
+        prompt: `${outfit.prompt} Scene treatment: ${production.scene.prompt} Five-beat motion preview: opening, build, tension peak, glance and smirk, exit.`,
         imageUrls: [outfit.selectedStillUrl],
         model: NBA_JOSH_VIDEO_MODEL,
         pinnedModelOnly: true,
@@ -578,13 +626,13 @@ export const generateNbaJoshVideo = createServerFn({ method: "POST" })
       const result = await reserveOrchestrateRecord({
         userId: context.userId,
         kind: "video",
-        cost: quoteNbaJoshVideo(),
+        cost: quoteNbaJoshVideo(production.layers[0].durationSeconds),
         reason: `nba_josh_layer_a_${outfit.id}`,
-        prompt: `${outfit.prompt} Final 10-second Layer A foreground clip. Follow the five beats exactly: opening, build, tension peak, glance and smirk, exit. Keep the foreground clean for external compositing.`,
+        prompt: `${outfit.prompt} Scene treatment: ${production.scene.prompt} Final ${production.layers[0].durationSeconds}-second Layer A foreground clip. Follow the five beats exactly: opening, build, tension peak, glance and smirk, exit. Keep the foreground clean for external compositing.`,
         imageUrls: [outfit.selectedStillUrl],
         model: NBA_JOSH_VIDEO_MODEL,
         pinnedModelOnly: true,
-        duration: NBA_JOSH_LAYER_A_SECONDS,
+        duration: production.layers[0].durationSeconds,
         resolution: "720p",
         aspectRatio: "16:9",
         idempotencyKey: `${row.id}:motion-final:${outfit.id}:${data.planHash}`,
@@ -604,7 +652,11 @@ export const generateNbaJoshVideo = createServerFn({ method: "POST" })
         } : item),
       };
       await persistProduction(row.id, context.userId, next, `${outfit.name} Layer A ready — package with Layer B`);
-      return { url: result.url, generationId: result.generationId, cost: quoteNbaJoshVideo() };
+      return {
+        url: result.url,
+        generationId: result.generationId,
+        cost: quoteNbaJoshVideo(production.layers[0].durationSeconds),
+      };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       const next: NbaJoshProduction = {
