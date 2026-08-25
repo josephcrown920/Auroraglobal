@@ -27,6 +27,16 @@ and a naive catch-all would have refunded successfully-delivered renders.
 **How to apply:** any new credit-spending path — reuse `reserveOrchestrateRecord`; never
 hand-roll reserve/commit/release.
 
+Credit-spending smoke tests must isolate their account and settle every queued job
+through production cancellation/finalization before cleanup. Restoring only the
+available balance can strand reserved credits and audit entries.
+
+**Why:** queue and provider races outlive the test process; deleting active state or
+hand-editing one balance can corrupt settlement.
+**How to apply:** require explicit spend consent when dispatch cannot be made impossible,
+preserve nonterminal records for recovery, assert zero reserved balance after settlement,
+and fail loudly on incomplete cleanup.
+
 **Sanctioned exception — batch jobs (Spin):** a large fan-out batch charges UPFRONT via
 `deduct_credits` (one atomic ledger ref for the whole batch), then refunds 1 credit per
 FAILED piece via `grant_credits(ref = variant id)`. Do NOT also route each piece through

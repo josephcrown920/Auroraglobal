@@ -39,6 +39,12 @@ describe("assertOwnStudioUpload (photo editor input guard)", () => {
     ).not.toThrow();
   });
 
+  it("accepts the caller's own wardrobe upload path", () => {
+    expect(() =>
+      assertOwnStudioUpload(`${base}/sign/studio/${uid}/wardrobe/outfit.jpg?token=x`, uid),
+    ).not.toThrow();
+  });
+
   it("rejects another user's studio object", () => {
     expect(() =>
       assertOwnStudioUpload(`${base}/sign/studio/other-user/uploads/a.jpg?token=x`, uid),
