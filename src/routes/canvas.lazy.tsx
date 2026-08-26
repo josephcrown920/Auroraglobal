@@ -109,6 +109,7 @@ export const Route = createLazyFileRoute("/canvas")({ component: CanvasPage });
 
 type NodeKind = "input" | "audio" | "image" | "video" | "lipsync" | "split" | "comfy" | "batchVideo" | "heygenTemplate";
 type BatchVariant = { status: "queued" | "running" | "done" | "error"; url?: string; error?: string; approved?: boolean };
+type NodeStatus = "idle" | "running" | "done" | "error" | "blocked";
 type NodeData = {
   kind: NodeKind;
   label?: string;
@@ -121,8 +122,9 @@ type NodeData = {
   prompt?: string;
   model?: string;
   cameraMovement?: string;
-  status?: "idle" | "running" | "done" | "error";
+  status?: NodeStatus;
   error?: string;
+  blockedReason?: string;
   animating?: boolean;
   // batchVideo — fan out one image into N independent video renders
   variantCount?: number;
@@ -189,6 +191,13 @@ const initialEdges: Edge[] = [
   { id: "e3", source: "vid", target: "ls", animated: true },
   { id: "e4", source: "aud", target: "ls", animated: true },
 ];
+
+function requireOutputUrl(value: unknown, label: string): string {
+  if (typeof value !== "string" || !value.trim()) {
+    throw new Error(`${label} finished without an output URL`);
+  }
+  return value.trim();
+}
 
 type Handlers = {
   update: (id: string, patch: Partial<NodeData>) => void;
@@ -876,6 +885,7 @@ function AuroraNode({ id, data }: NodeProps<Node<NodeData>>) {
       data-running={data.status === "running" ? "1" : "0"}
       data-done={data.status === "done" ? "1" : "0"}
       data-error={data.status === "error" ? "1" : "0"}
+      data-blocked={data.status === "blocked" ? "1" : "0"}
     >
       <div className="overflow-hidden rounded-[16px] border border-white/10 bg-[rgba(18,17,26,0.92)] shadow-[0_22px_70px_-36px_rgba(0,0,0,0.95)] backdrop-blur-xl transition-shadow duration-300 group-hover:border-violet-300/30 group-hover:shadow-[0_24px_80px_-34px_rgba(139,92,246,0.45)]">
         {showTarget && (
@@ -912,6 +922,9 @@ function AuroraNode({ id, data }: NodeProps<Node<NodeData>>) {
             )}
             {data.status === "error" && (
               <span title={data.error} className="size-2 rounded-full bg-rose-500 shadow-[0_0_8px_2px_#f43f5e]" />
+            )}
+            {data.status === "blocked" && (
+              <span title={data.blockedReason ?? "Skipped — upstream failed"} className="size-2 rounded-full bg-amber-400 shadow-[0_0_8px_2px_#fbbf24]" />
             )}
             {!["in", "img", "vid", "aud", "ls"].includes(id) && (
               <button onClick={() => h.remove(id)} className="text-white/20 hover:text-rose-400 transition-colors">
@@ -1010,6 +1023,20 @@ function AuroraNode({ id, data }: NodeProps<Node<NodeData>>) {
           )
         ) : null}
 
+        {data.status === "error" && data.error && (
+          <div
+            role="alert"
+            className="border-b border-rose-400/15 bg-rose-500/10 px-3 py-2 text-[11px] leading-snug text-rose-200 line-clamp-2"
+            title={data.error}
+          >
+            {data.error}
+          </div>
+        )}
+        {data.status === "blocked" && (
+          <div className="border-b border-amber-400/15 bg-amber-500/10 px-3 py-2 text-[11px] leading-snug text-amber-200">
+            {data.blockedReason ?? "Skipped — upstream failed"}
+          </div>
+        )}
         <div className="p-3 space-y-2">
           {data.kind === "input" && !data.url && (
             <label
@@ -1160,6 +1187,7 @@ function estimateSeconds(kind: NodeKind): number {
   switch (kind) {
     case "image": return 25;
     case "video": return 75;
+    case "batchVideo": return 75;
     case "lipsync": return 90;
     case "comfy": return 60;
     case "heygenTemplate": return 120;
@@ -1167,27 +1195,41 @@ function estimateSeconds(kind: NodeKind): number {
   }
 }
 function ProgressPanel({ nodes, edges, running }: { nodes: Node<NodeData>[]; edges: Edge[]; running: boolean }) {
-  const steps = nodes.filter((n) => ["image", "video", "lipsync", "comfy", "heygenTemplate"].includes(n.data.kind));
+  const steps = nodes.filter((n) => ["image", "video", "lipsync", "comfy", "batchVideo", "heygenTemplate"].includes(n.data.kind));
   if (steps.length === 0) return null;
   const done = steps.filter((n) => n.data.status === "done").length;
   const active = steps.find((n) => n.data.status === "running");
   const errored = steps.filter((n) => n.data.status === "error");
+  const blocked = steps.filter((n) => n.data.status === "blocked");
   const pending = steps.filter((n) => !n.data.status || n.data.status === "idle");
   const etaSec = (active ? estimateSeconds(active.data.kind) / 2 : 0)
     + pending.reduce((s, n) => s + estimateSeconds(n.data.kind), 0);
-  const pct = Math.round((done / steps.length) * 100);
+  const terminal = done + blocked.length + errored.length;
+  const pct = Math.round((terminal / steps.length) * 100);
   if (!running && done === 0 && errored.length === 0) return null;
   return (
-    <div className="absolute bottom-20 right-3 z-30 w-[260px] max-w-[calc(100%-1.5rem)] rounded-xl border border-white/10 bg-[oklch(0.13_0.02_295/0.92)] backdrop-blur-xl shadow-[0_0_30px_oklch(0.78_0.18_295/0.4)] p-3">
+    <div
+      role="status"
+      aria-live="polite"
+      aria-label={`Pipeline status: ${done} completed, ${blocked.length} blocked, ${errored.length} failed`}
+      className="absolute bottom-20 right-3 z-30 w-[260px] max-w-[calc(100%-1.5rem)] rounded-xl border border-white/10 bg-[oklch(0.13_0.02_295/0.92)] backdrop-blur-xl shadow-[0_0_30px_oklch(0.78_0.18_295/0.4)] p-3"
+    >
       <div className="flex items-center justify-between mb-2">
         <div className="text-sm uppercase tracking-[0.15em] text-white/70 flex items-center gap-1.5">
-          <Clock className="size-3" /> Pipeline · {done}/{steps.length}
+          <Clock className="size-3" /> Pipeline · {terminal}/{steps.length}
         </div>
         {running && <Loader2 className="size-3 animate-spin text-primary" />}
       </div>
       <div className="h-1.5 rounded-full bg-white/10 overflow-hidden mb-2">
         <div className="h-full bg-gradient-to-r from-primary to-orange-500 transition-all" style={{ width: `${pct}%` }} />
       </div>
+      {(errored.length > 0 || blocked.length > 0 || !running) && (
+        <div className="flex items-center gap-2 mb-2 text-[11px] tabular-nums">
+          <span className="text-emerald-300">{done} completed</span>
+          <span className="text-amber-300">{blocked.length} blocked</span>
+          <span className="text-rose-300">{errored.length} failed</span>
+        </div>
+      )}
       {running && active && (
         <div className="text-[13px] text-white/60 mb-2">
           ETA ~{Math.max(5, Math.round(etaSec))}s · running {KIND_META[active.data.kind].label}
@@ -1201,9 +1243,12 @@ function ProgressPanel({ nodes, edges, running }: { nodes: Node<NodeData>[]; edg
               {s === "done" ? <CheckCircle2 className="size-3 text-emerald-400" /> :
                s === "running" ? <Loader2 className="size-3 animate-spin text-primary" /> :
                s === "error" ? <XCircle className="size-3 text-rose-400" /> :
+               s === "blocked" ? <AlertCircle className="size-3 text-amber-300" /> :
                <span className="size-3 rounded-full border border-white/20" />}
               <span className="text-white/80 truncate">{KIND_META[n.data.kind].label}</span>
-              <span className="text-white/30 ml-auto">#{n.id.slice(0, 4)}</span>
+               <span className={`ml-auto ${s === "blocked" ? "text-amber-300/80" : "text-white/30"}`}>
+                 {s === "blocked" ? "skipped — upstream failed" : `#${n.id.slice(0, 4)}`}
+               </span>
             </li>
           );
         })}
@@ -1528,6 +1573,31 @@ function CanvasPage() {
       type Resolved = { url: string; kind: NodeKind };
       const resolved = new Map<string, Resolved>();
 
+      // A new run must not inherit a previous failure or blocked state. Keep the
+      // graph configuration and generated media intact, but make execution state
+      // reflect this run.
+      setNodes((ns) => ns.map((n) => (
+        ["image", "video", "lipsync", "comfy", "heygenTemplate"].includes(n.data.kind)
+          ? { ...n, data: { ...n.data, status: "idle", error: undefined, blockedReason: undefined } }
+          : n
+      )));
+
+      const seen = new Set<string>();
+      const markBlockedDownstream = (failedId: string) => {
+        const blockedReason = "Skipped — upstream failed";
+        const stack = [...(outgoing.get(failedId) ?? [])];
+        const blockedIds = new Set<string>();
+        while (stack.length > 0) {
+          const downstreamId = stack.pop()!;
+          if (blockedIds.has(downstreamId)) continue;
+          blockedIds.add(downstreamId);
+          seen.add(downstreamId);
+          if (!byId.has(downstreamId)) continue;
+          update(downstreamId, { status: "blocked", error: undefined, blockedReason });
+          stack.push(...(outgoing.get(downstreamId) ?? []));
+        }
+      };
+
       // seed inputs (image + audio)
       const seeds = nodes.filter((n) => n.data.kind === "input" || n.data.kind === "audio");
       // Standalone heygenTemplate nodes (no incoming edges, no input seeds) can run via their own talkingPhotoUrl
@@ -1543,7 +1613,6 @@ function CanvasPage() {
       }
       for (const n of heygenStandalones) queue.push(n.id);
 
-      const seen = new Set<string>();
       while (queue.length) {
         const id = queue.shift()!;
         if (seen.has(id)) continue;
@@ -1567,8 +1636,9 @@ function CanvasPage() {
               motionVideoUrl: null,
               model: resolveAutoModel(n.data.model ?? MODEL_LIST[0].value, "image"),
             } });
-            resolved.set(id, { url: res.resultUrl, kind: "image" });
-            update(id, { status: "done", url: res.resultUrl });
+            const outputUrl = requireOutputUrl(res.resultUrl, "Image generation");
+            resolved.set(id, { url: outputUrl, kind: "image" });
+            update(id, { status: "done", url: outputUrl });
           } else if (n.data.kind === "video") {
   const startFrame = resolveVideoStartFrame(images, videos);
   const endFrame = resolveVideoEndFrame(images);
@@ -1581,8 +1651,9 @@ function CanvasPage() {
     cameraMovement: n.data.cameraMovement ?? "static",
     endFrameUrl: endFrame,
   } });
-            resolved.set(id, { url: res.videoUrl, kind: "video" });
-            update(id, { status: "done", url: res.videoUrl });
+            const outputUrl = requireOutputUrl(res.videoUrl, "Video generation");
+            resolved.set(id, { url: outputUrl, kind: "video" });
+            update(id, { status: "done", url: outputUrl });
           } else if (n.data.kind === "lipsync") {
             if (audios.length === 0) throw new Error("Lip sync needs an audio node");
             let videoUrl = videos[0];
@@ -1598,15 +1669,16 @@ function CanvasPage() {
                 cameraMovement: "static",
                 endFrameUrl: null,
               } });
-              videoUrl = v.videoUrl;
+               videoUrl = requireOutputUrl(v.videoUrl, "Auto-animation");
             }
             const res = await lipFn({ data: {
               videoUrl,
               audioUrl: audios[0],
               model: resolveAutoModel(n.data.model ?? "fal-ai/sync-lipsync/v2", "lipsync") as "fal-ai/sync-lipsync/v2" | "fal-ai/wav2lip" | "latentsync",
             } });
-            resolved.set(id, { url: res.videoUrl, kind: "lipsync" });
-            update(id, { status: "done", url: res.videoUrl });
+            const outputUrl = requireOutputUrl(res.videoUrl, "Lip sync");
+            resolved.set(id, { url: outputUrl, kind: "lipsync" });
+            update(id, { status: "done", url: outputUrl });
           } else if (n.data.kind === "comfy") {
             const tplId = n.data.comfyWorkflowId;
             if (!tplId) throw new Error("Pick a ComfyUI workflow for this node");
@@ -1623,7 +1695,7 @@ function CanvasPage() {
             // Enqueue-only server fn (task #273): the graph renders in the
             // background job queue — poll the run row until it goes terminal.
             const done = await pollComfyRunUntilDone(comfyGetRunFn, (res.run as { id: string }).id);
-            if (!done.output_url) throw new Error("ComfyUI run finished without an output");
+            const outputUrl = requireOutputUrl(done.output_url, "ComfyUI run");
             // Trust the server's classified output kind; fall back to the template's
             // declared kind when the URL couldn't be classified (outputKind "unknown").
             const okind: "image" | "video" =
@@ -1632,8 +1704,8 @@ function CanvasPage() {
                 : tpl.kind === "video"
                   ? "video"
                   : "image";
-            resolved.set(id, { url: done.output_url, kind: okind as NodeKind });
-            update(id, { status: "done", url: done.output_url, outputKind: okind });
+            resolved.set(id, { url: outputUrl, kind: okind as NodeKind });
+            update(id, { status: "done", url: outputUrl, outputKind: okind });
           } else if (n.data.kind === "heygenTemplate") {
             const tplId = n.data.auroraTemplateId;
             if (!tplId) throw new Error("Pick an Aurora template for this node");
@@ -1654,8 +1726,9 @@ function CanvasPage() {
             if (!res.ok) {
               throw new Error(res.error ?? "HeyGen template generation failed");
             }
-            resolved.set(id, { url: res.url, kind: "heygenTemplate" });
-            update(id, { status: "done", url: res.url });
+            const outputUrl = requireOutputUrl(res.url, "Aurora template generation");
+            resolved.set(id, { url: outputUrl, kind: "heygenTemplate" });
+            update(id, { status: "done", url: outputUrl });
           } else if (n.data.kind === "batchVideo") {
             if (images.length === 0) throw new Error("Batch video needs an image upstream");
             const count = Math.min(100, Math.max(1, n.data.variantCount ?? 3));
@@ -1680,7 +1753,7 @@ function CanvasPage() {
             await runner.run({
               concurrency: 5,
               execute: async (item) => {
-                return vidFn({ data: {
+                  const result = await vidFn({ data: {
                   imageUrl: batchImageUrl,
                   prompt: batchPrompts?.[item] ?? batchPrompt ?? "natural movement, expressive performance",
                   duration: batchDuration,
@@ -1688,7 +1761,8 @@ function CanvasPage() {
                   modelKey: batchModelKey,
                   cameraMovement: "static",
                   endFrameUrl: null,
-                } });
+                  } });
+                  return { ...result, videoUrl: requireOutputUrl(result.videoUrl, "Batch video variant") };
               },
               onItemStart: (i) => updateVariant(id, i, { status: "running" }),
               onItemDone: (i, res) => {
@@ -1721,7 +1795,9 @@ function CanvasPage() {
           }
           for (const t of outgoing.get(id) ?? []) queue.push(t);
         } catch (e) {
-          update(id, { status: "error", error: friendlyGenerationMessage(e) });
+          const error = friendlyGenerationMessage(e);
+          update(id, { status: "error", error, blockedReason: undefined });
+          markBlockedDownstream(id);
           throw e;
         }
       }
