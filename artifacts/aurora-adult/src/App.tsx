@@ -9,10 +9,6 @@ import { AgeGate } from "@/components/AgeGate";
 import { supabase } from "@/lib/supabase";
 import type { Model } from "@/lib/models";
 
-// Access model (owner decision 2026-08-09):
-//   - Model studios are SHARED — every signed-in creator sees the same roster.
-//   - Each creator's gallery/generation history is PRIVATE — rows in
-//     `generations` are scoped to their user_id by Supabase RLS.
 export default function App() {
   return (
     <FeatureVisibilityGate>
@@ -35,20 +31,48 @@ function AdultSchoolApp() {
   const [selectedModel, setSelectedModel] = useState<Model | null>(null);
 
   useEffect(() => {
+    let active = true;
+
     supabase.auth.getSession().then(({ data }) => {
+      if (!active) return;
       setSession(data.session);
       setSessionLoaded(true);
+    }).catch(() => {
+      if (!active) return;
+      setSession(null);
+      setSessionLoaded(true);
     });
+
     const { data: sub } = supabase.auth.onAuthStateChange((_evt, s) => {
+      if (!active) return;
       setSession(s);
-      if (!s) setSelectedModel(null); // clear user-scoped view state on sign-out
+      if (!s) setSelectedModel(null);
+      setSessionLoaded(true);
     });
-    return () => sub.subscription.unsubscribe();
+
+    return () => {
+      active = false;
+      sub.subscription.unsubscribe();
+    };
   }, []);
 
   if (!entered) return <Landing onEnter={() => setEntered(true)} />;
   if (!ageConfirmed) return <AgeGate onConfirm={() => setAgeConfirmed(true)} />;
-  if (!sessionLoaded) return null;
+
+  // Never render a blank page while auth is resolving. The old null return
+  // made the app look broken immediately after entering from the landing page.
+  if (!sessionLoaded) {
+    return (
+      <main className="min-h-screen flex items-center justify-center bg-[#0b0814] px-6 text-white">
+        <div className="w-full max-w-md text-center space-y-4">
+          <div className="mx-auto size-10 rounded-full border-2 border-white/20 border-t-white animate-spin" />
+          <h1 className="text-lg font-semibold">Opening Aurora School…</h1>
+          <p className="text-sm text-white/60">Preparing your secure studio session.</p>
+        </div>
+      </main>
+    );
+  }
+
   if (!session) return <Auth />;
 
   if (selectedModel) {
@@ -60,5 +84,6 @@ function AdultSchoolApp() {
       />
     );
   }
+
   return <ModelGrid user={session.user} onSelectModel={setSelectedModel} />;
 }
