@@ -1,0 +1,31 @@
+name: Smoke tests
+
+on:
+  push:
+    branches: [ main, stabilization/smoke-and-shell ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: 'npm'
+
+      - name: Install deps
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps
+
+      - name: Run Playwright smoke tests
+        run: npx playwright test e2e/smoke/smoke.e2e.ts --config=playwright.config.ts --reporter=list
+        env:
+          PORT: 8080
