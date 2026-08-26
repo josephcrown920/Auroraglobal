@@ -83,6 +83,13 @@ export default defineConfig({
     fs: {
       strict: true,
     },
+    watch: {
+      // The container's inotify budget is shared across several dev servers;
+      // don't spend watchers on TypeScript's incremental build artifacts —
+      // a stray .tsbuildinfo watcher is exactly what ENOSPC-crashed this
+      // server on 2026-08-26.
+      ignored: ["**/*.tsbuildinfo"],
+    },
   },
   preview: {
     port,

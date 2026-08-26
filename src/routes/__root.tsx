@@ -30,6 +30,7 @@ import { ReferralAttacher } from "@/components/ReferralAttacher";
 import { DesignSkinApplier } from "@/components/DesignSkinApplier";
 import { ThemeProvider } from "@/lib/theme-context";
 import { initCrashReporting } from "@/lib/crash-reporting";
+import { reloadOnceForStaleChunk } from "@/lib/stale-chunk";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 function NotFoundComponent() {
@@ -322,6 +323,18 @@ function RootComponent() {
   usePageViewTracking();
   useIdleRouteWarmup();
   useEffect(() => { captureRefFromUrl(); initCrashReporting(); }, []);
+  useEffect(() => {
+    // After a redeploy, a failed chunk preload (hover-triggered) would surface
+    // as an unhandled rejection and leave navigation dead. Recover with the
+    // same guarded one-shot reload the router's error fallback uses; if the
+    // guard refuses (already reloaded recently), let the error propagate so
+    // the route error card renders instead of looping.
+    const onPreloadError = (event: Event) => {
+      if (reloadOnceForStaleChunk(window.location.pathname)) event.preventDefault();
+    };
+    window.addEventListener("vite:preloadError", onPreloadError);
+    return () => window.removeEventListener("vite:preloadError", onPreloadError);
+  }, []);
   useEffect(() => {
     document.documentElement.dataset.auroraHydrated = "true";
     return () => {

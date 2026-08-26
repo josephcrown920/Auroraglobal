@@ -1,4 +1,5 @@
-import logoUrl from '../../assets/logo.png';
+// Served from public/ — the asset is not part of the module graph.
+const logoUrl = `${import.meta.env.BASE_URL}logo.png`;
 
 export function LogoPage() {
   return (
