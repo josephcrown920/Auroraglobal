@@ -146,3 +146,4 @@
 - [Generation idempotency-key pattern](generation-idempotency-key-pattern.md) — optional key, dedicated claim table, claim/replay/reject/retry states; swallow success-write failures, throw failure-write failures.
 - [Ark CLI (BytePlus) on Replit](ark-cli-byteplus.md) — installed at .local/ark-cli with wrapper (global npm + home dir don't persist); SSO state symlinked into workspace; API-key-only mode needs ep- endpoint ids.
 - [Schema drift + open RLS discovery](supabase-schema-drift-and-open-rls-discovery.md) — a live table can have zero migration file AND fully permissive RLS (`USING (true)`) despite owning a user_id column; check both independently per table.
+- [GitHub mirror clone & force-push recovery](github-mirror-clone-and-forcepush-recovery.md) — LFS-over-quota kills fresh clones (GIT_LFS_SKIP_SMUDGE=1); Protect-head blocks deletes not FF pushes; force-pushes recur — backup ref + FF PR to restore.
