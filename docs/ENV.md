@@ -93,6 +93,8 @@ deprecated.
 | `BYTEPLUS_API_KEY` / `BYTEPLUS_BASE_URL` / `BYTEPLUS_MODEL_MAP` | BytePlus/ModelArk |
 | `ARK_API_KEY` / `ARK_BASE_URL` | Volcano Ark |
 | `HEYGEN_API_KEY` | HeyGen (talking avatar / photo-video) |
+| `SEEDANCE_API_URL` / `SEEDANCE_API_KEY` | Aurora Soul video (dedicated Seedance direct-API adapter; no fallback — video fails explicitly if unset) |
+| `SOUL_FAL_WEBHOOK_SECRET` | Optional extra `?secret=` gate on the Aurora Soul fal.ai training webhook, in addition to the always-on Ed25519 JWKS signature check |
 | `SYNC_API_KEY` | Sync.so lip-sync |
 | `ELEVENLABS_API_KEY` | ElevenLabs TTS |
 | `GROQ_API_KEY` | Groq inference |

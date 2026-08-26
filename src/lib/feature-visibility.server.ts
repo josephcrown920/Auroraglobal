@@ -74,3 +74,37 @@ export async function setFeatureVisibility(key: FeatureKey, visible: boolean): P
 export async function resetFeatureVisibility(): Promise<void> {
   await writeOverrides({});
 }
+
+type RolesRead = {
+  from: (t: string) => {
+    select: (c: string) => {
+      eq: (col: string, val: string) => Promise<{ data: Array<{ role: string }> | null; error: unknown }>;
+    };
+  };
+};
+
+async function isAdminUser(userId: string): Promise<boolean> {
+  const db = supabaseAdmin as unknown as RolesRead;
+  const { data } = await db.from("user_roles").select("role").eq("user_id", userId);
+  return (data ?? []).some((r) => r.role === "admin");
+}
+
+/**
+ * Server-side authority for a gateable feature. The `SoulShell`-style client
+ * gates are UX only — anyone with a valid auth token can otherwise call a
+ * feature's server functions directly and bypass a client-only check. Every
+ * server function behind a hidden-by-default feature (see
+ * GATEABLE_FEATURES.defaultHidden in feature-visibility.ts) must call this
+ * before doing any work, same rollout gate as the UI: admins always pass;
+ * everyone else is denied while the feature is hidden.
+ * Fail-safe: an overrides-store outage falls back to the seeded defaults
+ * (resolveHiddenKeys already does this), so an outage denies rather than
+ * silently opening a gated, paid feature to everyone.
+ */
+export async function assertFeatureAccess(userId: string, key: FeatureKey): Promise<void> {
+  if (await isAdminUser(userId)) return;
+  const hidden = await getEffectiveHiddenKeys();
+  if (hidden.includes(key)) {
+    throw new Error("This feature isn't available for your account yet.");
+  }
+}

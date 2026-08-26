@@ -276,7 +276,10 @@ type ProviderAdapter = {
     | "inferencesh"
     | "hf-video"
     | "runware"
-    | "ffmpeg-free";
+    | "ffmpeg-free"
+    // Aurora Soul: direct Seedance API for identity-locked character video
+    // (NOT the fal.ai-hosted Seedance route — a separate provider account/key).
+    | "seedance";
   supports: (req: GenerateRequest) => boolean;
   estimateCost: (req: GenerateRequest) => number;
   run: (req: GenerateRequest) => Promise<{ url: string; endpoint: string; text?: string }>;
@@ -693,6 +696,23 @@ const FAL_MAP: Record<
       duration: String(Math.min(30, Math.max(4, Math.round(r.duration ?? 5)))),
     }),
   },
+  // Aurora Soul: identity-locked image inference against a user's own
+  // trained face LoRA (fal-ai/flux-lora-portrait-trainer output). Pinned-only
+  // (see soul.server.ts's reserveOrchestrateRecord call) — r.params.loraUrl
+  // is REQUIRED; falSoulLoraAdapter.supports() below hard-fails without it
+  // rather than silently degrading to a generic (identity-blind) render.
+  "fal/soul-lora": {
+    path: "fal-ai/flux-2/lora",
+    kind: "image",
+    cost: 0.05,
+    build: (r) => ({
+      prompt: r.prompt ?? "",
+      loras: [{ path: r.params?.loraUrl, scale: 1 }],
+      ...(r.params?.triggerWord ? { trigger_word: r.params.triggerWord } : {}),
+      num_images: Math.max(1, Math.min(4, Number(r.params?.numOutputs) || 1)),
+      ...(r.aspectRatio ? { aspect_ratio: r.aspectRatio } : {}),
+    }),
+  },
 };
 // Identity-locked Gemini-image family → fal's *-edit endpoints, which take
 // image_urls[] (plural) and preserve the reference face. Without these entries
@@ -801,6 +821,45 @@ const falFallback: ProviderAdapter = {
     const url = j?.video?.url ?? j?.image?.url ?? j?.images?.[0]?.url ?? j?.url ?? j?.output;
     if (!url || typeof url !== "string") throw new Error("Fal: no output url");
     return { url, endpoint: `fal:${path}` };
+  },
+};
+
+// ─── Aurora Soul: direct Seedance API (character video) ──────────────────────
+// Separate from the fal.ai-hosted Seedance route above — this hits Seedance's
+// own API directly with a dedicated key, mirroring the soulmagic reference
+// product. Pinned-only (model === "seedance-soul"); explicit failure when the
+// env vars are unset rather than silently falling through to a different
+// video provider that would drop the trained character's identity.
+const seedanceSoulDirect: ProviderAdapter = {
+  name: "seedance",
+  supports: (r) => r.kind === "video" && r.model === "seedance-soul",
+  // Real cost lives in pricing.ts (soulVideoCost); this is only used for the
+  // in-memory free-adapter/health-snapshot bookkeeping.
+  estimateCost: () => 0.65,
+  async run(r) {
+    const apiUrl = process.env.SEEDANCE_API_URL;
+    const apiKey = process.env.SEEDANCE_API_KEY;
+    if (!apiUrl || !apiKey) {
+      throw new Error(
+        "Aurora Soul video is not configured: SEEDANCE_API_URL / SEEDANCE_API_KEY missing",
+      );
+    }
+    const res = await fetch(`${apiUrl.replace(/\/$/, "")}/v1/videos`, withTimeout({
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify({
+        model: (r.params?.seedanceModel as string) || "seedance-2.5",
+        prompt: r.prompt ?? "",
+        duration: Math.min(30, Math.max(1, Math.round(r.duration ?? 5))),
+        aspect_ratio: r.aspectRatio ?? "9:16",
+        ...(r.imageUrls?.length ? { references: r.imageUrls } : {}),
+      }),
+    }));
+    if (!res.ok) throw new Error(`Seedance ${res.status}: ${(await res.text()).slice(0, 200)}`);
+    const j = await res.json();
+    const url: string | undefined = j?.video?.url ?? j?.url ?? j?.output_url;
+    if (!url) throw new Error("Seedance: no output url");
+    return { url, endpoint: "seedance:direct", text: j?.job_id ? String(j.job_id) : undefined };
   },
 };
 
@@ -2873,6 +2932,7 @@ const PRIORITY: Record<GenerateKind, ProviderAdapter[]> = {
   ],
   video: [
     gpuWorker,
+    seedanceSoulDirect, // Aurora Soul character video: pinned to model "seedance-soul" only
     falFallback,     // fal.ai first: key-gated (fal/ltx-video sentinel), cheap LTX Video
     byteplus,        // model-specific first (BYTEPLUS_MAP-gated), so seedance/seedream
     klingDirect,     // model-specific (kling-gated) before generic catch-alls
@@ -2961,6 +3021,12 @@ export const MODEL_REGISTRY: Record<string, ModelEntry> = (() => {
     "hf/text-to-video": { provider: "hf-video", kind: "video", cost: 0 },
     // Sync.so direct lipsync
     "sync/lipsync-2": { provider: "sync", kind: "lipsync", cost: 0.25 },
+    // Aurora Soul: identity-locked Flux LoRA inference (fal.ai) and direct
+    // Seedance character video. Both pinned-only — never in FALLBACK_MODELS,
+    // always requested explicitly by src/lib/soul.server.ts with the soul's
+    // own lora_url / reference images attached.
+    "fal/soul-lora": { provider: "fal", kind: "image", cost: 0.05 },
+    "seedance-soul": { provider: "seedance", kind: "video", cost: 0.65 },
     // Self-hosted LatentSync — runs on the registered GPU worker pool only.
     latentsync: { provider: gpuWorker.name, kind: "lipsync", cost: 0.01 },
     // Runway video (official REST, image-to-video)

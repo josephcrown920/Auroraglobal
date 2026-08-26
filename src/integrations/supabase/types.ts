@@ -2545,6 +2545,154 @@ export type Database = {
         }
         Relationships: []
       }
+      soul_reference_assets: {
+        Row: {
+          created_at: string
+          id: string
+          label: string | null
+          soul_id: string
+          storage_path: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          label?: string | null
+          soul_id: string
+          storage_path: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          label?: string | null
+          soul_id?: string
+          storage_path?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "soul_reference_assets_soul_id_fkey"
+            columns: ["soul_id"]
+            isOneToOne: false
+            referencedRelation: "souls"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      soul_video_jobs: {
+        Row: {
+          aspect_ratio: string
+          created_at: string
+          duration_secs: number
+          error_message: string | null
+          id: string
+          model: string
+          progress: number
+          prompt: string
+          provider: string
+          provider_job_id: string | null
+          result_url: string | null
+          soul_id: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          aspect_ratio?: string
+          created_at?: string
+          duration_secs?: number
+          error_message?: string | null
+          id?: string
+          model?: string
+          progress?: number
+          prompt: string
+          provider?: string
+          provider_job_id?: string | null
+          result_url?: string | null
+          soul_id: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          aspect_ratio?: string
+          created_at?: string
+          duration_secs?: number
+          error_message?: string | null
+          id?: string
+          model?: string
+          progress?: number
+          prompt?: string
+          provider?: string
+          provider_job_id?: string | null
+          result_url?: string | null
+          soul_id?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "soul_video_jobs_soul_id_fkey"
+            columns: ["soul_id"]
+            isOneToOne: false
+            referencedRelation: "souls"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      souls: {
+        Row: {
+          created_at: string
+          description: string | null
+          error_message: string | null
+          fal_training_id: string | null
+          id: string
+          lora_url: string | null
+          name: string
+          progress: number
+          reference_image_paths: string[]
+          status: string
+          training_image_paths: string[]
+          trigger_word: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          error_message?: string | null
+          fal_training_id?: string | null
+          id?: string
+          lora_url?: string | null
+          name: string
+          progress?: number
+          reference_image_paths?: string[]
+          status?: string
+          training_image_paths?: string[]
+          trigger_word?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          error_message?: string | null
+          fal_training_id?: string | null
+          id?: string
+          lora_url?: string | null
+          name?: string
+          progress?: number
+          reference_image_paths?: string[]
+          status?: string
+          training_image_paths?: string[]
+          trigger_word?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       spin_jobs: {
         Row: {
           audio_url: string | null
