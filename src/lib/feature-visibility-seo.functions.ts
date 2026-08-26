@@ -2,6 +2,7 @@
 
 import { createServerFn } from "@tanstack/react-start";
 import {
+  defaultHiddenKeys,
   featureKeyForRoute,
   type FeatureKey,
 } from "@/lib/feature-visibility";
@@ -18,9 +19,18 @@ const getHiddenFeatureKeysForSeo = createServerFn({ method: "GET" }).handler(
 );
 
 export function featureVisibilityLoader(feature: FeatureKey) {
-  return async () => {
-    const { hidden } = await getHiddenFeatureKeysForSeo();
-    return { featureHidden: hidden.includes(feature) };
+  return async (): Promise<{ featureHidden: boolean }> => {
+    try {
+      const { hidden } = await getHiddenFeatureKeysForSeo();
+      return { featureHidden: hidden.includes(feature) };
+    } catch (error) {
+      // Fail-safe by contract (see feature-visibility.ts): a settings-store or
+      // server-function outage must NEVER take the route down. Fall back to
+      // the seeded artist-only defaults — the same baseline the server uses
+      // when the store is unreachable, so gating semantics are preserved.
+      console.warn(`[feature-visibility] loader falling back to defaults for "${feature}"`, error);
+      return { featureHidden: defaultHiddenKeys().includes(feature) };
+    }
   };
 }
 

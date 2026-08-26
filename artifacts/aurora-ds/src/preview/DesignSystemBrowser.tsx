@@ -1,5 +1,7 @@
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import { Moon, Sun } from 'lucide-react';
 import { Input } from '../components/ui/input';
+import { useTheme } from './theme';
 import { ScrollArea } from '../components/ui/scroll-area';
 import {
   ALL_ENTRIES,
@@ -94,6 +96,7 @@ function NavigationItems({
 
 export function DesignSystemBrowser() {
   const [selectedId, select] = useSelectedId();
+  const [theme, setTheme] = useTheme();
   const [query, setQuery] = useState('');
   const mobileNav = useRef<HTMLDetailsElement>(null);
   const mobileNavSummary = useRef<HTMLElement>(null);
@@ -138,10 +141,28 @@ export function DesignSystemBrowser() {
 
   return (
     <div className="min-h-screen bg-background text-foreground md:grid md:grid-cols-[260px_minmax(0,1fr)]">
-      <aside className="border-b bg-muted/20 md:sticky md:top-0 md:flex md:h-screen md:flex-col md:border-b-0 md:border-r">
-        <div className="border-b px-5 py-5">
-          <p className="text-sm font-semibold">{DESIGN_SYSTEM.title}</p>
-          <p className="mt-1 text-xs text-muted-foreground">Browse the system</p>
+      <aside className="border-b bg-sidebar md:sticky md:top-0 md:flex md:h-screen md:flex-col md:border-b-0 md:border-r">
+        <div className="flex items-start justify-between gap-2 border-b px-5 py-5">
+          <div>
+            <p className="text-sm font-semibold">{DESIGN_SYSTEM.title}</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Browse the system
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+            aria-label={
+              theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'
+            }
+            className="rounded-md border p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          >
+            {theme === 'dark' ? (
+              <Sun className="h-4 w-4" />
+            ) : (
+              <Moon className="h-4 w-4" />
+            )}
+          </button>
         </div>
         <div className="p-4 pb-2">
           <Input
@@ -180,12 +201,22 @@ export function DesignSystemBrowser() {
         </details>
       </aside>
 
-      <main className="min-w-0 px-6 py-10 sm:px-10 lg:px-14">
-        <div className="mx-auto max-w-5xl">
+      <main className="relative min-w-0 px-6 py-10 sm:px-10 lg:px-14">
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-x-0 top-0 hidden h-[480px] overflow-hidden dark:block"
+        >
+          <div className="absolute -top-40 left-[15%] h-80 w-80 rounded-full bg-primary/15 blur-[130px]" />
+          <div className="absolute -top-24 right-[8%] h-64 w-64 rounded-full bg-primary/10 blur-[110px]" />
+        </div>
+        <div className="relative z-10 mx-auto max-w-5xl">
           <header className="border-b pb-8">
             {active.id === OVERVIEW_ENTRY.id ? (
               <>
-                <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
+                <p className="font-serif text-lg italic text-primary">
+                  By Artists, for Artists
+                </p>
+                <h1 className="mt-2 text-3xl font-bold tracking-tight sm:text-4xl">
                   {DESIGN_SYSTEM.title}
                 </h1>
                 <p className="mt-3 max-w-2xl text-muted-foreground">
