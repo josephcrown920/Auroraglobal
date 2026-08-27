@@ -1,3 +1,4 @@
+- [QA'ing a gated feature with a temp admin session](qa-gated-feature-with-temp-admin-session.md) — browser-use CLI isn't installed here; use Playwright + localStorage session injection to click through admin/auth-gated flows.
 - [Vite double-plugin cartographer crash](vite-double-plugin-cartographer.md) — replitPlugins in BOTH top-level plugins: AND vite.plugins runs cartographer twice → duplicate attrs → SSR/client mismatch → "Invalid hook call" crash.
 - [TanStack Nitro namespace exports](tanstack-nitro-namespace-exports.md) — keep TanStack Start server packages external in SSR/Nitro or bundled export-star namespaces can leave createRequestHandler unbound.
 - [TanStack package version alignment](tanstack-package-versions.md) — router-plugin version cadence differs from react-start; verify each on npm before bumping; routeTree.gen.ts auto-regenerates on new route file addition during dev (no manual edit needed).

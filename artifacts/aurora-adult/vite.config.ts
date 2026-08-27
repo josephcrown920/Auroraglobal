@@ -24,6 +24,9 @@ export default defineConfig({
       "/api/adult-admin/": { target: auroraUrl, changeOrigin: true },
       "/api/public/watermark-image": { target: auroraUrl, changeOrigin: true },
       "/api/public/watermark-video": { target: auroraUrl, changeOrigin: true },
+      // MCP JSON-RPC endpoint — needed by the in-app MCP/CLI/Skill page's
+      // live tool-discovery + "Run with my session" test call.
+      "/api/mcp": { target: auroraUrl, changeOrigin: true },
     },
   },
   preview: { port, host: "0.0.0.0", allowedHosts: true },

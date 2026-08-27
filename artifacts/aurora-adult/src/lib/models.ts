@@ -7,6 +7,8 @@ const BASE = import.meta.env.BASE_URL ?? "/aurora-adult/";
 export interface Model {
   id: string;
   name: string;
+  /** @handle used by the Assistant to resolve "@name" mentions and roster search. */
+  handle: string;
   niche: string;
   /** Public photos used as identity anchors — fetched by the generate call. */
   photos: string[];
@@ -19,6 +21,7 @@ export const MODELS: Model[] = [
   {
     id: "yuki",
     name: "Yuki",
+    handle: "yuki",
     niche: "Fashion · Editorial",
     cover: `${BASE}models/model-yuki-1.jpg`,
     photos: [
@@ -30,6 +33,7 @@ export const MODELS: Model[] = [
   {
     id: "lily",
     name: "Lily",
+    handle: "lily",
     niche: "Travel · Outdoor",
     cover: `${BASE}eromify/avatar-lily.jpg`,
     photos: [`${BASE}eromify/avatar-lily.jpg`],
@@ -37,6 +41,7 @@ export const MODELS: Model[] = [
   {
     id: "aria",
     name: "Aria",
+    handle: "aria",
     niche: "Lifestyle",
     cover: `${BASE}eromify/avatar-aria.jpg`,
     photos: [`${BASE}eromify/avatar-aria.jpg`],
@@ -44,6 +49,7 @@ export const MODELS: Model[] = [
   {
     id: "maya",
     name: "Maya",
+    handle: "maya",
     niche: "Beauty · Glam",
     cover: `${BASE}eromify/avatar-maya.jpg`,
     photos: [`${BASE}eromify/avatar-maya.jpg`],
@@ -52,6 +58,12 @@ export const MODELS: Model[] = [
 
 export function getModel(id: string): Model | undefined {
   return MODELS.find((m) => m.id === id);
+}
+
+/** Resolves a bare name or "@handle" mention (case-insensitive) to a roster model. */
+export function resolveModelMention(mention: string): Model | undefined {
+  const clean = mention.replace(/^@/, "").trim().toLowerCase();
+  return MODELS.find((m) => m.handle === clean || m.name.toLowerCase() === clean);
 }
 
 // ── Look presets ───────────────────────────────────────────────────────────────
