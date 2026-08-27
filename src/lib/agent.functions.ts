@@ -21,6 +21,7 @@ import { refinePlan } from "@/lib/agent-loop.server";
 import type { Json } from "@/integrations/supabase/types";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
+import type { RenderInput, RenderOutcome } from "@/lib/generate-core.server";
 
 // Re-export shared types so existing consumers (e.g. AuroraAgentPanel) keep
 // importing them from this module.
@@ -582,6 +583,75 @@ export const renderPrevisPlate = createServerFn({ method: "POST" })
   });
 
 // ─── Render one approved shot through the EXISTING pipeline (orchestrate) ─────
+type RenderAgentShotContext = {
+  userId: string;
+  supabase: SupabaseClient<Database>;
+};
+
+type RenderAgentShotDeps = {
+  render: (input: RenderInput) => Promise<RenderOutcome>;
+};
+
+/**
+ * The authenticated Agent shot flow, separated from the Start transport
+ * wrapper so an integration test can exercise the exact session lookup,
+ * stored-prompt selection, and credit pipeline together.
+ */
+export async function renderAgentShotCore(
+  context: RenderAgentShotContext,
+  data: { sessionId: string; shotId: string; model?: string },
+  deps?: RenderAgentShotDeps,
+) {
+  // Load the OWNED session and read the shot prompt from STORED state — never
+  // trust a client-supplied prompt (IDOR / prompt-injection hardening). RLS on
+  // context.supabase already scopes this to the caller's own rows.
+  const { data: session, error } = await context.supabase
+    .from("agent_sessions")
+    .select("id, plan")
+    .eq("id", data.sessionId)
+    .single();
+  if (error || !session) throw new Error("Session not found");
+
+  const plan = session.plan as unknown as AgentPlan | null;
+  const shot = plan?.shots?.find((s) => s.id === data.shotId);
+  if (!shot) throw new Error(`Shot ${data.shotId} is not part of this plan`);
+  if (!shot.prompt?.trim()) throw new Error(`Shot ${data.shotId} has no prompt to render`);
+
+  const render =
+    deps?.render ??
+    (async (input: RenderInput) => {
+      const { reserveOrchestrateRecord } = await import("@/lib/generate-core.server");
+      return reserveOrchestrateRecord(input);
+    });
+
+  let outcome: RenderOutcome;
+  try {
+    outcome = await render({
+      userId: context.userId,
+      kind: "image",
+      prompt: shot.prompt,
+      model: data.model,
+      cost: 1,
+      reason: "agent_shot_render",
+      sessionId: data.sessionId,
+      agentShotId: shot.id,
+    });
+  } catch (err) {
+    // orchestrate throws explicit errors when no provider can serve the request.
+    const message = err instanceof Error ? err.message : "Render failed";
+    throw new Error(message);
+  }
+  if (!outcome.ok) throw new Error(outcome.error);
+
+  return {
+    shotId: shot.id,
+    status: "succeeded" as const,
+    url: outcome.url,
+    provider: outcome.provider,
+    generationId: outcome.generationId,
+  };
+}
+
 export const renderAgentShot = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) =>
@@ -594,48 +664,7 @@ export const renderAgentShot = createServerFn({ method: "POST" })
       .parse(d),
   )
   .handler(async ({ data, context }) => {
-    // Load the OWNED session and read the shot prompt from STORED state — never
-    // trust a client-supplied prompt (IDOR / prompt-injection hardening). RLS on
-    // context.supabase already scopes this to the caller's own rows.
-    const { data: session, error } = await context.supabase
-      .from("agent_sessions")
-      .select("id, plan")
-      .eq("id", data.sessionId)
-      .single();
-    if (error || !session) throw new Error("Session not found");
-
-    const plan = session.plan as unknown as AgentPlan | null;
-    const shot = plan?.shots?.find((s) => s.id === data.shotId);
-    if (!shot) throw new Error(`Shot ${data.shotId} is not part of this plan`);
-    if (!shot.prompt?.trim()) throw new Error(`Shot ${data.shotId} has no prompt to render`);
-
-    const { reserveOrchestrateRecord } = await import("@/lib/generate-core.server");
-    let outcome;
-    try {
-      outcome = await reserveOrchestrateRecord({
-        userId: context.userId,
-        kind: "image",
-        prompt: shot.prompt,
-        model: data.model,
-        cost: 1,
-        reason: "agent_shot_render",
-        sessionId: data.sessionId,
-        agentShotId: shot.id,
-      });
-    } catch (err) {
-      // orchestrate throws explicit errors when no provider can serve the request.
-      const message = err instanceof Error ? err.message : "Render failed";
-      throw new Error(message);
-    }
-    if (!outcome.ok) throw new Error(outcome.error);
-
-    return {
-      shotId: shot.id,
-      status: "succeeded" as const,
-      url: outcome.url,
-      provider: outcome.provider,
-      generationId: outcome.generationId,
-    };
+    return renderAgentShotCore(context, data);
   });
 
 // Turns an already-rendered shot still into a real motion clip. Looks up the
