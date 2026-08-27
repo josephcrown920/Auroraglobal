@@ -18,6 +18,8 @@ import demoMotion from "@/assets/demo-motion.jpg";
 import demoCharsheet from "@/assets/demo-charsheet.jpg";
 import demoLayerstack from "@/assets/demo-layerstack.jpg";
 
+const SITE_URL = "https://auroraperformancestudio.com";
+
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
@@ -34,12 +36,19 @@ export const Route = createFileRoute("/")({
           "Upload any image, name the layer, and re-render only that element. Every background, every person, every light stays locked.",
       },
       { property: "og:type", content: "website" },
+      { property: "og:url", content: SITE_URL },
+      { property: "og:image", content: `${SITE_URL}/icon.png` },
+      { property: "og:image:alt", content: "Aurora Layers AI editing studio preview" },
       { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:image", content: `${SITE_URL}/icon.png` },
+      { name: "twitter:image:alt", content: "Aurora Layers AI editing studio preview" },
+      { name: "robots", content: "index, follow" },
+      { name: "theme-color", content: "#09070f" },
     ],
+    links: [{ rel: "canonical", href: SITE_URL }],
   }),
   component: Index,
 });
-
 
 const peelLayers = [
   { label: "Plate", src: heroStreet },
@@ -75,6 +84,10 @@ function Index() {
           <img
             src={heroStreet}
             alt="Two artists in puffer vests and gold chains against a lit street wall"
+            width={1280}
+            height={960}
+            fetchPriority="high"
+            decoding="async"
             className="h-full w-full object-cover opacity-55"
           />
           <div className="gradient-surface absolute inset-0" />
@@ -124,7 +137,6 @@ function Index() {
               </div>
             </div>
 
-
             {/* live proof, not copy */}
             <Reveal className="relative">
               <BeforeAfter
@@ -157,6 +169,8 @@ function Index() {
                   src={src}
                   alt={`Layer variant ${i + 1}`}
                   loading="lazy"
+                  width={1280}
+                  height={960}
                   className="h-full w-full object-cover"
                 />
                 <figcaption className="absolute bottom-1 left-2 font-[family-name:var(--font-mono-ui)] text-[0.6rem] text-accent">
@@ -225,7 +239,10 @@ function Index() {
                 alt="Subject iced out with cuban links"
                 className="aspect-4/5"
               />
-              <PromptTicker className="mt-3" prompts={["iced-out cuban links and diamond grillz"]} />
+              <PromptTicker
+                className="mt-3"
+                prompts={["iced-out cuban links and diamond grillz"]}
+              />
             </Reveal>
             <Reveal delay={120}>
               <BeforeAfter
@@ -236,7 +253,10 @@ function Index() {
                 alt="Subject with neon braids and varsity jacket"
                 className="aspect-4/5"
               />
-              <PromptTicker className="mt-3" prompts={["neon-green braids, oversized varsity jacket"]} />
+              <PromptTicker
+                className="mt-3"
+                prompts={["neon-green braids, oversized varsity jacket"]}
+              />
             </Reveal>
           </div>
         </div>
@@ -312,23 +332,28 @@ function Index() {
             delay={100}
             media={
               <div className="grid h-full grid-cols-3 gap-1 p-1">
-                {[heroStreet, layerChains, layerBraids, layerBandana, demoMotion, demoCharsheet].map(
-                  (src, i) => (
-                    <span key={i} className="relative overflow-hidden rounded-md">
-                      <img
-                        src={src}
-                        alt=""
-                        aria-hidden
-                        loading="lazy"
-                        className="h-full w-full object-cover transition-transform duration-500 group-hover:-translate-y-1"
-                        style={{ transitionDelay: `${i * 60}ms` }}
-                      />
-                      <span className="absolute right-1 bottom-1 font-[family-name:var(--font-mono-ui)] text-[0.5rem] text-accent">
-                        .png
-                      </span>
+                {[
+                  heroStreet,
+                  layerChains,
+                  layerBraids,
+                  layerBandana,
+                  demoMotion,
+                  demoCharsheet,
+                ].map((src, i) => (
+                  <span key={i} className="relative overflow-hidden rounded-md">
+                    <img
+                      src={src}
+                      alt=""
+                      aria-hidden
+                      loading="lazy"
+                      className="h-full w-full object-cover transition-transform duration-500 group-hover:-translate-y-1"
+                      style={{ transitionDelay: `${i * 60}ms` }}
+                    />
+                    <span className="absolute right-1 bottom-1 font-[family-name:var(--font-mono-ui)] text-[0.5rem] text-accent">
+                      .png
                     </span>
-                  ),
-                )}
+                  </span>
+                ))}
               </div>
             }
           />
@@ -345,7 +370,13 @@ function Index() {
                     className="glow-frame h-full flex-1 transition-transform duration-500 group-hover:-rotate-2"
                     style={{ transform: `rotate(${(i - 1) * 3}deg)` }}
                   >
-                    <img src={src} alt="" aria-hidden loading="lazy" className="h-full w-full object-cover" />
+                    <img
+                      src={src}
+                      alt=""
+                      aria-hidden
+                      loading="lazy"
+                      className="h-full w-full object-cover"
+                    />
                   </span>
                 ))}
               </div>
@@ -364,7 +395,13 @@ function Index() {
                     className="relative flex-1 overflow-hidden rounded-md transition-all duration-500"
                     style={{ height: `${52 + i * 10}%`, transitionDelay: `${i * 70}ms` }}
                   >
-                    <img src={src} alt="" aria-hidden loading="lazy" className="h-full w-full object-cover" />
+                    <img
+                      src={src}
+                      alt=""
+                      aria-hidden
+                      loading="lazy"
+                      className="h-full w-full object-cover"
+                    />
                     <span className="absolute bottom-1 left-1 font-[family-name:var(--font-mono-ui)] text-[0.5rem] text-accent">
                       SH{i + 1}
                     </span>
@@ -411,7 +448,6 @@ function Index() {
         </div>
       </section>
 
-
       {/* STUDIO */}
       <section id="studio" className="dotfield">
         <div className="mx-auto max-w-6xl px-5 py-24">
@@ -430,7 +466,6 @@ function Index() {
             </div>
             <DirectorAgent />
             <LayerStudio />
-
           </div>
         </div>
       </section>
