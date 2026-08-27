@@ -114,10 +114,10 @@ describe("Agent shot credit lifecycle (Supabase integration)", () => {
       },
       orchestrate: async (input) => {
         const prompt = input.prompt ?? "";
-        if (failingShotId && prompt.includes(failingShotId)) {
+        const shotId = prompt.includes("two") ? "S2" : prompt.includes("three") ? "S3" : "S1";
+        if (failingShotId === shotId) {
           throw new Error(`simulated provider failure for ${failingShotId}`);
         }
-        const shotId = prompt.includes("two") ? "S2" : prompt.includes("three") ? "S3" : "S1";
         return {
           url: `https://provider.example/${shotId}.png`,
           provider: "integration-mock",
