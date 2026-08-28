@@ -12,4 +12,7 @@ export default defineConfig({
     // nitro/vite builds from this
     server: { entry: "server" },
   },
+  // Emit a Node preview/deploy server instead of the package default Cloudflare
+  // module so `npm run preview` can serve the built app locally for audits.
+  nitro: { preset: "node-server" },
 });
