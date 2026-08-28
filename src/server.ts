@@ -12,7 +12,7 @@ import { validateEnvAtStartup } from "./lib/env-validation.server";
 // optional provider groups are configured. See src/lib/env-validation.server.ts.
 validateEnvAtStartup();
 
-type ServerEntry = {
+export type ServerEntry = {
   fetch: (request: Request, env: unknown, ctx: unknown) => Promise<Response> | Response;
 };
 
@@ -25,7 +25,13 @@ const serverEntry: ServerEntry = {
   fetch: (request) => serverFetch(request),
 };
 
-function startupHealthResponse(request: Request): Response | null {
+// Deployment readiness probe. MUST answer before the TanStack SSR route
+// graph is consulted: the probe fires while the app is still warming up
+// (and in environments where SSR cannot run at all), so routing it through
+// the router would reintroduce false "Run failed at startup" deploy alerts.
+// artifacts/web/.replit-artifact/artifact.toml points the startup probe at
+// this path; src/server.test.ts pins the contract on both sides.
+export function startupHealthResponse(request: Request): Response | null {
   if (request.method !== "GET" || new URL(request.url).pathname !== "/health") {
     return null;
   }
@@ -106,52 +112,60 @@ async function normalizeCatastrophicSsrResponse(response: Response): Promise<Res
   return brandedErrorResponse();
 }
 
-export default {
-  async fetch(request: Request, env: unknown, ctx: unknown) {
-    const healthResponse = startupHealthResponse(request);
-    if (healthResponse) {
-      return healthResponse;
-    }
-
-    // Every request to src/routes/api/** passes through this single fetch
-    // entry point, so logging it here (once) gives complete coverage of
-    // every current and future API route without editing each route file.
-    const pathname = new URL(request.url).pathname;
-    const isApiRequest = pathname.startsWith("/api/");
-    const startedAt = Date.now();
-
-    try {
-      const response = await serverEntry.fetch(request, env, ctx);
-      const normalized = await normalizeCatastrophicSsrResponse(response);
-      if (isApiRequest) {
-        keepAlive(
-          ctx,
-          logApiRequest({
-            endpoint: pathname,
-            method: request.method,
-            status: normalized.status,
-            responseTimeMs: Date.now() - startedAt,
-            request,
-          }),
-        );
+// Factory for the top-level fetch handler. Exported (with an injectable
+// `entry`) so src/server.test.ts can prove the /health short-circuit never
+// reaches the SSR entry — the default export below wires in the real
+// TanStack entry and is what Nitro bundles into .output/server/index.mjs.
+export function createAuroraFetchHandler(entry: ServerEntry) {
+  return {
+    async fetch(request: Request, env: unknown, ctx: unknown) {
+      const healthResponse = startupHealthResponse(request);
+      if (healthResponse) {
+        return healthResponse;
       }
-      return normalized;
-    } catch (error) {
-      reportServerException(error, { source: "server-fetch", requestUrl: request.url });
-      console.error(error);
-      if (isApiRequest) {
-        keepAlive(
-          ctx,
-          logApiRequest({
-            endpoint: pathname,
-            method: request.method,
-            status: 500,
-            responseTimeMs: Date.now() - startedAt,
-            request,
-          }),
-        );
+
+      // Every request to src/routes/api/** passes through this single fetch
+      // entry point, so logging it here (once) gives complete coverage of
+      // every current and future API route without editing each route file.
+      const pathname = new URL(request.url).pathname;
+      const isApiRequest = pathname.startsWith("/api/");
+      const startedAt = Date.now();
+
+      try {
+        const response = await entry.fetch(request, env, ctx);
+        const normalized = await normalizeCatastrophicSsrResponse(response);
+        if (isApiRequest) {
+          keepAlive(
+            ctx,
+            logApiRequest({
+              endpoint: pathname,
+              method: request.method,
+              status: normalized.status,
+              responseTimeMs: Date.now() - startedAt,
+              request,
+            }),
+          );
+        }
+        return normalized;
+      } catch (error) {
+        reportServerException(error, { source: "server-fetch", requestUrl: request.url });
+        console.error(error);
+        if (isApiRequest) {
+          keepAlive(
+            ctx,
+            logApiRequest({
+              endpoint: pathname,
+              method: request.method,
+              status: 500,
+              responseTimeMs: Date.now() - startedAt,
+              request,
+            }),
+          );
+        }
+        return brandedErrorResponse();
       }
-      return brandedErrorResponse();
-    }
-  },
-};
+    },
+  };
+}
+
+export default createAuroraFetchHandler(serverEntry);
