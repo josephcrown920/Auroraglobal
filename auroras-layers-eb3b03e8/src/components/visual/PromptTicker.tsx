@@ -1,7 +1,13 @@
 import { useEffect, useState } from "react";
 
 /** Types prompts out character-by-character over a live frame. Visual proof of the brief → render loop. */
-export function PromptTicker({ prompts, className = "" }: { prompts: string[]; className?: string }) {
+export function PromptTicker({
+  prompts,
+  className = "",
+}: {
+  prompts: string[];
+  className?: string;
+}) {
   const [index, setIndex] = useState(0);
   const [len, setLen] = useState(0);
   const [erasing, setErasing] = useState(false);
@@ -35,7 +41,9 @@ export function PromptTicker({ prompts, className = "" }: { prompts: string[]; c
         {full.slice(0, len)}
         <span className="ml-0.5 inline-block h-3.5 w-1.5 translate-y-0.5 animate-pulse bg-accent" />
       </span>
-      <span className="btn-aurora ml-auto grid size-7 shrink-0 place-items-center rounded-full">✦</span>
+      <span className="btn-aurora ml-auto grid size-7 shrink-0 place-items-center rounded-full">
+        ✦
+      </span>
     </div>
   );
 }

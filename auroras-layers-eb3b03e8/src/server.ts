@@ -47,7 +47,11 @@ function withEmbedCors(response: Response, request: Request): Response {
   for (const [key, value] of Object.entries(embedCorsHeaders(request.headers.get("origin")))) {
     headers.set(key, value);
   }
-  return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
 }
 
 function isH3SwallowedErrorBody(body: string): boolean {
@@ -74,10 +78,13 @@ export default {
       return withEmbedCors(await normalizeCatastrophicSsrResponse(response), request);
     } catch (error) {
       console.error(error);
-      return withEmbedCors(new Response(renderErrorPage(), {
-        status: 500,
-        headers: { "content-type": "text/html; charset=utf-8" },
-      }), request);
+      return withEmbedCors(
+        new Response(renderErrorPage(), {
+          status: 500,
+          headers: { "content-type": "text/html; charset=utf-8" },
+        }),
+        request,
+      );
     }
   },
 };

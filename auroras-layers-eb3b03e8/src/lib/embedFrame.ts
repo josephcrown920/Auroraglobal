@@ -6,8 +6,7 @@ export type EmbedOutboundMessage =
   | { source: typeof EMBED_SOURCE; type: "height"; height: number }
   | { source: typeof EMBED_SOURCE; type: "auth"; status: "authenticated" | "error" };
 
-export type EmbedInboundMessage =
-  | { source: typeof EMBED_SOURCE; type: "sso"; token: string };
+export type EmbedInboundMessage = { source: typeof EMBED_SOURCE; type: "sso"; token: string };
 
 /**
  * Aurora's host widget appends its own origin to the iframe URL. This keeps
@@ -97,9 +96,7 @@ export function startHeightReporting(): () => void {
   document.addEventListener("animationend", schedule);
 
   // Catch late layout shifts (fonts, images, streamed frames).
-  const timers = [50, 200, 600, 1500, 3000].map((delay) =>
-    window.setTimeout(schedule, delay),
-  );
+  const timers = [50, 200, 600, 1500, 3000].map((delay) => window.setTimeout(schedule, delay));
   const interval = window.setInterval(schedule, 1000);
 
   schedule();

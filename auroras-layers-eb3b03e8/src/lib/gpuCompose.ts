@@ -20,6 +20,65 @@ const G = globalThis as unknown as {
   GPUBufferUsage: { UNIFORM: number; COPY_DST: number };
 };
 
+type GPUTextureFormat = string;
+
+type GPUTextureViewSource = {
+  createView: () => unknown;
+};
+
+type GPUCanvasContext = {
+  configure: (options: {
+    device: GPUDevice;
+    format: GPUTextureFormat;
+    alphaMode: "premultiplied";
+  }) => void;
+  getCurrentTexture: () => GPUTextureViewSource;
+};
+
+type GPUAdapter = {
+  requestDevice: () => Promise<GPUDevice>;
+};
+
+type GPURenderPassEncoder = {
+  setPipeline: (pipeline: unknown) => void;
+  setBindGroup: (index: number, bindGroup: unknown) => void;
+  draw: (vertexCount: number) => void;
+  end: () => void;
+};
+
+type GPUDevice = {
+  queue: {
+    copyExternalImageToTexture: (
+      source: { source: HTMLImageElement },
+      destination: { texture: GPUTextureViewSource },
+      copySize: [number, number],
+    ) => void;
+    writeBuffer: (buffer: unknown, offset: number, data: Float32Array) => void;
+    submit: (commandBuffers: unknown[]) => void;
+    onSubmittedWorkDone: () => Promise<void>;
+  };
+  createRenderPipeline: (descriptor: unknown) => { getBindGroupLayout: (index: number) => unknown };
+  createShaderModule: (descriptor: { code: string }) => unknown;
+  createSampler: (descriptor: { magFilter: "linear"; minFilter: "linear" }) => unknown;
+  createCommandEncoder: () => {
+    beginRenderPass: (descriptor: unknown) => GPURenderPassEncoder;
+    finish: () => unknown;
+  };
+  createTexture: (descriptor: {
+    size: [number, number];
+    format: "rgba8unorm";
+    usage: number;
+  }) => GPUTextureViewSource;
+  createBuffer: (descriptor: { size: number; usage: number }) => unknown;
+  createBindGroup: (descriptor: {
+    layout: unknown;
+    entries: {
+      binding: number;
+      resource: unknown;
+    }[];
+  }) => unknown;
+};
+
 function loadImage(src: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const img = new Image();
@@ -108,17 +167,21 @@ async function composeWebGPU(images: HTMLImageElement[]): Promise<string> {
       size: [img.naturalWidth, img.naturalHeight],
       format: "rgba8unorm",
       usage:
-        G.GPUTextureUsage.TEXTURE_BINDING | G.GPUTextureUsage.COPY_DST | G.GPUTextureUsage.RENDER_ATTACHMENT,
+        G.GPUTextureUsage.TEXTURE_BINDING |
+        G.GPUTextureUsage.COPY_DST |
+        G.GPUTextureUsage.RENDER_ATTACHMENT,
     });
-    device.queue.copyExternalImageToTexture(
-      { source: img },
-      { texture },
-      [img.naturalWidth, img.naturalHeight],
-    );
+    device.queue.copyExternalImageToTexture({ source: img }, { texture }, [
+      img.naturalWidth,
+      img.naturalHeight,
+    ]);
 
     const col = i % cols;
     const row = Math.floor(i / cols);
-    const uniform = device.createBuffer({ size: 16, usage: G.GPUBufferUsage.UNIFORM | G.GPUBufferUsage.COPY_DST });
+    const uniform = device.createBuffer({
+      size: 16,
+      usage: G.GPUBufferUsage.UNIFORM | G.GPUBufferUsage.COPY_DST,
+    });
     device.queue.writeBuffer(
       uniform,
       0,

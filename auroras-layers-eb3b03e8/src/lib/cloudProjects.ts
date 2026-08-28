@@ -22,7 +22,12 @@ async function uploadImage(userId: string, projectId: string, filename: string, 
 
 export async function saveCloudProject(
   project: LayerProject,
-  settings: { brainModel: string; videoModel: string; identityLock: boolean; characterReference?: string },
+  settings: {
+    brainModel: string;
+    videoModel: string;
+    identityLock: boolean;
+    characterReference?: string;
+  },
 ) {
   const { data: userData } = await supabase.auth.getUser();
   const user = userData.user;
@@ -39,7 +44,12 @@ export async function saveCloudProject(
     project.layers.map(async (layer, index) => ({
       id: layer.id,
       prompt: layer.prompt,
-      path: await uploadImage(user.id, project.id, `layer-${String(index + 1).padStart(2, "0")}.png`, layer.dataUrl),
+      path: await uploadImage(
+        user.id,
+        project.id,
+        `layer-${String(index + 1).padStart(2, "0")}.png`,
+        layer.dataUrl,
+      ),
     })),
   );
   const previewPath = uploadedLayers.at(-1)?.path ?? sourcePath;

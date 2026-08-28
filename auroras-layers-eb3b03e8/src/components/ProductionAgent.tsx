@@ -49,8 +49,9 @@ export function ProductionAgent() {
       const done: string[] = [];
       for (const call of data.calls) {
         if (call.name === "build_storyboard" && Array.isArray(call.args["shots"])) {
-          const shots = (call.args["shots"] as { beat: string; prompt: string; motion?: string }[])
-            .filter((s) => s?.prompt);
+          const shots = (
+            call.args["shots"] as { beat: string; prompt: string; motion?: string }[]
+          ).filter((s) => s?.prompt);
           sendStudioCommand({ type: "storyboard", shots });
           done.push(`Boarded ${shots.length} shots`);
         }
@@ -72,7 +73,10 @@ export function ProductionAgent() {
         }
       }
       setActions(done);
-      setMessages([...next, { role: "assistant", content: data.content || done.join(" · ") || "Done." }]);
+      setMessages([
+        ...next,
+        { role: "assistant", content: data.content || done.join(" · ") || "Done." },
+      ]);
       requestAnimationFrame(() =>
         scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" }),
       );

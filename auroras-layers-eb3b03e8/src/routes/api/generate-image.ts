@@ -29,7 +29,6 @@ export const Route = createFileRoute("/api/generate-image")({
           stream = true,
         } = (await request.json()) as Body;
 
-
         if (!prompt || typeof prompt !== "string" || prompt.trim().length < 2) {
           return new Response(JSON.stringify({ error: "A prompt is required." }), {
             status: 400,
@@ -71,11 +70,23 @@ export const Route = createFileRoute("/api/generate-image")({
           const form = new FormData();
           form.append("model", model);
           form.append("prompt", lockedPrompt);
-          form.append("image", new Blob([openAiSource.bytes], { type: openAiSource.type }), "reference.png");
+          form.append(
+            "image",
+            new Blob([openAiSource.bytes], { type: openAiSource.type }),
+            "reference.png",
+          );
           if (openAiCharacter) {
             form.delete("image");
-            form.append("image[]", new Blob([openAiSource.bytes], { type: openAiSource.type }), "locked-plate.png");
-            form.append("image[]", new Blob([openAiCharacter.bytes], { type: openAiCharacter.type }), "character-reference.png");
+            form.append(
+              "image[]",
+              new Blob([openAiSource.bytes], { type: openAiSource.type }),
+              "locked-plate.png",
+            );
+            form.append(
+              "image[]",
+              new Blob([openAiCharacter.bytes], { type: openAiCharacter.type }),
+              "character-reference.png",
+            );
           }
           form.append("quality", "low");
           if (stream) {
@@ -90,18 +101,18 @@ export const Route = createFileRoute("/api/generate-image")({
         } else {
           // OpenAI generation takes `prompt`; Gemini reference editing takes `messages` + `modalities`.
           const body = model.startsWith("openai/")
-          ? {
-              model,
-              prompt: lockedPrompt,
-              quality: "low",
-              ...(stream ? { stream: true, partial_images: 1 } : {}),
-            }
-          : {
-              model,
-              messages: [{ role: "user", content }],
-              modalities: ["image", "text"],
-              ...(stream ? { stream: true } : {}),
-            };
+            ? {
+                model,
+                prompt: lockedPrompt,
+                quality: "low",
+                ...(stream ? { stream: true, partial_images: 1 } : {}),
+              }
+            : {
+                model,
+                messages: [{ role: "user", content }],
+                modalities: ["image", "text"],
+                ...(stream ? { stream: true } : {}),
+              };
           upstream = await fetch("https://ai.gateway.lovable.dev/v1/images/generations", {
             method: "POST",
             headers: {
@@ -111,7 +122,6 @@ export const Route = createFileRoute("/api/generate-image")({
             body: JSON.stringify(body),
           });
         }
-
 
         if (!upstream.ok || !upstream.body) {
           const text = await upstream.text().catch(() => "");

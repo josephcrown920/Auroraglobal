@@ -41,17 +41,14 @@ export function useBibles() {
     broadcast();
   }, []);
 
-  const create = useCallback(
-    (name?: string) => {
-      const bible = createBible(name);
-      setBibles(saveBible(bible));
-      saveActiveBibleId(bible.id);
-      setActiveId(bible.id);
-      broadcast();
-      return bible;
-    },
-    [],
-  );
+  const create = useCallback((name?: string) => {
+    const bible = createBible(name);
+    setBibles(saveBible(bible));
+    saveActiveBibleId(bible.id);
+    setActiveId(bible.id);
+    broadcast();
+    return bible;
+  }, []);
 
   const active = bibles.find((b) => b.id === activeId) ?? null;
 

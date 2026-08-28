@@ -21,7 +21,12 @@ export function AccountControl() {
 
   if (email) {
     return (
-      <Button type="button" variant="outline" size="sm" onClick={() => void supabase.auth.signOut()}>
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        onClick={() => void supabase.auth.signOut()}
+      >
         <LogOut aria-hidden="true" /> Sign out
       </Button>
     );

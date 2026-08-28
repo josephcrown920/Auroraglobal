@@ -8,18 +8,24 @@ function toDataUrl(b64: string) {
 }
 
 function extractB64(payload: unknown): string | null {
-  const p = payload as any;
-  if (!p) return null;
-  return (
+  if (!payload || typeof payload !== "object") return null;
+  const p = payload as {
+    b64_json?: unknown;
+    image?: { b64_json?: unknown };
+    data?: { b64_json?: unknown }[];
+    partial_image_b64?: unknown;
+    choices?: {
+      message?: { images?: { image_url?: { url?: unknown } }[] };
+    }[];
+  };
+  const candidate =
     p.b64_json ??
     p.image?.b64_json ??
     p.data?.[0]?.b64_json ??
     p.partial_image_b64 ??
-    p.choices?.[0]?.message?.images?.[0]?.image_url?.url ??
-    null
-  );
+    p.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+  return typeof candidate === "string" ? candidate : null;
 }
-
 
 /**
  * POSTs a prompt (plus optional source image) to a streaming image route and
@@ -27,10 +33,14 @@ function extractB64(payload: unknown): string | null {
  */
 export async function streamImage(
   endpoint: string,
-  body: { prompt: string; imageDataUrl?: string; characterReferenceDataUrl?: string; model?: string },
+  body: {
+    prompt: string;
+    imageDataUrl?: string;
+    characterReferenceDataUrl?: string;
+    model?: string;
+  },
   onFrame: Frame,
 ): Promise<void> {
-
   const res = await fetch(endpoint, {
     method: "POST",
     headers: { "Content-Type": "application/json" },

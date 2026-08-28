@@ -84,7 +84,11 @@ export const Route = createFileRoute("/api/production")({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        const { messages, model: requested, context } = (await request.json()) as {
+        const {
+          messages,
+          model: requested,
+          context,
+        } = (await request.json()) as {
           messages: Msg[];
           model?: string;
           context?: string;
@@ -110,7 +114,10 @@ export const Route = createFileRoute("/api/production")({
             messages: [
               { role: "system", content: SYSTEM },
               ...(context ? [{ role: "system", content: `STUDIO STATE:\n${context}` }] : []),
-              ...messages.slice(-12).map((m) => ({ role: m.role === "tool" ? "assistant" : m.role, content: m.content })),
+              ...messages.slice(-12).map((m) => ({
+                role: m.role === "tool" ? "assistant" : m.role,
+                content: m.content,
+              })),
             ],
           }),
         });
@@ -121,7 +128,12 @@ export const Route = createFileRoute("/api/production")({
         }
 
         const json = (await upstream.json()) as {
-          choices?: { message?: { content?: string; tool_calls?: { function: { name: string; arguments: string } }[] } }[];
+          choices?: {
+            message?: {
+              content?: string;
+              tool_calls?: { function: { name: string; arguments: string } }[];
+            };
+          }[];
         };
         const message = json.choices?.[0]?.message ?? {};
         const calls = (message.tool_calls ?? []).map((call) => {

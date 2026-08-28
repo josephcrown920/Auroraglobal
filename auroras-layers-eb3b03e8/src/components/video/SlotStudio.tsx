@@ -51,7 +51,10 @@ export function SlotStudio({
   }
 
   return (
-    <div id={id} className="relative overflow-hidden rounded-3xl border border-border bg-card/60 p-5 sm:p-8">
+    <div
+      id={id}
+      className="relative overflow-hidden rounded-3xl border border-border bg-card/60 p-5 sm:p-8"
+    >
       <div className="pointer-events-none absolute -top-32 -right-24 h-72 w-72 rounded-full bg-[image:var(--gradient-aurora)] opacity-20 blur-3xl" />
 
       <div className="relative flex items-center gap-3">
@@ -83,7 +86,9 @@ export function SlotStudio({
         {slots.map((slot, i) => (
           <div key={slot.key} className="contents">
             {i > 0 ? (
-              <span className="hidden items-center justify-center text-xl text-muted-foreground lg:flex">+</span>
+              <span className="hidden items-center justify-center text-xl text-muted-foreground lg:flex">
+                +
+              </span>
             ) : null}
             <div className="min-h-44 rounded-2xl border border-border bg-secondary/40 p-4 transition-colors hover:border-primary">
               {slot.kind === "image" ? (

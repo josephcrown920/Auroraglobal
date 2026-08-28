@@ -91,7 +91,8 @@ export function DirectorAgent() {
         >
           {BRAIN_MODELS.map((brain) => (
             <option key={brain.id} value={brain.id} disabled={!brain.available}>
-              {brain.label}{brain.available ? "" : " · connector required"}
+              {brain.label}
+              {brain.available ? "" : " · connector required"}
             </option>
           ))}
         </select>

@@ -15,7 +15,6 @@ import { Capacitor } from "@capacitor/core";
 import { StatusBar } from "@capacitor/status-bar";
 import { SplashScreen } from "@capacitor/splash-screen";
 
-
 function NotFoundComponent() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
@@ -82,10 +81,16 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: "Aurora Performance Studio" },
-      { name: "description", content: "Cinematic AI direction, image editing, and production workflows for artists." },
+      {
+        name: "description",
+        content: "Cinematic AI direction, image editing, and production workflows for artists.",
+      },
       { name: "author", content: "Aurora Performance Studio" },
       { property: "og:title", content: "Aurora Performance Studio" },
-      { property: "og:description", content: "Cinematic AI direction and visual production for artists." },
+      {
+        property: "og:description",
+        content: "Cinematic AI direction and visual production for artists.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
@@ -103,7 +108,6 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       },
       { rel: "icon", type: "image/png", href: "/favicon.png" },
     ],
-
   }),
   shellComponent: RootShell,
   component: RootComponent,

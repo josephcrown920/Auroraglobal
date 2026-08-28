@@ -115,7 +115,10 @@ export function loadBibles(): CharacterBible[] {
 }
 
 export function saveBible(bible: CharacterBible): CharacterBible[] {
-  const next = [{ ...bible, updatedAt: Date.now() }, ...loadBibles().filter((b) => b.id !== bible.id)];
+  const next = [
+    { ...bible, updatedAt: Date.now() },
+    ...loadBibles().filter((b) => b.id !== bible.id),
+  ];
   try {
     window.localStorage.setItem(KEY, JSON.stringify(next));
   } catch {
@@ -167,7 +170,12 @@ export function restoreVersion(bible: CharacterBible, version: number): Characte
     traits: found.traits.map((t) => ({ ...t, id: uid() })),
     version: bible.version + 1,
     versions: [
-      { version: bible.version, createdAt: Date.now(), note: `restored v${version}`, traits: bible.traits },
+      {
+        version: bible.version,
+        createdAt: Date.now(),
+        note: `restored v${version}`,
+        traits: bible.traits,
+      },
       ...bible.versions,
     ].slice(0, 24),
     updatedAt: Date.now(),
@@ -178,7 +186,9 @@ export function upsertTrait(bible: CharacterBible, trait: BibleTrait): Character
   const exists = bible.traits.some((t) => t.id === trait.id);
   return {
     ...bible,
-    traits: exists ? bible.traits.map((t) => (t.id === trait.id ? trait : t)) : [...bible.traits, trait],
+    traits: exists
+      ? bible.traits.map((t) => (t.id === trait.id ? trait : t))
+      : [...bible.traits, trait],
     updatedAt: Date.now(),
   };
 }

@@ -86,7 +86,13 @@ export function BeforeAfter({
         className="absolute inset-0 overflow-hidden transition-transform duration-700 group-hover:scale-[1.02]"
         style={{ clipPath: `inset(0 ${100 - pos}% 0 0)` }}
       >
-        <img src={before} alt="" aria-hidden loading="lazy" className="h-full w-full object-cover" />
+        <img
+          src={before}
+          alt=""
+          aria-hidden
+          loading="lazy"
+          className="h-full w-full object-cover"
+        />
       </div>
 
       <span className="label-chip absolute top-3 left-3 z-10">{beforeLabel}</span>

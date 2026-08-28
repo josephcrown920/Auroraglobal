@@ -38,7 +38,9 @@ export function appendShot(shots: Shot[], shot: Omit<Shot, "order">): Shot[] {
 export function upsertShot(shots: Shot[], shot: Omit<Shot, "order"> & { order?: number }): Shot[] {
   const existing = shots.find((s) => s.id === shot.id);
   if (existing) {
-    return sequence(shots.map((s) => (s.id === shot.id ? { ...existing, ...shot, order: existing.order } : s)));
+    return sequence(
+      shots.map((s) => (s.id === shot.id ? { ...existing, ...shot, order: existing.order } : s)),
+    );
   }
   return appendShot(shots, shot);
 }

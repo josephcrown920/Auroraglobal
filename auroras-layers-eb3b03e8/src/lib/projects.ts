@@ -66,14 +66,20 @@ function dataUrlToBase64(dataUrl: string) {
 export async function exportProjectZip(project: LayerProject) {
   const { default: JSZip } = await import("jszip");
   const zip = new JSZip();
-  const slug = project.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 40) || "project";
+  const slug =
+    project.name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .slice(0, 40) || "project";
   const shots = sequence(project.layers);
 
   if (project.sourceUrl) {
     zip.file(`${slug}/00-source.png`, dataUrlToBase64(project.sourceUrl), { base64: true });
   }
   shots.forEach((shot) => {
-    zip.file(`${slug}/${shotCode(shot.order)}.png`, dataUrlToBase64(shot.dataUrl), { base64: true });
+    zip.file(`${slug}/${shotCode(shot.order)}.png`, dataUrlToBase64(shot.dataUrl), {
+      base64: true,
+    });
   });
   const last = shots[shots.length - 1];
   if (last) {

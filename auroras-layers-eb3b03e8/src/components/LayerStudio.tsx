@@ -4,7 +4,11 @@ import { composeSheet, gpuStatus, type GpuStatus } from "@/lib/gpuCompose";
 import { onStudioCommand } from "@/lib/studioBus";
 import { saveCloudProject } from "@/lib/cloudProjects";
 import { useBibles } from "@/lib/bibleStore";
-import { bibleReferenceImages, compileIdentityGraph, compileVoiceProfile } from "@/lib/characterBible";
+import {
+  bibleReferenceImages,
+  compileIdentityGraph,
+  compileVoiceProfile,
+} from "@/lib/characterBible";
 import {
   buildSequencePrompt,
   moveShot,
@@ -73,7 +77,12 @@ export function LayerStudio() {
   const identityGraph = bible ? compileIdentityGraph(bible) : "";
   const voiceProfile = bible ? compileVoiceProfile(bible) : "";
   const bibleRef = bible ? bibleReferenceImages(bible)[0] : undefined;
-  const stale = bible ? staleShots(shots.filter((s) => s.dataUrl), bible.version) : [];
+  const stale = bible
+    ? staleShots(
+        shots.filter((s) => s.dataUrl),
+        bible.version,
+      )
+    : [];
 
   function readFile(file: File | undefined, setter: (value: string) => void) {
     if (!file) return;
@@ -91,11 +100,7 @@ export function LayerStudio() {
     // chain edits: the previous frame becomes the plate so identity carries forward
     const base = target?.dataUrl ?? result ?? sourceUrl;
     const reference = characterReference ?? bibleRef;
-    const composed = [
-      identityGraph,
-      text.trim(),
-      lockIdentity && base ? IDENTITY_LOCK : "",
-    ]
+    const composed = [identityGraph, text.trim(), lockIdentity && base ? IDENTITY_LOCK : ""]
       .filter(Boolean)
       .join("\n\n");
 
@@ -230,7 +235,6 @@ export function LayerStudio() {
 
   const ordered = sequence(shots);
 
-
   return (
     <div className="grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
       <div className="rounded-2xl border border-border bg-card p-5">
@@ -253,7 +257,9 @@ export function LayerStudio() {
         {bible ? (
           <p className="mt-3 rounded-lg border border-primary/40 bg-primary/10 px-3 py-2 text-[0.7rem] text-primary">
             Bible locked · {bible.name || "artist"} v{bible.version}
-            {identityGraph ? " — identity graph injected into every render" : " — add traits to strengthen the lock"}
+            {identityGraph
+              ? " — identity graph injected into every render"
+              : " — add traits to strengthen the lock"}
           </p>
         ) : null}
 
@@ -286,7 +292,7 @@ export function LayerStudio() {
           className="mt-3 flex w-full items-center justify-between rounded-lg border border-border bg-secondary/40 px-3 py-2 text-xs text-muted-foreground hover:border-primary hover:text-primary"
         >
           <span>Character sheet / face reference</span>
-          <span>{characterReference ?? bibleRef ? "Locked" : "Add"}</span>
+          <span>{(characterReference ?? bibleRef) ? "Locked" : "Add"}</span>
         </button>
         <input
           ref={characterRef}
@@ -306,7 +312,11 @@ export function LayerStudio() {
               type="button"
               onClick={() => setModel(m.id)}
               disabled={!m.available}
-              title={m.available ? m.note : `${m.note}. This engine is not available through Lovable AI yet.`}
+              title={
+                m.available
+                  ? m.note
+                  : `${m.note}. This engine is not available through Lovable AI yet.`
+              }
               className={
                 model === m.id
                   ? "btn-aurora rounded-md py-2 font-bold"
@@ -328,13 +338,14 @@ export function LayerStudio() {
         >
           {VIDEO_MODELS.map((engine) => (
             <option key={engine.id} value={engine.id} disabled={!engine.available}>
-              {engine.label}{engine.available ? "" : " · connector required"}
+              {engine.label}
+              {engine.available ? "" : " · connector required"}
             </option>
           ))}
         </select>
         <p className="mt-2 text-[0.65rem] text-muted-foreground">
-          Motion direction is written per shot and travels with the sequence. Seedance, Kling and Wan
-          stay visible but disabled until their providers are available.
+          Motion direction is written per shot and travels with the sequence. Seedance, Kling and
+          Wan stay visible but disabled until their providers are available.
         </p>
 
         <label className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
@@ -395,7 +406,8 @@ export function LayerStudio() {
                     onClick={() => openProject(p)}
                     className="flex-1 truncate rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-secondary"
                   >
-                    {p.name} <span className="text-muted-foreground">· {p.layers.length} shots</span>
+                    {p.name}{" "}
+                    <span className="text-muted-foreground">· {p.layers.length} shots</span>
                   </button>
                   <button
                     type="button"
@@ -472,8 +484,16 @@ export function LayerStudio() {
                       {shotCode(shot.order)}
                     </span>
                     {shot.dataUrl ? (
-                      <button type="button" onClick={() => setActive(shot.id)} className="size-10 overflow-hidden rounded">
-                        <img src={shot.dataUrl} alt={`Shot ${shot.order}`} className="h-full w-full object-cover" />
+                      <button
+                        type="button"
+                        onClick={() => setActive(shot.id)}
+                        className="size-10 overflow-hidden rounded"
+                      >
+                        <img
+                          src={shot.dataUrl}
+                          alt={`Shot ${shot.order}`}
+                          className="h-full w-full object-cover"
+                        />
                       </button>
                     ) : (
                       <span className="rounded bg-secondary px-2 py-1 text-[0.55rem] tracking-wider text-muted-foreground uppercase">
@@ -482,7 +502,9 @@ export function LayerStudio() {
                     )}
                     <input
                       value={shot.beat ?? ""}
-                      onChange={(e) => setShots((prev) => patchShot(prev, shot.id, { beat: e.target.value }))}
+                      onChange={(e) =>
+                        setShots((prev) => patchShot(prev, shot.id, { beat: e.target.value }))
+                      }
                       placeholder="Story beat"
                       className="flex-1 rounded bg-transparent px-1 text-xs font-bold outline-none focus:bg-secondary"
                     />
@@ -512,14 +534,18 @@ export function LayerStudio() {
                   </div>
                   <textarea
                     value={shot.prompt}
-                    onChange={(e) => setShots((prev) => patchShot(prev, shot.id, { prompt: e.target.value }))}
+                    onChange={(e) =>
+                      setShots((prev) => patchShot(prev, shot.id, { prompt: e.target.value }))
+                    }
                     rows={2}
                     className="mt-2 w-full resize-none rounded bg-transparent text-xs outline-none"
                   />
                   <div className="flex items-center gap-2">
                     <input
                       value={shot.motion ?? ""}
-                      onChange={(e) => setShots((prev) => patchShot(prev, shot.id, { motion: e.target.value }))}
+                      onChange={(e) =>
+                        setShots((prev) => patchShot(prev, shot.id, { motion: e.target.value }))
+                      }
                       placeholder="Motion direction (for the video pass)"
                       className="flex-1 rounded bg-transparent text-[0.7rem] text-muted-foreground outline-none"
                     />
@@ -541,7 +567,12 @@ export function LayerStudio() {
                 type="button"
                 onClick={() =>
                   setShots((prev) =>
-                    upsertShot(prev, { id: crypto.randomUUID(), prompt: prompt.trim(), dataUrl: "", beat: "New beat" }),
+                    upsertShot(prev, {
+                      id: crypto.randomUUID(),
+                      prompt: prompt.trim(),
+                      dataUrl: "",
+                      beat: "New beat",
+                    }),
                   )
                 }
                 className="rounded-full border border-border px-3 py-1.5 text-[0.6rem] tracking-wider uppercase hover:border-primary hover:text-primary"
@@ -551,7 +582,9 @@ export function LayerStudio() {
               <button
                 type="button"
                 onClick={() =>
-                  void navigator.clipboard.writeText(buildSequencePrompt(ordered, identityGraph, voiceProfile))
+                  void navigator.clipboard.writeText(
+                    buildSequencePrompt(ordered, identityGraph, voiceProfile),
+                  )
                 }
                 className="rounded-full border border-border px-3 py-1.5 text-[0.6rem] tracking-wider uppercase hover:border-primary hover:text-primary"
               >

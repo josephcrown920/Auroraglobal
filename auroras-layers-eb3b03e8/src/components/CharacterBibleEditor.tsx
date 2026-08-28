@@ -224,8 +224,13 @@ export function CharacterBibleEditor() {
             {active.versions.length > 0 ? (
               <ul className="mt-3 space-y-1">
                 {active.versions.map((v) => (
-                  <li key={`${v.version}-${v.createdAt}`} className="flex items-center gap-2 text-xs">
-                    <span className="font-[family-name:var(--font-mono-ui)] text-accent">v{v.version}</span>
+                  <li
+                    key={`${v.version}-${v.createdAt}`}
+                    className="flex items-center gap-2 text-xs"
+                  >
+                    <span className="font-[family-name:var(--font-mono-ui)] text-accent">
+                      v{v.version}
+                    </span>
                     <span className="flex-1 truncate text-muted-foreground">{v.note}</span>
                     <button
                       type="button"

@@ -37,9 +37,7 @@ export const Route = createFileRoute("/api/director")({
           return new Response("messages required", { status: 400 });
         }
 
-        const model = BRAIN_MODELS.some(
-          (item) => item.available && item.id === requestedModel,
-        )
+        const model = BRAIN_MODELS.some((item) => item.available && item.id === requestedModel)
           ? requestedModel
           : DEFAULT_BRAIN_MODEL;
 
