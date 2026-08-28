@@ -172,6 +172,10 @@ export const VIDEO_MODEL_TIERS: Record<string, ModelTier> = {
   "fal/ltx-motion": "budget",  // $0.06 — fal-ai/ltx-video I2V (motion)
   // inference.sh cloud Veo 3.1 Fast — secondary cloud fallback (~$0.15)
   "inferencesh/veo-3-1-fast": "standard", // $0.15 via google/veo-3-1-fast app slug
+  // Aurora Soul character video — direct Seedance API (SEEDANCE_API_URL/KEY),
+  // pinned-only. Same real provider cost ballpark as "seedance-2.0" (~$0.65),
+  // so it sits in the same "ultra" tier rather than inventing a new number.
+  "seedance-soul": "ultra", // ~$0.65
 };
 
 export const LIPSYNC_MODEL_TIERS: Record<string, ModelTier> = {
@@ -202,6 +206,38 @@ export const LIPSYNC_MODEL_TIERS: Record<string, ModelTier> = {
 //     lip-sync would lose money.
 export const DEFAULT_VIDEO_TIER: ModelTier = "budget";
 export const DEFAULT_LIPSYNC_TIER: ModelTier = "premium";
+
+// ─── Aurora Soul pricing ──────────────────────────────────────────────────────
+// Soul reuses the existing "image"/"video" features (no new Feature enum
+// entries — see the GenerateKind/TaskType sync pitfall this avoids) with two
+// pinned-only model keys. These constants + helpers are the single source of
+// truth soul.server.ts and the Soul UI both call, so a preview quote can never
+// disagree with what reserveOrchestrateRecord actually charges.
+export const SOUL_IMAGE_MODEL = "fal/soul-lora";
+export const SOUL_VIDEO_MODEL = "seedance-soul";
+
+/** Per-image cost for an identity-locked Soul render — at par with a flat Flux still. */
+export function soulImageCost(resolution: Resolution = "720p"): number {
+  return computeCost({ features: ["image"], model: SOUL_IMAGE_MODEL, resolution }).total;
+}
+
+/** Per-clip cost for a Soul character video, scaled by requested duration. */
+export function soulVideoCost(durationSeconds: number, resolution: Resolution = "720p"): number {
+  return computeCost({
+    features: ["video"],
+    model: SOUL_VIDEO_MODEL,
+    durationSeconds,
+    resolution,
+  }).total;
+}
+
+/**
+ * Flat one-time cost to train a Soul's face LoRA (fal-ai/flux-lora-portrait-trainer,
+ * 2500 steps). This is a real provider spend the instant fal accepts the job —
+ * charged up front via reserve_credits/commit_reservation in soul.server.ts,
+ * same flat-cost pattern as COST_DAILY_POSTS/COST_SOCIAL_PACK below.
+ */
+export const SOUL_TRAINING_COST = 300;
 
 /** Resolve a video/lip-sync model to its price tier (default tier if unknown). */
 export function tierForModel(feature: "video" | "lipsync", model: string | null | undefined): ModelTier {

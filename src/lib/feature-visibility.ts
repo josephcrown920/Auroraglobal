@@ -25,7 +25,8 @@ export type FeatureKey =
   | "kids"
   | "nexusarb"
   | "split-reality"
-  | "adult-school";
+  | "adult-school"
+  | "soul";
 
 export type GateableFeature = {
   key: FeatureKey;
@@ -52,6 +53,7 @@ export const GATEABLE_FEATURES: readonly GateableFeature[] = [
   { key: "nexusarb",         label: "NexusARB",          routes: ["/nexusarb"],          defaultHidden: true, description: "Arbitrage simulator (separate audience)." },
   { key: "split-reality",    label: "Split Reality",     routes: ["/split-reality"],     defaultHidden: true, description: "Split-screen reality effect tool." },
   { key: "adult-school",     label: "Adult School",      routes: ["/eromify", "/aurora-adult"], defaultHidden: true, description: "18+ studio entry points (artifact keeps its own passcode gate)." },
+  { key: "soul",             label: "Aurora Soul",       routes: ["/soul"],              defaultHidden: true, description: "Train a face LoRA once, then generate identity-locked images/video of that character." },
 ] as const;
 
 export const FEATURE_KEYS: readonly FeatureKey[] = GATEABLE_FEATURES.map((f) => f.key);

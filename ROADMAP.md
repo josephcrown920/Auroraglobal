@@ -12,9 +12,11 @@ remains. ⛔ **Blocked** — needs something outside this session's tool access
 (dashboard config, business decision, paid tier). ⬜ **Remaining** —
 identified, not yet started, no blocker.
 
-Last full audit: 2026-08-22. Last update: 2026-08-24 (§4 redaction sweep
-complete, §8 provider_logs fix, §10 re-validation, §13 prod server-fn
-regression fixed, §14 CI gate, §15 blocked items).
+Last full audit: 2026-08-22. Last update: 2026-08-26 (§16 Aurora Soul
+integration added — live with two provider-secret blockers). Prior update:
+2026-08-24 (§4 redaction sweep complete, §8 provider_logs fix, §10
+re-validation, §13 prod server-fn regression fixed, §14 CI gate, §15 blocked
+items).
 
 ---
 
@@ -393,6 +395,87 @@ component step was executed green on 2026-08-24 (see §10).
 - **Google/Apple OAuth (§11):** Supabase dashboard provider enablement with
   real credentials — owner action.
 
+## 16. Aurora Soul integration — 🔶 Live, two provider blockers (2026-08-26)
+
+Ported the character-consistency ("Soul") feature from the `josephcrown920/soulmagic`
+reference repo (audited HEAD `66588b18…`) into Aurora as a native, lazy-isolated
+feature boundary — not a separate app, not a separate billing provider.
+
+**Live and verified this pass:**
+- Routes `/soul`, `/soul/train`, `/soul/library`, `/soul/generate`,
+  `/soul/generate/video`, `/soul/vibe` — all lazy-loaded, wrapped in `SoulShell`
+  (`src/features/soul/soul-shell.tsx`), which gates on `useFeatureVisibility()`
+  with a branded skeleton / access-denied / signed-out state (fail-closed, never
+  renders null). Nav entry added to `MobileNav.tsx`; `soul` feature key defaults
+  hidden in `feature-visibility.ts` until explicitly turned on for a cohort.
+- DB migrations `20260826180000_soul_tables.sql` and
+  `20260826180100_soul_storage_buckets.sql` — applied live (verified via
+  `supabase_migrations.schema_migrations`). Three owner-only-RLS tables
+  (`souls`, `soul_reference_assets`, `soul_video_jobs`) with default anon/DDL
+  grants revoked, matching the §1 RLS pattern. Two private storage buckets
+  (`soul-training`, `soul-generated`) with own-folder-only policies — reads are
+  always short-lived signed URLs, never `getPublicUrl`. `types.ts` regenerated
+  from the live schema afterward.
+- `src/lib/soul.server.ts` — LoRA training kickoff (`fal-ai/flux-lora-portrait-trainer`
+  via `FAL_KEY`), identity-locked image generation (`fal/soul-lora` → fal's
+  `flux-2/lora`), stale-training detection (45 min), and the free Vibe Matcher
+  (Aurora's own text/vision LLM gateway, not Lovable AI Gateway — no credit
+  charge, analysis only). All CRUD and generation entry points are
+  ownership-guarded. Image/video generation go through `reserveOrchestrateRecord`
+  (reserve → commit on success / release on failure), the same pattern as
+  every other Aurora generation path. Training has no `generations` row to
+  attach a charge to, so it prices a flat `SOUL_TRAINING_COST` (`pricing.ts`)
+  and reserves/commits/releases directly against `reserve_credits` /
+  `commit_reservation` / `release_reservation` — reserved before the fal call,
+  committed once fal accepts the job (real compute spend starts then,
+  regardless of the eventual training result), released on any failure before
+  or during that call. A stale-training retry re-reserves fresh credits, same
+  principle as re-enqueuing a failed render job. The fal trainer request also
+  now carries the soul's `trigger_word`, so the trained LoRA actually learns
+  the token every inference prompt is prefixed with — no parallel billing
+  system introduced.
+- `src/routes/api/soul/fal-webhook.ts` — thin dispatcher; verification logic
+  lives in `src/lib/soul-fal-webhook.server.ts` (Ed25519 signature over
+  fal's published JWKS, 5-minute replay window, optional `?secret=` gate via
+  `SOUL_FAL_WEBHOOK_SECRET`) so it's unit-testable in isolation, mirroring the
+  existing `paystack-webhook.server.ts` split.
+- Pricing: `soul_image` billed at the existing Flux-identity-still rate;
+  `soul_video` billed via a new `seedance-soul` model key at the `ultra` video
+  tier — both flow through `src/lib/pricing.ts`'s single cost source, no
+  hardcoded rates.
+- Tests: `src/lib/soul.server.test.ts` and
+  `src/lib/soul-fal-webhook.server.test.ts` (stale-training detection, Vibe
+  Matcher JSON tolerance/fallback, and full webhook verification — missing
+  headers, replay/stale timestamp, invalid signature, JWKS-unavailable → 503
+  not 401, and the `?secret=` gate — against a real generated Ed25519 key
+  pair, no reliance on fal's live endpoint). Full suite green
+  (1258/1258, `bun test src/`), `tsc --noEmit` clean, `eslint` clean (0
+  errors).
+
+**Blocked / not yet connected (explicit, not silently working):**
+- ⛔ **Soul video generation is non-functional in production** — `SEEDANCE_API_URL`
+  and `SEEDANCE_API_KEY` are documented in `.env.example`/`docs/ENV.md` but not
+  set. `generateSoulVideo` throws an explicit configuration error rather than
+  silently falling back to another provider; `/soul/generate/video` surfaces
+  that error to the user instead of hanging.
+- ⛔ **fal training webhook has no configured secret** — `SOUL_FAL_WEBHOOK_SECRET`
+  is unset, so the `?secret=` gate is currently a no-op and Ed25519/JWKS
+  verification is the only line of defense (still correct and enforced, but
+  the extra defense-in-depth layer isn't active until the secret is set).
+- ⬜ **Wan 2.2 character animation** and **GFPGAN/Codeformer video post-processing**
+  from the soulmagic source repo were explicitly out of scope for this pass
+  (documented in the task spec) — not started, no code path exists yet.
+- ⬜ **Playwright end-to-end journey** (sign in → train → generate → download)
+  was not run this pass — Aurora's broader e2e suite (`test:e2e`) is
+  currently failing across nearly all specs for pre-existing, unrelated
+  reasons (see the stabilization thread), so a new Soul-specific journey
+  would not produce a trustworthy signal until that's resolved separately.
+
+**Readiness: 70/100** — core train/generate/library/vibe flow is live,
+credit-safe, and RLS-hardened, but the headline video-generation path needs
+two secrets set before end users can actually render a Soul video, and no
+live e2e proof exists yet.
+
 ---
 
 ## Summary scorecard
@@ -414,6 +497,7 @@ component step was executed green on 2026-08-24 (see §10).
 | 13. Prod server-fn regression | ✅ Fixed 2026-08-24 — **needs republish** |
 | 14. CI production gate | ✅ Added 2026-08-24 |
 | 15. Blocked items | ⛔ Backup drill, iOS signing, GH Actions billing, OAuth providers |
+| 16. Aurora Soul integration | 🔶 Live (70/100) — video needs Seedance secrets |
 
 ## Historical feature roadmap
 

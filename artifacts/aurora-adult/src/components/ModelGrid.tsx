@@ -2,7 +2,8 @@
 // No generation content is shown here; galleries are private per-creator
 // and live inside ModelStudio.
 
-import { ArrowRight, Camera, LogOut, Sparkles } from "lucide-react";
+import { useState } from "react";
+import { ArrowRight, Camera, LayoutGrid, LogOut, Plug, Sparkles, UserCircle2 } from "lucide-react";
 import type { Model } from "@/lib/models";
 import { MODELS } from "@/lib/models";
 import type { User } from "@supabase/supabase-js";
@@ -11,9 +12,14 @@ import { supabase } from "@/lib/supabase";
 interface Props {
   user: User;
   onSelectModel: (model: Model) => void;
+  onOpenCanvas: () => void;
+  onOpenConnect: () => void;
+  onReplayTour: () => void;
 }
 
-export function ModelGrid({ user, onSelectModel }: Props) {
+export function ModelGrid({ user, onSelectModel, onOpenCanvas, onOpenConnect, onReplayTour }: Props) {
+  const [menuOpen, setMenuOpen] = useState(false);
+
   async function signOut() {
     await supabase.auth.signOut();
   }
@@ -37,16 +43,48 @@ export function ModelGrid({ user, onSelectModel }: Props) {
             Studio
           </span>
         </div>
-        <div className="flex items-center gap-3">
-          <span className="text-[11px] text-white/30 hidden sm:block truncate max-w-[180px]">
-            {user.email}
-          </span>
+        <div className="flex items-center gap-2">
           <button
-            onClick={signOut}
-            className="flex items-center gap-1.5 rounded-lg border border-white/8 px-2.5 py-1 text-[11px] text-white/35 transition-colors hover:text-white"
+            data-tour="adult-nav-canvas"
+            onClick={onOpenCanvas}
+            className="flex items-center gap-1.5 rounded-lg border border-rose-500/25 bg-rose-500/10 px-2.5 py-1 text-[11px] font-semibold text-rose-300 transition-colors hover:bg-rose-500/15"
           >
-            <LogOut size={11} /> Sign out
+            <LayoutGrid size={11} /> Canvas
           </button>
+          <button
+            onClick={onOpenConnect}
+            className="flex items-center gap-1.5 rounded-lg border border-white/8 px-2.5 py-1 text-[11px] text-white/45 transition-colors hover:text-white"
+          >
+            <Plug size={11} /> Connect
+          </button>
+          <div className="relative">
+            <button
+              onClick={() => setMenuOpen((v) => !v)}
+              className="flex items-center gap-1.5 rounded-lg border border-white/8 px-2.5 py-1 text-[11px] text-white/45 transition-colors hover:text-white"
+            >
+              <UserCircle2 size={12} />
+              <span className="hidden max-w-[180px] truncate sm:block">{user.email}</span>
+            </button>
+            {menuOpen && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} />
+                <div className="absolute right-0 top-[calc(100%+6px)] z-50 w-48 overflow-hidden rounded-xl border border-white/10 bg-[#110a14] shadow-2xl shadow-black/60">
+                  <button
+                    onClick={() => { setMenuOpen(false); onReplayTour(); }}
+                    className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-[11px] font-semibold text-white/70 hover:bg-white/5 hover:text-white"
+                  >
+                    <Sparkles size={12} className="text-rose-400" /> Replay onboarding tour
+                  </button>
+                  <button
+                    onClick={signOut}
+                    className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-[11px] font-semibold text-white/70 hover:bg-white/5 hover:text-white"
+                  >
+                    <LogOut size={12} /> Sign out
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
         </div>
       </header>
 

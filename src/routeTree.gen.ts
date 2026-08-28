@@ -65,6 +65,7 @@ import { Route as SceneBuilderRouteImport } from './routes/scene-builder'
 import { Route as SceneWeaverRouteImport } from './routes/scene-weaver'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
+import { Route as SoulRouteImport } from './routes/soul'
 import { Route as SpeechRouteImport } from './routes/speech'
 import { Route as SpinRouteImport } from './routes/spin'
 import { Route as SplitRealityRouteImport } from './routes/split-reality'
@@ -108,6 +109,10 @@ import { Route as GuidesIndexRouteImport } from './routes/guides.index'
 import { Route as GuidesSlugRouteImport } from './routes/guides.$slug'
 import { Route as LegalSlugRouteImport } from './routes/legal.$slug'
 import { Route as RTokenRouteImport } from './routes/r.$token'
+import { Route as SoulGenerateRouteImport } from './routes/soul.generate'
+import { Route as SoulLibraryRouteImport } from './routes/soul.library'
+import { Route as SoulTrainRouteImport } from './routes/soul.train'
+import { Route as SoulVibeRouteImport } from './routes/soul.vibe'
 import { Route as ApiAdminFeatureVisibilityRouteImport } from './routes/api/admin/feature-visibility'
 import { Route as ApiAdminRunSmokeStep14RouteImport } from './routes/api/admin/run-smoke-step14'
 import { Route as ApiAdminUploadImageRouteImport } from './routes/api/admin/upload-image'
@@ -139,6 +144,7 @@ import { Route as ApiPublicSiteImagesRouteImport } from './routes/api/public/sit
 import { Route as ApiPublicUptimeMonitorRouteImport } from './routes/api/public/uptime-monitor'
 import { Route as ApiPublicWatermarkImageRouteImport } from './routes/api/public/watermark-image'
 import { Route as ApiPublicWatermarkVideoRouteImport } from './routes/api/public/watermark-video'
+import { Route as ApiSoulFalWebhookRouteImport } from './routes/api/soul/fal-webhook'
 import { Route as ApiUgcLineImagesRouteImport } from './routes/api/ugc-line/images'
 import { Route as ApiUgcLineScriptsRouteImport } from './routes/api/ugc-line/scripts'
 import { Route as ApiUgcLineVariationsRouteImport } from './routes/api/ugc-line/variations'
@@ -148,6 +154,7 @@ import { Route as ApiVideoAgentGenerateRouteImport } from './routes/api/video-ag
 import { Route as ApiVideoAgentGenerateFrameRouteImport } from './routes/api/video-agent/generate-frame'
 import { Route as ApiVideoAgentGenerateScriptRouteImport } from './routes/api/video-agent/generate-script'
 import { Route as ApiVideoAgentSubmitRouteImport } from './routes/api/video-agent/submit'
+import { Route as SoulGenerateVideoRouteImport } from './routes/soul.generate.video'
 import { Route as ApiPublicCliVastRouteImport } from './routes/api/public/cli/vast'
 import { Route as ApiPublicGpuClaimRouteImport } from './routes/api/public/gpu/claim'
 import { Route as ApiPublicGpuCompleteRouteImport } from './routes/api/public/gpu/complete'
@@ -454,6 +461,11 @@ const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   path: '/sitemap.xml',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SoulRoute = SoulRouteImport.update({
+  id: '/soul',
+  path: '/soul',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/soul.lazy').then((d) => d.Route))
 const SpeechRoute = SpeechRouteImport.update({
   id: '/speech',
   path: '/speech',
@@ -694,6 +706,26 @@ const RTokenRoute = RTokenRouteImport.update({
   path: '/r/$token',
   getParentRoute: () => rootRouteImport,
 } as any).lazy(() => import('./routes/r.$token.lazy').then((d) => d.Route))
+const SoulGenerateRoute = SoulGenerateRouteImport.update({
+  id: '/generate',
+  path: '/generate',
+  getParentRoute: () => SoulRoute,
+} as any).lazy(() => import('./routes/soul.generate.lazy').then((d) => d.Route))
+const SoulLibraryRoute = SoulLibraryRouteImport.update({
+  id: '/library',
+  path: '/library',
+  getParentRoute: () => SoulRoute,
+} as any).lazy(() => import('./routes/soul.library.lazy').then((d) => d.Route))
+const SoulTrainRoute = SoulTrainRouteImport.update({
+  id: '/train',
+  path: '/train',
+  getParentRoute: () => SoulRoute,
+} as any).lazy(() => import('./routes/soul.train.lazy').then((d) => d.Route))
+const SoulVibeRoute = SoulVibeRouteImport.update({
+  id: '/vibe',
+  path: '/vibe',
+  getParentRoute: () => SoulRoute,
+} as any).lazy(() => import('./routes/soul.vibe.lazy').then((d) => d.Route))
 const ApiAdminFeatureVisibilityRoute =
   ApiAdminFeatureVisibilityRouteImport.update({
     id: '/api/admin/feature-visibility',
@@ -859,6 +891,11 @@ const ApiPublicWatermarkVideoRoute = ApiPublicWatermarkVideoRouteImport.update({
   path: '/api/public/watermark-video',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiSoulFalWebhookRoute = ApiSoulFalWebhookRouteImport.update({
+  id: '/api/soul/fal-webhook',
+  path: '/api/soul/fal-webhook',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiUgcLineImagesRoute = ApiUgcLineImagesRouteImport.update({
   id: '/api/ugc-line/images',
   path: '/api/ugc-line/images',
@@ -906,6 +943,13 @@ const ApiVideoAgentSubmitRoute = ApiVideoAgentSubmitRouteImport.update({
   path: '/api/video-agent/submit',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SoulGenerateVideoRoute = SoulGenerateVideoRouteImport.update({
+  id: '/video',
+  path: '/video',
+  getParentRoute: () => SoulGenerateRoute,
+} as any).lazy(() =>
+  import('./routes/soul.generate.video.lazy').then((d) => d.Route),
+)
 const ApiPublicCliVastRoute = ApiPublicCliVastRouteImport.update({
   id: '/api/public/cli/vast',
   path: '/api/public/cli/vast',
@@ -1053,6 +1097,7 @@ export interface FileRoutesByFullPath {
   '/scene-weaver': typeof SceneWeaverRoute
   '/settings': typeof SettingsRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/soul': typeof SoulRouteWithChildren
   '/speech': typeof SpeechRoute
   '/spin': typeof SpinRoute
   '/split-reality': typeof SplitRealityRoute
@@ -1095,6 +1140,10 @@ export interface FileRoutesByFullPath {
   '/guides/$slug': typeof GuidesSlugRoute
   '/legal/$slug': typeof LegalSlugRoute
   '/r/$token': typeof RTokenRoute
+  '/soul/generate': typeof SoulGenerateRouteWithChildren
+  '/soul/library': typeof SoulLibraryRoute
+  '/soul/train': typeof SoulTrainRoute
+  '/soul/vibe': typeof SoulVibeRoute
   '/admin/observability': typeof AdminObservabilityLazyRoute
   '/cli/': typeof CliIndexRoute
   '/guides/': typeof GuidesIndexRoute
@@ -1129,6 +1178,7 @@ export interface FileRoutesByFullPath {
   '/api/public/uptime-monitor': typeof ApiPublicUptimeMonitorRoute
   '/api/public/watermark-image': typeof ApiPublicWatermarkImageRoute
   '/api/public/watermark-video': typeof ApiPublicWatermarkVideoRoute
+  '/api/soul/fal-webhook': typeof ApiSoulFalWebhookRoute
   '/api/ugc-line/images': typeof ApiUgcLineImagesRoute
   '/api/ugc-line/scripts': typeof ApiUgcLineScriptsRoute
   '/api/ugc-line/variations': typeof ApiUgcLineVariationsRoute
@@ -1138,6 +1188,7 @@ export interface FileRoutesByFullPath {
   '/api/video-agent/generate-frame': typeof ApiVideoAgentGenerateFrameRoute
   '/api/video-agent/generate-script': typeof ApiVideoAgentGenerateScriptRoute
   '/api/video-agent/submit': typeof ApiVideoAgentSubmitRoute
+  '/soul/generate/video': typeof SoulGenerateVideoRoute
   '/api/public/cli/vast': typeof ApiPublicCliVastRoute
   '/api/public/gpu/claim': typeof ApiPublicGpuClaimRoute
   '/api/public/gpu/complete': typeof ApiPublicGpuCompleteRoute
@@ -1211,6 +1262,7 @@ export interface FileRoutesByTo {
   '/scene-weaver': typeof SceneWeaverRoute
   '/settings': typeof SettingsRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/soul': typeof SoulRouteWithChildren
   '/speech': typeof SpeechRoute
   '/spin': typeof SpinRoute
   '/split-reality': typeof SplitRealityRoute
@@ -1253,6 +1305,10 @@ export interface FileRoutesByTo {
   '/guides/$slug': typeof GuidesSlugRoute
   '/legal/$slug': typeof LegalSlugRoute
   '/r/$token': typeof RTokenRoute
+  '/soul/generate': typeof SoulGenerateRouteWithChildren
+  '/soul/library': typeof SoulLibraryRoute
+  '/soul/train': typeof SoulTrainRoute
+  '/soul/vibe': typeof SoulVibeRoute
   '/admin/observability': typeof AdminObservabilityLazyRoute
   '/cli': typeof CliIndexRoute
   '/guides': typeof GuidesIndexRoute
@@ -1287,6 +1343,7 @@ export interface FileRoutesByTo {
   '/api/public/uptime-monitor': typeof ApiPublicUptimeMonitorRoute
   '/api/public/watermark-image': typeof ApiPublicWatermarkImageRoute
   '/api/public/watermark-video': typeof ApiPublicWatermarkVideoRoute
+  '/api/soul/fal-webhook': typeof ApiSoulFalWebhookRoute
   '/api/ugc-line/images': typeof ApiUgcLineImagesRoute
   '/api/ugc-line/scripts': typeof ApiUgcLineScriptsRoute
   '/api/ugc-line/variations': typeof ApiUgcLineVariationsRoute
@@ -1296,6 +1353,7 @@ export interface FileRoutesByTo {
   '/api/video-agent/generate-frame': typeof ApiVideoAgentGenerateFrameRoute
   '/api/video-agent/generate-script': typeof ApiVideoAgentGenerateScriptRoute
   '/api/video-agent/submit': typeof ApiVideoAgentSubmitRoute
+  '/soul/generate/video': typeof SoulGenerateVideoRoute
   '/api/public/cli/vast': typeof ApiPublicCliVastRoute
   '/api/public/gpu/claim': typeof ApiPublicGpuClaimRoute
   '/api/public/gpu/complete': typeof ApiPublicGpuCompleteRoute
@@ -1370,6 +1428,7 @@ export interface FileRoutesById {
   '/scene-weaver': typeof SceneWeaverRoute
   '/settings': typeof SettingsRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/soul': typeof SoulRouteWithChildren
   '/speech': typeof SpeechRoute
   '/spin': typeof SpinRoute
   '/split-reality': typeof SplitRealityRoute
@@ -1412,6 +1471,10 @@ export interface FileRoutesById {
   '/guides/$slug': typeof GuidesSlugRoute
   '/legal/$slug': typeof LegalSlugRoute
   '/r/$token': typeof RTokenRoute
+  '/soul/generate': typeof SoulGenerateRouteWithChildren
+  '/soul/library': typeof SoulLibraryRoute
+  '/soul/train': typeof SoulTrainRoute
+  '/soul/vibe': typeof SoulVibeRoute
   '/admin/observability': typeof AdminObservabilityLazyRoute
   '/cli/': typeof CliIndexRoute
   '/guides/': typeof GuidesIndexRoute
@@ -1446,6 +1509,7 @@ export interface FileRoutesById {
   '/api/public/uptime-monitor': typeof ApiPublicUptimeMonitorRoute
   '/api/public/watermark-image': typeof ApiPublicWatermarkImageRoute
   '/api/public/watermark-video': typeof ApiPublicWatermarkVideoRoute
+  '/api/soul/fal-webhook': typeof ApiSoulFalWebhookRoute
   '/api/ugc-line/images': typeof ApiUgcLineImagesRoute
   '/api/ugc-line/scripts': typeof ApiUgcLineScriptsRoute
   '/api/ugc-line/variations': typeof ApiUgcLineVariationsRoute
@@ -1455,6 +1519,7 @@ export interface FileRoutesById {
   '/api/video-agent/generate-frame': typeof ApiVideoAgentGenerateFrameRoute
   '/api/video-agent/generate-script': typeof ApiVideoAgentGenerateScriptRoute
   '/api/video-agent/submit': typeof ApiVideoAgentSubmitRoute
+  '/soul/generate/video': typeof SoulGenerateVideoRoute
   '/api/public/cli/vast': typeof ApiPublicCliVastRoute
   '/api/public/gpu/claim': typeof ApiPublicGpuClaimRoute
   '/api/public/gpu/complete': typeof ApiPublicGpuCompleteRoute
@@ -1530,6 +1595,7 @@ export interface FileRouteTypes {
     | '/scene-weaver'
     | '/settings'
     | '/sitemap.xml'
+    | '/soul'
     | '/speech'
     | '/spin'
     | '/split-reality'
@@ -1572,6 +1638,10 @@ export interface FileRouteTypes {
     | '/guides/$slug'
     | '/legal/$slug'
     | '/r/$token'
+    | '/soul/generate'
+    | '/soul/library'
+    | '/soul/train'
+    | '/soul/vibe'
     | '/admin/observability'
     | '/cli/'
     | '/guides/'
@@ -1606,6 +1676,7 @@ export interface FileRouteTypes {
     | '/api/public/uptime-monitor'
     | '/api/public/watermark-image'
     | '/api/public/watermark-video'
+    | '/api/soul/fal-webhook'
     | '/api/ugc-line/images'
     | '/api/ugc-line/scripts'
     | '/api/ugc-line/variations'
@@ -1615,6 +1686,7 @@ export interface FileRouteTypes {
     | '/api/video-agent/generate-frame'
     | '/api/video-agent/generate-script'
     | '/api/video-agent/submit'
+    | '/soul/generate/video'
     | '/api/public/cli/vast'
     | '/api/public/gpu/claim'
     | '/api/public/gpu/complete'
@@ -1688,6 +1760,7 @@ export interface FileRouteTypes {
     | '/scene-weaver'
     | '/settings'
     | '/sitemap.xml'
+    | '/soul'
     | '/speech'
     | '/spin'
     | '/split-reality'
@@ -1730,6 +1803,10 @@ export interface FileRouteTypes {
     | '/guides/$slug'
     | '/legal/$slug'
     | '/r/$token'
+    | '/soul/generate'
+    | '/soul/library'
+    | '/soul/train'
+    | '/soul/vibe'
     | '/admin/observability'
     | '/cli'
     | '/guides'
@@ -1764,6 +1841,7 @@ export interface FileRouteTypes {
     | '/api/public/uptime-monitor'
     | '/api/public/watermark-image'
     | '/api/public/watermark-video'
+    | '/api/soul/fal-webhook'
     | '/api/ugc-line/images'
     | '/api/ugc-line/scripts'
     | '/api/ugc-line/variations'
@@ -1773,6 +1851,7 @@ export interface FileRouteTypes {
     | '/api/video-agent/generate-frame'
     | '/api/video-agent/generate-script'
     | '/api/video-agent/submit'
+    | '/soul/generate/video'
     | '/api/public/cli/vast'
     | '/api/public/gpu/claim'
     | '/api/public/gpu/complete'
@@ -1846,6 +1925,7 @@ export interface FileRouteTypes {
     | '/scene-weaver'
     | '/settings'
     | '/sitemap.xml'
+    | '/soul'
     | '/speech'
     | '/spin'
     | '/split-reality'
@@ -1888,6 +1968,10 @@ export interface FileRouteTypes {
     | '/guides/$slug'
     | '/legal/$slug'
     | '/r/$token'
+    | '/soul/generate'
+    | '/soul/library'
+    | '/soul/train'
+    | '/soul/vibe'
     | '/admin/observability'
     | '/cli/'
     | '/guides/'
@@ -1922,6 +2006,7 @@ export interface FileRouteTypes {
     | '/api/public/uptime-monitor'
     | '/api/public/watermark-image'
     | '/api/public/watermark-video'
+    | '/api/soul/fal-webhook'
     | '/api/ugc-line/images'
     | '/api/ugc-line/scripts'
     | '/api/ugc-line/variations'
@@ -1931,6 +2016,7 @@ export interface FileRouteTypes {
     | '/api/video-agent/generate-frame'
     | '/api/video-agent/generate-script'
     | '/api/video-agent/submit'
+    | '/soul/generate/video'
     | '/api/public/cli/vast'
     | '/api/public/gpu/claim'
     | '/api/public/gpu/complete'
@@ -2005,6 +2091,7 @@ export interface RootRouteChildren {
   SceneWeaverRoute: typeof SceneWeaverRoute
   SettingsRoute: typeof SettingsRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
+  SoulRoute: typeof SoulRouteWithChildren
   SpeechRoute: typeof SpeechRoute
   SpinRoute: typeof SpinRoute
   SplitRealityRoute: typeof SplitRealityRoute
@@ -2066,6 +2153,7 @@ export interface RootRouteChildren {
   ApiPublicUptimeMonitorRoute: typeof ApiPublicUptimeMonitorRoute
   ApiPublicWatermarkImageRoute: typeof ApiPublicWatermarkImageRoute
   ApiPublicWatermarkVideoRoute: typeof ApiPublicWatermarkVideoRoute
+  ApiSoulFalWebhookRoute: typeof ApiSoulFalWebhookRoute
   ApiUgcLineImagesRoute: typeof ApiUgcLineImagesRoute
   ApiUgcLineScriptsRoute: typeof ApiUgcLineScriptsRoute
   ApiUgcLineVariationsRoute: typeof ApiUgcLineVariationsRoute
@@ -2480,6 +2568,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SitemapDotxmlRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/soul': {
+      id: '/soul'
+      path: '/soul'
+      fullPath: '/soul'
+      preLoaderRoute: typeof SoulRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/speech': {
       id: '/speech'
       path: '/speech'
@@ -2788,6 +2883,34 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/soul/generate': {
+      id: '/soul/generate'
+      path: '/generate'
+      fullPath: '/soul/generate'
+      preLoaderRoute: typeof SoulGenerateRouteImport
+      parentRoute: typeof SoulRoute
+    }
+    '/soul/library': {
+      id: '/soul/library'
+      path: '/library'
+      fullPath: '/soul/library'
+      preLoaderRoute: typeof SoulLibraryRouteImport
+      parentRoute: typeof SoulRoute
+    }
+    '/soul/train': {
+      id: '/soul/train'
+      path: '/train'
+      fullPath: '/soul/train'
+      preLoaderRoute: typeof SoulTrainRouteImport
+      parentRoute: typeof SoulRoute
+    }
+    '/soul/vibe': {
+      id: '/soul/vibe'
+      path: '/vibe'
+      fullPath: '/soul/vibe'
+      preLoaderRoute: typeof SoulVibeRouteImport
+      parentRoute: typeof SoulRoute
+    }
     '/api/admin/feature-visibility': {
       id: '/api/admin/feature-visibility'
       path: '/api/admin/feature-visibility'
@@ -3005,6 +3128,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicWatermarkVideoRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/soul/fal-webhook': {
+      id: '/api/soul/fal-webhook'
+      path: '/api/soul/fal-webhook'
+      fullPath: '/api/soul/fal-webhook'
+      preLoaderRoute: typeof ApiSoulFalWebhookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/ugc-line/images': {
       id: '/api/ugc-line/images'
       path: '/api/ugc-line/images'
@@ -3067,6 +3197,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/api/video-agent/submit'
       preLoaderRoute: typeof ApiVideoAgentSubmitRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/soul/generate/video': {
+      id: '/soul/generate/video'
+      path: '/video'
+      fullPath: '/soul/generate/video'
+      preLoaderRoute: typeof SoulGenerateVideoRouteImport
+      parentRoute: typeof SoulGenerateRoute
     }
     '/api/public/cli/vast': {
       id: '/api/public/cli/vast'
@@ -3228,6 +3365,34 @@ const AdminRouteChildren: AdminRouteChildren = {
 
 const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
 
+interface SoulGenerateRouteChildren {
+  SoulGenerateVideoRoute: typeof SoulGenerateVideoRoute
+}
+
+const SoulGenerateRouteChildren: SoulGenerateRouteChildren = {
+  SoulGenerateVideoRoute: SoulGenerateVideoRoute,
+}
+
+const SoulGenerateRouteWithChildren = SoulGenerateRoute._addFileChildren(
+  SoulGenerateRouteChildren,
+)
+
+interface SoulRouteChildren {
+  SoulGenerateRoute: typeof SoulGenerateRouteWithChildren
+  SoulLibraryRoute: typeof SoulLibraryRoute
+  SoulTrainRoute: typeof SoulTrainRoute
+  SoulVibeRoute: typeof SoulVibeRoute
+}
+
+const SoulRouteChildren: SoulRouteChildren = {
+  SoulGenerateRoute: SoulGenerateRouteWithChildren,
+  SoulLibraryRoute: SoulLibraryRoute,
+  SoulTrainRoute: SoulTrainRoute,
+  SoulVibeRoute: SoulVibeRoute,
+}
+
+const SoulRouteWithChildren = SoulRoute._addFileChildren(SoulRouteChildren)
+
 interface ApiAudioMasterRouteChildren {
   ApiAudioMasterIdStatusRoute: typeof ApiAudioMasterIdStatusRoute
 }
@@ -3295,6 +3460,7 @@ const rootRouteChildren: RootRouteChildren = {
   SceneWeaverRoute: SceneWeaverRoute,
   SettingsRoute: SettingsRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
+  SoulRoute: SoulRouteWithChildren,
   SpeechRoute: SpeechRoute,
   SpinRoute: SpinRoute,
   SplitRealityRoute: SplitRealityRoute,
@@ -3356,6 +3522,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicUptimeMonitorRoute: ApiPublicUptimeMonitorRoute,
   ApiPublicWatermarkImageRoute: ApiPublicWatermarkImageRoute,
   ApiPublicWatermarkVideoRoute: ApiPublicWatermarkVideoRoute,
+  ApiSoulFalWebhookRoute: ApiSoulFalWebhookRoute,
   ApiUgcLineImagesRoute: ApiUgcLineImagesRoute,
   ApiUgcLineScriptsRoute: ApiUgcLineScriptsRoute,
   ApiUgcLineVariationsRoute: ApiUgcLineVariationsRoute,

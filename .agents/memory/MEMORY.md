@@ -1,3 +1,4 @@
+- [QA'ing a gated feature with a temp admin session](qa-gated-feature-with-temp-admin-session.md) — browser-use CLI isn't installed here; use Playwright + localStorage session injection to click through admin/auth-gated flows.
 - [Vite double-plugin cartographer crash](vite-double-plugin-cartographer.md) — replitPlugins in BOTH top-level plugins: AND vite.plugins runs cartographer twice → duplicate attrs → SSR/client mismatch → "Invalid hook call" crash.
 - [TanStack Nitro namespace exports](tanstack-nitro-namespace-exports.md) — keep TanStack Start server packages external in SSR/Nitro or bundled export-star namespaces can leave createRequestHandler unbound.
 - [TanStack package version alignment](tanstack-package-versions.md) — router-plugin version cadence differs from react-start; verify each on npm before bumping; routeTree.gen.ts auto-regenerates on new route file addition during dev (no manual edit needed).
@@ -130,7 +131,7 @@
 - [Previs Pro plate surfaces](previs-pro-surfaces.md) — free Pollinations plates vs paid "Upgrade plate" via reserveOrchestrateRecord; prompts read from stored state; chat plans have NO agent_sessions row.
 - [Design-system artifact dev runner](aurora-ds-dev-runner.md) — this repo is flat npm/bun, pnpm is NOT installed; artifact scaffolds defaulting to `pnpm --filter` must be switched to a per-artifact start-dev.sh (npm install + node vite) via verifyAndReplaceArtifactToml.
 - [Playwright e2e validation quirks](playwright-e2e-validation.md) — test.use reducedMotion ignored (use emulateMedia); manual newContext corrupts traces; webServer runs under /bin/sh (wrap bash -c); login lands on /home.
-- [Expo/Metro inotify watcher budget](expo-metro-inotify-budget.md) — container watch limit (65536) is unraisable & shared with the main vite server; expo ENOSPC = free watchers (kill tsserver/stale metro), don't just retry.
+- [Expo/Metro inotify watcher budget](expo-metro-inotify-budget.md) — 65536 watch limit unraisable & shared; ANY vite/metro ENOSPC = free watchers (kill tsserver, bracket-escape pkill), ignore *.tsbuildinfo — don't just retry.
 - [Supabase function privileges](supabase-function-privileges.md) — every new public fn ships anon-EXECUTABLE by default (credit RPCs need same-migration REVOKE); date-keyed dedup must pin `AT TIME ZONE 'utc'`.
 - [Docker daemon availability](docker-daemon-availability.md) — docker build WORKS in this container; validate Dockerfiles cheaply via `--target <stage>` builds from each supported context.
 - [Job progress semantics](job-progress-semantics.md) — provider pct bands 5–90 (seams 2/92), worker POSTs are job-absolute; processing+locked_by fences; claim stamps pct 2 to reset; reporter throttled/monotonic.
@@ -146,3 +147,4 @@
 - [Generation idempotency-key pattern](generation-idempotency-key-pattern.md) — optional key, dedicated claim table, claim/replay/reject/retry states; swallow success-write failures, throw failure-write failures.
 - [Ark CLI (BytePlus) on Replit](ark-cli-byteplus.md) — installed at .local/ark-cli with wrapper (global npm + home dir don't persist); SSO state symlinked into workspace; API-key-only mode needs ep- endpoint ids.
 - [Schema drift + open RLS discovery](supabase-schema-drift-and-open-rls-discovery.md) — a live table can have zero migration file AND fully permissive RLS (`USING (true)`) despite owning a user_id column; check both independently per table.
+- [GitHub mirror clone & force-push recovery](github-mirror-clone-and-forcepush-recovery.md) — LFS-over-quota kills fresh clones (GIT_LFS_SKIP_SMUDGE=1); Protect-head blocks deletes not FF pushes; force-pushes recur — backup ref + FF PR to restore.
