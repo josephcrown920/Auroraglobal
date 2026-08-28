@@ -1,6 +1,6 @@
 # Aurora worker — shared HTTP/contract layer.
 # The model repos (LatentSync, MimicMotion) bring their own heavier deps via
 # workers/setup.sh (torch, diffusers, etc.) — install those in the same env.
-requests>=2.31
+requests>=2.33
 fastapi>=0.110
 uvicorn[standard]>=0.29

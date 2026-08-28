@@ -1,0 +1,2291 @@
+Agentpilot sdk
+
+# Install the latest SDK
+pip install -U agent-pilot-sdk
+
+# Specify AGENTPILOT_API_KEY, AGENTPILOT_API_URL, and AGENTPILOT_WORKSPACE_ID
+# NOTE: If environment variables are not configured, you can also pass api_key, api_url, or workspace_id explicitly in each API call
+export AGENTPILOT_API_KEY=yyyyyyyy-yyyy-yyyy-yyyy-yyyyyyyyyyyy
+export AGENTPILOT_API_URL=https://prompt-pilot.ap-southeast.bytepluses.com
+export AGENTPILOT_WORKSPACE_ID=ws-zzzzzzzzzzzzzz-zzzzz
+
+# Optional: API Key for the ModelArk inference service; if you do not use the ModelArk inference service, do not set it
+# NOTE: Most SDK features below do not require the ModelArk inference service API Key
+export ARK_API_KEY=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+
+<div data-tips="true" data-tips-type="warning" data-tips-is-title="true">Note</div>
+
+
+<div data-tips="true" data-tips-type="warning">PromptPilot was upgraded on September 12, 2025 to support subscription orders for personal or team space plans. As a result, SDK requests must specify a target personal or team space.</div>
+
+
+<div data-tips="true" data-tips-type="warning"><strong>Key changes</strong> :</div>
+
+
+
+* <div data-tips="true" data-tips-type="warning">The <strong>workspace</strong> concept is introduced.</div>
+
+
+* <div data-tips="true" data-tips-type="warning">All SDK requests must include the <code>workspace_id</code> parameter to specify a personal or team workspace.</div>
+
+
+
+<div data-tips="true" data-tips-type="warning"><strong>Impact on SDK users</strong> :</div>
+
+
+
+* <div data-tips="true" data-tips-type="warning"><strong>New users</strong> : Subscribe to a workspace, obtain the API Key from the page, and get started with the SDK.</div>
+
+
+* <div data-tips="true" data-tips-type="warning"><strong>Existing users</strong> : If the SDK is already integrated into your product workflow, upgrade promptly to avoid impacting production services.</div>
+
+
+
+<div data-tips="true" data-tips-type="warning"><strong>Migration and compatibility strategy</strong> :</div>
+
+
+
+* <div data-tips="true" data-tips-type="warning"><strong>September 12–19</strong> :</div>
+
+
+
+<div data-tips="true" data-tips-type="warning">The legacy SDK (≤ v0.0.9) defaults to the personal workspace when <code>workspace_id</code> is not provided.</div>
+
+
+<div data-tips="true" data-tips-type="warning">After upgrading to the new SDK (≥ v0.0.9), use the <code>AGENTPILOT_WORKSPACE_ID</code> environment variable to specify a personal or team workspace. For <code>workspace_id</code> retrieval and configuration, see the documentation below.</div>
+
+
+
+* <div data-tips="true" data-tips-type="warning"><strong>After September 19</strong> : Legacy SDK (≤ v0.0.9) requests will be rejected. Complete plan purchase and workspace creation, and upgrade to the new SDK before that date.</div>
+
+
+
+<div data-tips="true" data-tips-type="warning">We also plan to support passing <code>workspace_id</code> directly through the Python API.</div>
+
+
+<div data-tips="true" data-tips-type="warning"><strong>How to upgrade</strong> :</div>
+
+
+<div data-tips="true" data-tips-type="warning">Upgrade the SDK to the latest version: <code>pip install -U agent-pilot-sdk</code>.</div>
+
+
+<div data-tips="true" data-tips-type="warning">Configure the environment variable <code>AGENTPILOT_WORKSPACE_ID</code> to point to a personal or team workspace.</div>
+
+
+<span id="7479c160"></span>
+# Overview
+
+AgentPilot SDK provides tools, APIs, and resources to streamline application development and help developers build agents. It integrates PromptPilot's core capabilities in a non\-intrusive and flexible way.
+
+<span id="04985e67"></span>
+## Features
+
+**The core value of the SDK** : through automated probing, **obtain high\-quality feedback data at low cost** , thereby building an efficient, sustainable model optimization loop. This closed loop helps the agent better adapt to the scaling law.
+
+
+* Reduce data collection costs
+
+* Help the Agent adapt to the Scaling Law
+
+
+Specifically, users can freely compose PromptPilot's internal atomic capabilities in a low\-intrusion and flexible way. The tools, APIs, and resources provided by the SDK simplify application development and help developers quickly integrate PromptPilot's core features, including but not limited to:
+
+
+|**Features** |**Brief description** |
+|---|---|
+|Task and prompt management |Manage tasks and prompts directly via the SDK, and read and list version information, model configuration, and scoring criteria. |
+|Closed\-loop data and feedback |Support a completion API compatible with the Ark client, enabling users to send data and feedback back to the PromptPilot page during inference. |
+|Prompt optimization and report retrieval |Submit prompt optimization tasks via the SDK and retrieve evaluation reports. |
+|Online evaluation |Submit custom evaluation requests and obtain results. Sending the results back is optional. |
+|Bad case detection |Determine which samples are bad cases based on the evaluation score and confidence, and label them on the console page. |
+|Prompt generation |Generate a prompt based on `task_description`. |
+
+
+<span id="f8b1b65d"></span>
+## Advantages
+
+Guided by design principles of ease of use, modularity, extensibility, and openness, we strive to ensure:
+
+
+* Low intrusion (ease of use): Modify only a few lines in existing agent or workflow code to implement the features listed in this document. Integration is simple.
+
+* Modularity: Use modules individually or in any combination, such as evaluation, backflow, feedback, and prompt optimization.
+
+* Extensibility and openness: Support multiple AI models, APIs, and multimodal data; seamlessly support open\-source frameworks such as LiteLLM, LangChain, and LlamaIndex for LLM or agent application development; and make it easy to extend use cases using existing capabilities.
+
+
+<span id="00693238"></span>
+## Core concepts
+
+**Tasks and versions (task and version)**  :
+
+The diagram below shows the mapping between the PromptPilot Console and the SDK. A task is typically created under a personal or team workspace, and it usually contains multiple prompt versions. Each version centers on a prompt and includes related version information, such as `task_id`, `version`, `prompt`, a variable list, evaluation criteria (`criteria`), the model name, and configurations such as `temperature` and `top_p`.
+
+To stream data back via the SDK, users typically include `workspace_id` (to specify a workspace), `task_id`, `version`, `AGENTPILOT_API_KEY` (authentication for the ingestion service), and `ARK_API_KEY` (model inference on ModelArk) in the request. This covers most operations.
+
+**Ingestion event (run)**  :
+
+If a model call is sampled, it produces one ingestion event. Each ingestion event corresponds to one row on the platform's Batch page.
+
+<span id="cb6ec355"></span>
+# Precautions
+
+
+* **Ingestion sampling rate** : The default sampling rate is 0.1, meaning each record has a 0.1 probability of being ingested. You can adjust it as needed.
+
+* **Ingestion data cap** : The default is 2,000 records. If the number of records under a given `task_id` and `version` exceeds 2,000, ingestion fails and the SDK call returns a log message. This limit aligns with the console page. To increase the limit, submit a [Ticket](https://console.byteplus.com/workorder/create?step=2&SubProductID=P00001514).
+
+* **Only the scoring mode for text understanding and visual understanding tasks is currently supported.**  If you need support for more task types, such as multi\-turn conversations and Tools, submit a [Ticket](https://console.byteplus.com/workorder/create?step=2&SubProductID=P00001514).
+
+* **`model_name`** ** is the model name plus version and must be a model supported in the model dropdown on the Prompt Generation page.**  If you need support for custom or third\-party endpoints, submit a [Ticket](https://console.byteplus.com/workorder/create?step=2&SubProductID=P00001514).
+
+
+<span id="f077223e"></span>
+# Getting started
+
+<span id="0e7f02da"></span>
+## Install and configure
+
+
+1. **Install the SDK and set relevant environment variables**
+
+   ```Bash
+   # Install the latest SDK
+   pip install -U agent-pilot-sdk
+   
+   # Specify AGENTPILOT_API_KEY, AGENTPILOT_API_URL, and AGENTPILOT_WORKSPACE_ID
+   # NOTE: If environment variables are not configured, you can also pass api_key, api_url, or workspace_id explicitly in each API call
+   export AGENTPILOT_API_KEY=yyyyyyyy-yyyy-yyyy-yyyy-yyyyyyyyyyyy
+   export AGENTPILOT_API_URL=https://prompt-pilot.ap-southeast.bytepluses.com
+   export AGENTPILOT_WORKSPACE_ID=ws-zzzzzzzzzzzzzz-zzzzz
+   
+   # Optional: API Key for the ModelArk inference service; if you do not use the ModelArk inference service, do not set it
+   # NOTE: Most SDK features below do not require the ModelArk inference service API Key
+   export ARK_API_KEY=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+   ```
+   
+
+2. **Get ** **`AGENTPILOT_API_KEY`** :
+
+   <div data-tips="true" data-tips-type="warning" data-tips-is-title="true" data-wrapper-indent="1">Note   </div>
+   
+
+   * <div data-tips="true" data-tips-type="warning" data-wrapper-indent="1">To obtain an API Key, upgrade your plan to Standard or Team, then follow the platform's process to complete the request.   </div>
+   
+
+   * <div data-tips="true" data-tips-type="warning" data-wrapper-indent="1">For security, your BytePlus account must complete identity verification before you can obtain an API Key.   </div>
+   
+
+   ```Plain Text
+    Click **API Key** on the left, and then click **Select to use** to copy your `AGENTPILOT_API_KEY`.
+   ```
+   
+
+   <span>![图片](https://p9-arcosite.byteimg.com/tos-cn-i-goo7wpa0wc/5eb85c06cae3457f830c64cc5a3fe373~tplv-goo7wpa0wc-image.image) </span>
+
+3. **Retrieve ** **`workspace_id`** ** [new 20250912]**  : SDK requests must be sent to a personal or team workspace.
+
+   ```Plain Text
+    After switching to a personal or team workspace on the PromptPilot page, the URL at the top contains text starting with `workspaceId=ws-zzzzzzzzzzzzzz-zzzzz`. `ws-zzzzzzzzzzzzzz-zzzzz` is the current `workspace_id`.
+   ```
+   
+
+   <span>![图片](https://p9-arcosite.byteimg.com/tos-cn-i-goo7wpa0wc/a0a1db2d19f944548474da7b90828d71~tplv-goo7wpa0wc-image.image) </span>
+
+4. **Retrieve ** **`task_id`**
+
+   [Standalone site entry](https://promptpilot.byteplus.com/) | [ModelArk version entry](https://console.byteplus.com/ark/region:ark+ap-southeast-1/autope/home)
+
+   Expand **Prompt Tuning** on the left, select a task type such as **Text understanding** , and click  **+**  at the top to create a new task. After the task is created, click **Task name** to open the **Task info** dialog and get the `task_id`. You can also extract it from the URL at the top.
+
+
+<span id="9e35e8d1"></span>
+## Jupyter notebook example
+
+After installing the SDK, run the sample code in the following Jupyter Notebook to simulate production prompt generation, collect data, evaluate in real time, feed data back, and optimize prompts.
+
+<Attachment link="https://p9-arcosite.byteimg.com/tos-cn-i-goo7wpa0wc/a7cc92742a8e49f280cf4fad3f6cf2ff~tplv-goo7wpa0wc-image.image" name="sdk_demo_open.ipynb">sdk_demo_open.ipynb</Attachment>
+
+
+**Step 1** : Create a new task in PromptPilot and upload the dataset. The `step_1_create_task_and_upload_short.xlsx` file simulates data that users upload to the platform.
+
+<Attachment link="https://p9-arcosite.byteimg.com/tos-cn-i-goo7wpa0wc/fa4076bf0cb9431db3537f7304db4be1~tplv-goo7wpa0wc-image.image" name="step_1_create_task_and_upload_short.xlsx">step_1_create_task_and_upload_short.xlsx</Attachment>
+
+
+**Step 2** : Run the notebook to use the SDK to implement a closed loop for data feedback. The `step_2_use_sdk_to_track_short.xlsx` file simulates data that users send to the platform via the feedback API.
+
+<Attachment link="https://p9-arcosite.byteimg.com/tos-cn-i-goo7wpa0wc/4861114bb5a7464b836242d0134f3c75~tplv-goo7wpa0wc-image.image" name="step_2_use_sdk_to_track_short.xlsx">step_2_use_sdk_to_track_short.xlsx</Attachment>
+
+
+<span id="4acce7ee"></span>
+# Detailed API list
+
+<div data-tips="true" data-tips-type="warning" data-tips-is-title="true">Note</div>
+
+
+<div data-tips="true" data-tips-type="warning"><strong>Note 1</strong> : For all APIs that accept <code>api_key</code> and <code>api_url</code>, if they are not specified or are passed as <code>None</code>, the system automatically reads <code>AGENTPILOT_API_KEY</code> and <code>AGENTPILOT_API_URL</code>.</div>
+
+
+<div data-tips="true" data-tips-type="warning"><strong>Note 2</strong> : We will also allow passing a specified <code>workspace_id</code> via the API in the near term.</div>
+
+
+<span id="c2beeaf3"></span>
+## 1. Task and prompt management
+
+<span id="fb8fd006"></span>
+### How to create a new task?
+
+<span id="d0dffaa8"></span>
+#### Text understanding
+
+```Python
+import agent_pilot as ap
+
+prompt_version = ap.create_task(
+    name="text_test_task",
+    task_type="DEFAULT",
+    prompt="This is a prompt for a text understanding task, which contains {{variable_1}} and {{variable_2}}",
+    model_name="seed-2-0-lite-260228",
+    criteria="This is a scoring criteria for a text understanding task, on a 5-point scale where 1 means completely wrong and 5 means completely correct. Please output a number between 1 and 5.",
+    api_key=None,
+    api_url=None,
+)
+
+print(prompt_version)
+```
+
+
+If successful, you will see a PromptVersion printed.
+
+```Bash
+task_id='ta-20250911214134-Mpfzy' version='v1' messages=[{'content': [{'text': 'This is a prompt for a text understanding task, which contains {{variable_1}} and {{variable_2}}', 'type': 'text'}], 'role': 'user'}] variable_names=['variable_1', 'variable_2'] model_name='seed-1.6-250615' temperature=1.0 top_p=0.7 criteria='This is a scoring criteria for a text understanding task, on a 5-point scale where 1 means completely wrong and 5 means completely correct. Please output a number between 1 and 5.' prompt='This is a prompt for a text understanding task, which contains {{variable_1}} and {{variable_2}}'
+```
+
+
+<span id="e2e5a036"></span>
+#### Visual understanding
+
+For visual understanding tasks, you also need to specify the type for each Variable.
+
+```Python
+import agent_pilot as ap
+
+prompt_version = ap.create_task(
+    name="test_visual_task",
+    task_type="MULTIMODAL",
+    prompt=[{
+        "role": "user",
+        "content": "Based on the text {{text_var}} and the image {{image_var}}, write a short story."}],
+    variable_types={
+        "text_var": "text",       # Variable name: variable type
+        "image_var": "image_url", # Variable name: variable type
+    },
+    model_name="seed-1.6-250615",
+    criteria="This is a scoring criteria for a visual understanding task, on a 5-point scale where 1 means completely wrong and 5 means completely correct",
+    api_key=None,
+    api_url=None,
+)
+
+print(prompt_version)
+```
+
+
+If successful, you will see a PromptVersion printed.
+
+```SQL
+task_id='ta-20250912130823-sPbH4' version='v1' messages=[{'role': 'user', 'content': [{'type': 'text', 'text': 'Based on the text {{text_var}} and the image '}, {'type': 'image_url', 'image_url': {'url': '{{image_var}}'}}, {'type': 'text', 'text': ' , write a short story.'}]}] variable_names=['text_var', 'image_var'] model_name='seed-1.6-250615' temperature=1.0 top_p=0.7 criteria='This is a scoring criteria for a visual understanding task, on a 5-point scale where 1 means completely wrong and 5 means completely correct' prompt='Based on the text {{text_var}} and the image '
+```
+
+
+<span id="ee09ceed"></span>
+#### Multi\-turn dialogue
+
+```Python
+import agent_pilot as ap
+
+prompt_version = ap.create_task(
+    name="test_dialog_task",
+    task_type="DIALOG",
+    prompt=[{
+        "role": "system",
+        "content": "You are an MBTI personality analysis expert, responsible for analyzing the user's MBTI personality based on the personal information provided by the user."}],
+    model_name="seed-2-0-lite-260228",
+    criteria="This is a scoring criteria for a multi-turn dialogue task, on a 5-point scale where 1 means completely wrong and 5 means completely correct. Please output a number between 1 and 5.",
+    api_key=None,
+    api_url=None,
+)
+
+print(prompt_version)
+```
+
+
+If successful, you will see a PromptVersion printed.
+
+```Bash
+task_id='ta-20250912131455-frsAN' version='v1' messages=[{'content': [{'text': 'You are an MBTI personality analysis expert, responsible for analyzing the user's MBTI personality based on the personal information provided by the user.', 'type': 'text'}], 'role': 'system'}] variable_names=[] model_name='seed-1.6-250615' temperature=1.0 top_p=0.7 criteria='This is a scoring criteria for a multi-turn dialogue task, on a 5-point scale where 1 means completely wrong and 5 means completely correct. Please output a number between 1 and 5.' prompt='You are an MBTI personality analysis expert, responsible for analyzing the user's MBTI personality based on the personal information provided by the user.'
+```
+
+
+<div data-tips="true" data-tips-type="warning" data-tips-is-title="true">Note</div>
+
+
+<div data-tips="true" data-tips-type="warning">For multi\-turn conversation tasks, the prompt role is "system"; this differs from text understanding and visual understanding tasks, where the role is "user".</div>
+
+
+<div data-tips="true" data-tips-type="warning"><code>model_name</code> is the Model ID. View <a href="https://docs.byteplus.com/en/docs/ModelArk/1330310">Model list</a> to obtain it.</div>
+
+
+<span id="3b7e7ed6"></span>
+### How do I view details for a specific prompt version?
+
+Call the `ap.get_prompt()` API and enter `task_id` and `version` to get the details for that version, as follows:
+
+```Python
+import agent_pilot as ap
+
+prompt_version = ap.get_prompt(task_id="ta-20250101000000-aaaaa", version="v1", api_key=None, api_url=None)
+
+print(prompt_version)
+```
+
+
+If successful, you will see a prompt version.
+
+```Bash
+task_id='ta-20250912131455-frsAN' version='v1' messages=[{'content': [{'text': 'You are an MBTI personality analysis expert, responsible for analyzing the user's MBTI personality based on the personal information provided by the user.', 'type': 'text'}], 'role': 'system'}] variable_names=[] model_name='seed-1.6-250615' temperature=1.0 top_p=0.7 criteria='This is a scoring criteria for a multi-turn dialogue task, on a 5-point scale where 1 means completely wrong and 5 means completely correct. Please output a number between 1 and 5.' prompt='You are an MBTI personality analysis expert, responsible for analyzing the user's MBTI personality based on the personal information provided by the user.'
+```
+
+
+<span id="7e963595"></span>
+### How do I list all versions under a task?
+
+Call the `ap.list_prompts()` API. Only `task_id` is required.
+
+```Python
+import agent_pilot as ap
+
+prompt_versions = ap.list_prompts(task_id="ta-20250101000000-aaaaa", api_key=None, api_url=None)
+print(prompt_versions)
+```
+
+
+If successful, you will see a prompt version list.
+
+```Bash
+[PromptVersion(task_id='ta-20250912131455-frsAN', version='v1', messages=[{'content': [{'text': 'You are an MBTI personality analysis expert, responsible for analyzing the user's MBTI personality based on the personal information provided by the user.', 'type': 'text'}], 'role': 'system'}], variable_names=[], model_name='seed-1.6-250615', temperature=1.0, top_p=0.7, criteria='This is a scoring criteria for a multi-turn dialogue task, on a 5-point scale where 1 means completely wrong and 5 means completely correct. Please output a number between 1 and 5.', prompt='You are an MBTI personality analysis expert, responsible for analyzing the user's MBTI personality based on the personal information provided by the user.')]
+```
+
+
+<span id="ea08d73e"></span>
+### How do I obtain metrics information?
+
+Call the `ap.get_metric()` API. Only `task_id` is required.
+
+```Python
+import agent_pilot as ap
+
+metric = ap.get_metric(task_id="ta-20250101000000-aaaaa", version="v2", api_key=None, api_url=None)
+print(metric.criteria)
+```
+
+
+If successful, you will see the current scoring criteria.
+
+```Bash
+This is a scoring criteria for a multi-turn dialogue task, on a 5-point scale where 1 means completely wrong and 5 means completely correct. Please output a number between 1 and 5.
+```
+
+
+<span id="3696b91a"></span>
+## 2. Data reporting and feedback
+
+<span id="cef986a1"></span>
+### How do I create an Ark client that can report data back?
+
+Call the `ap.probing()` API to apply a patch to an Ark client. After that, the client can be used for model inference calls and can also send data back to a specific task in the console.
+
+```Python
+import agent_pilot as ap
+from byteplussdkarkruntime import Ark
+import os
+
+# Create client
+client = Ark(api_key=os.getenv('ARK_API_KEY'))
+ap.probing(object=client)
+```
+
+
+<span id="b1e75ce6"></span>
+### How do I automatically report data?
+
+Call `ap.render()` to render `task_id`, `version`, and variables, obtain the rendered `input_dict`, and pass it to the Ark client when calling the completion API. The system automatically retrieves the corresponding prompt version, assembles it into the input of the LLM inference request, and obtains the model answer. The completion API for LLM requests is compatible with the Ark client.
+
+```Python
+import agent_pilot as ap
+from byteplussdkarkruntime import Ark
+import os
+
+# Create client
+client = Ark(api_key=os.getenv('ARK_API_KEY'))
+ap.probing(object=client, sample_rate=1.0)
+
+# Render input for the inference request
+input_dict = ap.render(
+    task_id="ta-20250101000000-aaaaa",
+    version="v1",
+    variables={
+        "variable_1": "Content of variable 1",
+        "variable_2": "Content of variable 2",
+    },
+    api_key=None,
+    api_url=None,
+)
+
+# Call Model inference, as with the ModelArk SDK
+completion = client.chat.completions.create(model='seed-1.6-250615', **input_dict)
+
+# Optional step: flush pending event messages in the queue and send them immediately. If you don't flush, the system automatically backfills in small scheduled batches to improve performance
+ap.flush()
+
+# Print the completion result
+print(completion.choices[0].message)
+
+# Print the event run_id, which corresponds to a row on the Batch page and is used for subsequent tracking, editing, and overwriting data
+print(completion.run.id)
+```
+
+
+If successful, you will see the model completion and the `run_id` of this data record. At this point, log in to the console page to view a newly added data record, including variables and the model answer.
+
+```Markdown
+ChatCompletionMessage(content='Here is a scoring criteria for a text understanding task, with a 5-point scale where 1 means completely wrong and 5 means completely correct. Please output a number between 1 and 5', role='assistant', function_call=None, tool_calls=None, audio=None, reasoning_content='\nThe user now provides a prompt: "This is a prompt for a text understanding task, which contains the content of variable 1 and variable 2". It seems that the user may want me to generate a specific text understanding task prompt based on this information, or need me to explain how to handle such a prompt containing variables? First, I need to clarify the user\'s requirements. The user might be constructing a prompt template that requires dynamic replacement of variables, where variable 1 and variable 2 represent different text contents, and the task is to make the model understand the content of these two variables and complete a certain task, such as comparison, summarization, answering questions, etc.\n\nFirst, I should consider common types of text understanding tasks, such as text classification, sentiment analysis, entity recognition, relationship extraction, question answering, summarization, text matching, etc. Then, variables 1 and 2 may be inputs in the task, for example, variable 1 is "text to be analyzed" and variable 2 is "a question" or "another text to be compared".\n\nFor instance, if the task is question answering, the possible prompt structure could be: "Please answer the question based on the following text (variable 1). Text: {variable 1} Question: {variable 2} Answer:". If it is text comparison, it might be: "Compare the following two texts (variable 1 and variable 2), pointing out their similarities and differences. Text 1: {variable 1} Text 2: {variable 2} Similarities: Differences:".\n\nThe user may want me to provide a specific example showing how to incorporate variables 1 and 2 into a text understanding task prompt. Therefore, I need to first determine a specific text understanding task type, then define the roles of variables 1 and 2, and construct a complete prompt template.\n\nIn addition, the user may not have clearly stated the task type, so I might need to ask about the task type first, but based on the current information, I may need to assume a common task to give an example. For example, question answering is a relatively common task, or text summarization.\n\nAssuming the task is question answering, then variable 1 is "context text" and variable 2 is "question". Then the prompt could be: "Please answer the question based on the following context text. Context: {variable 1} Question: {variable 2} Please directly give the answer without additional explanation."\n\nOr if it is text summarization, variable 1 is "text to be summarized" and variable 2 is "summary requirements". Then the prompt could be: "Summarize the following text (variable 1) according to the requirements (variable 2). Text: {variable 1} Requirements: {variable 2} Summary:".\n\nAlternatively, if the task is text matching, to determine whether two texts are related, variables 1 and 2 are two texts, and the prompt could be: "Determine whether the following two texts are related (related/unrelated). Text A: {variable 1} Text B: {variable 2} Are they related:".\n\nIn summary, the user may need an example of a text understanding task prompt containing variables 1 and 2, clearly indicating the positions of the variables and the task requirements. Therefore, I should provide a specific example showing how variables are integrated and what the task is, so that the user can adjust it according to their actual task.', function_call=None, tool_calls=None, audio=None, reasoning_content='\nThe user now provides a prompt: "This is a prompt for a text understanding task, which contains the content of variable 1 and variable 2". It seems that the user may want me to generate a specific text understanding task prompt based on this information, or need me to explain how to handle such a prompt containing variables? First, I need to clarify the user\'s requirements. The user might be constructing a prompt template that requires dynamic replacement of variables, where variable 1 and variable 2 represent different text contents, and the task is to make the model understand the content of these two variables and complete a certain task, such as comparison, summarization, answering questions, etc.\n\nFirst, I should consider common types of text understanding tasks, such as text classification, sentiment analysis, entity recognition, relationship extraction, question answering, summarization, text matching, etc. Then, variables 1 and 2 may be inputs in the task, for example, variable 1 is "text to be analyzed" and variable 2 is "a question" or "another text to be compared".\n\nFor instance, if the task is question answering, the possible prompt structure could be: "Please answer the question based on the following text (variable 1). Text: {variable 1} Question: {variable 2} Answer:". If it is text comparison, it might be: "Compare the following two texts (variable 1 and variable 2), pointing out their similarities and differences. Text 1: {variable 1} Text 2: {variable 2} Similarities: Differences:".\n\nThe user may want me to provide a specific example showing how to incorporate variables 1 and 2 into a text understanding task prompt. Therefore, I need to first determine a specific text understanding task type, then define the roles of variables 1 and 2, and construct a complete prompt template.\n\nIn addition, the user may not have clearly stated the task type, so I might need to ask about the task type first, but based on the current information, I may need to assume a common task to give an example. For example, question answering is a relatively common task, or text summarization.\n\nAssuming the task is question answering, then variable 1 is "context text" and variable 2 is "question". Then the prompt could be: "Please answer the question based on the following context text. Context: {variable 1} Question: {variable 2} Please directly give the answer without additional explanation."\n\nOr if it is text summarization, variable 1 is "text to be summarized" and variable 2 is "summary requirements". Then the prompt could be: "Summarize the following text (variable 1) according to the requirements (variable 2). Text: {variable 1} Requirements: {variable 2} Summary:".\n\nAlternatively, if the task is text matching, to determine whether two texts are related
+```
+
+
+Note: For visual understanding tasks, interleaved prompt text content is supported, and variables can be of type `text` or `image_url`. When rendering a variable, pass the corresponding text content and `image_url`.
+
+```Python
+import agent_pilot as ap
+
+input_dict = ap.render(
+    task_id="ta-20250101000000-aaaaa",
+    version="v2",
+    variables={
+        "text_var": "text content",
+        "image_var": "https://www.image.com/1.jpg",
+    },
+    api_key=None,
+    api_url=None,
+)
+```
+
+
+<span id="b5a30de2"></span>
+### How do I manually write back data?
+
+In addition to automatically writing back data via the completion API, the SDK also lets you write back data manually. You can also override data after the automatic write\-back, such as adding an ideal answer (reference) or updating variables.
+
+```Python
+import agent_pilot as ap
+from byteplussdkarkruntime import Ark
+import os
+import time
+import uuid
+
+# Create a run_id or obtain the run_id of a backfill event from the above completion API response
+run_id = str(uuid.uuid4())
+task_id = "ta-20250101000000-aaaaa"
+version = "v1"
+
+# Backfill or overwrite the row of data corresponding to a run_id
+ap.track_event(
+    run_type="llm",
+    event_name="reference",  # Backfill event name; any name is acceptable
+    run_id=run_id,
+    task_id=task_id,
+    version=version,
+    variables={
+        "variable_1": "Content of variable 1",
+        "variable_2": "Content of variable 2",
+    },
+    input_messages=[{"role": "user", "content": "This is a model input"}],
+    output_message={"role": "user", "content": "This is a model output"},
+    reference="This is a reference answer",
+    api_key=None,
+    api_url=None,
+)
+ap.flush()
+```
+
+
+<span id="82309378"></span>
+### How do I provide human feedback scores?
+
+After applying the patch, the Ark client is almost identical to the standard Ark completion API, except that the inference return value `completion` carries a write\-back event (`run`) as the unique identifier (`run.id`) for subsequent tracking (`track`) of a data record. As long as you have this identifier, you can append follow\-up actions, such as adding human scores and AI scores.
+
+Continue from the code above: call the `ap.track_feedback()` API and pass a feedback dict. Provide human scoring data through the `human_score`, `human_analysis`, and `human_confidence` fields. After ingestion, log in to the console to view the record mentioned above; it now includes the score and scoring reason. This feature aligns with the console's manual scoring feature.
+
+```Python
+import agent_pilot as ap
+from byteplussdkarkruntime import Ark
+import os
+
+# Create the client
+client = Ark(api_key=os.getenv('ARK_API_KEY'))
+ap.probing(object=client, sample_rate=1.0)
+
+# Render the inference request input
+input_dict = ap.render(
+    task_id="ta-20250101000000-aaaaa",
+    version="v1",
+    variables={
+        "variable_1": "Content of variable 1",
+        "variable_2": "Content of variable 2",
+    },
+    api_key=None,
+    api_url=None,
+)
+
+# Call Model inference, same as the ModelArk SDK
+completion = client.chat.completions.create(model='seed-1.6-250615', **input_dict)
+
+# Optional step: flush pending event messages in the queue and send them immediately. If you don't flush, the system automatically flushes small batches on a schedule to improve performance
+ap.flush()
+
+# Print completion results
+print(completion.choices[0].message)
+
+# Print the event run_id, which corresponds to a row on the Batch page and can be used for subsequent tracking, editing, or overwriting data
+print(completion.run.id)
+
+# Get the unique identifier run.id of the above event run
+run = completion.run
+if run is not None:
+    print(run.task_id)
+    print(run.version)
+    print(run.id)
+
+# Track and add human feedback scores
+ap.track_feedback(
+    task_id=run.task_id,
+    version=run.version,
+    run_id=run.id,
+    feedback={
+        "human_score": 5,
+        "human_analysis": "The reason for manual scoring of this data",
+        "human_confidence": 1.0,
+    },
+)
+
+ap.flush()
+```
+
+
+If it runs successfully, log in to the Batch page under this task in PromptPilot; you will see that the ingested data now includes the score and scoring reason.
+
+<span id="40048548"></span>
+## 3. Online evaluation
+
+<span id="03d5573c"></span>
+### How do I submit an online evaluation request?
+
+Call the `ap.eval.evaluate()` API. Enter an example and a metric, both dicts, and provide the relevant fields.
+
+```Python
+import agent_pilot as ap
+
+# Samples to evaluate
+example = {
+    "prompt": "This is a prompt template, it contains {{variable_1}} and {{variable_2}}",
+    "variables": {
+        "variable_1": "Content of variable 1",
+        "variable_2": "Content of variable 2",
+    },
+    "response": "Content of model response",
+}
+
+# Scoring criteria
+metric = {
+    "criteria": "The text is fluent and logically clear. Obtaining 5 points if the response content is sufficient and there are no obvious omissions; otherwise, output the number 1."
+}
+
+# Run evaluation
+result = ap.eval.evaluate(
+    example=example,
+    metric=metric,
+    api_key=None,
+    api_url=None,
+)
+print(result)
+```
+
+
+If successful, you will see the following output.
+
+```Bash
+example_id=None
+reference=None
+score=1
+analysis="The task question did not clearly specify the requirements. The model's response did not reflect the processing of the content of variable 1 and variable 2. The response content was insufficient and there were obvious omissions, failing to meet the requirement in the evaluation criteria that the response content should be sufficient and have no obvious omissions. Therefore, the score is 1."
+confidence=0.9
+```
+
+
+Specifically, we provide the following optional parameters:
+
+
+* `example_id`: Users can specify this ID to map each sample to its evaluation result one\-to\-one, making lookup easier.
+
+* `reference`: If the scoring criteria (`criteria`) requires comparing the model answer with a reference answer, use this field to pass the sample's reference answer. For example, `criteria`: "The model answer matches the reference answer."
+
+   ```Python
+   import agent_pilot as ap
+   
+   # Samples to evaluate
+   example = {
+       "example_id": "ex_id_1",                  # Optional
+       "prompt": "This is a prompt template, which contains {{variable_1}} and {{variable_2}}",
+       "variables": {
+           "variable_1": "Content of variable 1",
+           "variable_2": "Content of variable 2",
+       },
+       "response": "Model response content",
+       "reference": "Reference answer content",               # Optional
+   }
+   
+   # Scoring criteria
+   metric = {
+       "criteria": "The model's response is consistent with the reference answer, score 5, output the number 5. Otherwise, output the number 1."
+   }
+   
+   # Invoke evaluation
+   result = ap.eval.evaluate(
+       example=example,
+       metric=metric,
+       api_key=None,
+       api_url=None,
+   )
+   print(result)
+   ```
+   
+
+
+If successful, you will see the following output.
+
+```Bash
+example_id='ex_id_1'
+reference='Reference answer content'
+score=1
+analysis='The content of the model\'s response is inconsistent with the reference answer. According to the evaluation criteria, it should get a score of 1.'
+confidence=1.0
+```
+
+
+In addition, for users' convenience, we also support the following two ways to build samples.
+
+
+* Enter via the `messages` field, aligned with the Ark client's `messages` field API.
+
+* Enter via the `input` field to ask the LLM directly.
+
+
+```Python
+import agent_pilot as ap
+
+
+# Scoring criteria
+metric = {
+    "criteria": "The text is fluent and logically clear. If the response content is sufficient and there are no obvious omissions, score 5 and output the number 5. Otherwise, output the number 1."
+}
+
+# Enter directly via the messages field to align with the Ark client's messages field API
+example = {
+    "messages": [
+        {"role": "system", "content": "You are a polite and friendly ordering robot, helping users place orders."},
+        {"role": "user", "content": "How spicy is your boiled fish?"},
+        {"role": "assistant", "content": "Hello, you can choose mild, medium, or spicy."},
+        {"role": "user", "content": "Please give me a mild one."},
+    ],
+    "response": "Okay, a mild spicy boiled fish, I've placed your order for you, please wait a moment."
+}
+
+# Invoke evaluation
+result = ap.eval.evaluate(
+    example=example,
+    metric=metric,
+    api_key=None,
+    api_url=None,
+)
+print(result)
+
+# Enter via the input field to ask the model directly
+example = {
+    "input": "This is a prompt template, it has the content of variable 1 and variable 2",
+    "response": "Model response content"
+}
+
+# Invoke evaluation
+result = ap.eval.evaluate(
+    example=example,
+    metric=metric,
+    api_key=None,
+    api_url=None
+)
+print(result)
+```
+
+
+If successful, you can see the evaluation results for the two examples above.
+
+```Bash
+example_id=None
+reference=None
+score=1
+analysis="Although the model's response is fluent in text expression and logically clear, as a polite and courteous ordering robot, the response content is insufficient, did not reflect a polite and courteous attitude, and there were obvious omissions. Therefore, according to the evaluation criteria, a score of 1 is given."
+confidence=1.0
+example_id=None
+reference=None
+score=1
+analysis="The task question did not clearly specify the requirements, and the model's response 'Model response content' did not reflect relevant elaboration on the content of variables 1 and 2. The response content was insufficient and there were obvious omissions, so a score of 1 is given."
+confidence=0.9
+```
+
+
+<span id="1ac4d879"></span>
+### How do I feed back the AI score?
+
+The process is the same as feeding back human scores: track the event using the unique identifier (`run.id`) of the feedback event (`run`), then call the `ap.track_feedback()` API and pass feedback to add the AI score.
+
+Unlike human scores, the AI score requires passing the `human_score`, `human_analysis`, and `human_confidence` fields as feedback. After feedback is sent, log in to the console page to see that the sample corresponding to `run.id` has updated its score and scoring reason, and the label "AI Score" is displayed next to it. This feature aligns with the intelligent scoring feature on the console page.
+
+```Python
+import agent_pilot as ap
+from byteplussdkarkruntime import Ark
+import os
+import time
+
+# Create client
+client = Ark(api_key=os.getenv('ARK_API_KEY'))
+ap.probing(object=client, sample_rate=1.0)
+
+# Render the inference request input
+input_dict = ap.render(
+    task_id="ta-20250101000000-aaaaa",
+    version="v1",
+    variables={
+        "variable_1": "Content of variable 1",
+        "variable_2": "Content of variable 2",
+    },
+)
+
+# Invoke Model inference, same as with the ModelArk SDK
+completion = client.chat.completions.create(model='1.5-pro-32k-250115', **input_dict)
+print(completion.choices[0].message)
+
+run = completion.run
+
+if run is not None:
+    result = ap.eval.evaluate(
+        example={
+            "example_id": "example_id_1",
+            "input": input_dict["messages"][0]["content"][0]["text"],
+            "response": completion.choices[0].message.content,
+        },
+        metric={
+            "criteria": "The text is fluent and logically clear. If the response content is sufficient and there are no obvious omissions, score 5 and output the number 5. Otherwise, output the number 1."
+        },
+        api_key=None,
+        api_url=None,
+    )
+    print(result)
+
+    ap.track_feedback(
+        task_id=run.task_id,
+        version=run.version,
+        run_id=run.id,
+        feedback={
+            "metric_score": result.score,
+            "metric_analysis": result.analysis,
+            "metric_confidence": result.confidence,
+        },
+    )
+
+    ap.flush()
+```
+
+
+If the run succeeds, log in to PromptPilot and go to the Batch page for this task. You will see that the returned data includes the score and scoring reason, and the score is labeled "AI Score".
+
+<span id="23269e4c"></span>
+### How do I generate scoring criteria?
+
+Call the `ap.eval.generate_criteria()` API to generate scoring criteria by passing a sample list `examples`, where each element of `examples` is an example dict. This feature aligns with scoring criteria generation in intelligent scoring.
+
+Specifically, each sample in the list can include `score` and `analysis` (scoring reason). When generating scoring criteria, the system does not distinguish between human scores and AI scores.
+
+```Python
+import agent_pilot as ap
+
+# Sample list
+examples = [
+    {
+        "prompt": "This is a prompt template, it contains {{variable_1}} and {{variable_2}}",
+        "variables": {
+            "variable_1": "Content of variable 1 in sample 1",
+            "variable_2": "Content of variable 2 in sample 1",
+        },
+        "response": "Model response 1",
+        "reference": "Reference answer 1",            # Optional
+        "score": 5,                         # Optional
+        "analysis": "Scoring reason 1",             # Optional
+    },
+    {
+        "prompt": "This is a prompt template, it contains {{variable_1}} and {{variable_2}}",
+        "variables": {
+            "variable_1": "Content of variable 1 in sample 2",
+            "variable_2": "Content of variable 2 in sample 2",
+        },
+        "response": "Model response 2",
+        "reference": "Reference answer 2",            # Optional
+        "score": 1,                         # Optional
+        "analysis": "Scoring reason 2",             # Optional
+    },
+]
+
+criteria = ap.eval.generate_criteria(
+    examples=examples,
+    api_key=None,
+    api_url=None,
+)
+print(criteria)
+```
+
+
+If successful, you will get the following scoring criteria:
+
+```Bash
+The model's response is completely inconsistent with the user's input requirements and contains serious errors, scoring 1.
+The model's response partially fails to meet key requirements or has many minor issues, scoring 2.
+The model's response basically meets the user's input requirements but has some minor flaws, with the format basically conforming to the requirements, scoring 3.
+The model's response is accurate and complete, with a standard format, and exceeds basic requirements in some aspects, scoring 4.
+The model's response perfectly meets the user's input requirements in both content and format, with additional highlights, scoring 5.
+```
+
+
+<span id="1a9bb182"></span>
+## 4. Prompt optimization and report retrieval
+
+<span id="a318f616"></span>
+### How do I submit a prompt optimization task?
+
+Call the `ap.optimize.create()` API, pass `task_id`, and specify `base_version`. The system creates an optimization job and associates an `OptimizeJob` object, `opt_job`. The object includes `job_id`, which serves as the optimization job's unique identifier.
+
+```Python
+import agent_pilot as ap
+import time
+
+# Call ap.optimize.create() to create an optimization job
+opt_job = ap.optimize.create(task_id="ta-20250101000000-aaaaa", base_version="v1", api_key=None, api_url=None)
+print(opt_job)
+```
+
+
+If successful, you will see the following optimization job information.
+
+```SQL
+task_id='ta-20250912125011-WDAtF' base_version='v1' job_id='20250912145806_gqynL_OptimizePrompt' api_key='XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX' api_url='https://prompt-pilot.ap-southeast.bytepluses.com' local_debug=False optimized_version=None
+```
+
+
+<span id="a7854090"></span>
+### How do I view optimization status and progress?
+
+Using the `opt_job` object, call `opt_job.get_job_info()` to view the current optimization job information, including state and progress.
+
+
+* When optimization finishes, `state` is one of `{ap.OptimizeState.SUCCESS, ap.OptimizeState.FAILED}`. If it is neither, wait briefly and query again.
+
+* While optimization is running, `state` is one of `{ap.OptimizeState.CREATED, ap.OptimizeState.RUNNING}`.
+
+
+Continuing from the code above, query the optimization job information every 5 seconds:
+
+```Python
+import agent_pilot as ap
+import time
+
+# Call ap.optimize.create() to create an optimization job
+opt_job = ap.optimize.create(task_id="ta-20250101000000-aaaaa", base_version="v1", api_key=None, api_url=None)
+print(opt_job)
+
+# Query JobInfo via the opt_job object
+job_info = opt_job.get_job_info()
+while job_info.state not in {ap.OptimizeState.SUCCESS, ap.OptimizeState.FAILED}:
+    # View the current state
+    print(job_info.state)
+    # View the current progress
+    if job_info.progress is not None:
+        print(job_info.progress.percent)         # Current optimization job completion percentage
+        print(job_info.progress.optimal_prompt)  # Current optimal prompt
+        print(job_info.optimized_version)
+
+    # Re-fetch JobInfo after 5 seconds
+    time.sleep(5)
+    job_info = opt_job.get_job_info()
+
+# After the optimization job completes, the status is SUCCESS or FAILED
+print(job_info.state in {ap.OptimizeState.SUCCESS, ap.OptimizeState.FAILED})
+```
+
+
+If successful, you will see logs refreshing every 5 seconds.
+
+```YAML
+INFO:agent_pilot.optimize.optimize_job:Starting optimization for task_id: ta-20250912125011-WDAtF, version: v1
+INFO:agent_pilot.http_client:[post] request_id: xxxxxxxx-0dac-4775-b686-fcecc5f08674, api_url: https://prompt-pilot.ap-southeast.bytepluses.com, action: OptimizeServiceStartOptimize
+INFO:agent_pilot.optimize.optimize_job:Optimization started successfully. OptimizeJobId: 20250912150037_P3Cnj_OptimizePrompt
+task_id='ta-20250912125011-WDAtF' base_version='v1' job_id='20250912150037_P3Cnj_OptimizePrompt' api_key='XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX' api_url='https://prompt-pilot.ap-southeast.bytepluses.com' local_debug=False optimized_version=None
+INFO:agent_pilot.optimize.optimize_job:Getting optimization progress for OptimizeJobId: 20250912150037_P3Cnj_OptimizePrompt
+INFO:agent_pilot.http_client:[post] request_id: xxxxxxxx-5b67-4462-b7dd-ffac8feddd2f, api_url: https://prompt-pilot.ap-southeast.bytepluses.com, action: OptimizeServiceGetOptimizeProgress
+INFO:agent_pilot.optimize.optimize_job:Successfully fetched optimization progress for OptimizeJobId: 20250912150037_P3Cnj_OptimizePrompt
+OptimizeState.CREATED
+INFO:agent_pilot.optimize.optimize_job:Getting optimization progress for OptimizeJobId: 20250912150037_P3Cnj_OptimizePrompt
+INFO:agent_pilot.http_client:[post] request_id: xxxxxxxx-9c24-4714-bfc0-841ee964833b, api_url: https://prompt-pilot.ap-southeast.bytepluses.com, action: OptimizeServiceGetOptimizeProgress
+INFO:agent_pilot.optimize.optimize_job:Successfully fetched optimization progress for OptimizeJobId: 20250912150037_P3Cnj_OptimizePrompt
+OptimizeState.CREATED
+INFO:agent_pilot.optimize.optimize_job:Getting optimization progress for OptimizeJobId: 20250912150037_P3Cnj_OptimizePrompt
+INFO:agent_pilot.http_client:[post] request_id: xxxxxxxx-00c8-4969-b137-62e3ae74e349, api_url: https://prompt-pilot.ap-southeast.bytepluses.com, action: OptimizeServiceGetOptimizeProgress
+INFO:agent_pilot.optimize.optimize_job:Successfully fetched optimization progress for OptimizeJobId: 20250912150037_P3Cnj_OptimizePrompt
+OptimizeState.CREATED
+INFO:agent_pilot.optimize.optimize_job:Getting optimization progress for OptimizeJobId: 20250912150037_P3Cnj_OptimizePrompt
+INFO:agent_pilot.http_client:[post] request_id: xxxxxxxx-44db-445d-a069-bbb2d0451047, api_url: https://prompt-pilot.ap-southeast.bytepluses.com, action: OptimizeServiceGetOptimizeProgress
+INFO:agent_pilot.optimize.optimize_job:Successfully fetched optimization progress for OptimizeJobId: 20250912150037_P3Cnj_OptimizePrompt
+OptimizeState.CREATED
+INFO:agent_pilot.optimize.optimize_job:Getting optimization progress for OptimizeJobId: 20250912150037_P3Cnj_OptimizePrompt
+INFO:agent_pilot.http_client:[post] request_id: xxxxxxxx-6f67-4ab2-a4de-1fe354f3847f, api_url: https://prompt-pilot.ap-southeast.bytepluses.com, action: OptimizeServiceGetOptimizeProgress
+INFO:agent_pilot.optimize.optimize_job:Successfully fetched optimization progress for OptimizeJobId: 20250912150037_P3Cnj_OptimizePrompt
+OptimizeState.RUNNING
+0.0
+This is a prompt for a text understanding task, which contains {{variable_1}} and {{variable_2}}
+None
+INFO:agent_pilot.optimize.optimize_job:Getting optimization progress for OptimizeJobId: 20250912150037_P3Cnj_OptimizePrompt
+INFO:agent_pilot.http_client:[post] request_id: xxxxxxxx-c1de-4aba-b533-7c4c067d36b8, api_url: https://prompt-pilot.ap-southeast.bytepluses.com, action: OptimizeServiceGetOptimizeProgress
+INFO:agent_pilot.optimize.optimize_job:Successfully fetched optimization progress for OptimizeJobId: 20250912150037_P3Cnj_OptimizePrompt
+OptimizeState.RUNNING
+0.1
+This is a prompt for a text understanding task, which contains {{variable_1}} and {{variable_2}}
+None
+INFO:agent_pilot.optimize.optimize_job:Getting optimization progress for OptimizeJobId: 20250912150037_P3Cnj_OptimizePrompt
+INFO:agent_pilot.http_client:[post] request_id: xxxxxxxx-77ad-4c6d-a83b-c8f744107926, api_url: https://prompt-pilot.ap-southeast.bytepluses.com, action: OptimizeServiceGetOptimizeProgress
+INFO:agent_pilot.optimize.optimize_job:Successfully fetched optimization progress for OptimizeJobId: 20250912150037_P3Cnj_OptimizePrompt
+OptimizeState.RUNNING
+0.1
+This is a prompt for a text understanding task, which contains {{variable_1}} and {{variable_2}}
+None
+INFO:agent_pilot.optimize.optimize_job:Getting optimization progress for OptimizeJobId: 20250912150037_P3Cnj_OptimizePrompt
+INFO:agent_pilot.http_client:[post] request_id: xxxxxxxx-695e-41d6-b9dd-03c9c9bdc8a4, api_url: https://prompt-pilot.ap-southeast.bytepluses.com, action: OptimizeServiceGetOptimizeProgress
+INFO:agent_pilot.optimize.optimize_job:Successfully fetched optimization progress for OptimizeJobId: 20250912150037_P3Cnj_OptimizePrompt
+OptimizeState.RUNNING
+0.1
+This is a prompt for a text understanding task, which contains {{variable_1}} and {{variable_2}}
+None
+INFO:agent_pilot.optimize.optimize_job:Getting optimization progress for OptimizeJobId: 20250912150037_P3Cnj_OptimizePrompt
+INFO:agent_pilot.http_client:[post] request_id: xxxxxxxx-630e-46cd-8c8b-8c02cb511083, api_url: https://prompt-pilot.ap-southeast.bytepluses.com, action: OptimizeServiceGetOptimizeProgress
+INFO:agent_pilot.optimize.optimize_job:Successfully fetched optimization progress for OptimizeJobId: 20250912150037_P3Cnj_OptimizePrompt
+OptimizeState.RUNNING
+0.1
+This is a prompt for a text understanding task, which contains {{variable_1}} and {{variable_2}}
+None
+INFO:agent_pilot.optimize.optimize_job:Getting optimization progress for OptimizeJobId: 20250912150037_P3Cnj_OptimizePrompt
+INFO:agent_pilot.http_client:[post] request_id: xxxxxxxx-6ec0-405a-ae25-693cb70bf646, api_url: https://prompt-pilot.ap-southeast.bytepluses.com, action: OptimizeServiceGetOptimizeProgress
+INFO:agent_pilot.optimize.optimize_job:Successfully fetched optimization progress for OptimizeJobId: 20250912150037_P3Cnj_OptimizePrompt
+True
+```
+
+
+Note: During task optimization, you can also view the optimization progress through the PromptPilot Console.
+
+<span id="328dc659"></span>
+### How do I obtain the optimization report?
+
+If optimization succeeds, call the `opt_job.get_report()` API to obtain the optimization report.
+
+```Python
+import agent_pilot as ap
+import time
+
+# Call the API ap.optimize.create() to create an optimization job
+opt_job = ap.optimize.create(task_id="ta-20250912125011-WDAtF", base_version="v1", api_key=None, api_url=None)
+print(opt_job)
+
+# Query JobInfo via the opt_job object
+job_info = opt_job.get_job_info()
+while job_info.state not in {ap.OptimizeState.SUCCESS, ap.OptimizeState.FAILED}:
+    # View the current state
+    print(job_info.state)
+    # View current progress
+    if job_info.progress is not None:
+        print(job_info.progress.percent)         # Completion percentage of the current optimization job
+        print(job_info.progress.optimal_prompt)  # Current best prompt
+        print(job_info.optimized_version)
+
+    # Retrieve JobInfo again after 5 seconds
+    time.sleep(5)
+    job_info = opt_job.get_job_info()
+
+# After the optimization job ends, the status is SUCCESS or FAILED
+print(job_info.state in {ap.OptimizeState.SUCCESS, ap.OptimizeState.FAILED})
+
+if job_info.state == ap.OptimizeState.SUCCESS:
+    report = opt_job.get_report()
+    opt, base = report.opt, report.base
+
+    # Compare prompts before and after optimization
+    print(opt.prompt, base.prompt)
+
+    # Compare metrics before and after optimization
+    print(opt.metric, base.metric)
+
+    # Compare average scores before and after optimization
+    print(opt.avg_score, base.avg_score)
+
+    # List data records before and after optimization
+    print(opt.records, base.records)
+```
+
+
+If successful, you will see the final report as follows. You can also log in to the PromptPilot Console page to view the report.
+
+```Python
+This is a prompt for a text understanding task, which contains {{variable_1}} and {{variable_2}}.
+This is a prompt for a text understanding task, which contains {{variable_1}} and {{variable_2}}.
+This is the scoring criteria for a text understanding task, on a 5-point scale where 1 means completely incorrect and 5 means completely correct. Please output a number between 1 and 5.
+This is the scoring criteria for a text understanding task, on a 5-point scale where 1 means completely incorrect and 5 means completely correct. Please output a number between 1 and 5.
+5.0 5.0
+[OptimizeDataRecord(record_id='dr-20250912150518-Z8ua8', variables=[Variable(name='variable_1', value='Content of variable_1', type='text'), Variable(name='variable_2', value='Content of variable_2', type='text')], model_answer='To construct a prompt for a text understanding task containing "variable_1" and "variable_2", the key is to clarify the task goal, variable roles, and output requirements. The following are specific steps and examples to help you integrate variables into the prompt:\n\n\n### 1. Clarify Task Type and Variable Roles\nFirst, determine the specific type of text understanding task (e.g., question answering, summarization, sentiment analysis, relationship extraction) and define the functions of variable_1 and variable_2 (e.g., input text, question, reference text, keywords).\n\n\n### 2. Construct a General Prompt Framework\nCore structure: Task description + Variable content reference + Output format requirements. \nEnsure to clearly inform the model "what to do", "based on which information", and "in what form to output".\n\n\n### 3. Examples: Prompt Design for Different Task Scenarios\n\n#### Scenario 1: Question Answering Task (variable_1 = article, variable_2 = question) \nPrompt: \n"Please carefully read the following article (variable_1): \n[Insert specific content of variable_1 here, e.g., a tech article on the development of artificial intelligence] \n\nThen answer the question (variable_2): \n[Insert specific content of variable_2 here, e.g., "What are the core technologies of artificial intelligence?"] \n\nRequirement: Provide the answer directly without additional explanations." \n\n\n#### Scenario 2: Text Summarization (variable_1 = long text, variable_2 = summarization length requirements) \nPrompt: \n"Generate a summary for the following long text (variable_1): \n[Insert specific content of variable_1 here, e.g., a 500-word research report] \n\nSummary requirements (variable_2): \n[Insert specific content of variable_2 here, e.g., "No more than 100 words, covering the research purpose, methods, and core conclusions"] \n\nPlease output a summary that meets the requirements." \n\n\n#### Scenario 3: Text Comparison (variable_1 = Text A, variable_2 = Text B; task = analyze similarities and differences) \nPrompt: \n"Compare the following two texts and analyze their similarities and differences in themes and viewpoints. \n\nText A (variable_1): \n[Insert specific content of variable_1 here, e.g., "Environmental policies should focus on limiting industrial emissions"] \n\nText B (variable_2): \n[Insert specific content of variable_2 here, e.g., "Environmental policies should prioritize promoting the development of renewable energy"] \n\nOutput format: \nSimilarities: [Summarize in 1-2 sentences] \nDifferences: [Summarize in 1-2 sentences]"\n\n\n### Key Notes \n- Clear variable positioning: Explicitly label the roles of "variable_1" and "variable_2" (e.g., "input text", "question") to avoid model confusion. \n- Concise task instructions: Use short sentences to state "what to do" (e.g., "answer the question") and avoid redundant wording. \n- Clear output format requirements: Specify the output form (e.g., "provide the answer directly", "list in points") to reduce model comprehension costs. \n\n\nIf you need to design a prompt for a specific task (e.g., NER, sentiment analysis) or variable content (e.g., dialogue history, multi-turn questions), provide more details, and I will further optimize it!', ref_answer=None, score=5, analysis='This is the manual scoring reason for this data', confidence=1.0), OptimizeDataRecord(record_id='dr-20250912150518-CQxt6', variables=[Variable(name='variable_1', value='Content of variable_1', type='text'), Variable(name='variable_2', value='Content of variable_2', type='text')], model_answer='Please provide the specific content of variable_1 and variable_2, as well as the complete expression of the text understanding task prompt, so that I can better complete the relevant task for you.', ref_answer=None, score=5, analysis='The model's answer is fluent in expression and logically clear. Since the task only informs that there is a text understanding task prompt with the content of variable_1 and variable_2 but does not provide specific content, the model's answer reasonably asks the user to provide the key information needed to complete the task, with no content omission and in line with the evaluation criteria.', confidence=1.0), OptimizeDataRecord(record_id='dr-20250912150518-Z8ua8', variables=[Variable(name='variable_1', value='Content of variable_1', type='text'), Variable(name='variable_2', value='Content of variable_2', type='text')], model_answer='To construct a prompt for a text understanding task containing "variable_1" and "variable_2", the key is to clarify the task goal, variable roles, and output requirements. The following are specific steps and examples to help you integrate variables into the prompt:\n\n\n### 1. Clarify Task Type and Variable Roles\nFirst, determine the specific type of text understanding task (e.g., question answering, summarization, sentiment analysis, relationship extraction) and define the functions of variable_1 and variable_2 (e.g., input text, question, reference text, keywords).\n\n\n### 2. Construct a General Prompt Framework\nCore structure: Task description + Variable content reference + Output format requirements. \nEnsure to clearly inform the model "what to do", "based on which information", and "in what form to output".\n\n\n### 3. Examples: Prompt Design for Different Task Scenarios\n\n#### Scenario 1: Question Answering Task (variable_1 = article, variable_2 = question) \nPrompt: \n"Please carefully read the following article (variable_1): \n[Insert specific content of variable_1 here, e.g., a tech article on the development of artificial intelligence] \n\nThen answer the question (variable_2): \n[Insert specific content of variable_2 here, e.g., "What are the core technologies of artificial intelligence?"] \n\nRequirement: Provide the answer directly without additional explanations." \n\n\n#### Scenario 2: Text Summarization (variable_1 = long text, variable_2 = summarization length requirements) \nPrompt: \n"Generate a summary for the following long text (variable_1): \n[Insert specific content of variable_1 here, e.g., a 500-word research report] \n\nSummary requirements (variable_2): \n[Insert specific content of variable_2 here, e.g., "No more than 100 words, covering the research purpose, methods, and core conclusions"] \n\nPlease output a summary that meets the requirements." \n\n\n#### Scenario 3: Text Comparison (variable_1 = Text A, variable_2 = Text B; task = analyze similarities and differences) \nPrompt: \n"Compare the following two texts and analyze their similarities and differences in themes and viewpoints. \n\nText A (variable_1): \n[Insert specific content of variable_1 here, e.g., "Environmental policies should focus on limiting industrial emissions"] \n\nText B (variable_2): \n[Insert specific content of variable_2 here, e.g., "Environmental policies should prioritize promoting the development of renewable energy"] \n\nOutput format: \nSimilarities: [Summarize in 1-2 sentences] \nDifferences: [Summarize in 1-2 sentences]"\n\n\n### Key Notes \n- Clear variable positioning: Explicitly label the roles of "variable_1" and "variable_2" (e.g., "input text", "question") to avoid model confusion. \n- Concise task instructions: Use short sentences to state "what to do" (e.g., "answer the question") and avoid redundant wording. \n- Clear output format requirements: Specify the output form (e.g., "provide the answer directly", "list in points") to reduce model comprehension costs. \n\n\nIf you need to design a prompt for a specific task (e.g., NER, sentiment analysis) or variable content (e.g., dialogue history, multi-turn questions), provide more details, and I will further optimize it!', ref_answer=None, score=5, analysis='This is the manual scoring reason for this data', confidence=1.0), OptimizeDataRecord(record_id='dr-20250912150518-CQxt6', variables=[Variable(name='variable_1', value='Content of variable_1', type='text'), Variable(name='variable_2', value='Content of variable_2', type='text')], model_answer='Please provide the specific content of variable_1 and variable_2, as well as the complete expression of the text understanding task prompt, so that I can better complete the relevant task for you.', ref_answer=None, score=5, analysis='The model's answer is fluent in expression and logically clear. Since the task only informs that there is a text understanding task prompt with the content of variable_1 and variable_2 but does not provide specific content, the model's answer reasonably asks the user to provide the key information needed to complete the task, with no content omission and in line with the evaluation criteria.', confidence=1.0)] [OptimizeDataRecord(record_id='dr-20250912142603-sGip3', variables=[Variable(name='variable_1', value='Content of variable_1', type='text'), Variable(name='variable_2', value='Content of variable_2', type='text')], model_answer='To construct a prompt for a text understanding task containing "variable_1" and "variable_2", the key is to clarify the task goal, variable roles, and output requirements. The following are specific steps and examples to help you integrate variables into the prompt:\n\n\n### 1. Clarify Task Type and Variable Roles\nFirst, determine the specific type of text understanding task (e.g., question answering, summarization, sentiment analysis, relationship extraction) and define the functions of variable_1 and variable_2 (e.g., input text, question, reference text, keywords).\n\n\n### 2. Construct a General Prompt Framework\nCore structure: Task description + Variable content reference + Output format requirements. \nEnsure to clearly inform the model "what to do", "based on which information", and "in what form to output".\n\n\n### 3. Examples: Prompt Design for Different Task Scenarios\n\n#### Scenario 1: Question Answering Task (variable_1 = article, variable_2 = question) \nPrompt: \n"Please carefully read the following article (variable_1): \n[Insert specific content of variable_1 here, e.g., a tech article on the development of artificial intelligence] \n\nThen answer the question (variable_2): \n[Insert specific content of variable_2 here, e.g., "What are the core technologies of artificial intelligence?"] \n\nRequirement: Provide the answer directly without additional explanations."
+\n\n\n#### Scenario 2: Text Summarization (variable_1 = long text, variable_2 = summarization length requirements) \nPrompt: \n"Generate a summary for the following long text (variable_1): \n[Insert specific content of variable_1 here, e.g., a 500-word research report] \n\nSummary requirements (variable_2): \n[Insert specific content of variable_2 here, e.g., "No more than 100 words, covering the research purpose, methods, and core conclusions"] \n\nPlease output a summary that meets the requirements." \n\n\n#### Scenario 3: Text Comparison (variable_1 = Text A, variable_2 = Text B; task = analyze similarities and differences) \nPrompt: \n"Compare the following two texts and analyze their similarities and differences in themes and viewpoints. \n\nText A (variable_1):
+\n[Insert specific content of variable_1 here, e.g., "Environmental policies should focus on limiting industrial emissions"] \n\nText B (variable_2): \n[Insert specific content of variable_2 here, e.g., "Environmental policies should prioritize promoting the development of renewable energy"] \n\nOutput format: \nSimilarities: [Summarize in 1-2 sentences] \nDifferences: [Summarize in 1-2 sentences]"\n\n\n### Key Notes \n- Clear variable positioning: Explicitly label the roles of variable_1 and variable_2 (e.g., "input text", "question") to avoid model confusion. \n- Concise task instructions: Use short sentences to state "what to do" (e.g., "answer the question") and avoid redundant wording. \n- Clear output format requirements: Specify the output form (e.g., "provide the answer directly", "list in points") to reduce model comprehension costs. \n\n\nIf you need to design a prompt for a specific task (e.g., NER, sentiment analysis) or variable content (e.g., dialogue history, multi-turn questions), provide more details, and I will further optimize it!', ref_answer=None, score=5, analysis='This is the manual scoring reason for this data', confidence=None), OptimizeDataRecord(record_id='dr-20250912142603-sGip3', variables=[Variable(name='variable_1', value='Content of variable_1', type='text'), Variable(name='variable_2', value='Content of variable_2', type='text')], model_answer='To construct a prompt for a text understanding task containing "variable_1" and "variable_2", the key is to clarify the task goal, variable roles, and output requirements. The following are specific steps and examples to help you integrate variables into the prompt:\n\n\n### 1. Clarify Task Type and Variable Roles\nFirst, determine the specific type of text understanding task (e.g., question answering, summarization, sentiment analysis, relationship extraction) and define the functions of variable_1 and variable_2 (e.g., input text, question, reference text, keywords).\n\n\n### 2. Construct a General Prompt Framework\nCore structure: Task description + Variable content reference + Output format requirements. \nEnsure to clearly inform the model "what to do", "based on which information", and "in what form to output".\n\n\n### 3. Examples: Prompt Design for Different Task Scenarios\n\n#### Scenario 1: Question Answering Task (variable_1 = article, variable_2 = question) \nPrompt: \n"Please carefully read the following article (variable_1): \n[Insert specific content of variable_1 here, e.g., a tech article on the development of artificial intelligence] \n\nThen answer the question (variable_2): \n[Insert specific content of variable_2 here, e.g., "What are the core technologies of artificial intelligence?"] \n\nRequirement: Provide the answer directly without additional explanations." \n\n\n#### Scenario 2: Text Summarization (variable_1 = long text, variable_2 = summarization length requirements) \nPrompt: \n"Generate a summary for the following long text (variable_1): \n[Insert specific content of variable_1 here, e.g., a 500-word research report] \n\nSummary requirements (variable_2): \n[Insert specific content of variable_2 here, e.g., "No more than 100 words, covering the research purpose, methods, and core conclusions"]
+\n\nPlease output a summary that meets the requirements." \n\n\n#### Scenario 3: Text Comparison (variable_1 = Text A, variable_2 = Text B; task = analyze similarities and differences) \nPrompt: \n"Compare the following two texts and analyze their similarities and differences in themes and viewpoints. \n\nText A (variable_1): \n[Insert specific content of variable_1 here, e.g., "Environmental policies should focus on limiting industrial emissions"] \n\nText B (variable_2): \n[Insert specific content of variable_2 here, e.g., "Environmental policies should prioritize promoting the development of renewable energy"] \n\nOutput format: \nSimilarities: [Summarize in 1-2 sentences] \nDifferences: [Summarize in 1-2 sentences]"\n\n\n### Key Notes \n- Clear variable positioning:
+```
+
+
+<span id="de86b7ff"></span>
+## 5. Prompt generation
+
+Call the `ap.generate_prompt_stream()` API, pass `task_description` and the model configuration, and generate the prompt as a stream. This capability aligns with the Prompt Generation page in the console.
+
+The following example generates a prompt for a multi\-turn conversation task. To generate prompts for text understanding or visual understanding, set `task_type` to `"DEFAULT"` or `"MULTIMODAL"`, respectively.
+
+```Python
+import agent_pilot as ap
+
+generated_prompt = ""
+usage = None
+print("Streaming response:")
+for chunk in ap.generate_prompt_stream(
+    task_description="I need a top-tier live streaming sales assistant; input is user's question, output is product introduction",
+    task_type="DIALOG",
+    model_name="seed-1-6-250615",
+    temperature=1.0,
+    top_p=0.7,
+    api_key=None,
+    api_url=None,
+):
+    # Handle streaming output
+    generated_prompt += chunk.data.content
+    print(chunk.data.content, end="", flush=True)
+    if chunk.event == "usage":
+        usage = chunk.data.usage
+
+print(f"Generated prompt: {str(generated_prompt)}")
+print(f"Usage: {usage}")
+```
+
+
+If successful, you will see the following output.
+
+```Markdown
+# Role Positioning: Top Live Streaming Sales Expert
+You are a highly engaging and persuasive live streaming sales expert, skilled at accurately understanding user needs and using vivid, alluring language to stimulate purchasing desire, making users develop an intense desire to own after listening to your introduction. Your core task is: no matter what product-related questions users ask (such as functions, prices, advantages, applicable scenarios, etc.), you can quickly transform them into targeted product introductions to achieve "question = planting the seed of purchase".
+
+
+# Core Live Streaming Sales Strategies
+## 1. Demand Anchoring Method
+- First, quickly capture the potential needs in the user's question (e.g., if a user asks "What skincare product is not greasy in summer?", the need is "refreshing and oil-controlling"), and directly state it at the beginning of the answer: "Are you looking for a product that feels like water when applied, can keep your skin matte even with more oil in summer?"
+- Use phrases like "Are you", "I understand you", "Many people have encountered this" to build empathy, making users feel "You completely understand me".
+
+
+## 2. Product Highlight Blasting
+- Targeting the user's needs, extract 3 core highlights of the product, and use exaggerated but true effect descriptions like "3-second results", "amazing after use", "can't live without it" to strengthen memory points.
+- Pair each highlight with a specific scenario: "For example, in the morning when you're in a hurry, applying it takes 2 minutes and you can go out; your face won't be oily all day, and colleagues will think you secretly touched up your makeup!"
+
+
+## 3. Creating Urgency and Scarcity
+- Actively reveal hidden benefits': 'Now placing an order not only gets a 50-yuan discount, but the first 100 orders also include a free sample of the same product; only 3 sets of inventory left!'
+- Use phrases like "Miss today and wait another year", "This color has long been out of stock in offline counters, only 50 pieces left online" to stimulate decision-making.
+
+
+## 4. Comparison and Crushing Strategy
+- If the user mentions competitors or hesitates, directly use "crushing comparison" to highlight advantages: "I know the one you're talking about; its XX function requires separate payment to activate, while ours is directly free, and the effect is 3 times stronger than it!"
+- Emphasize "king of cost-effectiveness": "At the same price, others can only buy the basic version; our product gives one for free and three as gifts, which is equivalent to earning two products for free!"
+
+
+# Dialogue Process and Taboos
+## Must-Do Process
+1. **Catch the question → Anchor the need → Blast highlights → Create scarcity → Urge to place an order**, all within 3 sentences, with a tight rhythm, leaving no room for user hesitation.
+2. Each answer must end with a clear call to action: "Click the link below to grab directly", "Placing an order now can be delivered by SF Express tomorrow", "Hurry to check, no stock left for slow hands!"
+
+
+## Absolute Taboos
+- Prohibit using vague words like "maybe", "perhaps", etc.; must use affirmative tones like "100% effective", "absolutely good", "who uses knows".
+- Prohibit long introductions. If a user asks "How much?", directly reply: "Original price 299, today's promotional price 199, plus a free 99-yuan gift, which is equivalent to buying 3 items for only 100 yuan. Will you place an order now?"
+
+
+# Example Reference
+- User asks: "Is this hair dryer fast at drying hair? I'm in a hurry in the morning."
+- Answer: "Do you usually take 10 minutes to dry your hair in the morning and always worry about damaging it? This hair dryer can dry long hair down to the waist in 3 minutes, and it has negative ion hair care, making your hair as smooth as if you had a treatment! Placing an order now includes a free same-style nozzle; only 28 left, no stock for slow hands, hurry and click the link to grab!"
+
+Remember: Every word you say should be like a hook, hooking users' ears and even more hooking their wallets!
+```
+
+
+
+
+<div data-tips="true" data-tips-type="warning" data-tips-is-title="true">Note</div>
+
+
+<div data-tips="true" data-tips-type="warning">PromptPilot was upgraded on September 12, 2025 to support subscription orders for personal or team space plans. As a result, SDK requests must specify a target personal or team space.</div>
+
+
+<div data-tips="true" data-tips-type="warning"><strong>Key changes</strong> :</div>
+
+
+
+* <div data-tips="true" data-tips-type="warning">The <strong>workspace</strong> concept is introduced.</div>
+
+
+* <div data-tips="true" data-tips-type="warning">All SDK requests must include the <code>workspace_id</code> parameter to specify a personal or team workspace.</div>
+
+
+
+<div data-tips="true" data-tips-type="warning"><strong>Impact on SDK users</strong> :</div>
+
+
+
+* <div data-tips="true" data-tips-type="warning"><strong>New users</strong> : Subscribe to a workspace, obtain the API Key from the page, and get started with the SDK.</div>
+
+
+* <div data-tips="true" data-tips-type="warning"><strong>Existing users</strong> : If the SDK is already integrated into your product workflow, upgrade promptly to avoid impacting production services.</div>
+
+
+
+<div data-tips="true" data-tips-type="warning"><strong>Migration and compatibility strategy</strong> :</div>
+
+
+
+* <div data-tips="true" data-tips-type="warning"><strong>September 12–19</strong> :</div>
+
+
+
+<div data-tips="true" data-tips-type="warning">The legacy SDK (≤ v0.0.9) defaults to the personal workspace when <code>workspace_id</code> is not provided.</div>
+
+
+<div data-tips="true" data-tips-type="warning">After upgrading to the new SDK (≥ v0.0.9), use the <code>AGENTPILOT_WORKSPACE_ID</code> environment variable to specify a personal or team workspace. For <code>workspace_id</code> retrieval and configuration, see the documentation below.</div>
+
+
+
+* <div data-tips="true" data-tips-type="warning"><strong>After September 19</strong> : Legacy SDK (≤ v0.0.9) requests will be rejected. Complete plan purchase and workspace creation, and upgrade to the new SDK before that date.</div>
+
+
+
+<div data-tips="true" data-tips-type="warning">We also plan to support passing <code>workspace_id</code> directly through the Python API.</div>
+
+
+<div data-tips="true" data-tips-type="warning"><strong>How to upgrade</strong> :</div>
+
+
+<div data-tips="true" data-tips-type="warning">Upgrade the SDK to the latest version: <code>pip install -U agent-pilot-sdk</code>.</div>
+
+
+<div data-tips="true" data-tips-type="warning">Configure the environment variable <code>AGENTPILOT_WORKSPACE_ID</code> to point to a personal or team workspace.</div>
+
+
+<span id="7479c160"></span>
+# Overview
+
+AgentPilot SDK provides tools, APIs, and resources to streamline application development and help developers build agents. It integrates PromptPilot's core capabilities in a non\-intrusive and flexible way.
+
+<span id="04985e67"></span>
+## Features
+
+**The core value of the SDK** : through automated probing, **obtain high\-quality feedback data at low cost** , thereby building an efficient, sustainable model optimization loop. This closed loop helps the agent better adapt to the scaling law.
+
+
+* Reduce data collection costs
+
+* Help the Agent adapt to the Scaling Law
+
+
+Specifically, users can freely compose PromptPilot's internal atomic capabilities in a low\-intrusion and flexible way. The tools, APIs, and resources provided by the SDK simplify application development and help developers quickly integrate PromptPilot's core features, including but not limited to:
+
+
+|**Features** |**Brief description** |
+|---|---|
+|Task and prompt management |Manage tasks and prompts directly via the SDK, and read and list version information, model configuration, and scoring criteria. |
+|Closed\-loop data and feedback |Support a completion API compatible with the Ark client, enabling users to send data and feedback back to the PromptPilot page during inference. |
+|Prompt optimization and report retrieval |Submit prompt optimization tasks via the SDK and retrieve evaluation reports. |
+|Online evaluation |Submit custom evaluation requests and obtain results. Sending the results back is optional. |
+|Bad case detection |Determine which samples are bad cases based on the evaluation score and confidence, and label them on the console page. |
+|Prompt generation |Generate a prompt based on `task_description`. |
+
+
+<span id="f8b1b65d"></span>
+## Advantages
+
+Guided by design principles of ease of use, modularity, extensibility, and openness, we strive to ensure:
+
+
+* Low intrusion (ease of use): Modify only a few lines in existing agent or workflow code to implement the features listed in this document. Integration is simple.
+
+* Modularity: Use modules individually or in any combination, such as evaluation, backflow, feedback, and prompt optimization.
+
+* Extensibility and openness: Support multiple AI models, APIs, and multimodal data; seamlessly support open\-source frameworks such as LiteLLM, LangChain, and LlamaIndex for LLM or agent application development; and make it easy to extend use cases using existing capabilities.
+
+
+<span id="00693238"></span>
+## Core concepts
+
+**Tasks and versions (task and version)**  :
+
+The diagram below shows the mapping between the PromptPilot Console and the SDK. A task is typically created under a personal or team workspace, and it usually contains multiple prompt versions. Each version centers on a prompt and includes related version information, such as `task_id`, `version`, `prompt`, a variable list, evaluation criteria (`criteria`), the model name, and configurations such as `temperature` and `top_p`.
+
+To stream data back via the SDK, users typically include `workspace_id` (to specify a workspace), `task_id`, `version`, `AGENTPILOT_API_KEY` (authentication for the ingestion service), and `ARK_API_KEY` (model inference on ModelArk) in the request. This covers most operations.
+
+**Ingestion event (run)**  :
+
+If a model call is sampled, it produces one ingestion event. Each ingestion event corresponds to one row on the platform's Batch page.
+
+<span id="cb6ec355"></span>
+# Precautions
+
+
+* **Ingestion sampling rate** : The default sampling rate is 0.1, meaning each record has a 0.1 probability of being ingested. You can adjust it as needed.
+
+* **Ingestion data cap** : The default is 2,000 records. If the number of records under a given `task_id` and `version` exceeds 2,000, ingestion fails and the SDK call returns a log message. This limit aligns with the console page. To increase the limit, submit a [Ticket](https://console.byteplus.com/workorder/create?step=2&SubProductID=P00001514).
+
+* **Only the scoring mode for text understanding and visual understanding tasks is currently supported.**  If you need support for more task types, such as multi\-turn conversations and Tools, submit a [Ticket](https://console.byteplus.com/workorder/create?step=2&SubProductID=P00001514).
+
+* **`model_name`** ** is the model name plus version and must be a model supported in the model dropdown on the Prompt Generation page.**  If you need support for custom or third\-party endpoints, submit a [Ticket](https://console.byteplus.com/workorder/create?step=2&SubProductID=P00001514).
+
+
+<span id="f077223e"></span>
+# Getting started
+
+<span id="0e7f02da"></span>
+## Install and configure
+
+
+1. **Install the SDK and set relevant environment variables**
+
+   ```Bash
+   # Install the latest SDK
+   pip install -U agent-pilot-sdk
+   
+   # Specify AGENTPILOT_API_KEY, AGENTPILOT_API_URL, and AGENTPILOT_WORKSPACE_ID
+   # NOTE: If environment variables are not configured, you can also pass api_key, api_url, or workspace_id explicitly in each API call
+   export AGENTPILOT_API_KEY=yyyyyyyy-yyyy-yyyy-yyyy-yyyyyyyyyyyy
+   export AGENTPILOT_API_URL=https://prompt-pilot.ap-southeast.bytepluses.com
+   export AGENTPILOT_WORKSPACE_ID=ws-zzzzzzzzzzzzzz-zzzzz
+   
+   # Optional: API Key for the ModelArk inference service; if you do not use the ModelArk inference service, do not set it
+   # NOTE: Most SDK features below do not require the ModelArk inference service API Key
+   export ARK_API_KEY=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+   ```
+   
+
+2. **Get ** **`AGENTPILOT_API_KEY`** :
+
+   <div data-tips="true" data-tips-type="warning" data-tips-is-title="true" data-wrapper-indent="1">Note   </div>
+   
+
+   * <div data-tips="true" data-tips-type="warning" data-wrapper-indent="1">To obtain an API Key, upgrade your plan to Standard or Team, then follow the platform's process to complete the request.   </div>
+   
+
+   * <div data-tips="true" data-tips-type="warning" data-wrapper-indent="1">For security, your BytePlus account must complete identity verification before you can obtain an API Key.   </div>
+   
+
+   ```Plain Text
+    Click **API Key** on the left, and then click **Select to use** to copy your `AGENTPILOT_API_KEY`.
+   ```
+   
+
+   <span>![图片](https://p9-arcosite.byteimg.com/tos-cn-i-goo7wpa0wc/5eb85c06cae3457f830c64cc5a3fe373~tplv-goo7wpa0wc-image.image) </span>
+
+3. **Retrieve ** **`workspace_id`** ** [new 20250912]**  : SDK requests must be sent to a personal or team workspace.
+
+   ```Plain Text
+    After switching to a personal or team workspace on the PromptPilot page, the URL at the top contains text starting with `workspaceId=ws-zzzzzzzzzzzzzz-zzzzz`. `ws-zzzzzzzzzzzzzz-zzzzz` is the current `workspace_id`.
+   ```
+   
+
+   <span>![图片](https://p9-arcosite.byteimg.com/tos-cn-i-goo7wpa0wc/a0a1db2d19f944548474da7b90828d71~tplv-goo7wpa0wc-image.image) </span>
+
+4. **Retrieve ** **`task_id`**
+
+   [Standalone site entry](https://promptpilot.byteplus.com/) | [ModelArk version entry](https://console.byteplus.com/ark/region:ark+ap-southeast-1/autope/home)
+
+   Expand **Prompt Tuning** on the left, select a task type such as **Text understanding** , and click  **+**  at the top to create a new task. After the task is created, click **Task name** to open the **Task info** dialog and get the `task_id`. You can also extract it from the URL at the top.
+
+
+<span id="9e35e8d1"></span>
+## Jupyter notebook example
+
+After installing the SDK, run the sample code in the following Jupyter Notebook to simulate production prompt generation, collect data, evaluate in real time, feed data back, and optimize prompts.
+
+<Attachment link="https://p9-arcosite.byteimg.com/tos-cn-i-goo7wpa0wc/a7cc92742a8e49f280cf4fad3f6cf2ff~tplv-goo7wpa0wc-image.image" name="sdk_demo_open.ipynb">sdk_demo_open.ipynb</Attachment>
+
+
+**Step 1** : Create a new task in PromptPilot and upload the dataset. The `step_1_create_task_and_upload_short.xlsx` file simulates data that users upload to the platform.
+
+<Attachment link="https://p9-arcosite.byteimg.com/tos-cn-i-goo7wpa0wc/fa4076bf0cb9431db3537f7304db4be1~tplv-goo7wpa0wc-image.image" name="step_1_create_task_and_upload_short.xlsx">step_1_create_task_and_upload_short.xlsx</Attachment>
+
+
+**Step 2** : Run the notebook to use the SDK to implement a closed loop for data feedback. The `step_2_use_sdk_to_track_short.xlsx` file simulates data that users send to the platform via the feedback API.
+
+<Attachment link="https://p9-arcosite.byteimg.com/tos-cn-i-goo7wpa0wc/4861114bb5a7464b836242d0134f3c75~tplv-goo7wpa0wc-image.image" name="step_2_use_sdk_to_track_short.xlsx">step_2_use_sdk_to_track_short.xlsx</Attachment>
+
+
+<span id="4acce7ee"></span>
+# Detailed API list
+
+<div data-tips="true" data-tips-type="warning" data-tips-is-title="true">Note</div>
+
+
+<div data-tips="true" data-tips-type="warning"><strong>Note 1</strong> : For all APIs that accept <code>api_key</code> and <code>api_url</code>, if they are not specified or are passed as <code>None</code>, the system automatically reads <code>AGENTPILOT_API_KEY</code> and <code>AGENTPILOT_API_URL</code>.</div>
+
+
+<div data-tips="true" data-tips-type="warning"><strong>Note 2</strong> : We will also allow passing a specified <code>workspace_id</code> via the API in the near term.</div>
+
+
+<span id="c2beeaf3"></span>
+## 1. Task and prompt management
+
+<span id="fb8fd006"></span>
+### How to create a new task?
+
+<span id="d0dffaa8"></span>
+#### Text understanding
+
+```Python
+import agent_pilot as ap
+
+prompt_version = ap.create_task(
+    name="text_test_task",
+    task_type="DEFAULT",
+    prompt="This is a prompt for a text understanding task, which contains {{variable_1}} and {{variable_2}}",
+    model_name="seed-2-0-lite-260228",
+    criteria="This is a scoring criteria for a text understanding task, on a 5-point scale where 1 means completely wrong and 5 means completely correct. Please output a number between 1 and 5.",
+    api_key=None,
+    api_url=None,
+)
+
+print(prompt_version)
+```
+
+
+If successful, you will see a PromptVersion printed.
+
+```Bash
+task_id='ta-20250911214134-Mpfzy' version='v1' messages=[{'content': [{'text': 'This is a prompt for a text understanding task, which contains {{variable_1}} and {{variable_2}}', 'type': 'text'}], 'role': 'user'}] variable_names=['variable_1', 'variable_2'] model_name='seed-1.6-250615' temperature=1.0 top_p=0.7 criteria='This is a scoring criteria for a text understanding task, on a 5-point scale where 1 means completely wrong and 5 means completely correct. Please output a number between 1 and 5.' prompt='This is a prompt for a text understanding task, which contains {{variable_1}} and {{variable_2}}'
+```
+
+
+<span id="e2e5a036"></span>
+#### Visual understanding
+
+For visual understanding tasks, you also need to specify the type for each Variable.
+
+```Python
+import agent_pilot as ap
+
+prompt_version = ap.create_task(
+    name="test_visual_task",
+    task_type="MULTIMODAL",
+    prompt=[{
+        "role": "user",
+        "content": "Based on the text {{text_var}} and the image {{image_var}}, write a short story."}],
+    variable_types={
+        "text_var": "text",       # Variable name: variable type
+        "image_var": "image_url", # Variable name: variable type
+    },
+    model_name="seed-1.6-250615",
+    criteria="This is a scoring criteria for a visual understanding task, on a 5-point scale where 1 means completely wrong and 5 means completely correct",
+    api_key=None,
+    api_url=None,
+)
+
+print(prompt_version)
+```
+
+
+If successful, you will see a PromptVersion printed.
+
+```SQL
+task_id='ta-20250912130823-sPbH4' version='v1' messages=[{'role': 'user', 'content': [{'type': 'text', 'text': 'Based on the text {{text_var}} and the image '}, {'type': 'image_url', 'image_url': {'url': '{{image_var}}'}}, {'type': 'text', 'text': ' , write a short story.'}]}] variable_names=['text_var', 'image_var'] model_name='seed-1.6-250615' temperature=1.0 top_p=0.7 criteria='This is a scoring criteria for a visual understanding task, on a 5-point scale where 1 means completely wrong and 5 means completely correct' prompt='Based on the text {{text_var}} and the image '
+```
+
+
+<span id="ee09ceed"></span>
+#### Multi\-turn dialogue
+
+```Python
+import agent_pilot as ap
+
+prompt_version = ap.create_task(
+    name="test_dialog_task",
+    task_type="DIALOG",
+    prompt=[{
+        "role": "system",
+        "content": "You are an MBTI personality analysis expert, responsible for analyzing the user's MBTI personality based on the personal information provided by the user."}],
+    model_name="seed-2-0-lite-260228",
+    criteria="This is a scoring criteria for a multi-turn dialogue task, on a 5-point scale where 1 means completely wrong and 5 means completely correct. Please output a number between 1 and 5.",
+    api_key=None,
+    api_url=None,
+)
+
+print(prompt_version)
+```
+
+
+If successful, you will see a PromptVersion printed.
+
+```Bash
+task_id='ta-20250912131455-frsAN' version='v1' messages=[{'content': [{'text': 'You are an MBTI personality analysis expert, responsible for analyzing the user's MBTI personality based on the personal information provided by the user.', 'type': 'text'}], 'role': 'system'}] variable_names=[] model_name='seed-1.6-250615' temperature=1.0 top_p=0.7 criteria='This is a scoring criteria for a multi-turn dialogue task, on a 5-point scale where 1 means completely wrong and 5 means completely correct. Please output a number between 1 and 5.' prompt='You are an MBTI personality analysis expert, responsible for analyzing the user's MBTI personality based on the personal information provided by the user.'
+```
+
+
+<div data-tips="true" data-tips-type="warning" data-tips-is-title="true">Note</div>
+
+
+<div data-tips="true" data-tips-type="warning">For multi\-turn conversation tasks, the prompt role is "system"; this differs from text understanding and visual understanding tasks, where the role is "user".</div>
+
+
+<div data-tips="true" data-tips-type="warning"><code>model_name</code> is the Model ID. View <a href="https://docs.byteplus.com/en/docs/ModelArk/1330310">Model list</a> to obtain it.</div>
+
+
+<span id="3b7e7ed6"></span>
+### How do I view details for a specific prompt version?
+
+Call the `ap.get_prompt()` API and enter `task_id` and `version` to get the details for that version, as follows:
+
+```Python
+import agent_pilot as ap
+
+prompt_version = ap.get_prompt(task_id="ta-20250101000000-aaaaa", version="v1", api_key=None, api_url=None)
+
+print(prompt_version)
+```
+
+
+If successful, you will see a prompt version.
+
+```Bash
+task_id='ta-20250912131455-frsAN' version='v1' messages=[{'content': [{'text': 'You are an MBTI personality analysis expert, responsible for analyzing the user's MBTI personality based on the personal information provided by the user.', 'type': 'text'}], 'role': 'system'}] variable_names=[] model_name='seed-1.6-250615' temperature=1.0 top_p=0.7 criteria='This is a scoring criteria for a multi-turn dialogue task, on a 5-point scale where 1 means completely wrong and 5 means completely correct. Please output a number between 1 and 5.' prompt='You are an MBTI personality analysis expert, responsible for analyzing the user's MBTI personality based on the personal information provided by the user.'
+```
+
+
+<span id="7e963595"></span>
+### How do I list all versions under a task?
+
+Call the `ap.list_prompts()` API. Only `task_id` is required.
+
+```Python
+import agent_pilot as ap
+
+prompt_versions = ap.list_prompts(task_id="ta-20250101000000-aaaaa", api_key=None, api_url=None)
+print(prompt_versions)
+```
+
+
+If successful, you will see a prompt version list.
+
+```Bash
+[PromptVersion(task_id='ta-20250912131455-frsAN', version='v1', messages=[{'content': [{'text': 'You are an MBTI personality analysis expert, responsible for analyzing the user's MBTI personality based on the personal information provided by the user.', 'type': 'text'}], 'role': 'system'}], variable_names=[], model_name='seed-1.6-250615', temperature=1.0, top_p=0.7, criteria='This is a scoring criteria for a multi-turn dialogue task, on a 5-point scale where 1 means completely wrong and 5 means completely correct. Please output a number between 1 and 5.', prompt='You are an MBTI personality analysis expert, responsible for analyzing the user's MBTI personality based on the personal information provided by the user.')]
+```
+
+
+<span id="ea08d73e"></span>
+### How do I obtain metrics information?
+
+Call the `ap.get_metric()` API. Only `task_id` is required.
+
+```Python
+import agent_pilot as ap
+
+metric = ap.get_metric(task_id="ta-20250101000000-aaaaa", version="v2", api_key=None, api_url=None)
+print(metric.criteria)
+```
+
+
+If successful, you will see the current scoring criteria.
+
+```Bash
+This is a scoring criteria for a multi-turn dialogue task, on a 5-point scale where 1 means completely wrong and 5 means completely correct. Please output a number between 1 and 5.
+```
+
+
+<span id="3696b91a"></span>
+## 2. Data reporting and feedback
+
+<span id="cef986a1"></span>
+### How do I create an Ark client that can report data back?
+
+Call the `ap.probing()` API to apply a patch to an Ark client. After that, the client can be used for model inference calls and can also send data back to a specific task in the console.
+
+```Python
+import agent_pilot as ap
+from byteplussdkarkruntime import Ark
+import os
+
+# Create client
+client = Ark(api_key=os.getenv('ARK_API_KEY'))
+ap.probing(object=client)
+```
+
+
+<span id="b1e75ce6"></span>
+### How do I automatically report data?
+
+Call `ap.render()` to render `task_id`, `version`, and variables, obtain the rendered `input_dict`, and pass it to the Ark client when calling the completion API. The system automatically retrieves the corresponding prompt version, assembles it into the input of the LLM inference request, and obtains the model answer. The completion API for LLM requests is compatible with the Ark client.
+
+```Python
+import agent_pilot as ap
+from byteplussdkarkruntime import Ark
+import os
+
+# Create client
+client = Ark(api_key=os.getenv('ARK_API_KEY'))
+ap.probing(object=client, sample_rate=1.0)
+
+# Render input for the inference request
+input_dict = ap.render(
+    task_id="ta-20250101000000-aaaaa",
+    version="v1",
+    variables={
+        "variable_1": "Content of variable 1",
+        "variable_2": "Content of variable 2",
+    },
+    api_key=None,
+    api_url=None,
+)
+
+# Call Model inference, as with the ModelArk SDK
+completion = client.chat.completions.create(model='seed-1.6-250615', **input_dict)
+
+# Optional step: flush pending event messages in the queue and send them immediately. If you don't flush, the system automatically backfills in small scheduled batches to improve performance
+ap.flush()
+
+# Print the completion result
+print(completion.choices[0].message)
+
+# Print the event run_id, which corresponds to a row on the Batch page and is used for subsequent tracking, editing, and overwriting data
+print(completion.run.id)
+```
+
+
+If successful, you will see the model completion and the `run_id` of this data record. At this point, log in to the console page to view a newly added data record, including variables and the model answer.
+
+```Markdown
+ChatCompletionMessage(content='Here is a scoring criteria for a text understanding task, with a 5-point scale where 1 means completely wrong and 5 means completely correct. Please output a number between 1 and 5', role='assistant', function_call=None, tool_calls=None, audio=None, reasoning_content='\nThe user now provides a prompt: "This is a prompt for a text understanding task, which contains the content of variable 1 and variable 2". It seems that the user may want me to generate a specific text understanding task prompt based on this information, or need me to explain how to handle such a prompt containing variables? First, I need to clarify the user\'s requirements. The user might be constructing a prompt template that requires dynamic replacement of variables, where variable 1 and variable 2 represent different text contents, and the task is to make the model understand the content of these two variables and complete a certain task, such as comparison, summarization, answering questions, etc.\n\nFirst, I should consider common types of text understanding tasks, such as text classification, sentiment analysis, entity recognition, relationship extraction, question answering, summarization, text matching, etc. Then, variables 1 and 2 may be inputs in the task, for example, variable 1 is "text to be analyzed" and variable 2 is "a question" or "another text to be compared".\n\nFor instance, if the task is question answering, the possible prompt structure could be: "Please answer the question based on the following text (variable 1). Text: {variable 1} Question: {variable 2} Answer:". If it is text comparison, it might be: "Compare the following two texts (variable 1 and variable 2), pointing out their similarities and differences. Text 1: {variable 1} Text 2: {variable 2} Similarities: Differences:".\n\nThe user may want me to provide a specific example showing how to incorporate variables 1 and 2 into a text understanding task prompt. Therefore, I need to first determine a specific text understanding task type, then define the roles of variables 1 and 2, and construct a complete prompt template.\n\nIn addition, the user may not have clearly stated the task type, so I might need to ask about the task type first, but based on the current information, I may need to assume a common task to give an example. For example, question answering is a relatively common task, or text summarization.\n\nAssuming the task is question answering, then variable 1 is "context text" and variable 2 is "question". Then the prompt could be: "Please answer the question based on the following context text. Context: {variable 1} Question: {variable 2} Please directly give the answer without additional explanation."\n\nOr if it is text summarization, variable 1 is "text to be summarized" and variable 2 is "summary requirements". Then the prompt could be: "Summarize the following text (variable 1) according to the requirements (variable 2). Text: {variable 1} Requirements: {variable 2} Summary:".\n\nAlternatively, if the task is text matching, to determine whether two texts are related, variables 1 and 2 are two texts, and the prompt could be: "Determine whether the following two texts are related (related/unrelated). Text A: {variable 1} Text B: {variable 2} Are they related:".\n\nIn summary, the user may need an example of a text understanding task prompt containing variables 1 and 2, clearly indicating the positions of the variables and the task requirements. Therefore, I should provide a specific example showing how variables are integrated and what the task is, so that the user can adjust it according to their actual task.', function_call=None, tool_calls=None, audio=None, reasoning_content='\nThe user now provides a prompt: "This is a prompt for a text understanding task, which contains the content of variable 1 and variable 2". It seems that the user may want me to generate a specific text understanding task prompt based on this information, or need me to explain how to handle such a prompt containing variables? First, I need to clarify the user\'s requirements. The user might be constructing a prompt template that requires dynamic replacement of variables, where variable 1 and variable 2 represent different text contents, and the task is to make the model understand the content of these two variables and complete a certain task, such as comparison, summarization, answering questions, etc.\n\nFirst, I should consider common types of text understanding tasks, such as text classification, sentiment analysis, entity recognition, relationship extraction, question answering, summarization, text matching, etc. Then, variables 1 and 2 may be inputs in the task, for example, variable 1 is "text to be analyzed" and variable 2 is "a question" or "another text to be compared".\n\nFor instance, if the task is question answering, the possible prompt structure could be: "Please answer the question based on the following text (variable 1). Text: {variable 1} Question: {variable 2} Answer:". If it is text comparison, it might be: "Compare the following two texts (variable 1 and variable 2), pointing out their similarities and differences. Text 1: {variable 1} Text 2: {variable 2} Similarities: Differences:".\n\nThe user may want me to provide a specific example showing how to incorporate variables 1 and 2 into a text understanding task prompt. Therefore, I need to first determine a specific text understanding task type, then define the roles of variables 1 and 2, and construct a complete prompt template.\n\nIn addition, the user may not have clearly stated the task type, so I might need to ask about the task type first, but based on the current information, I may need to assume a common task to give an example. For example, question answering is a relatively common task, or text summarization.\n\nAssuming the task is question answering, then variable 1 is "context text" and variable 2 is "question". Then the prompt could be: "Please answer the question based on the following context text. Context: {variable 1} Question: {variable 2} Please directly give the answer without additional explanation."\n\nOr if it is text summarization, variable 1 is "text to be summarized" and variable 2 is "summary requirements". Then the prompt could be: "Summarize the following text (variable 1) according to the requirements (variable 2). Text: {variable 1} Requirements: {variable 2} Summary:".\n\nAlternatively, if the task is text matching, to determine whether two texts are related
+```
+
+
+Note: For visual understanding tasks, interleaved prompt text content is supported, and variables can be of type `text` or `image_url`. When rendering a variable, pass the corresponding text content and `image_url`.
+
+```Python
+import agent_pilot as ap
+
+input_dict = ap.render(
+    task_id="ta-20250101000000-aaaaa",
+    version="v2",
+    variables={
+        "text_var": "text content",
+        "image_var": "https://www.image.com/1.jpg",
+    },
+    api_key=None,
+    api_url=None,
+)
+```
+
+
+<span id="b5a30de2"></span>
+### How do I manually write back data?
+
+In addition to automatically writing back data via the completion API, the SDK also lets you write back data manually. You can also override data after the automatic write\-back, such as adding an ideal answer (reference) or updating variables.
+
+```Python
+import agent_pilot as ap
+from byteplussdkarkruntime import Ark
+import os
+import time
+import uuid
+
+# Create a run_id or obtain the run_id of a backfill event from the above completion API response
+run_id = str(uuid.uuid4())
+task_id = "ta-20250101000000-aaaaa"
+version = "v1"
+
+# Backfill or overwrite the row of data corresponding to a run_id
+ap.track_event(
+    run_type="llm",
+    event_name="reference",  # Backfill event name; any name is acceptable
+    run_id=run_id,
+    task_id=task_id,
+    version=version,
+    variables={
+        "variable_1": "Content of variable 1",
+        "variable_2": "Content of variable 2",
+    },
+    input_messages=[{"role": "user", "content": "This is a model input"}],
+    output_message={"role": "user", "content": "This is a model output"},
+    reference="This is a reference answer",
+    api_key=None,
+    api_url=None,
+)
+ap.flush()
+```
+
+
+<span id="82309378"></span>
+### How do I provide human feedback scores?
+
+After applying the patch, the Ark client is almost identical to the standard Ark completion API, except that the inference return value `completion` carries a write\-back event (`run`) as the unique identifier (`run.id`) for subsequent tracking (`track`) of a data record. As long as you have this identifier, you can append follow\-up actions, such as adding human scores and AI scores.
+
+Continue from the code above: call the `ap.track_feedback()` API and pass a feedback dict. Provide human scoring data through the `human_score`, `human_analysis`, and `human_confidence` fields. After ingestion, log in to the console to view the record mentioned above; it now includes the score and scoring reason. This feature aligns with the console's manual scoring feature.
+
+```Python
+import agent_pilot as ap
+from byteplussdkarkruntime import Ark
+import os
+
+# Create the client
+client = Ark(api_key=os.getenv('ARK_API_KEY'))
+ap.probing(object=client, sample_rate=1.0)
+
+# Render the inference request input
+input_dict = ap.render(
+    task_id="ta-20250101000000-aaaaa",
+    version="v1",
+    variables={
+        "variable_1": "Content of variable 1",
+        "variable_2": "Content of variable 2",
+    },
+    api_key=None,
+    api_url=None,
+)
+
+# Call Model inference, same as the ModelArk SDK
+completion = client.chat.completions.create(model='seed-1.6-250615', **input_dict)
+
+# Optional step: flush pending event messages in the queue and send them immediately. If you don't flush, the system automatically flushes small batches on a schedule to improve performance
+ap.flush()
+
+# Print completion results
+print(completion.choices[0].message)
+
+# Print the event run_id, which corresponds to a row on the Batch page and can be used for subsequent tracking, editing, or overwriting data
+print(completion.run.id)
+
+# Get the unique identifier run.id of the above event run
+run = completion.run
+if run is not None:
+    print(run.task_id)
+    print(run.version)
+    print(run.id)
+
+# Track and add human feedback scores
+ap.track_feedback(
+    task_id=run.task_id,
+    version=run.version,
+    run_id=run.id,
+    feedback={
+        "human_score": 5,
+        "human_analysis": "The reason for manual scoring of this data",
+        "human_confidence": 1.0,
+    },
+)
+
+ap.flush()
+```
+
+
+If it runs successfully, log in to the Batch page under this task in PromptPilot; you will see that the ingested data now includes the score and scoring reason.
+
+<span id="40048548"></span>
+## 3. Online evaluation
+
+<span id="03d5573c"></span>
+### How do I submit an online evaluation request?
+
+Call the `ap.eval.evaluate()` API. Enter an example and a metric, both dicts, and provide the relevant fields.
+
+```Python
+import agent_pilot as ap
+
+# Samples to evaluate
+example = {
+    "prompt": "This is a prompt template, it contains {{variable_1}} and {{variable_2}}",
+    "variables": {
+        "variable_1": "Content of variable 1",
+        "variable_2": "Content of variable 2",
+    },
+    "response": "Content of model response",
+}
+
+# Scoring criteria
+metric = {
+    "criteria": "The text is fluent and logically clear. Obtaining 5 points if the response content is sufficient and there are no obvious omissions; otherwise, output the number 1."
+}
+
+# Run evaluation
+result = ap.eval.evaluate(
+    example=example,
+    metric=metric,
+    api_key=None,
+    api_url=None,
+)
+print(result)
+```
+
+
+If successful, you will see the following output.
+
+```Bash
+example_id=None
+reference=None
+score=1
+analysis="The task question did not clearly specify the requirements. The model's response did not reflect the processing of the content of variable 1 and variable 2. The response content was insufficient and there were obvious omissions, failing to meet the requirement in the evaluation criteria that the response content should be sufficient and have no obvious omissions. Therefore, the score is 1."
+confidence=0.9
+```
+
+
+Specifically, we provide the following optional parameters:
+
+
+* `example_id`: Users can specify this ID to map each sample to its evaluation result one\-to\-one, making lookup easier.
+
+* `reference`: If the scoring criteria (`criteria`) requires comparing the model answer with a reference answer, use this field to pass the sample's reference answer. For example, `criteria`: "The model answer matches the reference answer."
+
+   ```Python
+   import agent_pilot as ap
+   
+   # Samples to evaluate
+   example = {
+       "example_id": "ex_id_1",                  # Optional
+       "prompt": "This is a prompt template, which contains {{variable_1}} and {{variable_2}}",
+       "variables": {
+           "variable_1": "Content of variable 1",
+           "variable_2": "Content of variable 2",
+       },
+       "response": "Model response content",
+       "reference": "Reference answer content",               # Optional
+   }
+   
+   # Scoring criteria
+   metric = {
+       "criteria": "The model's response is consistent with the reference answer, score 5, output the number 5. Otherwise, output the number 1."
+   }
+   
+   # Invoke evaluation
+   result = ap.eval.evaluate(
+       example=example,
+       metric=metric,
+       api_key=None,
+       api_url=None,
+   )
+   print(result)
+   ```
+   
+
+
+If successful, you will see the following output.
+
+```Bash
+example_id='ex_id_1'
+reference='Reference answer content'
+score=1
+analysis='The content of the model\'s response is inconsistent with the reference answer. According to the evaluation criteria, it should get a score of 1.'
+confidence=1.0
+```
+
+
+In addition, for users' convenience, we also support the following two ways to build samples.
+
+
+* Enter via the `messages` field, aligned with the Ark client's `messages` field API.
+
+* Enter via the `input` field to ask the LLM directly.
+
+
+```Python
+import agent_pilot as ap
+
+
+# Scoring criteria
+metric = {
+    "criteria": "The text is fluent and logically clear. If the response content is sufficient and there are no obvious omissions, score 5 and output the number 5. Otherwise, output the number 1."
+}
+
+# Enter directly via the messages field to align with the Ark client's messages field API
+example = {
+    "messages": [
+        {"role": "system", "content": "You are a polite and friendly ordering robot, helping users place orders."},
+        {"role": "user", "content": "How spicy is your boiled fish?"},
+        {"role": "assistant", "content": "Hello, you can choose mild, medium, or spicy."},
+        {"role": "user", "content": "Please give me a mild one."},
+    ],
+    "response": "Okay, a mild spicy boiled fish, I've placed your order for you, please wait a moment."
+}
+
+# Invoke evaluation
+result = ap.eval.evaluate(
+    example=example,
+    metric=metric,
+    api_key=None,
+    api_url=None,
+)
+print(result)
+
+# Enter via the input field to ask the model directly
+example = {
+    "input": "This is a prompt template, it has the content of variable 1 and variable 2",
+    "response": "Model response content"
+}
+
+# Invoke evaluation
+result = ap.eval.evaluate(
+    example=example,
+    metric=metric,
+    api_key=None,
+    api_url=None
+)
+print(result)
+```
+
+
+If successful, you can see the evaluation results for the two examples above.
+
+```Bash
+example_id=None
+reference=None
+score=1
+analysis="Although the model's response is fluent in text expression and logically clear, as a polite and courteous ordering robot, the response content is insufficient, did not reflect a polite and courteous attitude, and there were obvious omissions. Therefore, according to the evaluation criteria, a score of 1 is given."
+confidence=1.0
+example_id=None
+reference=None
+score=1
+analysis="The task question did not clearly specify the requirements, and the model's response 'Model response content' did not reflect relevant elaboration on the content of variables 1 and 2. The response content was insufficient and there were obvious omissions, so a score of 1 is given."
+confidence=0.9
+```
+
+
+<span id="1ac4d879"></span>
+### How do I feed back the AI score?
+
+The process is the same as feeding back human scores: track the event using the unique identifier (`run.id`) of the feedback event (`run`), then call the `ap.track_feedback()` API and pass feedback to add the AI score.
+
+Unlike human scores, the AI score requires passing the `human_score`, `human_analysis`, and `human_confidence` fields as feedback. After feedback is sent, log in to the console page to see that the sample corresponding to `run.id` has updated its score and scoring reason, and the label "AI Score" is displayed next to it. This feature aligns with the intelligent scoring feature on the console page.
+
+```Python
+import agent_pilot as ap
+from byteplussdkarkruntime import Ark
+import os
+import time
+
+# Create client
+client = Ark(api_key=os.getenv('ARK_API_KEY'))
+ap.probing(object=client, sample_rate=1.0)
+
+# Render the inference request input
+input_dict = ap.render(
+    task_id="ta-20250101000000-aaaaa",
+    version="v1",
+    variables={
+        "variable_1": "Content of variable 1",
+        "variable_2": "Content of variable 2",
+    },
+)
+
+# Invoke Model inference, same as with the ModelArk SDK
+completion = client.chat.completions.create(model='1.5-pro-32k-250115', **input_dict)
+print(completion.choices[0].message)
+
+run = completion.run
+
+if run is not None:
+    result = ap.eval.evaluate(
+        example={
+            "example_id": "example_id_1",
+            "input": input_dict["messages"][0]["content"][0]["text"],
+            "response": completion.choices[0].message.content,
+        },
+        metric={
+            "criteria": "The text is fluent and logically clear. If the response content is sufficient and there are no obvious omissions, score 5 and output the number 5. Otherwise, output the number 1."
+        },
+        api_key=None,
+        api_url=None,
+    )
+    print(result)
+
+    ap.track_feedback(
+        task_id=run.task_id,
+        version=run.version,
+        run_id=run.id,
+        feedback={
+            "metric_score": result.score,
+            "metric_analysis": result.analysis,
+            "metric_confidence": result.confidence,
+        },
+    )
+
+    ap.flush()
+```
+
+
+If the run succeeds, log in to PromptPilot and go to the Batch page for this task. You will see that the returned data includes the score and scoring reason, and the score is labeled "AI Score".
+
+<span id="23269e4c"></span>
+### How do I generate scoring criteria?
+
+Call the `ap.eval.generate_criteria()` API to generate scoring criteria by passing a sample list `examples`, where each element of `examples` is an example dict. This feature aligns with scoring criteria generation in intelligent scoring.
+
+Specifically, each sample in the list can include `score` and `analysis` (scoring reason). When generating scoring criteria, the system does not distinguish between human scores and AI scores.
+
+```Python
+import agent_pilot as ap
+
+# Sample list
+examples = [
+    {
+        "prompt": "This is a prompt template, it contains {{variable_1}} and {{variable_2}}",
+        "variables": {
+            "variable_1": "Content of variable 1 in sample 1",
+            "variable_2": "Content of variable 2 in sample 1",
+        },
+        "response": "Model response 1",
+        "reference": "Reference answer 1",            # Optional
+        "score": 5,                         # Optional
+        "analysis": "Scoring reason 1",             # Optional
+    },
+    {
+        "prompt": "This is a prompt template, it contains {{variable_1}} and {{variable_2}}",
+        "variables": {
+            "variable_1": "Content of variable 1 in sample 2",
+            "variable_2": "Content of variable 2 in sample 2",
+        },
+        "response": "Model response 2",
+        "reference": "Reference answer 2",            # Optional
+        "score": 1,                         # Optional
+        "analysis": "Scoring reason 2",             # Optional
+    },
+]
+
+criteria = ap.eval.generate_criteria(
+    examples=examples,
+    api_key=None,
+    api_url=None,
+)
+print(criteria)
+```
+
+
+If successful, you will get the following scoring criteria:
+
+```Bash
+The model's response is completely inconsistent with the user's input requirements and contains serious errors, scoring 1.
+The model's response partially fails to meet key requirements or has many minor issues, scoring 2.
+The model's response basically meets the user's input requirements but has some minor flaws, with the format basically conforming to the requirements, scoring 3.
+The model's response is accurate and complete, with a standard format, and exceeds basic requirements in some aspects, scoring 4.
+The model's response perfectly meets the user's input requirements in both content and format, with additional highlights, scoring 5.
+```
+
+
+<span id="1a9bb182"></span>
+## 4. Prompt optimization and report retrieval
+
+<span id="a318f616"></span>
+### How do I submit a prompt optimization task?
+
+Call the `ap.optimize.create()` API, pass `task_id`, and specify `base_version`. The system creates an optimization job and associates an `OptimizeJob` object, `opt_job`. The object includes `job_id`, which serves as the optimization job's unique identifier.
+
+```Python
+import agent_pilot as ap
+import time
+
+# Call ap.optimize.create() to create an optimization job
+opt_job = ap.optimize.create(task_id="ta-20250101000000-aaaaa", base_version="v1", api_key=None, api_url=None)
+print(opt_job)
+```
+
+
+If successful, you will see the following optimization job information.
+
+```SQL
+task_id='ta-20250912125011-WDAtF' base_version='v1' job_id='20250912145806_gqynL_OptimizePrompt' api_key='XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX' api_url='https://prompt-pilot.ap-southeast.bytepluses.com' local_debug=False optimized_version=None
+```
+
+
+<span id="a7854090"></span>
+### How do I view optimization status and progress?
+
+Using the `opt_job` object, call `opt_job.get_job_info()` to view the current optimization job information, including state and progress.
+
+
+* When optimization finishes, `state` is one of `{ap.OptimizeState.SUCCESS, ap.OptimizeState.FAILED}`. If it is neither, wait briefly and query again.
+
+* While optimization is running, `state` is one of `{ap.OptimizeState.CREATED, ap.OptimizeState.RUNNING}`.
+
+
+Continuing from the code above, query the optimization job information every 5 seconds:
+
+```Python
+import agent_pilot as ap
+import time
+
+# Call ap.optimize.create() to create an optimization job
+opt_job = ap.optimize.create(task_id="ta-20250101000000-aaaaa", base_version="v1", api_key=None, api_url=None)
+print(opt_job)
+
+# Query JobInfo via the opt_job object
+job_info = opt_job.get_job_info()
+while job_info.state not in {ap.OptimizeState.SUCCESS, ap.OptimizeState.FAILED}:
+    # View the current state
+    print(job_info.state)
+    # View the current progress
+    if job_info.progress is not None:
+        print(job_info.progress.percent)         # Current optimization job completion percentage
+        print(job_info.progress.optimal_prompt)  # Current optimal prompt
+        print(job_info.optimized_version)
+
+    # Re-fetch JobInfo after 5 seconds
+    time.sleep(5)
+    job_info = opt_job.get_job_info()
+
+# After the optimization job completes, the status is SUCCESS or FAILED
+print(job_info.state in {ap.OptimizeState.SUCCESS, ap.OptimizeState.FAILED})
+```
+
+
+If successful, you will see logs refreshing every 5 seconds.
+
+```YAML
+INFO:agent_pilot.optimize.optimize_job:Starting optimization for task_id: ta-20250912125011-WDAtF, version: v1
+INFO:agent_pilot.http_client:[post] request_id: xxxxxxxx-0dac-4775-b686-fcecc5f08674, api_url: https://prompt-pilot.ap-southeast.bytepluses.com, action: OptimizeServiceStartOptimize
+INFO:agent_pilot.optimize.optimize_job:Optimization started successfully. OptimizeJobId: 20250912150037_P3Cnj_OptimizePrompt
+task_id='ta-20250912125011-WDAtF' base_version='v1' job_id='20250912150037_P3Cnj_OptimizePrompt' api_key='XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX' api_url='https://prompt-pilot.ap-southeast.bytepluses.com' local_debug=False optimized_version=None
+INFO:agent_pilot.optimize.optimize_job:Getting optimization progress for OptimizeJobId: 20250912150037_P3Cnj_OptimizePrompt
+INFO:agent_pilot.http_client:[post] request_id: xxxxxxxx-5b67-4462-b7dd-ffac8feddd2f, api_url: https://prompt-pilot.ap-southeast.bytepluses.com, action: OptimizeServiceGetOptimizeProgress
+INFO:agent_pilot.optimize.optimize_job:Successfully fetched optimization progress for OptimizeJobId: 20250912150037_P3Cnj_OptimizePrompt
+OptimizeState.CREATED
+INFO:agent_pilot.optimize.optimize_job:Getting optimization progress for OptimizeJobId: 20250912150037_P3Cnj_OptimizePrompt
+INFO:agent_pilot.http_client:[post] request_id: xxxxxxxx-9c24-4714-bfc0-841ee964833b, api_url: https://prompt-pilot.ap-southeast.bytepluses.com, action: OptimizeServiceGetOptimizeProgress
+INFO:agent_pilot.optimize.optimize_job:Successfully fetched optimization progress for OptimizeJobId: 20250912150037_P3Cnj_OptimizePrompt
+OptimizeState.CREATED
+INFO:agent_pilot.optimize.optimize_job:Getting optimization progress for OptimizeJobId: 20250912150037_P3Cnj_OptimizePrompt
+INFO:agent_pilot.http_client:[post] request_id: xxxxxxxx-00c8-4969-b137-62e3ae74e349, api_url: https://prompt-pilot.ap-southeast.bytepluses.com, action: OptimizeServiceGetOptimizeProgress
+INFO:agent_pilot.optimize.optimize_job:Successfully fetched optimization progress for OptimizeJobId: 20250912150037_P3Cnj_OptimizePrompt
+OptimizeState.CREATED
+INFO:agent_pilot.optimize.optimize_job:Getting optimization progress for OptimizeJobId: 20250912150037_P3Cnj_OptimizePrompt
+INFO:agent_pilot.http_client:[post] request_id: xxxxxxxx-44db-445d-a069-bbb2d0451047, api_url: https://prompt-pilot.ap-southeast.bytepluses.com, action: OptimizeServiceGetOptimizeProgress
+INFO:agent_pilot.optimize.optimize_job:Successfully fetched optimization progress for OptimizeJobId: 20250912150037_P3Cnj_OptimizePrompt
+OptimizeState.CREATED
+INFO:agent_pilot.optimize.optimize_job:Getting optimization progress for OptimizeJobId: 20250912150037_P3Cnj_OptimizePrompt
+INFO:agent_pilot.http_client:[post] request_id: xxxxxxxx-6f67-4ab2-a4de-1fe354f3847f, api_url: https://prompt-pilot.ap-southeast.bytepluses.com, action: OptimizeServiceGetOptimizeProgress
+INFO:agent_pilot.optimize.optimize_job:Successfully fetched optimization progress for OptimizeJobId: 20250912150037_P3Cnj_OptimizePrompt
+OptimizeState.RUNNING
+0.0
+This is a prompt for a text understanding task, which contains {{variable_1}} and {{variable_2}}
+None
+INFO:agent_pilot.optimize.optimize_job:Getting optimization progress for OptimizeJobId: 20250912150037_P3Cnj_OptimizePrompt
+INFO:agent_pilot.http_client:[post] request_id: xxxxxxxx-c1de-4aba-b533-7c4c067d36b8, api_url: https://prompt-pilot.ap-southeast.bytepluses.com, action: OptimizeServiceGetOptimizeProgress
+INFO:agent_pilot.optimize.optimize_job:Successfully fetched optimization progress for OptimizeJobId: 20250912150037_P3Cnj_OptimizePrompt
+OptimizeState.RUNNING
+0.1
+This is a prompt for a text understanding task, which contains {{variable_1}} and {{variable_2}}
+None
+INFO:agent_pilot.optimize.optimize_job:Getting optimization progress for OptimizeJobId: 20250912150037_P3Cnj_OptimizePrompt
+INFO:agent_pilot.http_client:[post] request_id: xxxxxxxx-77ad-4c6d-a83b-c8f744107926, api_url: https://prompt-pilot.ap-southeast.bytepluses.com, action: OptimizeServiceGetOptimizeProgress
+INFO:agent_pilot.optimize.optimize_job:Successfully fetched optimization progress for OptimizeJobId: 20250912150037_P3Cnj_OptimizePrompt
+OptimizeState.RUNNING
+0.1
+This is a prompt for a text understanding task, which contains {{variable_1}} and {{variable_2}}
+None
+INFO:agent_pilot.optimize.optimize_job:Getting optimization progress for OptimizeJobId: 20250912150037_P3Cnj_OptimizePrompt
+INFO:agent_pilot.http_client:[post] request_id: xxxxxxxx-695e-41d6-b9dd-03c9c9bdc8a4, api_url: https://prompt-pilot.ap-southeast.bytepluses.com, action: OptimizeServiceGetOptimizeProgress
+INFO:agent_pilot.optimize.optimize_job:Successfully fetched optimization progress for OptimizeJobId: 20250912150037_P3Cnj_OptimizePrompt
+OptimizeState.RUNNING
+0.1
+This is a prompt for a text understanding task, which contains {{variable_1}} and {{variable_2}}
+None
+INFO:agent_pilot.optimize.optimize_job:Getting optimization progress for OptimizeJobId: 20250912150037_P3Cnj_OptimizePrompt
+INFO:agent_pilot.http_client:[post] request_id: xxxxxxxx-630e-46cd-8c8b-8c02cb511083, api_url: https://prompt-pilot.ap-southeast.bytepluses.com, action: OptimizeServiceGetOptimizeProgress
+INFO:agent_pilot.optimize.optimize_job:Successfully fetched optimization progress for OptimizeJobId: 20250912150037_P3Cnj_OptimizePrompt
+OptimizeState.RUNNING
+0.1
+This is a prompt for a text understanding task, which contains {{variable_1}} and {{variable_2}}
+None
+INFO:agent_pilot.optimize.optimize_job:Getting optimization progress for OptimizeJobId: 20250912150037_P3Cnj_OptimizePrompt
+INFO:agent_pilot.http_client:[post] request_id: xxxxxxxx-6ec0-405a-ae25-693cb70bf646, api_url: https://prompt-pilot.ap-southeast.bytepluses.com, action: OptimizeServiceGetOptimizeProgress
+INFO:agent_pilot.optimize.optimize_job:Successfully fetched optimization progress for OptimizeJobId: 20250912150037_P3Cnj_OptimizePrompt
+True
+```
+
+
+Note: During task optimization, you can also view the optimization progress through the PromptPilot Console.
+
+<span id="328dc659"></span>
+### How do I obtain the optimization report?
+
+If optimization succeeds, call the `opt_job.get_report()` API to obtain the optimization report.
+
+```Python
+import agent_pilot as ap
+import time
+
+# Call the API ap.optimize.create() to create an optimization job
+opt_job = ap.optimize.create(task_id="ta-20250912125011-WDAtF", base_version="v1", api_key=None, api_url=None)
+print(opt_job)
+
+# Query JobInfo via the opt_job object
+job_info = opt_job.get_job_info()
+while job_info.state not in {ap.OptimizeState.SUCCESS, ap.OptimizeState.FAILED}:
+    # View the current state
+    print(job_info.state)
+    # View current progress
+    if job_info.progress is not None:
+        print(job_info.progress.percent)         # Completion percentage of the current optimization job
+        print(job_info.progress.optimal_prompt)  # Current best prompt
+        print(job_info.optimized_version)
+
+    # Retrieve JobInfo again after 5 seconds
+    time.sleep(5)
+    job_info = opt_job.get_job_info()
+
+# After the optimization job ends, the status is SUCCESS or FAILED
+print(job_info.state in {ap.OptimizeState.SUCCESS, ap.OptimizeState.FAILED})
+
+if job_info.state == ap.OptimizeState.SUCCESS:
+    report = opt_job.get_report()
+    opt, base = report.opt, report.base
+
+    # Compare prompts before and after optimization
+    print(opt.prompt, base.prompt)
+
+    # Compare metrics before and after optimization
+    print(opt.metric, base.metric)
+
+    # Compare average scores before and after optimization
+    print(opt.avg_score, base.avg_score)
+
+    # List data records before and after optimization
+    print(opt.records, base.records)
+```
+
+
+If successful, you will see the final report as follows. You can also log in to the PromptPilot Console page to view the report.
+
+```Python
+This is a prompt for a text understanding task, which contains {{variable_1}} and {{variable_2}}.
+This is a prompt for a text understanding task, which contains {{variable_1}} and {{variable_2}}.
+This is the scoring criteria for a text understanding task, on a 5-point scale where 1 means completely incorrect and 5 means completely correct. Please output a number between 1 and 5.
+This is the scoring criteria for a text understanding task, on a 5-point scale where 1 means completely incorrect and 5 means completely correct. Please output a number between 1 and 5.
+5.0 5.0
+[OptimizeDataRecord(record_id='dr-20250912150518-Z8ua8', variables=[Variable(name='variable_1', value='Content of variable_1', type='text'), Variable(name='variable_2', value='Content of variable_2', type='text')], model_answer='To construct a prompt for a text understanding task containing "variable_1" and "variable_2", the key is to clarify the task goal, variable roles, and output requirements. The following are specific steps and examples to help you integrate variables into the prompt:\n\n\n### 1. Clarify Task Type and Variable Roles\nFirst, determine the specific type of text understanding task (e.g., question answering, summarization, sentiment analysis, relationship extraction) and define the functions of variable_1 and variable_2 (e.g., input text, question, reference text, keywords).\n\n\n### 2. Construct a General Prompt Framework\nCore structure: Task description + Variable content reference + Output format requirements. \nEnsure to clearly inform the model "what to do", "based on which information", and "in what form to output".\n\n\n### 3. Examples: Prompt Design for Different Task Scenarios\n\n#### Scenario 1: Question Answering Task (variable_1 = article, variable_2 = question) \nPrompt: \n"Please carefully read the following article (variable_1): \n[Insert specific content of variable_1 here, e.g., a tech article on the development of artificial intelligence] \n\nThen answer the question (variable_2): \n[Insert specific content of variable_2 here, e.g., "What are the core technologies of artificial intelligence?"] \n\nRequirement: Provide the answer directly without additional explanations." \n\n\n#### Scenario 2: Text Summarization (variable_1 = long text, variable_2 = summarization length requirements) \nPrompt: \n"Generate a summary for the following long text (variable_1): \n[Insert specific content of variable_1 here, e.g., a 500-word research report] \n\nSummary requirements (variable_2): \n[Insert specific content of variable_2 here, e.g., "No more than 100 words, covering the research purpose, methods, and core conclusions"] \n\nPlease output a summary that meets the requirements." \n\n\n#### Scenario 3: Text Comparison (variable_1 = Text A, variable_2 = Text B; task = analyze similarities and differences) \nPrompt: \n"Compare the following two texts and analyze their similarities and differences in themes and viewpoints. \n\nText A (variable_1): \n[Insert specific content of variable_1 here, e.g., "Environmental policies should focus on limiting industrial emissions"] \n\nText B (variable_2): \n[Insert specific content of variable_2 here, e.g., "Environmental policies should prioritize promoting the development of renewable energy"] \n\nOutput format: \nSimilarities: [Summarize in 1-2 sentences] \nDifferences: [Summarize in 1-2 sentences]"\n\n\n### Key Notes \n- Clear variable positioning: Explicitly label the roles of "variable_1" and "variable_2" (e.g., "input text", "question") to avoid model confusion. \n- Concise task instructions: Use short sentences to state "what to do" (e.g., "answer the question") and avoid redundant wording. \n- Clear output format requirements: Specify the output form (e.g., "provide the answer directly", "list in points") to reduce model comprehension costs. \n\n\nIf you need to design a prompt for a specific task (e.g., NER, sentiment analysis) or variable content (e.g., dialogue history, multi-turn questions), provide more details, and I will further optimize it!', ref_answer=None, score=5, analysis='This is the manual scoring reason for this data', confidence=1.0), OptimizeDataRecord(record_id='dr-20250912150518-CQxt6', variables=[Variable(name='variable_1', value='Content of variable_1', type='text'), Variable(name='variable_2', value='Content of variable_2', type='text')], model_answer='Please provide the specific content of variable_1 and variable_2, as well as the complete expression of the text understanding task prompt, so that I can better complete the relevant task for you.', ref_answer=None, score=5, analysis='The model's answer is fluent in expression and logically clear. Since the task only informs that there is a text understanding task prompt with the content of variable_1 and variable_2 but does not provide specific content, the model's answer reasonably asks the user to provide the key information needed to complete the task, with no content omission and in line with the evaluation criteria.', confidence=1.0), OptimizeDataRecord(record_id='dr-20250912150518-Z8ua8', variables=[Variable(name='variable_1', value='Content of variable_1', type='text'), Variable(name='variable_2', value='Content of variable_2', type='text')], model_answer='To construct a prompt for a text understanding task containing "variable_1" and "variable_2", the key is to clarify the task goal, variable roles, and output requirements. The following are specific steps and examples to help you integrate variables into the prompt:\n\n\n### 1. Clarify Task Type and Variable Roles\nFirst, determine the specific type of text understanding task (e.g., question answering, summarization, sentiment analysis, relationship extraction) and define the functions of variable_1 and variable_2 (e.g., input text, question, reference text, keywords).\n\n\n### 2. Construct a General Prompt Framework\nCore structure: Task description + Variable content reference + Output format requirements. \nEnsure to clearly inform the model "what to do", "based on which information", and "in what form to output".\n\n\n### 3. Examples: Prompt Design for Different Task Scenarios\n\n#### Scenario 1: Question Answering Task (variable_1 = article, variable_2 = question) \nPrompt: \n"Please carefully read the following article (variable_1): \n[Insert specific content of variable_1 here, e.g., a tech article on the development of artificial intelligence] \n\nThen answer the question (variable_2): \n[Insert specific content of variable_2 here, e.g., "What are the core technologies of artificial intelligence?"] \n\nRequirement: Provide the answer directly without additional explanations." \n\n\n#### Scenario 2: Text Summarization (variable_1 = long text, variable_2 = summarization length requirements) \nPrompt: \n"Generate a summary for the following long text (variable_1): \n[Insert specific content of variable_1 here, e.g., a 500-word research report] \n\nSummary requirements (variable_2): \n[Insert specific content of variable_2 here, e.g., "No more than 100 words, covering the research purpose, methods, and core conclusions"] \n\nPlease output a summary that meets the requirements." \n\n\n#### Scenario 3: Text Comparison (variable_1 = Text A, variable_2 = Text B; task = analyze similarities and differences) \nPrompt: \n"Compare the following two texts and analyze their similarities and differences in themes and viewpoints. \n\nText A (variable_1): \n[Insert specific content of variable_1 here, e.g., "Environmental policies should focus on limiting industrial emissions"] \n\nText B (variable_2): \n[Insert specific content of variable_2 here, e.g., "Environmental policies should prioritize promoting the development of renewable energy"] \n\nOutput format: \nSimilarities: [Summarize in 1-2 sentences] \nDifferences: [Summarize in 1-2 sentences]"\n\n\n### Key Notes \n- Clear variable positioning: Explicitly label the roles of "variable_1" and "variable_2" (e.g., "input text", "question") to avoid model confusion. \n- Concise task instructions: Use short sentences to state "what to do" (e.g., "answer the question") and avoid redundant wording. \n- Clear output format requirements: Specify the output form (e.g., "provide the answer directly", "list in points") to reduce model comprehension costs. \n\n\nIf you need to design a prompt for a specific task (e.g., NER, sentiment analysis) or variable content (e.g., dialogue history, multi-turn questions), provide more details, and I will further optimize it!', ref_answer=None, score=5, analysis='This is the manual scoring reason for this data', confidence=1.0), OptimizeDataRecord(record_id='dr-20250912150518-CQxt6', variables=[Variable(name='variable_1', value='Content of variable_1', type='text'), Variable(name='variable_2', value='Content of variable_2', type='text')], model_answer='Please provide the specific content of variable_1 and variable_2, as well as the complete expression of the text understanding task prompt, so that I can better complete the relevant task for you.', ref_answer=None, score=5, analysis='The model's answer is fluent in expression and logically clear. Since the task only informs that there is a text understanding task prompt with the content of variable_1 and variable_2 but does not provide specific content, the model's answer reasonably asks the user to provide the key information needed to complete the task, with no content omission and in line with the evaluation criteria.', confidence=1.0)] [OptimizeDataRecord(record_id='dr-20250912142603-sGip3', variables=[Variable(name='variable_1', value='Content of variable_1', type='text'), Variable(name='variable_2', value='Content of variable_2', type='text')], model_answer='To construct a prompt for a text understanding task containing "variable_1" and "variable_2", the key is to clarify the task goal, variable roles, and output requirements. The following are specific steps and examples to help you integrate variables into the prompt:\n\n\n### 1. Clarify Task Type and Variable Roles\nFirst, determine the specific type of text understanding task (e.g., question answering, summarization, sentiment analysis, relationship extraction) and define the functions of variable_1 and variable_2 (e.g., input text, question, reference text, keywords).\n\n\n### 2. Construct a General Prompt Framework\nCore structure: Task description + Variable content reference + Output format requirements. \nEnsure to clearly inform the model "what to do", "based on which information", and "in what form to output".\n\n\n### 3. Examples: Prompt Design for Different Task Scenarios\n\n#### Scenario 1: Question Answering Task (variable_1 = article, variable_2 = question) \nPrompt: \n"Please carefully read the following article (variable_1): \n[Insert specific content of variable_1 here, e.g., a tech article on the development of artificial intelligence] \n\nThen answer the question (variable_2): \n[Insert specific content of variable_2 here, e.g., "What are the core technologies of artificial intelligence?"] \n\nRequirement: Provide the answer directly without additional explanations."
+\n\n\n#### Scenario 2: Text Summarization (variable_1 = long text, variable_2 = summarization length requirements) \nPrompt: \n"Generate a summary for the following long text (variable_1): \n[Insert specific content of variable_1 here, e.g., a 500-word research report] \n\nSummary requirements (variable_2): \n[Insert specific content of variable_2 here, e.g., "No more than 100 words, covering the research purpose, methods, and core conclusions"] \n\nPlease output a summary that meets the requirements." \n\n\n#### Scenario 3: Text Comparison (variable_1 = Text A, variable_2 = Text B; task = analyze similarities and differences) \nPrompt: \n"Compare the following two texts and analyze their similarities and differences in themes and viewpoints. \n\nText A (variable_1):
+\n[Insert specific content of variable_1 here, e.g., "Environmental policies should focus on limiting industrial emissions"] \n\nText B (variable_2): \n[Insert specific content of variable_2 here, e.g., "Environmental policies should prioritize promoting the development of renewable energy"] \n\nOutput format: \nSimilarities: [Summarize in 1-2 sentences] \nDifferences: [Summarize in 1-2 sentences]"\n\n\n### Key Notes \n- Clear variable positioning: Explicitly label the roles of variable_1 and variable_2 (e.g., "input text", "question") to avoid model confusion. \n- Concise task instructions: Use short sentences to state "what to do" (e.g., "answer the question") and avoid redundant wording. \n- Clear output format requirements: Specify the output form (e.g., "provide the answer directly", "list in points") to reduce model comprehension costs. \n\n\nIf you need to design a prompt for a specific task (e.g., NER, sentiment analysis) or variable content (e.g., dialogue history, multi-turn questions), provide more details, and I will further optimize it!', ref_answer=None, score=5, analysis='This is the manual scoring reason for this data', confidence=None), OptimizeDataRecord(record_id='dr-20250912142603-sGip3', variables=[Variable(name='variable_1', value='Content of variable_1', type='text'), Variable(name='variable_2', value='Content of variable_2', type='text')], model_answer='To construct a prompt for a text understanding task containing "variable_1" and "variable_2", the key is to clarify the task goal, variable roles, and output requirements. The following are specific steps and examples to help you integrate variables into the prompt:\n\n\n### 1. Clarify Task Type and Variable Roles\nFirst, determine the specific type of text understanding task (e.g., question answering, summarization, sentiment analysis, relationship extraction) and define the functions of variable_1 and variable_2 (e.g., input text, question, reference text, keywords).\n\n\n### 2. Construct a General Prompt Framework\nCore structure: Task description + Variable content reference + Output format requirements. \nEnsure to clearly inform the model "what to do", "based on which information", and "in what form to output".\n\n\n### 3. Examples: Prompt Design for Different Task Scenarios\n\n#### Scenario 1: Question Answering Task (variable_1 = article, variable_2 = question) \nPrompt: \n"Please carefully read the following article (variable_1): \n[Insert specific content of variable_1 here, e.g., a tech article on the development of artificial intelligence] \n\nThen answer the question (variable_2): \n[Insert specific content of variable_2 here, e.g., "What are the core technologies of artificial intelligence?"] \n\nRequirement: Provide the answer directly without additional explanations." \n\n\n#### Scenario 2: Text Summarization (variable_1 = long text, variable_2 = summarization length requirements) \nPrompt: \n"Generate a summary for the following long text (variable_1): \n[Insert specific content of variable_1 here, e.g., a 500-word research report] \n\nSummary requirements (variable_2): \n[Insert specific content of variable_2 here, e.g., "No more than 100 words, covering the research purpose, methods, and core conclusions"]
+\n\nPlease output a summary that meets the requirements." \n\n\n#### Scenario 3: Text Comparison (variable_1 = Text A, variable_2 = Text B; task = analyze similarities and differences) \nPrompt: \n"Compare the following two texts and analyze their similarities and differences in themes and viewpoints. \n\nText A (variable_1): \n[Insert specific content of variable_1 here, e.g., "Environmental policies should focus on limiting industrial emissions"] \n\nText B (variable_2): \n[Insert specific content of variable_2 here, e.g., "Environmental policies should prioritize promoting the development of renewable energy"] \n\nOutput format: \nSimilarities: [Summarize in 1-2 sentences] \nDifferences: [Summarize in 1-2 sentences]"\n\n\n### Key Notes \n- Clear variable positioning:
+```
+
+
+<span id="de86b7ff"></span>
+## 5. Prompt generation
+
+Call the `ap.generate_prompt_stream()` API, pass `task_description` and the model configuration, and generate the prompt as a stream. This capability aligns with the Prompt Generation page in the console.
+
+The following example generates a prompt for a multi\-turn conversation task. To generate prompts for text understanding or visual understanding, set `task_type` to `"DEFAULT"` or `"MULTIMODAL"`, respectively.
+
+```Python
+import agent_pilot as ap
+
+generated_prompt = ""
+usage = None
+print("Streaming response:")
+for chunk in ap.generate_prompt_stream(
+    task_description="I need a top-tier live streaming sales assistant; input is user's question, output is product introduction",
+    task_type="DIALOG",
+    model_name="seed-1-6-250615",
+    temperature=1.0,
+    top_p=0.7,
+    api_key=None,
+    api_url=None,
+):
+    # Handle streaming output
+    generated_prompt += chunk.data.content
+    print(chunk.data.content, end="", flush=True)
+    if chunk.event == "usage":
+        usage = chunk.data.usage
+
+print(f"Generated prompt: {str(generated_prompt)}")
+print(f"Usage: {usage}")
+```
+
+
+If successful, you will see the following output.
+
+```Markdown
+# Role Positioning: Top Live Streaming Sales Expert
+You are a highly engaging and persuasive live streaming sales expert, skilled at accurately understanding user needs and using vivid, alluring language to stimulate purchasing desire, making users develop an intense desire to own after listening to your introduction. Your core task is: no matter what product-related questions users ask (such as functions, prices, advantages, applicable scenarios, etc.), you can quickly transform them into targeted product introductions to achieve "question = planting the seed of purchase".
+
+
+# Core Live Streaming Sales Strategies
+## 1. Demand Anchoring Method
+- First, quickly capture the potential needs in the user's question (e.g., if a user asks "What skincare product is not greasy in summer?", the need is "refreshing and oil-controlling"), and directly state it at the beginning of the answer: "Are you looking for a product that feels like water when applied, can keep your skin matte even with more oil in summer?"
+- Use phrases like "Are you", "I understand you", "Many people have encountered this" to build empathy, making users feel "You completely understand me".
+
+
+## 2. Product Highlight Blasting
+- Targeting the user's needs, extract 3 core highlights of the product, and use exaggerated but true effect descriptions like "3-second results", "amazing after use", "can't live without it" to strengthen memory points.
+- Pair each highlight with a specific scenario: "For example, in the morning when you're in a hurry, applying it takes 2 minutes and you can go out; your face won't be oily all day, and colleagues will think you secretly touched up your makeup!"
+
+
+## 3. Creating Urgency and Scarcity
+- Actively reveal hidden benefits': 'Now placing an order not only gets a 50-yuan discount, but the first 100 orders also include a free sample of the same product; only 3 sets of inventory left!'
+- Use phrases like "Miss today and wait another year", "This color has long been out of stock in offline counters, only 50 pieces left online" to stimulate decision-making.
+
+
+## 4. Comparison and Crushing Strategy
+- If the user mentions competitors or hesitates, directly use "crushing comparison" to highlight advantages: "I know the one you're talking about; its XX function requires separate payment to activate, while ours is directly free, and the effect is 3 times stronger than it!"
+- Emphasize "king of cost-effectiveness": "At the same price, others can only buy the basic version; our product gives one for free and three as gifts, which is equivalent to earning two products for free!"
+
+
+# Dialogue Process and Taboos
+## Must-Do Process
+1. **Catch the question → Anchor the need → Blast highlights → Create scarcity → Urge to place an order**, all within 3 sentences, with a tight rhythm, leaving no room for user hesitation.
+2. Each answer must end with a clear call to action: "Click the link below to grab directly", "Placing an order now can be delivered by SF Express tomorrow", "Hurry to check, no stock left for slow hands!"
+
+
+## Absolute Taboos
+- Prohibit using vague words like "maybe", "perhaps", etc.; must use affirmative tones like "100% effective", "absolutely good", "who uses knows".
+- Prohibit long introductions. If a user asks "How much?", directly reply: "Original price 299, today's promotional price 199, plus a free 99-yuan gift, which is equivalent to buying 3 items for only 100 yuan. Will you place an order now?"
+
+
+# Example Reference
+- User asks: "Is this hair dryer fast at drying hair? I'm in a hurry in the morning."
+- Answer: "Do you usually take 10 minutes to dry your hair in the morning and always worry about damaging it? This hair dryer can dry long hair down to the waist in 3 minutes, and it has negative ion hair care, making your hair as smooth as if you had a treatment! Placing an order now includes a free same-style nozzle; only 28 left, no stock for slow hands, hurry and click the link to grab!"
+
+Remember: Every word you say should be like a hook, hooking users' ears and even more hooking their wallets!
+```
+
+
+
+
