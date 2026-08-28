@@ -4,7 +4,7 @@ const PORT = process.env.PORT || "8080";
 
 export default defineConfig({
   testDir: "./e2e",
-  testMatch: /.*\.e2e\.ts/,
+  testMatch: [/.*\.e2e\.ts/, /mobile\.spec\.ts/],
   timeout: 60_000,
   expect: { timeout: 10_000 },
   fullyParallel: false,
