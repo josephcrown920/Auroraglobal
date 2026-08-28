@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-labelledby="title desc">
+  <title id="title">Aurora Layers social preview</title>
+  <desc id="desc">Aurora Layers marketing card with neon gradients and the tagline One Frame Infinite Layers.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#08060f"/>
+      <stop offset="0.45" stop-color="#1c0c31"/>
+      <stop offset="1" stop-color="#050915"/>
+    </linearGradient>
+    <linearGradient id="aurora" x1="0" x2="1">
+      <stop offset="0" stop-color="#ff4fd8"/>
+      <stop offset="0.5" stop-color="#7c5cff"/>
+      <stop offset="1" stop-color="#00f0ff"/>
+    </linearGradient>
+    <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="22" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <circle cx="1020" cy="95" r="260" fill="#7c5cff" opacity="0.22" filter="url(#glow)"/>
+  <circle cx="130" cy="555" r="240" fill="#00f0ff" opacity="0.16" filter="url(#glow)"/>
+  <path d="M90 430 C260 320 360 545 520 405 S815 270 1055 390" fill="none" stroke="url(#aurora)" stroke-width="18" opacity="0.9" filter="url(#glow)"/>
+  <rect x="72" y="70" width="1056" height="490" rx="42" fill="none" stroke="rgba(255,255,255,0.16)" stroke-width="2"/>
+  <text x="96" y="150" fill="#ff4fd8" font-family="JetBrains Mono, monospace" font-size="24" font-weight="700" letter-spacing="8">AURORA LAYERS</text>
+  <text x="94" y="290" fill="#ffffff" font-family="Archivo, Arial, sans-serif" font-size="92" font-weight="900">One frame.</text>
+  <text x="94" y="390" fill="url(#aurora)" font-family="Archivo, Arial, sans-serif" font-size="96" font-weight="900">Infinite layers.</text>
+  <text x="100" y="474" fill="#c9bfd6" font-family="Archivo, Arial, sans-serif" font-size="31" font-weight="600">Edit one layer while the rest of the frame stays locked.</text>
+  <g transform="translate(918 356)">
+    <rect x="0" y="0" width="150" height="112" rx="24" fill="rgba(255,255,255,0.08)" stroke="rgba(255,255,255,0.18)"/>
+    <rect x="30" y="25" width="90" height="12" rx="6" fill="#ff4fd8"/>
+    <rect x="30" y="50" width="90" height="12" rx="6" fill="#7c5cff"/>
+    <rect x="30" y="75" width="90" height="12" rx="6" fill="#00f0ff"/>
+  </g>
+</svg>

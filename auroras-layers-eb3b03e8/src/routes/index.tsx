@@ -1,8 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { LayerStudio } from "@/components/LayerStudio";
-import { DirectorAgent } from "@/components/DirectorAgent";
-import { ProductionAgent } from "@/components/ProductionAgent";
-import { CharacterBibleEditor } from "@/components/CharacterBibleEditor";
+import { lazy, Suspense } from "react";
 
 import { AccountControl } from "@/components/AccountControl";
 import { Reveal } from "@/components/visual/Reveal";
@@ -17,6 +14,24 @@ import layerBandana from "@/assets/layer-bandana.jpg";
 import demoMotion from "@/assets/demo-motion.jpg";
 import demoCharsheet from "@/assets/demo-charsheet.jpg";
 import demoLayerstack from "@/assets/demo-layerstack.jpg";
+
+const SITE_URL = "https://auroraperformancestudio.com";
+const SOCIAL_IMAGE_URL = `${SITE_URL}/social-og.svg`;
+
+const ProductionAgent = lazy(() =>
+  import("@/components/ProductionAgent").then((module) => ({ default: module.ProductionAgent })),
+);
+const CharacterBibleEditor = lazy(() =>
+  import("@/components/CharacterBibleEditor").then((module) => ({
+    default: module.CharacterBibleEditor,
+  })),
+);
+const DirectorAgent = lazy(() =>
+  import("@/components/DirectorAgent").then((module) => ({ default: module.DirectorAgent })),
+);
+const LayerStudio = lazy(() =>
+  import("@/components/LayerStudio").then((module) => ({ default: module.LayerStudio })),
+);
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -34,12 +49,30 @@ export const Route = createFileRoute("/")({
           "Upload any image, name the layer, and re-render only that element. Every background, every person, every light stays locked.",
       },
       { property: "og:type", content: "website" },
+      { property: "og:url", content: SITE_URL },
+      { property: "og:image", content: SOCIAL_IMAGE_URL },
+      { property: "og:image:width", content: "1200" },
+      { property: "og:image:height", content: "630" },
+      { property: "og:image:type", content: "image/svg+xml" },
       { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:image", content: SOCIAL_IMAGE_URL },
     ],
+    links: [{ rel: "canonical", href: SITE_URL }],
   }),
   component: Index,
 });
 
+function StudioLoadingFallback() {
+  return (
+    <div
+      className="mt-10 rounded-[2rem] border border-border bg-card/70 p-6 text-center text-sm text-muted-foreground shadow-2xl"
+      role="status"
+      aria-live="polite"
+    >
+      Loading the Aurora studio tools…
+    </div>
+  );
+}
 
 const peelLayers = [
   { label: "Plate", src: heroStreet },
@@ -123,7 +156,6 @@ function Index() {
                 </a>
               </div>
             </div>
-
 
             {/* live proof, not copy */}
             <Reveal className="relative">
@@ -225,7 +257,10 @@ function Index() {
                 alt="Subject iced out with cuban links"
                 className="aspect-4/5"
               />
-              <PromptTicker className="mt-3" prompts={["iced-out cuban links and diamond grillz"]} />
+              <PromptTicker
+                className="mt-3"
+                prompts={["iced-out cuban links and diamond grillz"]}
+              />
             </Reveal>
             <Reveal delay={120}>
               <BeforeAfter
@@ -236,7 +271,10 @@ function Index() {
                 alt="Subject with neon braids and varsity jacket"
                 className="aspect-4/5"
               />
-              <PromptTicker className="mt-3" prompts={["neon-green braids, oversized varsity jacket"]} />
+              <PromptTicker
+                className="mt-3"
+                prompts={["neon-green braids, oversized varsity jacket"]}
+              />
             </Reveal>
           </div>
         </div>
@@ -312,23 +350,28 @@ function Index() {
             delay={100}
             media={
               <div className="grid h-full grid-cols-3 gap-1 p-1">
-                {[heroStreet, layerChains, layerBraids, layerBandana, demoMotion, demoCharsheet].map(
-                  (src, i) => (
-                    <span key={i} className="relative overflow-hidden rounded-md">
-                      <img
-                        src={src}
-                        alt=""
-                        aria-hidden
-                        loading="lazy"
-                        className="h-full w-full object-cover transition-transform duration-500 group-hover:-translate-y-1"
-                        style={{ transitionDelay: `${i * 60}ms` }}
-                      />
-                      <span className="absolute right-1 bottom-1 font-[family-name:var(--font-mono-ui)] text-[0.5rem] text-accent">
-                        .png
-                      </span>
+                {[
+                  heroStreet,
+                  layerChains,
+                  layerBraids,
+                  layerBandana,
+                  demoMotion,
+                  demoCharsheet,
+                ].map((src, i) => (
+                  <span key={i} className="relative overflow-hidden rounded-md">
+                    <img
+                      src={src}
+                      alt=""
+                      aria-hidden
+                      loading="lazy"
+                      className="h-full w-full object-cover transition-transform duration-500 group-hover:-translate-y-1"
+                      style={{ transitionDelay: `${i * 60}ms` }}
+                    />
+                    <span className="absolute right-1 bottom-1 font-[family-name:var(--font-mono-ui)] text-[0.5rem] text-accent">
+                      .png
                     </span>
-                  ),
-                )}
+                  </span>
+                ))}
               </div>
             }
           />
@@ -345,7 +388,13 @@ function Index() {
                     className="glow-frame h-full flex-1 transition-transform duration-500 group-hover:-rotate-2"
                     style={{ transform: `rotate(${(i - 1) * 3}deg)` }}
                   >
-                    <img src={src} alt="" aria-hidden loading="lazy" className="h-full w-full object-cover" />
+                    <img
+                      src={src}
+                      alt=""
+                      aria-hidden
+                      loading="lazy"
+                      className="h-full w-full object-cover"
+                    />
                   </span>
                 ))}
               </div>
@@ -364,7 +413,13 @@ function Index() {
                     className="relative flex-1 overflow-hidden rounded-md transition-all duration-500"
                     style={{ height: `${52 + i * 10}%`, transitionDelay: `${i * 70}ms` }}
                   >
-                    <img src={src} alt="" aria-hidden loading="lazy" className="h-full w-full object-cover" />
+                    <img
+                      src={src}
+                      alt=""
+                      aria-hidden
+                      loading="lazy"
+                      className="h-full w-full object-cover"
+                    />
                     <span className="absolute bottom-1 left-1 font-[family-name:var(--font-mono-ui)] text-[0.5rem] text-accent">
                       SH{i + 1}
                     </span>
@@ -411,7 +466,6 @@ function Index() {
         </div>
       </section>
 
-
       {/* STUDIO */}
       <section id="studio" className="dotfield">
         <div className="mx-auto max-w-6xl px-5 py-24">
@@ -423,15 +477,16 @@ function Index() {
               Direct your <span className="gradient-text">shoot.</span>
             </h2>
           </Reveal>
-          <div className="mt-10 grid gap-6">
-            <div className="grid gap-6 lg:grid-cols-2">
-              <ProductionAgent />
-              <CharacterBibleEditor />
+          <Suspense fallback={<StudioLoadingFallback />}>
+            <div className="mt-10 grid gap-6">
+              <div className="grid gap-6 lg:grid-cols-2">
+                <ProductionAgent />
+                <CharacterBibleEditor />
+              </div>
+              <DirectorAgent />
+              <LayerStudio />
             </div>
-            <DirectorAgent />
-            <LayerStudio />
-
-          </div>
+          </Suspense>
         </div>
       </section>
 
