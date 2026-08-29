@@ -265,8 +265,9 @@ export async function trainSoul(soulId: string, userId: string, deps: TrainSoulD
       error: `At least ${MIN_TRAINING_IMAGES} training photos are required (got ${soul0.training_image_paths.length}).`,
     };
   }
+  const soulE2eMock = process.env.AURORA_SOUL_E2E_MOCK === "1";
   const falKey = process.env.FAL_KEY;
-  if (!falKey) return { ok: false, error: "AI training is not configured (FAL_KEY missing)." };
+  if (!falKey && !soulE2eMock) return { ok: false, error: "AI training is not configured (FAL_KEY missing)." };
 
   // Atomically transition pending/failed/stale-training → training. Only one
   // concurrent caller can win this conditional UPDATE for a given Soul, so
@@ -275,6 +276,16 @@ export async function trainSoul(soulId: string, userId: string, deps: TrainSoulD
   const soul = await claimSoulForTraining(soulId, userId);
   if (!soul) {
     return { ok: false, error: "This soul is already training." };
+  }
+
+  if (soulE2eMock) {
+    const updated = await updateSoul(soulId, {
+      status: "training",
+      progress: 10,
+      error_message: null,
+      fal_training_id: `e2e-${crypto.randomUUID()}`,
+    });
+    return { ok: true, soul: updated };
   }
 
   // From here on the Soul is committed to "training" in the DB. Every exit
@@ -439,6 +450,18 @@ export async function generateSoulImage(
     throw new Error("This soul isn't trained yet — finish training before generating images.");
   }
   const count = Math.max(1, Math.min(4, Math.round(numOutputs)));
+  if (process.env.AURORA_SOUL_E2E_MOCK === "1") {
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512"><rect width="512" height="512" fill="#12091f"/><circle cx="256" cy="190" r="92" fill="#c084fc"/><rect x="126" y="318" width="260" height="110" rx="55" fill="#22d3ee"/><text x="256" y="468" fill="white" font-size="30" text-anchor="middle" font-family="Arial">Aurora Soul E2E</text></svg>`;
+    const url = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+    return {
+      results: Array.from({ length: count }, (_, index) => ({
+        index,
+        status: "succeeded" as const,
+        url,
+        generationId: `e2e-${crypto.randomUUID()}`,
+      })),
+    };
+  }
   const perImageCost = soulImageCost();
   const fullPrompt = `${soul.trigger_word}, ${prompt}`.trim();
 
