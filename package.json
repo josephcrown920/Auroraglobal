@@ -13,7 +13,7 @@
     "typecheck": "tsc --noEmit",
     "test": "bun test src/",
     "test:e2e": "playwright test",
-    "test:e2e:mobile": "playwright test --project=mobile",
+    "test:e2e:smoke": "playwright test --config=playwright.smoke.config.ts",
     "production:gate": "npm run lint && npm run typecheck && bun test src/ && bash scripts/check-migrations.sh && node scripts/ci/audit-worker-entry.mjs && npm run build"
   },
   "dependencies": {
@@ -125,7 +125,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.32.0",
-    "@lovable.dev/vite-tanstack-config": "2.3.2",
+    "@lovable.dev/vite-tanstack-config": "2.19.5",
     "@replit/vite-plugin-cartographer": "^0.6.0",
     "@types/node": "^22.16.5",
     "@types/react": "^19.2.0",

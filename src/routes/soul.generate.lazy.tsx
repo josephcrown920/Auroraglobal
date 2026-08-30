@@ -132,9 +132,17 @@ function SoulGenerateImagePage() {
           {results.map((r) => (
             <div key={r.index} className="overflow-hidden rounded-xl border border-[color:var(--border-strong)]">
               {r.status === "succeeded" && r.url ? (
-                <a href={r.url} target="_blank" rel="noreferrer" className="block">
-                  <img src={r.url} alt={`Generated ${r.index + 1}`} className="aspect-square w-full object-cover" />
-                </a>
+                <div className="relative">
+                  <a href={r.url} target="_blank" rel="noreferrer" className="block focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+                    <img src={r.url} alt={`Generated Soul image ${r.index + 1}`} className="aspect-square w-full object-cover" />
+                  </a>
+                  <Button asChild size="sm" variant="secondary" className="absolute bottom-2 right-2">
+                    <a href={r.url} download={`aurora-soul-${r.index + 1}.png`} aria-label={`Download generated Soul image ${r.index + 1}`}>
+                      <Download className="size-4" />
+                      Download
+                    </a>
+                  </Button>
+                </div>
               ) : (
                 <div className="flex aspect-square flex-col items-center justify-center gap-2 bg-destructive/10 p-3 text-center">
                   <AlertCircle className="size-5 text-destructive" />
