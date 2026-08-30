@@ -46,19 +46,38 @@ async function expectNoHorizontalOverflow(page: Page, pageName: string) {
   ).toBeLessThanOrEqual(dimensions.viewportWidth);
 }
 
+/**
+ * Assert an element is visible and fully contained in the current viewport.
+ * This uses the locator's bounding box and the page viewport size to ensure
+ * left >= 0, top >= 0, right <= viewport.width, bottom <= viewport.height.
+ */
 async function expectUsable(locator: Locator, controlName: string) {
   await expect(locator, `${controlName} is missing`).toBeVisible();
+
   const box = await locator.boundingBox();
-  const viewport = locator.page().viewportSize();
+  const page = locator.page();
+  const viewport = page.viewportSize();
 
   expect(box, `${controlName} has no rendered bounds`).not.toBeNull();
   expect(viewport, "The mobile project must define a viewport").not.toBeNull();
   if (!box || !viewport) return;
 
-  expect(box.x + box.width, `${controlName} is outside the right edge`).toBeGreaterThan(0);
-  expect(box.y + box.height, `${controlName} is above the viewport`).toBeGreaterThan(0);
-  expect(box.x, `${controlName} is outside the left edge`).toBeLessThan(viewport.width);
-  expect(box.y, `${controlName} is below the viewport`).toBeLessThan(viewport.height);
+  const left = box.x;
+  const top = box.y;
+  const right = box.x + box.width;
+  const bottom = box.y + box.height;
+
+  // Element must be fully inside the viewport bounds.
+  expect(left, `${controlName} is partially or fully off the left edge (left=${left})`).toBeGreaterThanOrEqual(0);
+  expect(top, `${controlName} is partially or fully off the top edge (top=${top})`).toBeGreaterThanOrEqual(0);
+  expect(
+    right,
+    `${controlName} extends past the right edge of the viewport (right=${right} > viewport.width=${viewport.width})`,
+  ).toBeLessThanOrEqual(viewport.width);
+  expect(
+    bottom,
+    `${controlName} extends past the bottom edge of the viewport (bottom=${bottom} > viewport.height=${viewport.height})`,
+  ).toBeLessThanOrEqual(viewport.height);
 }
 
 test.describe("Mobile usability", () => {
