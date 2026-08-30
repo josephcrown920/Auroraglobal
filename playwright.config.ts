@@ -19,6 +19,27 @@ export default defineConfig({
     screenshot: "only-on-failure",
     trace: "retain-on-failure",
   },
+  projects: [
+    {
+      name: "desktop",
+      testIgnore: "**/mobile-usability.e2e.ts",
+      use: {
+        // Preserve Playwright's pre-project default so existing desktop coverage
+        // continues to exercise the same viewport it did before this config grew projects.
+        viewport: { width: 1280, height: 720 },
+      },
+    },
+    {
+      name: "mobile",
+      testMatch: "**/mobile-usability.e2e.ts",
+      use: {
+        // iPhone SE's narrow viewport catches fixed-width and overflow regressions.
+        viewport: { width: 375, height: 667 },
+        isMobile: true,
+        hasTouch: true,
+      },
+    },
+  ],
   webServer: [
     {
       // Use the same node-path-aware command as the "Start application" workflow so
