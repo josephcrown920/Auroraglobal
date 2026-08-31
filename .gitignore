@@ -86,3 +86,5 @@ attached_assets/generated_images/
 # bun lockfiles hijack remote builds (deployer/EAS) — npm package-lock.json is authoritative
 bun.lock
 bun.lockb
+
+services/agentpilot/__pycache__/

@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { BRAIN_MODELS, DEFAULT_BRAIN_MODEL } from "@/lib/auroraModels";
+import { recordAgentRun, resolveAgentPrompt } from "@/lib/agentPilot";
 
 type Msg = { role: "user" | "assistant"; content: string };
 
@@ -37,19 +38,18 @@ export const Route = createFileRoute("/api/director")({
           return new Response("messages required", { status: 400 });
         }
 
-        const model = BRAIN_MODELS.some(
-          (item) => item.available && item.id === requestedModel,
-        )
+        const model = BRAIN_MODELS.some((item) => item.available && item.id === requestedModel)
           ? requestedModel
           : DEFAULT_BRAIN_MODEL;
 
+        const system = await resolveAgentPrompt("director", SYSTEM);
         const upstream = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
           method: "POST",
           headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
           body: JSON.stringify({
             model,
             stream: true,
-            messages: [{ role: "system", content: SYSTEM }, ...messages.slice(-12)],
+            messages: [{ role: "system", content: system }, ...messages.slice(-12)],
           }),
         });
 
@@ -58,7 +58,13 @@ export const Route = createFileRoute("/api/director")({
           return new Response(text || "Director unavailable", { status: upstream.status });
         }
 
-        return new Response(upstream.body, {
+        const [clientStream, telemetryStream] = upstream.body.tee();
+        void (async () => {
+          const text = await new Response(telemetryStream).text();
+          const output = text.match(/"content":"((?:\\\\.|[^"\\\\])*)"/)?.[1];
+          if (output) recordAgentRun("director", model, messages, JSON.parse(`"${output}"`));
+        })().catch(() => undefined);
+        return new Response(clientStream, {
           headers: { "Content-Type": "text/event-stream", "Cache-Control": "no-cache" },
         });
       },
