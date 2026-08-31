@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { BRAIN_MODELS, DEFAULT_BRAIN_MODEL } from "@/lib/auroraModels";
+import { recordAgentRun, resolveAgentPrompt } from "@/lib/agentPilot";
 
 type Msg = { role: "user" | "assistant" | "tool"; content: string };
 
@@ -84,7 +85,11 @@ export const Route = createFileRoute("/api/production")({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        const { messages, model: requested, context } = (await request.json()) as {
+        const {
+          messages,
+          model: requested,
+          context,
+        } = (await request.json()) as {
           messages: Msg[];
           model?: string;
           context?: string;
@@ -100,6 +105,7 @@ export const Route = createFileRoute("/api/production")({
           ? requested
           : DEFAULT_BRAIN_MODEL;
 
+        const system = await resolveAgentPrompt("production", SYSTEM);
         const upstream = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
           method: "POST",
           headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
@@ -108,9 +114,14 @@ export const Route = createFileRoute("/api/production")({
             tools: TOOLS,
             tool_choice: "auto",
             messages: [
-              { role: "system", content: SYSTEM },
+              { role: "system", content: system },
               ...(context ? [{ role: "system", content: `STUDIO STATE:\n${context}` }] : []),
-              ...messages.slice(-12).map((m) => ({ role: m.role === "tool" ? "assistant" : m.role, content: m.content })),
+              ...messages
+                .slice(-12)
+                .map((m) => ({
+                  role: m.role === "tool" ? "assistant" : m.role,
+                  content: m.content,
+                })),
             ],
           }),
         });
@@ -121,7 +132,12 @@ export const Route = createFileRoute("/api/production")({
         }
 
         const json = (await upstream.json()) as {
-          choices?: { message?: { content?: string; tool_calls?: { function: { name: string; arguments: string } }[] } }[];
+          choices?: {
+            message?: {
+              content?: string;
+              tool_calls?: { function: { name: string; arguments: string } }[];
+            };
+          }[];
         };
         const message = json.choices?.[0]?.message ?? {};
         const calls = (message.tool_calls ?? []).map((call) => {
@@ -134,7 +150,9 @@ export const Route = createFileRoute("/api/production")({
           return { name: call.function.name, args };
         });
 
-        return new Response(JSON.stringify({ content: message.content ?? "", calls }), {
+        const content = message.content ?? "";
+        recordAgentRun("production", model, messages, content);
+        return new Response(JSON.stringify({ content, calls }), {
           headers: { "Content-Type": "application/json" },
         });
       },
