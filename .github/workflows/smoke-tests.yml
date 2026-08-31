@@ -2,15 +2,17 @@ name: Public smoke tests
 
 on:
   pull_request:
-    branches: [main]
+    branches: [Main]
   push:
-    branches: [main]
+    branches: [Main]
   workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
+  # This is intentionally limited to the public, no-secret smoke suite. The
+  # quality gate workflow owns the full validation suite for trusted changes.
   smoke:
     name: Public browser smoke
     runs-on: ubuntu-latest

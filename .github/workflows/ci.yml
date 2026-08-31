@@ -2,9 +2,9 @@ name: Aurora quality gate
 
 on:
   pull_request:
-    branches: [main, Main]
+    branches: [Main]
   push:
-    branches: [main, Main]
+    branches: [Main]
   workflow_dispatch:
 
 permissions:
