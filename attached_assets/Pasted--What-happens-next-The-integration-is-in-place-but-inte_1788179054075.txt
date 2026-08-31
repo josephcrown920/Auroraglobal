@@ -1,0 +1,67 @@
+
+What happens next
+The integration is in place but intentionally disabled until you configure and deploy the private AgentPilot service. Aurora will continue using its current local prompts until then. 
+
+1. Create the two AgentPilot tasks
+In your target AgentPilot workspace, create:
+
+Director task — paste the existing Aurora Director system prompt and define its evaluation criteria.
+
+Production task — paste the existing Aurora Production system prompt, tool-use rules, and evaluation criteria.
+
+Record each generated task ID and prompt version. The service expects these exact environment variables:
+
+AGENTPILOT_DIRECTOR_TASK_ID=...
+AGENTPILOT_DIRECTOR_PROMPT_VERSION=...
+AGENTPILOT_PRODUCTION_TASK_ID=...
+AGENTPILOT_PRODUCTION_PROMPT_VERSION=...
+The service maps those two stable Aurora agent keys to their AgentPilot task/version configuration. 
+
+2. Deploy the private Python service
+Deploy services/agentpilot as an internal-only service—not as a public endpoint—and install its pinned SDK dependency:
+
+cd services/agentpilot
+python -m pip install -r requirements.txt
+python app.py
+Configure the service runtime with:
+
+AGENTPILOT_API_KEY=...
+AGENTPILOT_API_URL=https://prompt-pilot.ap-southeast.bytepluses.com
+AGENTPILOT_WORKSPACE_ID=...
+AURORA_INTERNAL_SERVICE_TOKEN=<long-random-secret>
+The service binds to 127.0.0.1:8788 by default and supports host/port overrides for your deployment environment. 
+
+3. Configure Aurora’s server runtime
+Set these only in Aurora’s server-side environment/secrets, never in browser-visible VITE_* values:
+
+AGENTPILOT_ENABLED=true
+AGENTPILOT_SERVICE_URL=https://<internal-agentpilot-service>
+AGENTPILOT_SERVICE_TOKEN=<same-internal-service-token>
+The template keeps the integration opted out by default. 
+
+4. Validate it safely
+Start with AGENTPILOT_ENABLED=false, verify normal Director and Production generation works, then enable it and confirm:
+
+A Director request resolves the AgentPilot prompt version.
+
+A Production request resolves the AgentPilot prompt version.
+
+Runs appear in AgentPilot telemetry.
+
+Evaluations return scores/results.
+
+Disabling the service or simulating an outage still uses the local prompt and does not block generation.
+
+The TypeScript client has a short timeout and returns the original local system prompt if AgentPilot is unavailable. Telemetry/evaluation sends are best-effort and do not delay the response. 
+
+5. Add future video agents
+For each new video agent, add a stable agent key/task mapping in the service and use the same server-side lifecycle:
+
+resolveAgentPrompt("<agent-key>", localFallbackPrompt)
+
+recordAgentRun("<agent-key>", model, messages, output)
+
+This is the intended reusable pattern for future agents, while preserving a local fallback for resilience. 
+
+Recommended immediate action
+Create the Director and Production tasks in AgentPilot, then provide the non-secret task IDs and versions—or configure them directly in your deployment secrets. Once those exist, I can add a deployment-ready service definition and automated contract tests for the complete flow.

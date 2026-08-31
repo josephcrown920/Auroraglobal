@@ -201,6 +201,10 @@ export default defineConfig({
     server: {
       host: "0.0.0.0",
       allowedHosts: true,
+      // The preview proxy is pinned to the artifact's configured port. Never
+      // let Vite silently move to 8081/8082 when another process is present:
+      // that makes every page appear broken even though Vite says it is ready.
+      strictPort: true,
       // The bun install cache (~86k files) lives inside the workspace at
       // .cache/. Vite's chokidar watcher tries to watch it recursively and
       // exhausts file descriptors (EMFILE), which can crash startup. Artifact

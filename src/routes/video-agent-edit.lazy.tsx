@@ -80,7 +80,7 @@ function VideoEditor() {
 
   const projectQuery = useQuery({
     queryKey: ["video-agent-project", id],
-    queryFn: () => getProject({ data: { id } }),
+    queryFn: () => getProject({ data: { id: id! } }),
     enabled: !!user && !!id,
     retry: false,
     refetchInterval: (query) => {

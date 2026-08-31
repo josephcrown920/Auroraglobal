@@ -7,10 +7,14 @@ import { reportServerException } from "./lib/sentry.server";
 import { logApiRequest } from "./lib/api-logger.server";
 import { validateEnvAtStartup } from "./lib/env-validation.server";
 
-// Fail fast on a missing core secret (Supabase URL/keys) instead of limping
-// into confusing per-request 500s; log a value-free summary of which
-// optional provider groups are configured. See src/lib/env-validation.server.ts.
-validateEnvAtStartup();
+// Fail fast on a missing core secret in the published server instead of
+// limping into confusing per-request 500s. Development previews intentionally
+// stay available without the server-only key so public pages can render while
+// the optional backend features report their own configuration errors.
+// See src/lib/env-validation.server.ts.
+if (import.meta.env.PROD) {
+  validateEnvAtStartup();
+}
 
 export type ServerEntry = {
   fetch: (request: Request, env: unknown, ctx: unknown) => Promise<Response> | Response;

@@ -31,9 +31,10 @@ export default defineConfig({
       // node processes before, and a mid-suite server death shows up as
       // ERR_CONNECTION_REFUSED in every remaining test.
       command: `bash -c 'NODE_OPTIONS=--max-old-space-size=3072 "$(available-pid2-node-paths | head -1)" node_modules/vite/bin/vite.js dev --host 0.0.0.0 --port ${PORT}'`,
-      // reuseExistingServer + url polling also makes the parallel "Project" workflow
-      // safe: if the "Start application" workflow already owns port 8080, Playwright
-      // reuses it; otherwise Playwright boots its own server and waits for readiness.
+      // reuseExistingServer + url polling makes standalone e2e runs reuse the
+      // preview when it is already healthy; the e2e workflow is intentionally
+      // not part of the parallel Project workflow because starting two Vite
+      // servers at once can make the preview silently change ports.
       url: `http://localhost:${PORT}`,
       reuseExistingServer: true,
       timeout: 120_000,
