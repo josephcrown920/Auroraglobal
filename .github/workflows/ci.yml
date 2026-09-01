@@ -25,7 +25,7 @@ jobs:
         with:
           bun-version: "1.3.6"
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --no-audit --no-fund
       # Single source of truth: the same `npm run production:gate` command
       # developers run locally (lint → typecheck → unit tests → migration
       # audit → worker-boundary audit → production build). Keeping CI on the
@@ -56,7 +56,7 @@ jobs:
         with:
           bun-version: "1.3.6"
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --no-audit --no-fund
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
       - name: Run Playwright suite
