@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - Main
     paths:
       - "cli/package.json"
       - "cli/bin/**"
