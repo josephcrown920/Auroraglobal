@@ -79,3 +79,145 @@ import { Route as ToolsRouteImport } from './routes/tools'
 import { Route as TutorialRouteImport } from './routes/tutorial'
 import { Route as UgcRouteImport } from './routes/ugc'
 import { Route as VideoAgentStudioRouteImport } from './routes/video-agent-studio.lazy'
+
+const IndexRoute = IndexRouteImport.update({ id: '/', path: '/', getParentRoute: () => rootRouteImport })
+const AccountRoute = AccountRouteImport.update({ id: '/account', path: '/account', getParentRoute: () => rootRouteImport })
+const AdminRoute = AdminRouteImport.update({ id: '/admin', path: '/admin', getParentRoute: () => rootRouteImport })
+const AdsRoute = AdsRouteImport.update({ id: '/ads', path: '/ads', getParentRoute: () => rootRouteImport })
+const AffiliateRoute = AffiliateRouteImport.update({ id: '/affiliate', path: '/affiliate', getParentRoute: () => rootRouteImport })
+const AgentRoute = AgentRouteImport.update({ id: '/agent', path: '/agent', getParentRoute: () => rootRouteImport })
+const AuroraAdultRoute = AuroraAdultRouteImport.update({ id: '/aurora-adult', path: '/aurora-adult', getParentRoute: () => rootRouteImport })
+const AuthRoute = AuthRouteImport.update({ id: '/auth', path: '/auth', getParentRoute: () => rootRouteImport })
+const AvatarRoute = AvatarRouteImport.update({ id: '/avatar', path: '/avatar', getParentRoute: () => rootRouteImport })
+const BillingRoute = BillingRouteImport.update({ id: '/billing', path: '/billing', getParentRoute: () => rootRouteImport })
+const CanvasRoute = CanvasRouteImport.update({ id: '/canvas', path: '/canvas', getParentRoute: () => rootRouteImport })
+const ClipsRoute = ClipsRouteImport.update({ id: '/clips', path: '/clips', getParentRoute: () => rootRouteImport })
+const ColorsRoute = ColorsRouteImport.update({ id: '/colors', path: '/colors', getParentRoute: () => rootRouteImport })
+const ColorsShowRoute = ColorsShowRouteImport.update({ id: '/colors-show', path: '/colors-show', getParentRoute: () => rootRouteImport })
+const ComfyRoute = ComfyRouteImport.update({ id: '/comfy', path: '/comfy', getParentRoute: () => rootRouteImport })
+const ConnectRoute = ConnectRouteImport.update({ id: '/connect', path: '/connect', getParentRoute: () => rootRouteImport })
+const ContactRoute = ContactRouteImport.update({ id: '/contact', path: '/contact', getParentRoute: () => rootRouteImport })
+const ContentRoute = ContentRouteImport.update({ id: '/content', path: '/content', getParentRoute: () => rootRouteImport })
+const ContentMachineRoute = ContentMachineRouteImport.update({ id: '/content-machine', path: '/content-machine', getParentRoute: () => rootRouteImport })
+const DashboardRoute = DashboardRouteImport.update({ id: '/dashboard', path: '/dashboard', getParentRoute: () => rootRouteImport })
+const DeleteAccountRoute = DeleteAccountRouteImport.update({ id: '/delete-account', path: '/delete-account', getParentRoute: () => rootRouteImport })
+const DirectorRoomRoute = DirectorRoomRouteImport.update({ id: '/director-room', path: '/director-room', getParentRoute: () => rootRouteImport })
+const DirectorsBoardRoute = DirectorsBoardRouteImport.update({ id: '/directors-board', path: '/directors-board', getParentRoute: () => rootRouteImport })
+const EditRoute = EditRouteImport.update({ id: '/edit', path: '/edit', getParentRoute: () => rootRouteImport })
+const EditorRoute = EditorRouteImport.update({ id: '/editor', path: '/editor', getParentRoute: () => rootRouteImport })
+const EromifyRoute = EromifyRouteImport.update({ id: '/eromify', path: '/eromify', getParentRoute: () => rootRouteImport })
+const GalleryRoute = GalleryRouteImport.update({ id: '/gallery', path: '/gallery', getParentRoute: () => rootRouteImport })
+const GiftsRoute = GiftsRouteImport.update({ id: '/gifts', path: '/gifts', getParentRoute: () => rootRouteImport })
+const GrowthRoute = GrowthRouteImport.update({ id: '/growth', path: '/growth', getParentRoute: () => rootRouteImport })
+const HeygenTemplatesRoute = HeygenTemplatesRouteImport.update({ id: '/heygen-templates', path: '/heygen-templates', getParentRoute: () => rootRouteImport })
+const HomeRoute = HomeRouteImport.update({ id: '/home', path: '/home', getParentRoute: () => rootRouteImport })
+const JobsRoute = JobsRouteImport.update({ id: '/jobs', path: '/jobs', getParentRoute: () => rootRouteImport })
+const KidsRoute = KidsRouteImport.update({ id: '/kids', path: '/kids', getParentRoute: () => rootRouteImport })
+const LikenessRoute = LikenessRouteImport.update({ id: '/likeness', path: '/likeness', getParentRoute: () => rootRouteImport })
+const LipsyncRoute = LipsyncRouteImport.update({ id: '/lipsync', path: '/lipsync', getParentRoute: () => rootRouteImport })
+const LiveStudioRoute = LiveStudioRouteImport.update({ id: '/live-studio', path: '/live-studio', getParentRoute: () => rootRouteImport })
+const MarketplaceRoute = MarketplaceRouteImport.update({ id: '/marketplace', path: '/marketplace', getParentRoute: () => rootRouteImport })
+const MasteringRoute = MasteringRouteImport.update({ id: '/mastering', path: '/mastering', getParentRoute: () => rootRouteImport })
+const MotionRoute = MotionRouteImport.update({ id: '/motion', path: '/motion', getParentRoute: () => rootRouteImport })
+const MusicVideoRoute = MusicVideoRouteImport.update({ id: '/music-video', path: '/music-video', getParentRoute: () => rootRouteImport })
+const NexusarbRoute = NexusarbRouteImport.update({ id: '/nexusarb', path: '/nexusarb', getParentRoute: () => rootRouteImport })
+const OrchestrateRoute = OrchestrateRouteImport.update({ id: '/orchestrate', path: '/orchestrate', getParentRoute: () => rootRouteImport })
+const PartnersRoute = PartnersRouteImport.update({ id: '/partners', path: '/partners', getParentRoute: () => rootRouteImport })
+const PerformRoute = PerformRouteImport.update({ id: '/perform', path: '/perform', getParentRoute: () => rootRouteImport })
+const PhotoEditRoute = PhotoEditRouteImport.update({ id: '/photo-edit', path: '/photo-edit', getParentRoute: () => rootRouteImport })
+const PrivacyRoute = PrivacyRouteImport.update({ id: '/privacy', path: '/privacy', getParentRoute: () => rootRouteImport })
+const PuremixRoute = PuremixRouteImport.update({ id: '/puremix', path: '/puremix', getParentRoute: () => rootRouteImport })
+const ResetPasswordRoute = ResetPasswordRouteImport.update({ id: '/reset-password', path: '/reset-password', getParentRoute: () => rootRouteImport })
+const ReshootRoute = ReshootRouteImport.update({ id: '/reshoot', path: '/reshoot', getParentRoute: () => rootRouteImport })
+const RoadmapRoute = RoadmapRouteImport.update({ id: '/roadmap', path: '/roadmap', getParentRoute: () => rootRouteImport })
+const SceneBuilderRoute = SceneBuilderRouteImport.update({ id: '/scene-builder', path: '/scene-builder', getParentRoute: () => rootRouteImport })
+const SceneWeaverRoute = SceneWeaverRouteImport.update({ id: '/scene-weaver', path: '/scene-weaver', getParentRoute: () => rootRouteImport })
+const SettingsRoute = SettingsRouteImport.update({ id: '/settings', path: '/settings', getParentRoute: () => rootRouteImport })
+const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({ id: '/sitemap.xml', path: '/sitemap.xml', getParentRoute: () => rootRouteImport })
+const SoulRoute = SoulRouteImport.update({ id: '/soul', path: '/soul', getParentRoute: () => rootRouteImport })
+const SpeechRoute = SpeechRouteImport.update({ id: '/speech', path: '/speech', getParentRoute: () => rootRouteImport })
+const SpinRoute = SpinRouteImport.update({ id: '/spin', path: '/spin', getParentRoute: () => rootRouteImport })
+const SplitRealityRoute = SplitRealityRouteImport.update({ id: '/split-reality', path: '/split-reality', getParentRoute: () => rootRouteImport })
+const StoryboardRoute = StoryboardRouteImport.update({ id: '/storyboard', path: '/storyboard', getParentRoute: () => rootRouteImport })
+const StudioRoute = StudioRouteImport.update({ id: '/studio', path: '/studio', getParentRoute: () => rootRouteImport })
+const TemplatesRoute = TemplatesRouteImport.update({ id: '/templates', path: '/templates', getParentRoute: () => rootRouteImport })
+const TermsRoute = TermsRouteImport.update({ id: '/terms', path: '/terms', getParentRoute: () => rootRouteImport })
+const TiktokRoute = TiktokRouteImport.update({ id: '/tiktok', path: '/tiktok', getParentRoute: () => rootRouteImport })
+const TiktokLiveRoute = TiktokLiveRouteImport.update({ id: '/tiktok-live', path: '/tiktok-live', getParentRoute: () => rootRouteImport })
+const ToolsRoute = ToolsRouteImport.update({ id: '/tools', path: '/tools', getParentRoute: () => rootRouteImport })
+const TutorialRoute = TutorialRouteImport.update({ id: '/tutorial', path: '/tutorial', getParentRoute: () => rootRouteImport })
+const UgcRoute = UgcRouteImport.update({ id: '/ugc', path: '/ugc', getParentRoute: () => rootRouteImport })
+const VideoAgentStudioRoute = VideoAgentStudioRouteImport.update({ id: '/video-agent-studio', path: '/video-agent-studio', getParentRoute: () => rootRouteImport })
+
+const routeTree = rootRouteImport.addChildren({
+  IndexRoute,
+  AccountRoute,
+  AdminRoute,
+  AdsRoute,
+  AffiliateRoute,
+  AgentRoute,
+  AuroraAdultRoute,
+  AuthRoute,
+  AvatarRoute,
+  BillingRoute,
+  CanvasRoute,
+  ClipsRoute,
+  ColorsRoute,
+  ColorsShowRoute,
+  ComfyRoute,
+  ConnectRoute,
+  ContactRoute,
+  ContentRoute,
+  ContentMachineRoute,
+  DashboardRoute,
+  DeleteAccountRoute,
+  DirectorRoomRoute,
+  DirectorsBoardRoute,
+  EditRoute,
+  EditorRoute,
+  EromifyRoute,
+  GalleryRoute,
+  GiftsRoute,
+  GrowthRoute,
+  HeygenTemplatesRoute,
+  HomeRoute,
+  JobsRoute,
+  KidsRoute,
+  LikenessRoute,
+  LipsyncRoute,
+  LiveStudioRoute,
+  MarketplaceRoute,
+  MasteringRoute,
+  MotionRoute,
+  MusicVideoRoute,
+  NexusarbRoute,
+  OrchestrateRoute,
+  PartnersRoute,
+  PerformRoute,
+  PhotoEditRoute,
+  PrivacyRoute,
+  PuremixRoute,
+  ResetPasswordRoute,
+  ReshootRoute,
+  RoadmapRoute,
+  SceneBuilderRoute,
+  SceneWeaverRoute,
+  SettingsRoute,
+  SitemapDotxmlRoute,
+  SoulRoute,
+  SpeechRoute,
+  SpinRoute,
+  SplitRealityRoute,
+  StoryboardRoute,
+  StudioRoute,
+  TemplatesRoute,
+  TermsRoute,
+  TiktokRoute,
+  TiktokLiveRoute,
+  ToolsRoute,
+  TutorialRoute,
+  UgcRoute,
+  VideoAgentStudioRoute,
+})
+
+export const routeTree = routeTree
