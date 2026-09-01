@@ -78,7 +78,6 @@ import { Route as TiktokLiveRouteImport } from './routes/tiktok-live'
 import { Route as ToolsRouteImport } from './routes/tools'
 import { Route as TutorialRouteImport } from './routes/tutorial'
 import { Route as UgcRouteImport } from './routes/ugc'
-import { Route as VideoAgentStudioRouteImport } from './routes/video-agent-studio.lazy'
 
 const IndexRoute = IndexRouteImport.update({ id: '/', path: '/', getParentRoute: () => rootRouteImport })
 const AccountRoute = AccountRouteImport.update({ id: '/account', path: '/account', getParentRoute: () => rootRouteImport })
@@ -147,7 +146,6 @@ const TiktokLiveRoute = TiktokLiveRouteImport.update({ id: '/tiktok-live', path:
 const ToolsRoute = ToolsRouteImport.update({ id: '/tools', path: '/tools', getParentRoute: () => rootRouteImport })
 const TutorialRoute = TutorialRouteImport.update({ id: '/tutorial', path: '/tutorial', getParentRoute: () => rootRouteImport })
 const UgcRoute = UgcRouteImport.update({ id: '/ugc', path: '/ugc', getParentRoute: () => rootRouteImport })
-const VideoAgentStudioRoute = VideoAgentStudioRouteImport.update({ id: '/video-agent-studio', path: '/video-agent-studio', getParentRoute: () => rootRouteImport })
 
 const routeTree = rootRouteImport.addChildren({
   IndexRoute,
@@ -217,7 +215,6 @@ const routeTree = rootRouteImport.addChildren({
   ToolsRoute,
   TutorialRoute,
   UgcRoute,
-  VideoAgentStudioRoute,
 })
 
 export const routeTree = routeTree
