@@ -48,6 +48,21 @@ function runTable() {
   }).from("aurora_baby_agent_runs");
 }
 
+function providerAvailability() {
+  return {
+    modelark: Boolean(process.env.ARK_API_KEY),
+    fal: Boolean(process.env.FAL_KEY),
+    replicate: Boolean(process.env.REPLICATE_API_TOKEN),
+    vast: Boolean(process.env.VAST_API_KEY || process.env.VAST_API_URL),
+  };
+}
+
+function assertGenerationProvider(available: Record<string, boolean>) {
+  if (!Object.values(available).some(Boolean)) {
+    throw new Error("Aurora Baby Agent is planned, but no video provider is configured. Add FAL, Replicate, ModelArk or Vast credentials in the server environment.");
+  }
+}
+
 async function planBrief(brief: string, durationSeconds?: number, aspectRatio?: string): Promise<AuroraBabyPlan> {
   const output = await routedGenerate({
     system: BABY_AGENT_SYSTEM,
@@ -66,12 +81,7 @@ export const analyzeAuroraBabyBrief = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => AnalyzeInput.parse(data))
   .handler(async ({ data }) => {
     const plan = await planBrief(data.brief, data.durationSeconds, data.aspectRatio);
-    const available = {
-      modelark: Boolean(process.env.ARK_API_KEY),
-      fal: Boolean(process.env.FAL_KEY),
-      replicate: Boolean(process.env.REPLICATE_API_TOKEN),
-      vast: Boolean(process.env.VAST_API_KEY || process.env.VAST_API_URL),
-    };
+    const available = providerAvailability();
     const routes = plan.shots.map((shot) => ({ id: shot.id, provider: chooseProvider(shot, available) }));
     const estimatedCredits = Math.round(plan.shots.reduce((sum, shot) => sum + computeCost({
       features: ["video"],
@@ -87,6 +97,9 @@ export const startAuroraBabyProduction = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => StartInput.parse(data))
   .handler(async ({ data, context }) => {
     const plan = await planBrief(data.brief, data.durationSeconds, data.aspectRatio);
+    const available = providerAvailability();
+    assertGenerationProvider(available);
+
     const runId = crypto.randomUUID();
     const now = new Date().toISOString();
     const { data: run, error } = await runTable().insert({
@@ -104,13 +117,6 @@ export const startAuroraBabyProduction = createServerFn({ method: "POST" })
       await runTable().update({ status: "planned", updated_at: new Date().toISOString() }).eq("id", runId).eq("user_id", context.userId);
       return { runId, status: "planned", plan, jobs: [] };
     }
-
-    const available = {
-      modelark: Boolean(process.env.ARK_API_KEY),
-      fal: Boolean(process.env.FAL_KEY),
-      replicate: Boolean(process.env.REPLICATE_API_TOKEN),
-      vast: Boolean(process.env.VAST_API_KEY || process.env.VAST_API_URL),
-    };
 
     const jobs: Array<{ shotId: string; provider: string; jobId: string; generationId: string; preview: boolean }> = [];
     for (const shot of plan.shots) {
