@@ -1,13 +1,18 @@
 import { useMemo, useState } from "react";
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
 import { ArrowLeft, BookOpen, Camera, Clapperboard, Copy, Film, Layers, Play, Sparkles, Wand2 } from "lucide-react";
 import { useBoard } from "@/lib/board-store";
 import { buildVideoAgentPlan, serializeProductionPlan, type VideoAgentContext } from "@/lib/video-agent-studio";
+import { createVideoAgentProject, enqueueVideoAgentRender } from "@/lib/video-agent-projects.functions";
 
 const PLATFORMS: VideoAgentContext["platform"][] = ["music-video", "youtube", "tiktok", "instagram", "commercial", "custom"];
 
 export function VideoAgentStudio() {
   const { board, updateShot } = useBoard();
+  const navigate = useNavigate();
+  const createProject = useServerFn(createVideoAgentProject);
+  const enqueueRender = useServerFn(enqueueVideoAgentRender);
   const [context, setContext] = useState<VideoAgentContext>({
     title: "Aurora Production",
     brief: "",
@@ -20,6 +25,7 @@ export function VideoAgentStudio() {
   });
   const [activeScene, setActiveScene] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [rendering, setRendering] = useState(false);
 
   const plan = useMemo(() => (board ? buildVideoAgentPlan(board, context) : null), [board, context]);
   const scenes = plan?.scenes ?? [];
@@ -33,6 +39,47 @@ export function VideoAgentStudio() {
     await navigator.clipboard.writeText(serializeProductionPlan(plan));
     setCopied(true);
     window.setTimeout(() => setCopied(false), 1600);
+  };
+
+  const renderProduction = async () => {
+    if (rendering || !plan.scenes.length || !plan.scenes.some((scene) => scene.shots.length)) return;
+    setRendering(true);
+    try {
+      const scenesForProject = plan.scenes.slice(0, 12).map((scene, sceneIndex) => {
+        const firstShot = scene.shots[0];
+        const description = scene.shots.map((shot) => `${shot.title}: ${shot.videoPrompt || shot.prompt}. ${shot.continuity}`).join(" ").slice(0, 3000);
+        const script = scene.shots.map((shot) => shot.prompt).join(" ").slice(0, 2400) || `Scene ${sceneIndex + 1}`;
+        const duration = Math.max(3, Math.min(15, Math.round(scene.shots.reduce((sum, shot) => sum + shot.duration, 0) || 6)));
+        return {
+          id: `scene-${sceneIndex + 1}`,
+          index: sceneIndex,
+          title: scene.name.slice(0, 160) || `Scene ${sceneIndex + 1}`,
+          script,
+          description: description || firstShot?.prompt || "Cinematic scene",
+          duration,
+          frame: firstShot?.frame || null,
+          frameStatus: "idle" as const,
+          voiceoverStatus: "idle" as const,
+        };
+      });
+      const project = await createProject({
+        data: {
+          prompt: context.brief.trim() || plan.treatment || context.title,
+          title: context.title.trim() || "Aurora Production",
+          style: "cinematic",
+          voice: "narrator-warm",
+          targetDuration: Math.max(15, Math.min(120, Math.round(scenesForProject.reduce((sum, scene) => sum + scene.duration, 0)))),
+          scenes: scenesForProject,
+        },
+      });
+      const queued = await enqueueRender({ data: { id: project.id } });
+      await navigate({ to: "/video-agent-edit", search: { id: project.id } });
+      void queued;
+    } catch (error) {
+      console.error("Aurora production render failed", error);
+    } finally {
+      setRendering(false);
+    }
   };
 
   return (
@@ -49,7 +96,7 @@ export function VideoAgentStudio() {
           <div className="flex items-center gap-2">
             <Link to="/storyboard" className="inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm hover:bg-muted"><Clapperboard className="h-4 w-4" /> Storyboard</Link>
             <button onClick={copyPlan} className="inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm hover:bg-muted"><Copy className="h-4 w-4" /> {copied ? "Copied" : "Export plan"}</button>
-            <button className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"><Play className="h-4 w-4" /> Render production</button>
+            <button disabled={rendering || !plan.scenes.length} onClick={() => void renderProduction()} className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"><Play className="h-4 w-4" /> {rendering ? "Starting render…" : "Render production"}</button>
           </div>
         </div>
       </header>
@@ -100,7 +147,7 @@ export function VideoAgentStudio() {
             <div className="mb-4 flex items-center gap-2 font-semibold"><Layers className="h-4 w-4" /> Model router</div>
             <div className="space-y-2">{plan.routes.map((route) => <div key={route.task} className="rounded-xl border p-3"><div className="flex items-center justify-between text-sm font-medium capitalize"><span>{route.task}</span><span className="text-xs text-muted-foreground">{route.preferred}</span></div><p className="mt-1 text-xs text-muted-foreground">{route.reason}</p><div className="mt-2 text-[11px] text-muted-foreground">Fallbacks: {route.fallbacks.join(" · ")}</div></div>)}</div>
           </section>
-          <section className="rounded-2xl border bg-card p-4 shadow-sm"><div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Production state</div><div className="mt-3 h-2 overflow-hidden rounded-full bg-muted"><div className="h-full w-[18%] rounded-full bg-primary" /></div><div className="mt-2 flex justify-between text-xs text-muted-foreground"><span>{board.shots.length} shots planned</span><span>Ready for render</span></div></section>
+          <section className="rounded-2xl border bg-card p-4 shadow-sm"><div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Production state</div><div className="mt-3 h-2 overflow-hidden rounded-full bg-muted"><div className="h-full w-full rounded-full bg-primary" /></div><div className="mt-2 flex justify-between text-xs text-muted-foreground"><span>{board.shots.length} shots planned</span><span>{rendering ? "Starting render…" : "Ready for render"}</span></div></section>
         </aside>
       </div>
     </main>
