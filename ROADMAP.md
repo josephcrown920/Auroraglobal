@@ -33,9 +33,11 @@ User-facing infrastructure/provider failures are sanitized while raw diagnostics
 
 Still unproven: actual Supabase backup tier/retention, formal RPO/RTO, disposable-project restore drill, and an operational object-storage backup/replication plan.
 
-## 6. Health / readiness — ✅ Verified
+## 6. Health / readiness — 🔶 Implemented; current live verification required
 
-`GET /api/ready` performs a real Supabase dependency check and returns 200/503 appropriately. GPU-pool health is not currently included.
+`GET /api/ready` performs a real Supabase dependency check and now includes GPU-pool readiness. It reports the number of active, healthy, and stale/failed GPU workers and returns 503 when the database is unavailable or a configured GPU pool has no healthy worker with a recent successful probe. A pool with no active workers is reported as `not_configured` and does not block application readiness.
+
+The readiness endpoint intentionally consumes the latest worker-health sweep state rather than probing GPU workers inline, avoiding slow/flaky deployment health checks and avoiding mutations from a GET request.
 
 ## 7. Concurrency / idempotency — ✅ Verified
 
@@ -91,7 +93,6 @@ Live generation depends on required production provider secrets/configuration. M
 ## 14. Not currently launch blockers
 
 - 200 MB audio buffering/streaming optimization unless load testing demonstrates unacceptable behavior.
-- Adding GPU health to `/api/ready`.
 - Cosmetic refactors.
 - Non-critical performance cleanup.
 - Providers outside the launch scope.
@@ -118,67 +119,3 @@ Add a first-class **Marketing Studio** inside Aurora for turning generated creat
 
 - Feed posts
 - Story/Reel vertical creatives
-- Square social posts
-- Short promotional videos
-- Carousel assets
-- Ad thumbnails / cover images
-- Campaign copy: primary text, headlines, descriptions, CTAs
-
-### Creative controls
-
-Users should be able to choose:
-
-- campaign objective: awareness, traffic, engagement, conversions, release promotion;
-- platform and placement;
-- aspect ratio and resolution;
-- brand kit/logo/colors/fonts;
-- source asset/project;
-- CTA and destination URL;
-- tone and audience;
-- number of variants.
-
-### AI generation
-
-Marketing Studio should reuse Aurora's existing image/video generation infrastructure rather than creating a second generation stack. It should generate platform-specific variants from the same campaign brief while preserving brand consistency.
-
-Examples:
-
-- `1:1` Instagram/Facebook feed post
-- `4:5` feed ad
-- `9:16` Instagram Reel/Story and TikTok creative
-- `16:9` YouTube creative where appropriate
-- multiple hooks/headlines/captions for A/B testing
-
-### Review and export
-
-Every generated asset should have:
-
-- preview;
-- platform/placement label;
-- dimensions;
-- generation provenance;
-- regenerate/edit controls;
-- download/export;
-- campaign grouping.
-
-The first release should **export ad-ready assets**, not automatically publish or spend advertising budget. Direct ad-platform publishing can be a later phase with explicit OAuth permissions and account controls.
-
-### Acceptance criteria
-
-Marketing Studio is considered implemented when a user can select an Aurora project, enter a campaign brief, generate multiple platform-specific creative variants, review them, and export a coherent campaign asset package without leaving Aurora.
-
-## 16. Audit / release rule
-
-Aurora may be labeled **Production Ready** only when the current release candidate has:
-
-- green CI production gate;
-- successful critical authenticated E2E;
-- verified live migrations/RPCs;
-- no known P0/P1 security issue;
-- required provider configuration;
-- exposed credentials rotated;
-- minimum backup/recovery requirements confirmed.
-
-Until then: **Release Candidate — 82/100.**
-
-New hardening items should only become launch blockers when evidence shows real security, financial, data-integrity, availability, or critical-user-flow impact. Otherwise they belong in post-launch improvement work.

@@ -1,4 +1,4 @@
-/** Shared autonomous video-agent integration seam: persistent production brain + memory + skills + presets + provider orchestration. */
+/** Shared autonomous video-agent integration seam: persistent brain + skills + presets + provider orchestration. */
 import { buildGenerationContext, toPromptContext } from "./video-agent-memory-core";
 import { selectVideoSkills } from "./video-agent-skill-selector";
 import { resolvePreset } from "./video-agent-presets";
@@ -60,11 +60,13 @@ function buildRequest(req: VideoRuntimeRequest, kind: GenerateRequest["kind"]): 
   };
 }
 
+/** Generate references through the canonical router while carrying the project brain. */
 export async function generateReference(req: VideoRuntimeRequest) {
   const result = await orchestrate(buildRequest(req, "image"));
   return result.url;
 }
 
+/** Generate shots through the canonical router; provider fallback remains internal to the orchestrator. */
 export async function generateShot(req: VideoRuntimeRequest) {
   const result = await orchestrate(buildRequest(req, "video"));
   return result.url;
