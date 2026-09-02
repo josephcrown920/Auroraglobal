@@ -5,6 +5,8 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { routedGenerate } from "@/lib/ai-router";
 import { enqueueJobForUser } from "@/lib/jobs.functions";
 import { computeCost } from "@/lib/pricing";
+import { VIDEO_AGENT_SYSTEM_CONTRACT } from "./video-production-brain";
+import { createProductionBrain } from "./video-production-brain.server";
 import {
   BABY_AGENT_ANALYSIS,
   BABY_AGENT_SYSTEM,
@@ -29,50 +31,28 @@ const StartInput = z.object({
   autoGenerate: z.boolean().default(false),
 });
 
-type RunRow = {
-  id: string;
-  user_id: string;
-  brief: string;
-  plan: unknown;
-  status: string;
-  created_at: string;
-  updated_at: string;
-};
+type RunRow = { id: string; user_id: string; brief: string; plan: unknown; status: string; created_at: string; updated_at: string };
 
 function runTable() {
-  return (supabaseAdmin as unknown as {
-    from: (table: string) => {
-      insert: (value: Record<string, unknown>) => { select: (columns: string) => { single: () => Promise<{ data: RunRow | null; error: { message: string } | null }> } };
-      update: (value: Record<string, unknown>) => { eq: (column: string, value: string) => { eq: (column: string, value: string) => Promise<{ error: { message: string } | null }> } };
-    };
-  }).from("aurora_baby_agent_runs");
+  return (supabaseAdmin as unknown as { from: (table: string) => any }).from("aurora_baby_agent_runs");
 }
 
 function providerAvailability() {
-  return {
-    modelark: Boolean(process.env.ARK_API_KEY),
-    fal: Boolean(process.env.FAL_KEY),
-    replicate: Boolean(process.env.REPLICATE_API_TOKEN),
-    vast: Boolean(process.env.VAST_API_KEY || process.env.VAST_API_URL),
-  };
+  return { modelark: Boolean(process.env.ARK_API_KEY), fal: Boolean(process.env.FAL_KEY), replicate: Boolean(process.env.REPLICATE_API_TOKEN), vast: Boolean(process.env.VAST_API_KEY || process.env.VAST_API_URL) };
 }
 
 function assertGenerationProvider(available: Record<string, boolean>) {
-  if (!Object.values(available).some(Boolean)) {
-    throw new Error("Aurora Baby Agent is planned, but no video provider is configured. Add FAL, Replicate, ModelArk or Vast credentials in the server environment.");
-  }
+  if (!Object.values(available).some(Boolean)) throw new Error("Aurora Baby Agent is planned, but no video provider is configured. Add FAL, Replicate, ModelArk or Vast credentials in the server environment.");
 }
 
 async function planBrief(brief: string, durationSeconds?: number, aspectRatio?: string): Promise<AuroraBabyPlan> {
   const output = await routedGenerate({
-    system: BABY_AGENT_SYSTEM,
+    system: `${VIDEO_AGENT_SYSTEM_CONTRACT}\n\n${BABY_AGENT_SYSTEM}`,
     prompt: `${BABY_AGENT_ANALYSIS}\n\nUSER BRIEF:\n${brief}\n\nHard constraints: ${durationSeconds ? `duration=${durationSeconds}s` : "duration=auto"}; ${aspectRatio ? `aspect=${aspectRatio}` : "aspect=auto"}.`,
     schema: BabyPlanSchema,
     category: "VIDEO_DIRECTION",
   });
-  if (output.output.needsClarification) {
-    throw new Error(output.output.question ?? "Aurora needs one more detail before it can direct this production.");
-  }
+  if (output.output.needsClarification) throw new Error(output.output.question ?? "Aurora needs one more detail before it can direct this production.");
   return BabyPlanSchema.parse(output.output);
 }
 
@@ -83,12 +63,7 @@ export const analyzeAuroraBabyBrief = createServerFn({ method: "POST" })
     const plan = await planBrief(data.brief, data.durationSeconds, data.aspectRatio);
     const available = providerAvailability();
     const routes = plan.shots.map((shot) => ({ id: shot.id, provider: chooseProvider(shot, available) }));
-    const estimatedCredits = Math.round(plan.shots.reduce((sum, shot) => sum + computeCost({
-      features: ["video"],
-      model: shot.preferredProvider === "modelark" ? "seedance-2.0" : "seedance-2.0-fast",
-      durationSeconds: Math.min(15, Math.max(3, Math.round(shot.durationSeconds))),
-      resolution: "720p",
-    }).total, 0) * 100) / 100;
+    const estimatedCredits = Math.round(plan.shots.reduce((sum, shot) => sum + computeCost({ features: ["video"], model: shot.preferredProvider === "modelark" ? "seedance-2.0" : "seedance-2.0-fast", durationSeconds: Math.min(15, Math.max(3, Math.round(shot.durationSeconds))), resolution: "720p" }).total, 0) * 100) / 100;
     return { plan, routes, estimatedCredits, availableProviders: available };
   });
 
@@ -102,54 +77,32 @@ export const startAuroraBabyProduction = createServerFn({ method: "POST" })
 
     const runId = crypto.randomUUID();
     const now = new Date().toISOString();
-    const { data: run, error } = await runTable().insert({
-      id: runId,
-      user_id: context.userId,
-      brief: data.brief,
-      plan,
-      status: "dispatching",
-      created_at: now,
-      updated_at: now,
-    }).select("*").single();
+    const references = data.referenceUrls.map((url, i) => ({ id: `ref-${i + 1}`, role: "identity" as const, url, locked: true, version: 1, metadata: { source: "baby-agent" } }));
+    await createProductionBrain({ projectId: runId, userId: context.userId, name: plan.brief.title, brief: data.brief, objective: plan.brief.intent, durationSeconds: data.durationSeconds, aspectRatios: data.aspectRatio ? [data.aspectRatio] : [plan.brief.aspectRatio], references });
+
+    const { data: run, error } = await runTable().insert({ id: runId, user_id: context.userId, brief: data.brief, plan, status: "dispatching", created_at: now, updated_at: now }).select("*").single() as { data: RunRow | null; error: { message: string } | null };
     if (error || !run) throw new Error(error?.message ?? "Could not create Aurora Baby Agent run");
 
     if (!data.autoGenerate) {
       await runTable().update({ status: "planned", updated_at: new Date().toISOString() }).eq("id", runId).eq("user_id", context.userId);
-      return { runId, status: "planned", plan, jobs: [] };
+      return { runId, projectId: runId, status: "planned", plan, jobs: [] };
     }
 
     const jobs: Array<{ shotId: string; provider: string; jobId: string; generationId: string; preview: boolean }> = [];
     for (const shot of plan.shots) {
       const provider = chooseProvider(shot, available);
-      const model = provider === "modelark"
-        ? (process.env.MODELARK_VIDEO_MODEL || "seedance-2.0")
-        : provider === "fal"
-          ? (process.env.AURORA_BABY_FAL_VIDEO_MODEL || "fal-ai/bytedance/seedance/v1/pro/image-to-video")
-          : provider === "replicate"
-            ? (process.env.AURORA_BABY_REPLICATE_VIDEO_MODEL || "bytedance/seedance-1-pro")
-            : (process.env.AURORA_BABY_VAST_VIDEO_MODEL || "seedance-2.0");
-
+      const model = provider === "modelark" ? (process.env.MODELARK_VIDEO_MODEL || "seedance-2.0") : provider === "fal" ? (process.env.AURORA_BABY_FAL_VIDEO_MODEL || "fal-ai/bytedance/seedance/v1/pro/image-to-video") : provider === "replicate" ? (process.env.AURORA_BABY_REPLICATE_VIDEO_MODEL || "bytedance/seedance-1-pro") : (process.env.AURORA_BABY_VAST_VIDEO_MODEL || "seedance-2.0");
       const queued = await enqueueJobForUser(context.userId, {
         kind: "video",
-        prompt: `${compileShotPrompt(shot, plan)}\n\nMASTER SHOT PROMPT:\n${shot.prompt}\n\nNEGATIVE:\n${shot.negativePrompt}\n\nAGENT RUN: ${runId}\nSHOT: ${shot.id}`.slice(0, 2000),
+        prompt: `${compileShotPrompt(shot, plan)}\n\nMASTER SHOT PROMPT:\n${shot.prompt}\n\nNEGATIVE:\n${shot.negativePrompt}\n\nAGENT RUN: ${runId}\nPROJECT: ${runId}\nSHOT: ${shot.id}`.slice(0, 2000),
         imageUrls: data.referenceUrls.length ? data.referenceUrls : undefined,
         duration: Math.max(3, Math.min(15, Math.round(shot.durationSeconds))),
         resolution: data.resolution,
         model,
-        params: {
-          auroraBabyAgent: true,
-          runId,
-          shotId: shot.id,
-          scene: shot.scene,
-          provider,
-          aspectRatio: plan.brief.aspectRatio,
-          continuityLocks: shot.continuityLocks,
-          referenceRoles: shot.referenceRoles,
-        },
+        params: { auroraBabyAgent: true, productionProjectId: runId, runId, shotId: shot.id, scene: shot.scene, provider, aspectRatio: plan.brief.aspectRatio, continuityLocks: shot.continuityLocks, referenceRoles: shot.referenceRoles },
       });
       jobs.push({ shotId: shot.id, provider, ...queued });
     }
-
     await runTable().update({ status: "queued", updated_at: new Date().toISOString() }).eq("id", runId).eq("user_id", context.userId);
-    return { runId, status: "queued", plan, jobs };
+    return { runId, projectId: runId, status: "queued", plan, jobs };
   });
