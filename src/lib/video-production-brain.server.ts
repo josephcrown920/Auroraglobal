@@ -1,22 +1,27 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { buildInitialBrain, planChange, ProductionBrainSchema, recordInstruction, type ProductionBrain } from "./video-production-brain";
+import { buildInitialBrain, planChange, ProductionBrainSchema, recordInstruction, type AssetRef, type ProductionBrain } from "./video-production-brain";
+
+function projectTable() {
+  return (supabaseAdmin as unknown as { from: (table: string) => any }).from("video_production_projects");
+}
 
 export async function loadProductionBrain(projectId: string, userId: string): Promise<ProductionBrain | null> {
-  const { data, error } = await supabaseAdmin.from("video_production_projects").select("brain").eq("id", projectId).eq("user_id", userId).maybeSingle();
+  const { data, error } = await projectTable().select("brain").eq("id", projectId).eq("user_id", userId).maybeSingle();
   if (error) throw new Error(`Failed to load production brain: ${error.message}`);
   return data?.brain ? ProductionBrainSchema.parse(data.brain) : null;
 }
 
-export async function createProductionBrain(input: { projectId: string; userId: string; name?: string; brief: string; objective?: string; audience?: string; emotionalGoal?: string; durationSeconds?: number; aspectRatios?: string[] }): Promise<ProductionBrain> {
+export async function createProductionBrain(input: { projectId: string; userId: string; name?: string; brief: string; objective?: string; audience?: string; emotionalGoal?: string; durationSeconds?: number; aspectRatios?: string[]; references?: AssetRef[] }): Promise<ProductionBrain> {
   const brain = buildInitialBrain(input);
-  const { error } = await supabaseAdmin.from("video_production_projects").insert({ id: input.projectId, user_id: input.userId, name: input.name ?? "Untitled production", brain, version: 1 });
+  const seeded = ProductionBrainSchema.parse({ ...brain, references: input.references ?? [] });
+  const { error } = await projectTable().insert({ id: input.projectId, user_id: input.userId, name: input.name ?? "Untitled production", brain: seeded, version: 1 });
   if (error) throw new Error(`Failed to create production brain: ${error.message}`);
-  return brain;
+  return seeded;
 }
 
 export async function saveProductionBrain(projectId: string, userId: string, brain: ProductionBrain): Promise<ProductionBrain> {
   const parsed = ProductionBrainSchema.parse(brain);
-  const { data, error } = await supabaseAdmin.from("video_production_projects").update({ brain: parsed, version: parsed.history.length + 1 }).eq("id", projectId).eq("user_id", userId).select("brain").single();
+  const { data, error } = await projectTable().update({ brain: parsed, version: parsed.history.length + 1 }).eq("id", projectId).eq("user_id", userId).select("brain").single();
   if (error) throw new Error(`Failed to save production brain: ${error.message}`);
   return ProductionBrainSchema.parse(data.brain);
 }
