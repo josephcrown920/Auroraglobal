@@ -8,7 +8,7 @@ on:
         required: true
         type: string
       target:
-        description: Rollback target (defaults to the latest certified release)
+        description: Rollback target (latest certified release or immutable production-certified-* tag)
         required: false
         default: production-known-good
         type: string
@@ -23,10 +23,18 @@ jobs:
     steps:
       - name: Resolve target commit
         id: target
+        env:
+          TARGET_TAG: ${{ inputs.target }}
+          REASON: ${{ inputs.reason }}
         uses: actions/github-script@v7
         with:
           script: |
-            const tag = `${{ inputs.target }}`;
+            const tag = process.env.TARGET_TAG;
+            if (tag !== 'production-known-good' && !/^production-certified-[0-9a-f]{12}$/.test(tag)) {
+              core.setFailed('Rollback target must be production-known-good or an immutable production-certified-* tag.');
+              return;
+            }
+
             const { data } = await github.rest.git.getRef({
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -39,7 +47,7 @@ jobs:
               .addHeading('Aurora rollback target')
               .addTable([
                 [{data: 'Field', header: true}, {data: 'Value', header: true}],
-                ['Reason', `${{ inputs.reason }}`],
+                ['Reason', process.env.REASON],
                 ['Target tag', tag],
                 ['Target SHA', sha],
               ])
@@ -48,18 +56,25 @@ jobs:
       - name: Call deployment rollback bridge when configured
         env:
           ROLLBACK_WEBHOOK_URL: ${{ secrets.AURORA_ROLLBACK_WEBHOOK_URL }}
+          ROLLBACK_WEBHOOK_SECRET: ${{ secrets.AURORA_ROLLBACK_WEBHOOK_SECRET }}
           TARGET_SHA: ${{ steps.target.outputs.sha }}
           TARGET_TAG: ${{ steps.target.outputs.tag }}
           REASON: ${{ inputs.reason }}
         run: |
           if [ -z "$ROLLBACK_WEBHOOK_URL" ]; then
             echo "No AURORA_ROLLBACK_WEBHOOK_URL configured. The certified target was resolved but no deployment provider was changed."
-            echo "Configure the provider bridge before relying on automatic infrastructure rollback."
+            echo "Configure the provider bridge before relying on infrastructure rollback."
             exit 0
           fi
+          if [ -z "$ROLLBACK_WEBHOOK_SECRET" ]; then
+            echo "AURORA_ROLLBACK_WEBHOOK_SECRET must be configured when a rollback bridge is enabled."
+            exit 1
+          fi
 
+          payload="$(node -e 'console.log(JSON.stringify({source:"aurora-github-rollback",reason:process.env.REASON,targetTag:process.env.TARGET_TAG,targetSha:process.env.TARGET_SHA}))')"
           curl --fail-with-body --silent --show-error \
             --request POST \
             --header 'content-type: application/json' \
-            --data "$(node -e 'console.log(JSON.stringify({source:"aurora-github-rollback",reason:process.env.REASON,targetTag:process.env.TARGET_TAG,targetSha:process.env.TARGET_SHA}))')" \
+            --header "authorization: Bearer $ROLLBACK_WEBHOOK_SECRET" \
+            --data "$payload" \
             "$ROLLBACK_WEBHOOK_URL"
