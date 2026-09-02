@@ -1,6 +1,6 @@
 /** Final video-agent integration seam: memory + skills + presets + ModelArk. */
 import { buildGenerationContext, toPromptContext } from "./video-agent-memory-core";
-import { selectVideoSkills } from "./video-agent-skills";
+import { selectVideoSkills } from "./video-agent-skill-selector";
 import { resolvePreset } from "./video-agent-presets";
 import { bytePlusImage, bytePlusVideo, getBytePlusKey } from "./byteplus.server";
 export type VideoRuntimeRequest={instruction:string;taskType:string;memory:Parameters<typeof buildGenerationContext>[0];preset?:string;model?:string;imageUrls?:string[];duration?:number;resolution?:"480p"|"720p"|"1080p"|"2160p";aspectRatio?:string};
