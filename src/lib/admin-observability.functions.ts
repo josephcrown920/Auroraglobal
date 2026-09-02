@@ -1,7 +1,5 @@
-// Admin → Observability server functions (Task #374). Reads api_logs
-// (populated by src/lib/api-logger.server.ts, wired into every request in
-// src/server.ts) and returns the four aggregate views the dashboard needs.
-// Aggregation itself lives in api-observability-stats.ts (pure, unit-testable).
+// Admin → Observability server functions.
+// Reads API telemetry plus the derived live GPU pool health view.
 
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
@@ -14,9 +12,6 @@ import {
   computeTopEndpoints,
 } from "@/lib/api-observability-stats";
 
-// Cap the window we pull into memory — api_logs can grow fast under real
-// traffic, and the dashboard only needs the last day of detail plus a
-// rows-per-request ceiling as a hard backstop.
 const WINDOW_HOURS = 24;
 const MAX_ROWS = 20_000;
 
@@ -27,13 +22,18 @@ export const adminObservability = createServerFn({ method: "GET" })
 
     const since = new Date(Date.now() - WINDOW_HOURS * 60 * 60 * 1000).toISOString();
 
-    const { data, error } = await supabaseAdmin
-      .from("api_logs")
-      .select("endpoint, method, status, response_time_ms, source, created_at")
-      .gte("created_at", since)
-      .order("created_at", { ascending: false })
-      .limit(MAX_ROWS);
+    const [{ data, error }, { data: gpuPool, error: gpuPoolError }] = await Promise.all([
+      supabaseAdmin
+        .from("api_logs")
+        .select("endpoint, method, status, response_time_ms, source, created_at")
+        .gte("created_at", since)
+        .order("created_at", { ascending: false })
+        .limit(MAX_ROWS),
+      supabaseAdmin.from("gpu_pool_health").select("*").maybeSingle(),
+    ]);
+
     if (error) throw new Error(error.message);
+    if (gpuPoolError) throw new Error(gpuPoolError.message);
 
     const rows = data ?? [];
     const sourceBreakdown = { real: 0, bot: 0, internal: 0 };
@@ -53,5 +53,17 @@ export const adminObservability = createServerFn({ method: "GET" })
       requestsPerHour: computeRequestsPerHour(rows),
       errorRates: computeErrorRatePerEndpoint(rows),
       latencyP95: computeP95LatencyPerEndpoint(rows),
+      gpuPool: gpuPool ?? {
+        configured_workers: 0,
+        healthy_workers: 0,
+        degraded_workers: 0,
+        unavailable_workers: 0,
+        in_flight: 0,
+        max_concurrency: 0,
+        utilization_pct: 0,
+        healthy_pct: 0,
+        oldest_healthy_heartbeat: null,
+        last_probe_at: null,
+      },
     };
   });
