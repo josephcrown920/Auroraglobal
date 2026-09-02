@@ -75,9 +75,10 @@ export class ErrorBoundary extends Component<Props, State> {
         stack: stack.slice(0, 1000),
         componentStack: (info.componentStack ?? "").slice(0, 1000),
       } as import("@/integrations/supabase/types").Json,
-    }).catch(() => {
-      // Telemetry must never become another user-visible failure.
-    });
+    }).then(
+      () => undefined,
+      () => undefined,
+    );
   }
 
   private retry = () => {
