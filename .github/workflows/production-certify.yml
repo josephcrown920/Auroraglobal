@@ -37,10 +37,14 @@ jobs:
         env:
           EVENT_SHA: ${{ github.event.workflow_run.head_sha }}
           INPUT_SHA: ${{ inputs.commit_sha }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
           SHA="${INPUT_SHA:-${EVENT_SHA}}"
-          if [ -z "$SHA" ]; then SHA="$(git ls-remote origin refs/heads/Main | cut -f1)"; fi
+          if [ -z "$SHA" ]; then
+            SHA="$(git ls-remote "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" refs/heads/Main | cut -f1)"
+          fi
+          test -n "$SHA"
           echo "sha=$SHA" >> "$GITHUB_OUTPUT"
 
       - uses: actions/checkout@v4
