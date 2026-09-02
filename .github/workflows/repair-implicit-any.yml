@@ -6,7 +6,6 @@ permissions:
   contents: write
 jobs:
   repair:
-    if: github.event.head_commit.message == 'ci: repair implicit-any'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -38,11 +37,10 @@ jobs:
               for old, new in pairs:
                   count = text.count(old)
                   if count != 1:
-                      raise SystemExit(f'{filename}: expected exactly 1 occurrence of {old!r}, found {count}')
+                      raise SystemExit(f'{filename}: expected exactly 1 occurrence, found {count}')
                   text = text.replace(old, new)
               p.write_text(text)
-          print('All targeted search reducers repaired.')
-      - name: Commit repair and remove one-time workflow
+      - name: Commit repair and remove workflow
         shell: bash
         run: |
           git config user.name "github-actions[bot]"
