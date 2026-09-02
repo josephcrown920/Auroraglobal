@@ -10,6 +10,11 @@ const files = {
   router: "src/router.tsx",
   root: "src/routes/__root.tsx",
   sw: "public/sw.js",
+  knownGood: ".github/workflows/known-good.yml",
+  watchdog: ".github/workflows/production-watchdog.yml",
+  rollback: ".github/workflows/rollback.yml",
+  docs: "docs/PRODUCTION-RESILIENCE.md",
+  ci: ".github/workflows/ci.yml",
 };
 
 const contents = Object.fromEntries(
@@ -26,6 +31,12 @@ const checks = [
   ["hashed asset cache strategy", contents.sw.includes("/assets/") && contents.sw.includes("Cache-first")],
   ["network-first navigation fallback", contents.sw.includes("function networkFirst") && contents.sw.includes("offline.html")],
   ["API network isolation", contents.sw.includes("function isApiCall")],
+  ["known-good certification workflow", contents.knownGood.includes("production-known-good") && contents.knownGood.includes("production-certified-")],
+  ["watchdog health probing", contents.watchdog.includes("AURORA_HEALTHCHECK_URL") && contents.watchdog.includes("three consecutive")],
+  ["watchdog rollback bridge", contents.watchdog.includes("AURORA_ROLLBACK_WEBHOOK_URL") && contents.watchdog.includes("production-known-good")],
+  ["manual rollback target", contents.rollback.includes("default: production-known-good") && contents.rollback.includes("AURORA_ROLLBACK_WEBHOOK_URL")],
+  ["resilience documentation", contents.docs.includes("quality gate") && contents.docs.includes("rollback")],
+  ["quality gate enforces resilience contract", contents.ci.includes("node scripts/ci/resilience-contract.mjs")],
 ];
 
 const failed = checks.filter(([, ok]) => !ok);
