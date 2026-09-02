@@ -75,7 +75,14 @@ export async function assertDailyBudget(userId: string, estimatedCost: number, d
   const dayStartUtc = new Date();
   dayStartUtc.setUTCHours(0, 0, 0, 0);
   const rows = await deps.getLedgerRows(userId, dayStartUtc.toISOString());
-  const spentToday = rows.reduce((sum, r) => sum - r.delta, 0);
+  const spentToday = rows.reduce((sum, r) => {
+    // Preserve the original guardrail semantics for injected/test ledger rows:
+    // only reservations consume daily budget; releases refund it. Production
+    // uses the aggregate RPC above and supplies a synthetic reserve row.
+    if (r.reason.startsWith("reserve:")) return sum - r.delta;
+    if (r.reason.startsWith("release:")) return sum - r.delta;
+    return sum;
+  }, 0);
   if (spentToday + estimatedCost > limit) throw new Error(`Unsupported: daily_limit_reached — you've used ${spentToday} of your ${limit} Aura daily limit. Raise or clear your limit in Billing, or try again tomorrow.`);
 }
 
