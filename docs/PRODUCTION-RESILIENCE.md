@@ -19,8 +19,9 @@ GitHub cannot safely guess which production provider owns Aurora. The repository
 
 - `AURORA_HEALTHCHECK_URL` — a production health endpoint that returns HTTP 2xx only when Aurora is healthy.
 - `AURORA_ROLLBACK_WEBHOOK_URL` — a trusted deployment bridge that receives the certified rollback request and redeploys the `production-known-good` SHA.
+- `AURORA_ROLLBACK_WEBHOOK_SECRET` — a secret shared by GitHub Actions and the trusted bridge; the bridge must reject missing or invalid bearer authentication.
 
-The bridge must authenticate the request, deploy only the supplied certified SHA/tag, wait for health checks, and fail closed if the target cannot be deployed.
+The bridge must authenticate the request, accept only `production-known-good` or an immutable `production-certified-<12-char-sha>` target, deploy the supplied certified SHA/tag, wait for health checks, be idempotent for repeated rollback requests, and fail closed if the target cannot be deployed.
 
 ## Important invariant
 
