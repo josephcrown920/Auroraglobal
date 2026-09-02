@@ -18,10 +18,10 @@ export default defineConfig({
     trace: "retain-on-failure",
   },
   webServer: {
-    // CI only needs the canonical Aurora app. Starting the archived Adult
-    // artifact in parallel made E2E startup depend on a second Vite graph and
-    // could exhaust the CI process budget before tests even began.
-    command: `bash -lc 'NODE_OPTIONS=--max-old-space-size=3072 node_modules/vite/bin/vite.js dev --host 0.0.0.0 --port ${PORT}`,
+    // CI only needs the canonical Aurora app. Start Vite directly instead of
+    // wrapping the command in nested shell quotes; Playwright already launches
+    // webServer commands through a shell and nested quotes broke CI startup.
+    command: `NODE_OPTIONS=--max-old-space-size=3072 node_modules/vite/bin/vite.js dev --host 0.0.0.0 --port ${PORT}`,
     url: `http://localhost:${PORT}`,
     reuseExistingServer: true,
     timeout: 300_000,
