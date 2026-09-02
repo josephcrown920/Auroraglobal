@@ -40,14 +40,20 @@ jobs:
         if: ${{ failure() }}
         env:
           ROLLBACK_WEBHOOK_URL: ${{ secrets.AURORA_ROLLBACK_WEBHOOK_URL }}
+          ROLLBACK_WEBHOOK_SECRET: ${{ secrets.AURORA_ROLLBACK_WEBHOOK_SECRET }}
         run: |
           if [ -z "$ROLLBACK_WEBHOOK_URL" ]; then
             echo "AURORA_ROLLBACK_WEBHOOK_URL is not configured; recording the failure without changing production."
             exit 0
           fi
+          if [ -z "$ROLLBACK_WEBHOOK_SECRET" ]; then
+            echo "AURORA_ROLLBACK_WEBHOOK_SECRET must be configured when automatic rollback is enabled."
+            exit 1
+          fi
 
           curl --fail-with-body --silent --show-error \
             --request POST \
             --header 'content-type: application/json' \
+            --header "authorization: Bearer $ROLLBACK_WEBHOOK_SECRET" \
             --data '{"source":"aurora-production-watchdog","reason":"three consecutive production health probes failed","targetTag":"production-known-good"}' \
             "$ROLLBACK_WEBHOOK_URL"
