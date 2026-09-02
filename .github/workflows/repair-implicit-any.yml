@@ -1,0 +1,55 @@
+name: one-time repair implicit-any
+on:
+  push:
+    branches: [Main]
+permissions:
+  contents: write
+jobs:
+  repair:
+    if: github.event.head_commit.message == 'ci: repair implicit-any'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: Main
+      - name: Repair search reducers
+        shell: python
+        run: |
+          from pathlib import Path
+          replacements = {
+              "src/routes/edit.lazy.tsx": [
+                  ('search: (prev) => ({ ...prev, job: jId })', 'search: { ...search, job: jId }'),
+              ],
+              "src/routes/spin.lazy.tsx": [
+                  ('search: (prev) => ({ ...prev, jobId: id, prompt: undefined })', 'search: { ...search, jobId: id, prompt: undefined }'),
+              ],
+              "src/routes/templates.lazy.tsx": [
+                  ('search: (prev) => ({ ...prev, category: cat ?? undefined })', 'search: { ...search, category: cat ?? undefined }'),
+                  ('search: (prev) => ({ ...prev, open: id })', 'search: { ...search, open: id }'),
+                  ('search: (prev) => ({ ...prev, open: undefined })', 'search: { ...search, open: undefined }'),
+              ],
+              "src/routes/video-editor.lazy.tsx": [
+                  ('search: (prev) => ({ ...prev, session: id })', 'search: { ...search, session: id }'),
+              ],
+          }
+          for filename, pairs in replacements.items():
+              p = Path(filename)
+              text = p.read_text()
+              for old, new in pairs:
+                  count = text.count(old)
+                  if count != 1:
+                      raise SystemExit(f'{filename}: expected exactly 1 occurrence of {old!r}, found {count}')
+                  text = text.replace(old, new)
+              p.write_text(text)
+          print('All targeted search reducers repaired.')
+      - name: Commit repair and remove one-time workflow
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          rm -f .github/workflows/repair-implicit-any.yml
+          git add src/routes/edit.lazy.tsx src/routes/spin.lazy.tsx src/routes/templates.lazy.tsx src/routes/video-editor.lazy.tsx .github/workflows/repair-implicit-any.yml
+          git diff --cached --check
+          git diff --cached --stat
+          git commit -m "fix: type TanStack search navigation updates"
+          git push origin HEAD:Main
