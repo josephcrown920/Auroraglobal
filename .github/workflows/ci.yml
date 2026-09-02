@@ -10,6 +10,12 @@ on:
 permissions:
   contents: read
 
+env:
+  # Provider credentials are supplied by GitHub Actions Secrets when present.
+  # Unit tests should not require live provider credentials unless they are
+  # explicitly exercising a provider integration.
+  HEYGEN_API_KEY: ${{ secrets.HEYGEN_API_KEY }}
+
 jobs:
   quality:
     name: Lint, types, tests, build
