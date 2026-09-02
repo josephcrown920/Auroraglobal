@@ -6,17 +6,34 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { assertAdmin } from "@/lib/admin.functions";
 
+const db = supabaseAdmin as any;
+
+async function enrichCustomers(rows: any[]) {
+  if (!rows.length) return [];
+  const ids = rows.map((row) => row.user_id).filter(Boolean);
+  const { data: profiles } = await db
+    .from("profiles")
+    .select("user_id,email,display_name")
+    .in("user_id", ids);
+  const profileMap = new Map((profiles ?? []).map((profile: any) => [profile.user_id, profile]));
+  return rows.map((row) => ({
+    ...row,
+    email: profileMap.get(row.user_id)?.email ?? null,
+    display_name: profileMap.get(row.user_id)?.display_name ?? null,
+  }));
+}
+
 export const adminListCustomers = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     await assertAdmin(context.userId);
-    const { data, error } = await supabaseAdmin
+    const { data, error } = await db
       .from("crm_customers")
       .select("*")
       .order("last_seen_at", { ascending: false, nullsFirst: false })
       .limit(500);
     if (error) throw new Error(error.message);
-    return data ?? [];
+    return enrichCustomers(data ?? []);
   });
 
 export const adminGetCustomer = createServerFn({ method: "GET" })
@@ -26,16 +43,17 @@ export const adminGetCustomer = createServerFn({ method: "GET" })
     if (!data?.userId) throw new Error("userId is required");
 
     const [{ data: customer, error: customerError }, { data: activities, error: activitiesError }, { data: events, error: eventsError }] = await Promise.all([
-      supabaseAdmin.from("crm_customers").select("*").eq("user_id", data.userId).maybeSingle(),
-      supabaseAdmin.from("crm_activities").select("*").eq("user_id", data.userId).order("created_at", { ascending: false }).limit(100),
-      supabaseAdmin.from("events").select("id,name,category,entity_type,entity_id,path,payload,created_at").eq("user_id", data.userId).order("created_at", { ascending: false }).limit(200),
+      db.from("crm_customers").select("*").eq("user_id", data.userId).maybeSingle(),
+      db.from("crm_activities").select("*").eq("user_id", data.userId).order("created_at", { ascending: false }).limit(100),
+      db.from("events").select("id,name,category,entity_type,entity_id,path,payload,created_at").eq("user_id", data.userId).order("created_at", { ascending: false }).limit(200),
     ]);
 
     if (customerError) throw new Error(customerError.message);
     if (activitiesError) throw new Error(activitiesError.message);
     if (eventsError) throw new Error(eventsError.message);
 
-    return { customer, activities: activities ?? [], events: events ?? [] };
+    const [enriched] = await enrichCustomers(customer ? [customer] : []);
+    return { customer: enriched ?? null, activities: activities ?? [], events: events ?? [] };
   });
 
 export const adminUpsertCustomer = createServerFn({ method: "POST" })
@@ -46,7 +64,7 @@ export const adminUpsertCustomer = createServerFn({ method: "POST" })
     const allowedStages = new Set(["lead", "trial", "active", "at_risk", "churned", "vip"]);
     if (data.lifecycle_stage && !allowedStages.has(data.lifecycle_stage)) throw new Error("Invalid lifecycle stage");
 
-    const { data: customer, error } = await supabaseAdmin
+    const { data: customer, error } = await db
       .from("crm_customers")
       .upsert({
         user_id: data.userId,
@@ -60,7 +78,8 @@ export const adminUpsertCustomer = createServerFn({ method: "POST" })
       .select("*")
       .single();
     if (error) throw new Error(error.message);
-    return customer;
+    const [enriched] = await enrichCustomers([customer]);
+    return enriched;
   });
 
 export const adminAddCustomerActivity = createServerFn({ method: "POST" })
@@ -68,7 +87,7 @@ export const adminAddCustomerActivity = createServerFn({ method: "POST" })
   .handler(async ({ context, data }: { context: { userId: string }; data: { userId: string; activity_type: string; title: string; body?: string | null; metadata?: Record<string, unknown> } }) => {
     await assertAdmin(context.userId);
     if (!data?.userId || !data.title || !data.activity_type) throw new Error("userId, activity_type and title are required");
-    const { data: activity, error } = await supabaseAdmin
+    const { data: activity, error } = await db
       .from("crm_activities")
       .insert({
         user_id: data.userId,
