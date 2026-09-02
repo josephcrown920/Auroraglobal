@@ -33,9 +33,10 @@ const checks = [
   ["API network isolation", contents.sw.includes("function isApiCall")],
   ["known-good certification workflow", contents.knownGood.includes("production-known-good") && contents.knownGood.includes("production-certified-")],
   ["watchdog health probing", contents.watchdog.includes("AURORA_HEALTHCHECK_URL") && contents.watchdog.includes("three consecutive")],
-  ["watchdog rollback bridge", contents.watchdog.includes("AURORA_ROLLBACK_WEBHOOK_URL") && contents.watchdog.includes("production-known-good")],
-  ["manual rollback target", contents.rollback.includes("default: production-known-good") && contents.rollback.includes("AURORA_ROLLBACK_WEBHOOK_URL")],
-  ["resilience documentation", contents.docs.includes("quality gate") && contents.docs.includes("rollback")],
+  ["watchdog authenticated rollback bridge", contents.watchdog.includes("AURORA_ROLLBACK_WEBHOOK_URL") && contents.watchdog.includes("AURORA_ROLLBACK_WEBHOOK_SECRET") && contents.watchdog.includes("authorization: Bearer")],
+  ["manual rollback only uses certified targets", contents.rollback.includes("production-known-good") && contents.rollback.includes("production-certified-[0-9a-f]")],
+  ["manual rollback bridge authentication", contents.rollback.includes("AURORA_ROLLBACK_WEBHOOK_SECRET") && contents.rollback.includes("authorization: Bearer")],
+  ["resilience documentation", contents.docs.includes("AURORA_ROLLBACK_WEBHOOK_SECRET") && contents.docs.includes("fail closed")],
   ["quality gate enforces resilience contract", contents.ci.includes("node scripts/ci/resilience-contract.mjs")],
 ];
 
