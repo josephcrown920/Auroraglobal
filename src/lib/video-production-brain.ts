@@ -90,9 +90,9 @@ export function planChange(brain: ProductionBrain, instruction: string): ChangeI
   const stale = new Set(affected);
   let changed = true;
   while (changed) { changed = false; for (const n of brain.nodes) if (n.dependsOn.some((id) => stale.has(id)) || n.sourceAssetIds.some((id) => stale.has(id))) { if (!stale.has(n.id)) { stale.add(n.id); changed = true; } } }
-  const affectedTrackIds = brain.timeline.filter((t) => t.items.some((i) => stale.has(i.nodeId) || affected.includes(i.nodeId))).map((t) => t.id);
   const requiresReplan = /entire|whole|story|script|ending|duration|platform|audience|objective/.test(text) && affected.length === 0;
   if (requiresReplan) for (const n of brain.nodes) stale.add(n.id);
+  const affectedTrackIds = brain.timeline.filter((t) => t.items.some((i) => stale.has(i.nodeId) || affected.includes(i.nodeId))).map((t) => t.id);
   return { instruction, affectedNodeIds: affected, staleNodeIds: [...stale], affectedTrackIds, requiresReplan, reason: requiresReplan ? "Creative direction changed at project level." : affected.length ? "Dependency-aware local revision." : "No explicit production object matched; inspect project context before acting." };
 }
 
