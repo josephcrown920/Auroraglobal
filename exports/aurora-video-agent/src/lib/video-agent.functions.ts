@@ -4,7 +4,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { routedGenerate } from "./ai-router";
 import { sanitizeVideoAgentScript, videoAgentWordTarget } from "./video-agent-prompt";
 import { computeCost } from "./pricing";
-import { VIDEO_AGENT_SYSTEM_CONTRACT } from "@/lib/video-production-brain";
+import { VIDEO_AGENT_SYSTEM_CONTRACT } from "./video-production-brain";
 import { CINEMATIC_SYSTEM_PROMPT, CINEMATIC_ANALYSIS_PROMPT, VideoPlanSchema, getHeyGenStyle, type VideoPlan } from "./video-agent-skills";
 
 const EnhanceSchema = z.object({ prompt: z.string().min(3).max(4000), targetSeconds: z.number().int().min(3).max(300).optional(), directToCamera: z.boolean().optional(), styleId: z.string().optional() });
