@@ -22,6 +22,9 @@ env:
   PRODUCTION_URL: https://auroraperformancestudio.com
   CERTIFIED_TAG: production-certified
 
+env_defaults:
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
 jobs:
   certify:
     name: Production smoke + certification
@@ -63,7 +66,7 @@ jobs:
           SHA: ${{ steps.candidate.outputs.sha }}
         run: |
           set -euo pipefail
-          echo "Waiting for $PRODUCTION_URL to serve candidate $SHA when deployment metadata is available."
+          echo "Waiting for $PRODUCTION_URL to serve the candidate deployment."
           for attempt in $(seq 1 30); do
             status="$(curl -L -sS -o /tmp/aurora.html -w '%{http_code}' --max-time 15 "$PRODUCTION_URL/")" || status="000"
             if [ "$status" = "200" ]; then
@@ -100,6 +103,7 @@ jobs:
       - name: Promote candidate to known-good
         env:
           CANDIDATE_SHA: ${{ steps.candidate.outputs.sha }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
           git fetch origin Main --tags
@@ -127,6 +131,7 @@ jobs:
       - name: Roll back Main to last certified release
         env:
           CANDIDATE_SHA: ${{ github.event.workflow_run.head_sha }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
           git init rollback
