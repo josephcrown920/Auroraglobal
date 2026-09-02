@@ -22,9 +22,6 @@ env:
   PRODUCTION_URL: https://auroraperformancestudio.com
   CERTIFIED_TAG: production-certified
 
-env_defaults:
-  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
 jobs:
   certify:
     name: Production smoke + certification
