@@ -8,6 +8,7 @@ import { readFile } from "node:fs/promises";
 const files = {
   boundary: "src/components/ErrorBoundary.tsx",
   router: "src/router.tsx",
+  root: "src/routes/__root.tsx",
   sw: "public/sw.js",
 };
 
@@ -17,6 +18,7 @@ const contents = Object.fromEntries(
 
 const checks = [
   ["global React error boundary", contents.boundary.includes("export class ErrorBoundary")],
+  ["global boundary mounted in root", contents.root.includes("<ErrorBoundary>")],
   ["stale chunk detection", contents.boundary.includes("isStaleChunkError")],
   ["guarded stale chunk reload", contents.boundary.includes("reloadOnceForStaleChunk")],
   ["router error fallback", contents.router.includes("defaultErrorComponent")],
