@@ -32,6 +32,8 @@ jobs:
       # the lockfile is regenerated against the public npm registry.
       - name: Install dependencies
         run: npm install --package-lock=false --no-audit --no-fund
+      - name: Generate TanStack route types
+        run: npx --yes @tanstack/router-cli generate
       # Single source of truth: lint/typecheck plus isolated test processes,
       # followed by the migration, worker-boundary, and production-build gates.
       # Test files are isolated because Bun mock.module() and process globals
@@ -65,6 +67,8 @@ jobs:
       # See the quality job above: avoid Replit-only lockfile URLs in CI.
       - name: Install dependencies
         run: npm install --package-lock=false --no-audit --no-fund
+      - name: Generate TanStack route types
+        run: npx --yes @tanstack/router-cli generate
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
       - name: Run Playwright suite
