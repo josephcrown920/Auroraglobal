@@ -1,0 +1,65 @@
+name: Aurora rollback control
+
+on:
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: Why the current production release should be rolled back
+        required: true
+        type: string
+      target:
+        description: Rollback target (defaults to the latest certified release)
+        required: false
+        default: production-known-good
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  rollback:
+    name: Resolve certified rollback target
+    runs-on: ubuntu-latest
+    steps:
+      - name: Resolve target commit
+        id: target
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const tag = `${{ inputs.target }}`;
+            const { data } = await github.rest.git.getRef({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: `tags/${tag}`,
+            });
+            const sha = data.object.sha;
+            core.setOutput('sha', sha);
+            core.setOutput('tag', tag);
+            core.summary
+              .addHeading('Aurora rollback target')
+              .addTable([
+                [{data: 'Field', header: true}, {data: 'Value', header: true}],
+                ['Reason', `${{ inputs.reason }}`],
+                ['Target tag', tag],
+                ['Target SHA', sha],
+              ])
+              .write();
+
+      - name: Call deployment rollback bridge when configured
+        env:
+          ROLLBACK_WEBHOOK_URL: ${{ secrets.AURORA_ROLLBACK_WEBHOOK_URL }}
+          TARGET_SHA: ${{ steps.target.outputs.sha }}
+          TARGET_TAG: ${{ steps.target.outputs.tag }}
+          REASON: ${{ inputs.reason }}
+        run: |
+          if [ -z "$ROLLBACK_WEBHOOK_URL" ]; then
+            echo "No AURORA_ROLLBACK_WEBHOOK_URL configured. The certified target was resolved but no deployment provider was changed."
+            echo "Configure the provider bridge before relying on automatic infrastructure rollback."
+            exit 0
+          fi
+
+          curl --fail-with-body --silent --show-error \
+            --request POST \
+            --header 'content-type: application/json' \
+            --data "$(node -e 'console.log(JSON.stringify({source:"aurora-github-rollback",reason:process.env.REASON,targetTag:process.env.TARGET_TAG,targetSha:process.env.TARGET_SHA}))')" \
+            "$ROLLBACK_WEBHOOK_URL"

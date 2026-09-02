@@ -1,18 +1,14 @@
 import { z } from "zod";
+import { VIDEO_AGENT_SYSTEM_CONTRACT } from "./video-production-brain";
 
-export const BABY_AGENT_SYSTEM = `You are Aurora Baby Agent, an autonomous individual video producer inside Aurora.
-You are not a generic text-to-video assistant. You own the production state from brief through delivery.
+export const BABY_AGENT_SYSTEM = `${VIDEO_AGENT_SYSTEM_CONTRACT}
 
-Your job is to turn one high-level request into a production-ready plan while preserving creative intent.
-Work decisively. Ask at most one question and only when subject AND intent are both genuinely missing.
+You are Aurora Baby Agent, the individual autonomous video producer inside Aurora. You own production state from brief through delivery and may invoke every specialist role required by the project.
+
+Work decisively. Ask at most one question and only when subject AND intent are both genuinely missing. Prefer generated assets when the brief requires specificity; prefer stock when a licensed existing asset can satisfy the shot.
 
 Always reason in this order:
 BRIEF → RESEARCH/CONTEXT → SCRIPT → STORY → CHARACTER/ENVIRONMENT/STYLE BIBLES → STORYBOARD → SHOT COVERAGE → CAMERA + BEHAVIOR → MODEL ROUTING → GENERATION → QA → TARGETED REPAIR → EDIT → CAPTIONS/SOUND → DELIVERY.
-
-Never rebuild the whole project for a local change. Treat every scene and shot as an addressable production object.
-Maintain identity, wardrobe, environment, lighting, props, camera grammar and emotional state across shots.
-Prefer generated assets when the brief requires specificity; prefer stock when a licensed existing asset can satisfy the shot.
-Choose providers by task fit, quality, consistency, latency, cost and availability. Never expose credentials.
 
 Return strict JSON matching the requested schema.`;
 
@@ -38,35 +34,13 @@ export const BabyPlanSchema = z.object({
   needsClarification: z.boolean().optional(),
   question: z.string().optional(),
   brief: z.object({
-    title: z.string(),
-    intent: z.string(),
-    audience: z.string(),
-    durationSeconds: z.number().int().min(5).max(600),
-    aspectRatio: z.enum(["16:9", "9:16", "1:1", "4:5", "2.39:1"]),
-    tone: z.string(),
-    visualLanguage: z.string(),
-    assumptions: z.array(z.string()).max(12),
+    title: z.string(), intent: z.string(), audience: z.string(), durationSeconds: z.number().int().min(5).max(600),
+    aspectRatio: z.enum(["16:9", "9:16", "1:1", "4:5", "2.39:1"]), tone: z.string(), visualLanguage: z.string(), assumptions: z.array(z.string()).max(12),
   }),
-  script: z.object({
-    narration: z.string(),
-    dialogue: z.array(z.object({ speaker: z.string(), line: z.string() })).max(30),
-    musicDirection: z.string(),
-    sfxDirection: z.string(),
-  }),
-  bibles: z.object({
-    identityAnchor: z.string(),
-    character: z.array(z.string()).max(20),
-    environment: z.array(z.string()).max(20),
-    style: z.array(z.string()).max(20),
-  }),
+  script: z.object({ narration: z.string(), dialogue: z.array(z.object({ speaker: z.string(), line: z.string() })).max(30), musicDirection: z.string(), sfxDirection: z.string() }),
+  bibles: z.object({ identityAnchor: z.string(), character: z.array(z.string()).max(20), environment: z.array(z.string()).max(20), style: z.array(z.string()).max(20) }),
   shots: z.array(BabyShotSchema).min(1).max(80),
-  delivery: z.object({
-    formats: z.array(z.enum(["16:9", "9:16", "1:1", "4:5", "2.39:1"])).min(1),
-    fps: z.union([z.literal(24), z.literal(25), z.literal(30), z.literal(60)]),
-    resolution: z.enum(["720p", "1080p", "2160p"]),
-    captions: z.boolean(),
-    dubbing: z.boolean(),
-  }),
+  delivery: z.object({ formats: z.array(z.enum(["16:9", "9:16", "1:1", "4:5", "2.39:1"])).min(1), fps: z.union([z.literal(24), z.literal(25), z.literal(30), z.literal(60)]), resolution: z.enum(["720p", "1080p", "2160p"]), captions: z.boolean(), dubbing: z.boolean() }),
 });
 
 export type AuroraBabyPlan = z.infer<typeof BabyPlanSchema>;
@@ -83,24 +57,15 @@ Required behavior:
 - Mark reference roles so the executor knows which assets are identity, wardrobe, environment, style or frame references.
 - Route dialogue/audio-synchronized shots toward models capable of native audio when available; route identity/control-heavy shots toward the strongest reference-capable provider.
 - Keep negative prompts explicit: warped face, identity drift, extra fingers, duplicate subject, broken anatomy, temporal morphing, unwanted text, watermark, flicker, lighting discontinuity.
-- The plan must be editable: scene and shot IDs are stable and local revisions must be possible.
+- Represent the project as addressable nodes and tracks so revisions can be local and dependency-aware.
+- Include audio, captions, edit and delivery decisions when the brief requires them.
+- Do not make the user select a model; provider choice belongs to the orchestrator.
 
 Return only JSON matching BabyPlanSchema.`;
 
 export function compileShotPrompt(shot: AuroraBabyShot, plan: AuroraBabyPlan): string {
   const continuity = shot.continuityLocks.length ? ` Continuity locks: ${shot.continuityLocks.join("; ")}.` : "";
-  return [
-    shot.framing.toUpperCase(),
-    `${shot.lensMm}mm`,
-    shot.cameraMove,
-    `${shot.cameraSpeed} camera speed`,
-    shot.behavior,
-    shot.lighting,
-    plan.brief.visualLanguage,
-    `aspect ${plan.brief.aspectRatio}`,
-    continuity,
-    "natural motion, stable anatomy, coherent temporal movement",
-  ].filter(Boolean).join(". ");
+  return [shot.framing.toUpperCase(), `${shot.lensMm}mm`, shot.cameraMove, `${shot.cameraSpeed} camera speed`, shot.behavior, shot.lighting, plan.brief.visualLanguage, `aspect ${plan.brief.aspectRatio}`, continuity, "natural motion, stable anatomy, coherent temporal movement"].filter(Boolean).join(". ");
 }
 
 export function chooseProvider(shot: AuroraBabyShot, available: Record<string, boolean>): "modelark" | "fal" | "replicate" | "vast" {
@@ -114,25 +79,12 @@ export function chooseProvider(shot: AuroraBabyShot, available: Record<string, b
   return "vast";
 }
 
-export type BabyQaResult = {
-  pass: boolean;
-  score: number;
-  failures: string[];
-};
+export type BabyQaResult = { pass: boolean; score: number; failures: string[] };
 
-export function scoreBabyShot(input: {
-  identity: number;
-  promptAdherence: number;
-  temporal: number;
-  camera: number;
-  anatomy: number;
-  continuity: number;
-}): BabyQaResult {
+export function scoreBabyShot(input: { identity: number; promptAdherence: number; temporal: number; camera: number; anatomy: number; continuity: number }): BabyQaResult {
   const values = Object.values(input);
   const score = Math.round(values.reduce((a, b) => a + b, 0) / values.length);
-  const failures = Object.entries(input)
-    .filter(([, value]) => value < 70)
-    .map(([key, value]) => `${key}:${value}`);
+  const failures = Object.entries(input).filter(([, value]) => value < 70).map(([key, value]) => `${key}:${value}`);
   return { pass: score >= 78 && failures.length === 0, score, failures };
 }
 

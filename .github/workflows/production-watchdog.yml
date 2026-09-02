@@ -1,0 +1,53 @@
+name: Aurora production watchdog
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "*/15 * * * *"
+
+permissions:
+  contents: read
+
+jobs:
+  health:
+    name: Verify production health
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check production health
+        id: probe
+        env:
+          HEALTHCHECK_URL: ${{ secrets.AURORA_HEALTHCHECK_URL }}
+        run: |
+          if [ -z "$HEALTHCHECK_URL" ]; then
+            echo "AURORA_HEALTHCHECK_URL is not configured; skipping provider-level watchdog."
+            exit 0
+          fi
+
+          for attempt in 1 2 3; do
+            echo "Health probe $attempt/3"
+            if curl --fail --silent --show-error --max-time 10 --location "$HEALTHCHECK_URL" >/tmp/health.json; then
+              echo "Production health probe passed."
+              exit 0
+            fi
+            sleep 10
+          done
+
+          echo "Production health probe failed three consecutive attempts."
+          exit 1
+
+      - name: Request certified rollback
+        if: ${{ failure() }}
+        env:
+          ROLLBACK_WEBHOOK_URL: ${{ secrets.AURORA_ROLLBACK_WEBHOOK_URL }}
+        run: |
+          if [ -z "$ROLLBACK_WEBHOOK_URL" ]; then
+            echo "AURORA_ROLLBACK_WEBHOOK_URL is not configured; recording the failure without changing production."
+            exit 0
+          fi
+
+          curl --fail-with-body --silent --show-error \
+            --request POST \
+            --header 'content-type: application/json' \
+            --data '{"source":"aurora-production-watchdog","reason":"three consecutive production health probes failed","targetTag":"production-known-good"}' \
+            "$ROLLBACK_WEBHOOK_URL"
