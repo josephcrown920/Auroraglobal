@@ -40,6 +40,8 @@ jobs:
         run: npm install --package-lock=false --no-audit --no-fund
       - name: Generate TanStack route types
         run: npx --yes @tanstack/router-cli generate
+      - name: Resilience contract
+        run: node scripts/ci/resilience-contract.mjs
       - name: Production gate
         run: npm run lint && npm run typecheck && node scripts/test-isolated.mjs && bash scripts/check-migrations.sh && node scripts/ci/audit-worker-entry.mjs && npm run build
 
