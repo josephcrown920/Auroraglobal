@@ -391,7 +391,7 @@ function AutoCutPage() {
         startPolling(genId, jId);
         // Keep the URL in sync so returning to /edit (back button, bookmark,
         // refresh) can re-hydrate this exact job instead of starting blank.
-        void navigate({ search: (prev) => ({ ...prev, job: jId }), replace: true });
+        void navigate({ search: { ...search, job: jId }, replace: true });
       } catch (err) {
         handleGenerationError(err);
         setPhase("error");

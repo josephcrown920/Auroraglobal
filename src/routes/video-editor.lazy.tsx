@@ -149,7 +149,7 @@ function VideoEditorPage() {
       const { sessionId: id } = await createSessionFn();
       setSessionId(id);
       setSessionReady(true);
-      void navigate({ search: (prev) => ({ ...prev, session: id }), replace: true });
+      void navigate({ search: { ...search, session: id }, replace: true });
     } catch (err) {
       toast.error("Failed to create editing session");
     }

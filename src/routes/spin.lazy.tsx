@@ -364,7 +364,7 @@ function SpinPage() {
           },
         });
         setJobId(id);
-        void navigate({ search: (prev) => ({ ...prev, jobId: id, prompt: undefined }), replace: true });
+        void navigate({ search: { ...search, jobId: id, prompt: undefined }, replace: true });
         setPlanning(false);
         await drive(id);
       } catch (e) {
