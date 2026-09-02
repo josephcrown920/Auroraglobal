@@ -42,7 +42,10 @@ ALTER TABLE public.events ADD COLUMN IF NOT EXISTS entity_id text;
 CREATE INDEX IF NOT EXISTS events_user_created_idx ON public.events(user_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS events_name_created_idx ON public.events(name, created_at DESC);
 CREATE INDEX IF NOT EXISTS crm_activities_user_created_idx ON public.crm_activities(user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS crm_activities_created_by_idx ON public.crm_activities(created_by);
+CREATE INDEX IF NOT EXISTS crm_tasks_user_idx ON public.crm_tasks(user_id);
 CREATE INDEX IF NOT EXISTS crm_tasks_assignee_status_idx ON public.crm_tasks(assigned_to, status, due_at);
+CREATE INDEX IF NOT EXISTS crm_customers_owner_idx ON public.crm_customers(owner_user_id);
 
 ALTER TABLE public.crm_customers ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.crm_activities ENABLE ROW LEVEL SECURITY;
