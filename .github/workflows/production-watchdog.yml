@@ -37,10 +37,15 @@ jobs:
           exit 1
 
       - name: Request certified rollback
-        if: ${{ failure() && env.ROLLBACK_WEBHOOK_URL != '' }}
+        if: ${{ failure() }}
         env:
           ROLLBACK_WEBHOOK_URL: ${{ secrets.AURORA_ROLLBACK_WEBHOOK_URL }}
         run: |
+          if [ -z "$ROLLBACK_WEBHOOK_URL" ]; then
+            echo "AURORA_ROLLBACK_WEBHOOK_URL is not configured; recording the failure without changing production."
+            exit 0
+          fi
+
           curl --fail-with-body --silent --show-error \
             --request POST \
             --header 'content-type: application/json' \
