@@ -1,0 +1,42 @@
+name: Aurora public smoke tests
+
+on:
+  push:
+    branches: [Main, stabilization/smoke-and-shell]
+  pull_request:
+    branches: [Main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: aurora-smoke-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  smoke:
+    name: Public route smoke test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install dependencies
+        # GitHub runners cannot resolve Replit's internal package-firewall URLs.
+        run: npm install --package-lock=false --no-audit --no-fund
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run public route smoke tests
+        run: npx playwright test --config=playwright.smoke.config.ts
+        env:
+          PORT: 8080
