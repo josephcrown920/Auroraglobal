@@ -36,7 +36,7 @@ export const SITE_COPY_DEFAULTS: Record<string, string> = {
   // ── Landing — featured tools section ─────────────────────────────────────
   landing_tools_heading:    "The full studio.",
   landing_tools_subheading: "Pay only for what you make.",
-  landing_tools_blurb:      "Every feature is credit based. No subscriptions required to start. 5 free Aura on signup.",
+  landing_tools_blurb:      "Every feature is credit based. No subscriptions required to start. 30 free Aura when you complete setup.",
 
   // ── Landing — gallery section ─────────────────────────────────────────────
   landing_gallery_heading:  "Real artists. Real outputs. Zero stock.",

@@ -1,16 +1,12 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { CANONICAL_ORIGIN } from "@/lib/seo";
-import { Plus, Play, ArrowUpRight, ChevronDown, Sparkles, Palette, Film, Wand2, Mic, Music2, Brush, Megaphone, UserCircle2, Workflow, Layers, Flame, Clapperboard, Check, Zap, Download, type LucideIcon } from "lucide-react";
+import { Plus, Play, ArrowUpRight, ChevronDown, Sparkles, Palette, Film, Wand2, Mic, Music2, Brush, Megaphone, UserCircle2, Workflow, Layers, Flame, Clapperboard, Check, Download, type LucideIcon } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { HiddenBadge, useFeatureVisibility } from "@/components/FeatureVisibilityProvider";
 import { featureKeyForRoute, type FeatureKey } from "@/lib/feature-visibility";
 import { lazy, Suspense, useCallback, useState, useEffect, useRef, type ReactNode } from "react";
 import { track } from "@/lib/tracking";
 import { EditableCopy } from "@/components/EditableCopy";
-import { useServerFn } from "@tanstack/react-start";
-import { useQuery } from "@tanstack/react-query";
-import { computePaystackPrice, formatLocalPrice } from "@/lib/billing.plans";
-import { detectCurrency } from "@/lib/geo.functions";
 import { ResponsiveImage } from "@/components/ui/responsive-image";
 import { LANDING_IMAGE_SRCSET } from "@/lib/landing-image-manifest";
 import { TOOL_DIRECTORY } from "@/lib/tool-directory";
@@ -19,6 +15,7 @@ import {
   COST_UGC_AD,
   computeCost,
   lipsyncEngineCost,
+  ONBOARDING_BONUS_AURA,
 } from "@/lib/pricing";
 
 const PRICE_IMAGE = computeCost({ features: ["image"] }).total;
@@ -63,6 +60,12 @@ const IntroAnimation = lazy(() =>
 );
 const AdminLandingEditor = lazy(() =>
   import("@/components/AdminLandingEditor").then((m) => ({ default: m.AdminLandingEditor })),
+);
+const PricingSection = lazy(() =>
+  import("@/components/landing/PricingSection").then((m) => ({ default: m.PricingSection })),
+);
+const FinalCTA = lazy(() =>
+  import("@/components/landing/FinalCTA").then((m) => ({ default: m.FinalCTA })),
 );
 
 export const Route = createFileRoute("/")({
@@ -334,15 +337,6 @@ function usePwaInstall() {
 
 function LandingPage() {
   const { user } = useAuth();
-  const detectCurrencyFn = useServerFn(detectCurrency);
-  const { data: geo } = useQuery({
-    queryKey: ["geo-currency"],
-    queryFn: () => detectCurrencyFn(),
-    staleTime: 60 * 60 * 1000,
-  });
-  const localPrice = (amountUsdMinor: number) => computePaystackPrice(amountUsdMinor, geo?.country ?? null);
-  const hasLocalPricing = (geo?.pppMultiplier ?? 1) < 1;
-  const proSubscriptionPrice = localPrice(15_00);
   const ctaTo = user ? "/studio" : "/auth";
   const { canInstall, install } = usePwaInstall();
   const { showFeature } = useFeatureVisibility();
@@ -656,7 +650,7 @@ function LandingPage() {
             </span>
           </h2>
           <p className="mt-2 max-w-[48ch] text-xs leading-relaxed text-zinc-400">
-            <EditableCopy copyKey="landing_tools_blurb" fallback="Every feature is credit based. No subscriptions required to start. 5 free Aura on signup." />
+            <EditableCopy copyKey="landing_tools_blurb" fallback={`Every feature is credit based. No subscriptions required to start. ${ONBOARDING_BONUS_AURA} free Aura when you complete setup.`} />
           </p>
         </div>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -972,182 +966,7 @@ function LandingPage() {
         </Link>
       </section>
 
-      {/* ── Pricing ──────────────────────────────────────────────────────── */}
-      <section id="pricing" className="relative border-t border-white/5 px-5 py-20 overflow-hidden">
-        {/* Background glow */}
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_0%,oklch(0.35_0.15_295/0.18)_0%,transparent_70%)]" />
-
-        <div className="relative">
-          {/* Hook */}
-          <div className="mb-14 text-center">
-            <span className="text-xs font-bold uppercase tracking-[0.3em] text-[#8b5cf6]">Pricing</span>
-            <h2 className="mt-4 text-4xl md:text-6xl font-extrabold leading-[1.05] tracking-tight">
-              A standout shoot.<br />
-              <span className="bg-gradient-to-r from-violet-200 via-violet-400 to-fuchsia-300 bg-clip-text font-sans text-transparent">
-                For {formatLocalPrice(proSubscriptionPrice)} a month.
-              </span>
-            </h2>
-            <p className="mt-5 max-w-[38ch] mx-auto text-base md:text-lg text-zinc-400 leading-relaxed">
-              No crew. No studio. No waiting weeks for edits. Aurora delivers cinematic content in seconds — start free, upgrade when you're ready.
-            </p>
-            {hasLocalPricing && (
-              <span className="mt-4 inline-flex rounded-full bg-emerald-400/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-emerald-200">
-                Local pricing applied
-              </span>
-            )}
-            <Link
-              to={ctaTo}
-              className="mt-8 inline-flex items-center gap-2 rounded-full bg-[#8b5cf6] px-8 py-4 text-base font-bold text-white shadow-[0_8px_32px_-4px_rgba(139,92,246,0.55)] transition-transform hover:scale-105 active:scale-95 no-underline"
-            >
-              Start free — no card needed
-              <ArrowUpRight className="size-5" />
-            </Link>
-            <p className="mt-3 text-xs text-zinc-600">5 Aura on signup · cancel any time</p>
-          </div>
-
-          {/* Subscription tiers */}
-          <div className="mx-auto grid max-w-3xl grid-cols-1 gap-4 md:grid-cols-2 mb-8">
-            {/* Free */}
-            <div className="rounded-2xl bg-zinc-900 ring-1 ring-white/8 p-6">
-              <div className="flex items-start justify-between gap-4 mb-5">
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-[0.25em] text-zinc-500 mb-1">Free</p>
-                  <p className="text-4xl font-extrabold text-zinc-100">$0</p>
-                  <p className="text-sm text-zinc-500 mt-1">5 Aura on signup — try every tool</p>
-                </div>
-                <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-white/5 ring-1 ring-white/10">
-                  <Zap className="size-5 text-zinc-400" />
-                </span>
-              </div>
-              <ul className="flex flex-col gap-2.5 mb-7">
-                {[
-                  "Image generation (all styles)",
-                  "Aurora watermark on video exports",
-                  "5 Aura to try every tool",
-                  "Permanent gallery",
-                  "Standard queue priority",
-                ].map((f) => (
-                  <li key={f} className="flex items-start gap-2.5 text-sm text-zinc-400">
-                    <Check className="size-4 shrink-0 mt-0.5 text-zinc-600" />
-                    {f}
-                  </li>
-                ))}
-              </ul>
-              <Link
-                to={ctaTo}
-                className="block w-full rounded-xl bg-white/8 py-3.5 text-center text-sm font-bold text-zinc-200 ring-1 ring-white/10 transition-colors hover:bg-white/12 no-underline"
-              >
-                {user ? "You're on Free" : "Start free →"}
-              </Link>
-            </div>
-
-            {/* Pro */}
-            <div className="rounded-2xl bg-zinc-900 ring-1 ring-white/15 p-6">
-              <div className="flex items-start justify-between gap-4 mb-5">
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-[0.25em] text-zinc-400 mb-1">Pro</p>
-                  <div className="flex items-baseline gap-1.5">
-                    <p className="text-4xl font-extrabold text-zinc-100">{formatLocalPrice(proSubscriptionPrice)}</p>
-                    <p className="text-sm text-zinc-500">/ month</p>
-                  </div>
-                  <p className="text-sm text-zinc-500 mt-1">2,000 Aura included monthly</p>
-                </div>
-                <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-white/8 ring-1 ring-white/15">
-                  <Sparkles className="size-5 text-zinc-300" />
-                </span>
-              </div>
-              <ul className="flex flex-col gap-2.5 mb-7">
-                {[
-                  "2,000 Aura / month included",
-                  "No watermark — clean exports",
-                  "Full video access (all models)",
-                  "Priority rendering",
-                  "Growth Tools included",
-                  "Permanent gallery + Canvas",
-                ].map((f) => (
-                  <li key={f} className="flex items-start gap-2.5 text-sm text-zinc-300">
-                    <Check className="size-4 shrink-0 mt-0.5 text-zinc-400" />
-                    {f}
-                  </li>
-                ))}
-              </ul>
-              <Link
-                to={user ? "/billing" : ctaTo}
-                className="block w-full rounded-xl bg-white/10 py-3.5 text-center text-sm font-bold text-zinc-100 ring-1 ring-white/20 transition-colors hover:bg-white/15 no-underline"
-              >
-                {user ? "Upgrade to Pro" : `Get Pro — ${formatLocalPrice(proSubscriptionPrice)} / mo →`}
-              </Link>
-            </div>
-
-          </div>
-
-          {/* Credit packs */}
-          <div className="mb-4">
-            <p className="text-xs font-bold uppercase tracking-[0.25em] text-zinc-500 mb-4">
-              Top-up credit packs · Buy any time, no subscription needed
-            </p>
-            <div className="flex flex-col gap-2.5">
-              {([
-                { label: "Starter", aura: 800, usdMinor: 10_00, popular: false },
-                { label: "Creator", aura: 2400, usdMinor: 30_00, popular: true },
-                { label: "Studio", aura: 6400, usdMinor: 80_00, popular: false },
-              ]).map((p) => (
-                <Link
-                  key={p.label}
-                  to={user ? "/billing" : ctaTo}
-                  className={`group flex items-center justify-between rounded-xl px-5 py-4 ring-1 transition-all no-underline ${p.popular ? "bg-zinc-800 ring-white/15 hover:ring-[#8b5cf6]/50" : "bg-zinc-900 ring-white/8 hover:ring-white/15"}`}
-                >
-                  <div className="flex items-center gap-3">
-                    {p.popular && (
-                      <span className="rounded-full bg-[#8b5cf6]/20 px-2 py-0.5 text-[9px] font-bold uppercase tracking-widest text-[#8b5cf6]">
-                        Best value
-                      </span>
-                    )}
-                    <div>
-                      <p className="text-sm font-semibold text-zinc-100">{p.label} Pack</p>
-                      <p className="text-[11px] text-zinc-500">
-                        {p.aura} Aura · {formatLocalPrice({ ...localPrice(p.usdMinor), amountMinor: Math.round(localPrice(p.usdMinor).amountMinor / p.aura) })} / Aura
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-base font-bold text-zinc-100">{formatLocalPrice(localPrice(p.usdMinor))}</span>
-                    <ArrowUpRight className="size-4 text-zinc-600 transition-colors group-hover:text-[#8b5cf6]" />
-                  </div>
-                </Link>
-              ))}
-            </div>
-          </div>
-
-          <p className="text-center text-[11px] text-zinc-600 leading-relaxed mb-14">
-            Just trying it out?{" "}
-            <Link to={user ? "/billing" : ctaTo} className="text-zinc-400 hover:text-[#8b5cf6] underline underline-offset-2 transition-colors">
-              Day passes from {formatLocalPrice(localPrice(2_00))}
-            </Link>
-            {" "}· 150 Aura · no commitment.
-          </p>
-
-          {/* Closing CTA block */}
-          <div className="rounded-3xl bg-gradient-to-br from-[#8b5cf6]/20 via-zinc-900 to-zinc-900 ring-1 ring-[#8b5cf6]/30 p-10 md:p-14 text-center shadow-[0_0_80px_-20px_rgba(139,92,246,0.35)]">
-            <p className="text-xs font-bold uppercase tracking-[0.3em] text-[#8b5cf6] mb-4">Start today</p>
-            <h3 className="text-3xl md:text-5xl font-extrabold leading-tight mb-4">
-              Your next release deserves<br />
-              <span className="bg-gradient-to-r from-violet-200 via-violet-400 to-fuchsia-300 bg-clip-text font-sans text-transparent">a standout visual.</span>
-            </h3>
-            <p className="text-zinc-400 text-base md:text-lg max-w-[36ch] mx-auto mb-8 leading-relaxed">
-              Thousands of artists are already creating cinematic content in seconds. You're one click away.
-            </p>
-            <Link
-              to={ctaTo}
-              className="inline-flex items-center gap-2.5 rounded-full bg-[#8b5cf6] px-10 py-5 text-lg font-extrabold text-white shadow-[0_12px_40px_-6px_rgba(139,92,246,0.65)] transition-transform hover:scale-105 active:scale-95 no-underline"
-            >
-              {user ? "Open Studio →" : "Create your first shot — free"}
-              <ArrowUpRight className="size-5" />
-            </Link>
-            <p className="mt-4 text-xs text-zinc-600">No credit card · 5 free Aura · cancel any time</p>
-          </div>
-        </div>
-      </section>
+      <Suspense fallback={null}><PricingSection /></Suspense>
 
       {/* ── Aurora Partners ─────────────────────────────────────────────── */}
       <section className="py-20 px-5 border-t border-white/5">
@@ -1200,6 +1019,8 @@ function LandingPage() {
           ))}
         </div>
       </section>
+
+      <Suspense fallback={null}><FinalCTA /></Suspense>
 
       {/* ── Footer ──────────────────────────────────────────────────────── */}
       <footer className="border-t border-white/5 pt-14 pb-8 px-5">

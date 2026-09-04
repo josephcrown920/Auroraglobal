@@ -22,6 +22,10 @@
 // The model→tier table is therefore duplicated here (kept in sync with the
 // server's MODEL_REGISTRY costs by pricing.test.ts) rather than imported.
 
+/** One-time reward for completing the onboarding vibe+selfie flow.
+ * Client-safe so every signup/onboarding claim can share the charged value. */
+export const ONBOARDING_BONUS_AURA = 30;
+
 export type Feature =
   | "image"
   | "upscale"

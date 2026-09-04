@@ -1,4 +1,5 @@
 import { authNextSearch } from "@/lib/auth-return-path";
+import { PRICING } from "@/lib/pricing";
 import { createLazyFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { FeatureGuard } from "@/components/FeatureVisibilityProvider";
 import { useEffect, useRef, useState } from "react";
@@ -23,6 +24,8 @@ import { cn } from "@/lib/utils";
 import { saveAssetToDisk } from "@/lib/save";
 import { publishGeneration } from "@/lib/share.functions";
 import { ShareMenu } from "@/components/share/ShareMenu";
+
+const SPLIT_COST = 2 * PRICING.base.image;
 
 // Artist-only mode: this feature is hidden from regular users by default.
 // Admins always pass; regular users are redirected to /studio unless the
@@ -315,8 +318,8 @@ function SplitRealityPage() {
             </h1>
             <p className="text-muted-foreground text-sm mt-1">
               {mode === "characters"
-                ? "Two different characters, living opposite lives, doing the exact same thing at the exact same moment — rendered side by side. 2 Aura · ~20–30s."
-                : "We run two image generations in parallel from the same references: a documentary mirror-selfie on one side, and a moody cinematic close-up on the other. 2 Aura · ~20–30s."}
+                ? `Two different characters, living opposite lives, doing the exact same thing at the exact same moment — rendered side by side. ${SPLIT_COST} Aura · ~20–30s.`
+                : `We run two image generations in parallel from the same references: a documentary mirror-selfie on one side, and a moody cinematic close-up on the other. ${SPLIT_COST} Aura · ~20–30s.`}
             </p>
           </div>
 
@@ -433,7 +436,7 @@ function SplitRealityPage() {
               </>
             ) : (
               <>
-                <Wand2 className="size-5 mr-2" /> {mode === "characters" ? "Generate both lives · 2 Aura" : "Generate both realities · 2 Aura"}
+                <Wand2 className="size-5 mr-2" /> {mode === "characters" ? `Generate both lives · ${SPLIT_COST} Aura` : `Generate both realities · ${SPLIT_COST} Aura`}
               </>
             )}
           </Button>

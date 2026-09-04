@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { ArrowRight, Sparkles } from "lucide-react";
 import { track } from "@/lib/tracking";
+import { ONBOARDING_BONUS_AURA } from "@/lib/pricing";
 
 export function FinalCTA() {
   return (
@@ -13,8 +14,8 @@ export function FinalCTA() {
           style={{ backgroundImage: "linear-gradient(white 1px, transparent 1px), linear-gradient(90deg, white 1px, transparent 1px)", backgroundSize: "44px 44px" }} />
 
         <div className="relative max-w-3xl mx-auto">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-primary/30 bg-primary/10 text-primary text-xs mb-6">
-            <Sparkles className="size-3.5" /> 5 free Aura on signup
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs mb-6">
+            <Sparkles className="size-3.5" /> {ONBOARDING_BONUS_AURA} free Aura when you complete setup
           </div>
           <h2 className="text-4xl md:text-6xl font-semibold tracking-tight leading-[1.05]">
             Drop your song.

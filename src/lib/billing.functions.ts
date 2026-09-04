@@ -12,6 +12,8 @@ import {
 } from "./billing.plans";
 import { applyPromoAtCheckout } from "./promo.functions";
 import { countryFromRequestHeaders } from "./geo.functions";
+import { ONBOARDING_BONUS_AURA } from "./pricing";
+export { ONBOARDING_BONUS_AURA } from "./pricing";
 import {
   GiftCardPurchaseSchema,
   createPendingPurchasedGiftCard,
@@ -180,8 +182,6 @@ export const setDailySpendLimit = createServerFn({ method: "POST" })
 /** One-time reward for finishing the onboarding vibe+selfie flow — enforced
  * server-side via claim_onboarding_bonus (CAS on profiles.onboarding_bonus_granted)
  * so a retried client call can never double-grant. */
-export const ONBOARDING_BONUS_AURA = 30;
-
 export const claimOnboardingBonus = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
