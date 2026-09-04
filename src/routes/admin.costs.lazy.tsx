@@ -5,7 +5,6 @@ import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { adminCostStats } from "@/lib/admin.functions";
-import { AdminGate, useAdminAutoUnlock } from "@/components/AdminGate";
 import { BarChart2, ArrowLeft, Coins, Loader2, TrendingUp, RefreshCw } from "lucide-react";
 import type { ReactNode } from "react";
 
@@ -32,7 +31,6 @@ function kindStyle(kind: string) {
 function CostDashboard() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
-  const [unlocked, setUnlocked] = useAdminAutoUnlock(!!user);
 
   useEffect(() => {
     if (!loading && !user) navigate({ to: "/auth", search: authNextSearch() });
@@ -42,7 +40,7 @@ function CostDashboard() {
   const { data, isLoading, error, refetch, isFetching } = useQuery({
     queryKey: ["admin-cost-stats"],
     queryFn: () => statsFn(),
-    enabled: !!user && unlocked,
+    enabled: !!user,
     refetchInterval: 60_000,
     staleTime: 30_000,
   });
@@ -68,7 +66,6 @@ function CostDashboard() {
   const grandTotal = kindRows.reduce((s, [, v]) => s + v.totalCredits, 0);
   const grandCount = kindRows.reduce((s, [, v]) => s + v.count, 0);
 
-  if (!unlocked) return <AdminGate onUnlocked={() => setUnlocked(true)} />;
 
   return (
     <div className="min-h-screen bg-background text-foreground">

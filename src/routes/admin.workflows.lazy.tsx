@@ -16,7 +16,6 @@ import {
   type GuidedWorkflowContent,
   type GuidedWorkflowRow,
 } from "@/lib/guided-workflows.schema";
-import { AdminGate, useAdminAutoUnlock } from "@/components/AdminGate";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import {
@@ -68,7 +67,6 @@ function AdminWorkflowsPage() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
   const qc = useQueryClient();
-  const [unlocked, setUnlocked] = useAdminAutoUnlock(!!user);
 
   const [editing, setEditing] = useState<GuidedWorkflowRow | "new" | null>(null);
   const [draft, setDraft] = useState("");
@@ -85,7 +83,7 @@ function AdminWorkflowsPage() {
   const { data, isLoading } = useQuery({
     queryKey: ["admin-guided-workflows"],
     queryFn: () => listFn(),
-    enabled: !!user && unlocked,
+    enabled: !!user,
   });
   const workflows = useMemo(() => data?.workflows ?? [], [data]);
 
@@ -189,7 +187,6 @@ function AdminWorkflowsPage() {
     );
   }
 
-  if (!unlocked) return <AdminGate onUnlocked={() => setUnlocked(true)} />;
 
   return (
     <main className="min-h-screen bg-background">

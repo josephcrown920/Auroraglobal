@@ -2,13 +2,16 @@ import { describe, expect, test } from "bun:test";
 
 import {
   FEATURE_KEYS,
+  currentAdminVerdict,
   GATEABLE_FEATURES,
   defaultHiddenKeys,
   featureKeyForRoute,
   featureKeyForTemplate,
+  filterNavFeatures,
   isFeatureKey,
   parseOverrides,
   resolveHiddenKeys,
+  type FeatureKey,
 } from "./feature-visibility";
 import { STUDIO_TEMPLATES } from "./template-studio";
 
@@ -126,5 +129,69 @@ describe("isFeatureKey", () => {
     expect(isFeatureKey("bogus")).toBe(false);
     expect(isFeatureKey(3)).toBe(false);
     expect(isFeatureKey(null)).toBe(false);
+  });
+});
+
+describe("filterNavFeatures — admin-only nav entries", () => {
+  const items = [
+    { to: "/gallery", label: "Gallery" },
+    { to: "/creator/dashboard", label: "Creator Hub" }, // gateable ("creator-hub")
+    { to: "/admin", label: "Admin", adminOnly: true as const },
+  ];
+  const showAll = () => true;
+
+  test("hidden until the server-verified admin check settles as admin", () => {
+    expect(filterNavFeatures(items, { isAdmin: false, showFeature: showAll }).map((f) => f.to)).toEqual([
+      "/gallery",
+      "/creator/dashboard",
+    ]);
+  });
+
+  test("shown to a verified admin", () => {
+    expect(filterNavFeatures(items, { isAdmin: true, showFeature: showAll }).map((f) => f.to)).toEqual([
+      "/gallery",
+      "/creator/dashboard",
+      "/admin",
+    ]);
+  });
+
+  test("composes with feature gating: showFeature still decides the non-admin items", () => {
+    const hideCreatorHub = (key: FeatureKey | null) => key !== "creator-hub";
+    expect(featureKeyForRoute("/creator/dashboard")).toBe("creator-hub");
+    expect(filterNavFeatures(items, { isAdmin: true, showFeature: hideCreatorHub }).map((f) => f.to)).toEqual([
+      "/gallery",
+      "/admin",
+    ]);
+    expect(filterNavFeatures(items, { isAdmin: false, showFeature: () => false })).toEqual([]);
+  });
+});
+
+describe("currentAdminVerdict — a verdict is only valid for the subject it was verified for", () => {
+  const adminA = { subject: "user-a", nonce: 0, isAdmin: true };
+  const nobody = { subject: null, nonce: 0, isAdmin: false };
+
+  test("matching subject + generation → the verdict is current", () => {
+    expect(currentAdminVerdict(adminA, { authLoading: false, userId: "user-a", nonce: 0 })).toBe(adminA);
+  });
+
+  test("a previous admin's positive answer is NOT reused for a different signed-in user", () => {
+    expect(currentAdminVerdict(adminA, { authLoading: false, userId: "user-b", nonce: 0 })).toBeNull();
+  });
+
+  test("the signed-out negative is NOT applied to an admin who just signed in mid-session", () => {
+    expect(currentAdminVerdict(nobody, { authLoading: false, userId: "user-a", nonce: 0 })).toBeNull();
+  });
+
+  test("signing out invalidates the signed-in verdict", () => {
+    expect(currentAdminVerdict(adminA, { authLoading: false, userId: null, nonce: 0 })).toBeNull();
+  });
+
+  test("a requested refresh (new generation) invalidates the old answer until the re-check settles", () => {
+    expect(currentAdminVerdict(adminA, { authLoading: false, userId: "user-a", nonce: 1 })).toBeNull();
+  });
+
+  test("nothing is current while the session is still resolving or before any check ran", () => {
+    expect(currentAdminVerdict(adminA, { authLoading: true, userId: "user-a", nonce: 0 })).toBeNull();
+    expect(currentAdminVerdict(null, { authLoading: false, userId: "user-a", nonce: 0 })).toBeNull();
   });
 });

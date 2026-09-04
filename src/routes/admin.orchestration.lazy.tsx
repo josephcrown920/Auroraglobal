@@ -8,7 +8,6 @@ import { orchestrationHealth, providerCredits } from "@/lib/orchestration.functi
 import { listVastManaged } from "@/lib/vast.functions";
 import { getGenerationHealth, type GenerationHealthRow } from "@/lib/generation-health.functions";
 import type { ProviderCreditRow } from "@/lib/orchestration.functions";
-import { AdminGate, useAdminAutoUnlock } from "@/components/AdminGate";
 import {
   Activity,
   ArrowLeft,
@@ -231,7 +230,6 @@ function GenHealthCard({ r }: { r: GenerationHealthRow }) {
 function OrchestrationDashboard() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
-  const [unlocked, setUnlocked] = useAdminAutoUnlock(!!user);
 
   useEffect(() => {
     if (!loading && !user) navigate({ to: "/auth", search: authNextSearch() });
@@ -241,7 +239,7 @@ function OrchestrationDashboard() {
   const { data, isLoading, error } = useQuery({
     queryKey: ["orchestration-health"],
     queryFn: () => healthFn(),
-    enabled: !!user && unlocked,
+    enabled: !!user,
     refetchInterval: 15_000,
   });
 
@@ -249,7 +247,7 @@ function OrchestrationDashboard() {
   const { data: genHealth, isLoading: genHealthLoading, error: genHealthError } = useQuery({
     queryKey: ["generation-health"],
     queryFn: () => genHealthFn(),
-    enabled: !!user && unlocked,
+    enabled: !!user,
     refetchInterval: 60_000,
   });
 
@@ -257,7 +255,7 @@ function OrchestrationDashboard() {
   const { data: vastData } = useQuery({
     queryKey: ["vast-managed"],
     queryFn: () => vastFn(),
-    enabled: !!user && unlocked,
+    enabled: !!user,
     refetchInterval: 60_000,
   });
 
@@ -270,7 +268,7 @@ function OrchestrationDashboard() {
   } = useQuery({
     queryKey: ["provider-credits"],
     queryFn: () => creditsFn(),
-    enabled: !!user && unlocked,
+    enabled: !!user,
     refetchInterval: 5 * 60_000,
     staleTime: 4 * 60_000,
   });
@@ -282,7 +280,6 @@ function OrchestrationDashboard() {
       </div>
     );
   }
-  if (!unlocked) return <AdminGate onUnlocked={() => setUnlocked(true)} />;
 
   const kinds: Kind[] = ["image", "video", "lipsync", "text", "audio"];
   const byKind = (k: Kind) => data?.providers.filter((p) => p.kind === k) ?? [];

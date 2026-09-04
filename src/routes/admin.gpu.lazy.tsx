@@ -6,7 +6,6 @@ import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { listWorkers } from "@/lib/workers.functions";
 import { Button } from "@/components/ui/button";
-import { AdminGate, useAdminAutoUnlock } from "@/components/AdminGate";
 import { toast } from "sonner";
 import {
   Rocket,
@@ -79,7 +78,6 @@ const SECRETS: { key: string; note: string }[] = [
 function AdminGpuPage() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
-  const [unlocked, setUnlocked] = useAdminAutoUnlock(!!user);
 
   useEffect(() => {
     if (!loading && !user) navigate({ to: "/auth", search: authNextSearch() });
@@ -88,7 +86,7 @@ function AdminGpuPage() {
   const workersFn = useServerFn(listWorkers);
   const workersQ = useQuery({
     queryKey: ["admin-gpu-workers"],
-    enabled: !!user && unlocked,
+    enabled: !!user,
     queryFn: () => workersFn({}),
     refetchInterval: 15_000,
   });
@@ -116,7 +114,6 @@ function AdminGpuPage() {
       </main>
     );
   }
-  if (!unlocked) return <AdminGate onUnlocked={() => setUnlocked(true)} />;
 
   const workers = (workersQ.data?.workers ?? []) as Record<string, unknown>[];
 

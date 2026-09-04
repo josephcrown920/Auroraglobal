@@ -149,3 +149,5 @@
 - [Schema drift + open RLS discovery](supabase-schema-drift-and-open-rls-discovery.md) — a live table can have zero migration file AND fully permissive RLS (`USING (true)`) despite owning a user_id column; check both independently per table.
 - [GitHub mirror clone & force-push recovery](github-mirror-clone-and-forcepush-recovery.md) — LFS-over-quota kills fresh clones (GIT_LFS_SKIP_SMUDGE=1); Protect-head blocks deletes not FF pushes; force-pushes recur — backup ref + FF PR to restore.
 - [Dependency security upgrades](dependency-security-upgrades.md) — ML dependency floors need worker provisioning smoke tests; document unavoidable transitive advisories instead of forcing breaking majors.
+- [Admin route boundary & nav gating](admin-route-boundary.md) — /admin is a layout route gated on server-verified isAdmin (token presence ≠ unlocked); a route component without <Outlet /> swallows every child URL; gate-marker clearing races the re-check.
+- [Playwright Chromium shm crash](playwright-chromium-shm-crash.md) — long single-tab route crawls SIGBUS/ERR_INSUFFICIENT_RESOURCES here; keep shm on /dev/shm (ignore --disable-dev-shm-usage) + fresh tab per visit.

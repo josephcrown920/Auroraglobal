@@ -15,7 +15,6 @@ import {
 import { listWorkers } from "@/lib/workers.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { AdminGate, useAdminAutoUnlock } from "@/components/AdminGate";
 import { toast } from "sonner";
 import {
   Boxes,
@@ -60,7 +59,6 @@ const EMPTY_EDITOR: EditorState = {
 function AdminComfyPage() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
-  const [unlocked, setUnlocked] = useAdminAutoUnlock(!!user);
 
   useEffect(() => {
     if (!loading && !user) navigate({ to: "/auth", search: authNextSearch() });
@@ -76,23 +74,23 @@ function AdminComfyPage() {
 
   const templatesQ = useQuery({
     queryKey: ["admin-comfy-templates"],
-    enabled: !!user && unlocked,
+    enabled: !!user,
     queryFn: () => listFn({}),
   });
   const runsQ = useQuery({
     queryKey: ["admin-comfy-runs"],
-    enabled: !!user && unlocked,
+    enabled: !!user,
     queryFn: () => runsFn({}),
     refetchInterval: 15_000,
   });
   const workersQ = useQuery({
     queryKey: ["admin-comfy-workers"],
-    enabled: !!user && unlocked,
+    enabled: !!user,
     queryFn: () => workersFn({}),
   });
   const reachQ = useQuery({
     queryKey: ["admin-comfy-reach"],
-    enabled: !!user && unlocked,
+    enabled: !!user,
     queryFn: () => reachFn({}),
   });
 
@@ -189,7 +187,6 @@ function AdminComfyPage() {
       </div>
     );
   }
-  if (!unlocked) return <AdminGate onUnlocked={() => setUnlocked(true)} />;
 
   const templates = (templatesQ.data?.templates ?? []) as Array<Record<string, unknown>>;
   const runs = (runsQ.data?.runs ?? []) as Array<Record<string, unknown>>;

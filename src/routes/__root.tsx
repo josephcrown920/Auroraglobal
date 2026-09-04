@@ -388,12 +388,18 @@ function RootComponent() {
   if (isIsolated) {
     // NexusARB stays a self-contained, full-bleed page: no phone frame, no
     // chrome — except the cookie consent banner, which must be reachable on
-    // every route for first-time EU/UK/CA visitors regardless of page.
+    // every route for first-time EU/UK/CA visitors regardless of page. The
+    // feature-visibility provider is NOT chrome: the route's FeatureGuard reads
+    // its server-verified admin verdict, and without the provider the guard
+    // sits on the unloaded default context forever — blank for admins and
+    // non-admins alike, never rendering and never redirecting.
     return (
       <QueryClientProvider client={queryClient}>
-        <Outlet />
-        <Toaster />
-        <CookieConsentBanner />
+        <FeatureVisibilityProvider>
+          <Outlet />
+          <Toaster />
+          <CookieConsentBanner />
+        </FeatureVisibilityProvider>
       </QueryClientProvider>
     );
   }

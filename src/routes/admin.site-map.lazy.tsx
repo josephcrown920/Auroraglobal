@@ -4,7 +4,6 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { ArrowDown, ArrowLeft, ArrowUp, Archive, Download, ExternalLink, FilePenLine, LayoutList, RotateCcw, Trash2 } from "lucide-react";
 import { toast } from "sonner";
-import { AdminGate, useAdminAutoUnlock } from "@/components/AdminGate";
 import { useAuth } from "@/hooks/use-auth";
 import {
   getSiteMap, removeSiteMapItem, reorderSiteMap, seedSiteMap, setSiteMapArchive, updateSiteMapItem,
@@ -32,8 +31,6 @@ const KIND_STYLE: Record<SiteMapKind, string> = {
 
 function SiteMapAdminPage() {
   const { user } = useAuth();
-  const [unlocked, setUnlocked] = useAdminAutoUnlock(!!user);
-  if (!unlocked) return <AdminGate onUnlocked={() => setUnlocked(true)} />;
   return <SiteMapManager />;
 }
 

@@ -99,6 +99,21 @@ export function featureKeyForRoute(path: string): FeatureKey | null {
 }
 
 /**
+ * Pure nav-item filter shared by the navigation chrome.
+ * - `adminOnly` items (the Admin console link) are dropped unless the viewer is
+ *   a SERVER-VERIFIED admin (`isAdmin` from FeatureVisibilityProvider, which is
+ *   false until the check settles) — partner, referral and ordinary accounts
+ *   never see them regardless of any client-side token or flag.
+ * - Everything else follows the artist-only feature gating via `showFeature`.
+ */
+export function filterNavFeatures<T extends { to: string; adminOnly?: boolean }>(
+  items: readonly T[],
+  ctx: { isAdmin: boolean; showFeature: (key: FeatureKey | null) => boolean },
+): T[] {
+  return items.filter((f) => (!f.adminOnly || ctx.isAdmin) && ctx.showFeature(featureKeyForRoute(f.to)));
+}
+
+/**
  * Which gateable feature (if any) backs a studio template?
  * - grwm-reel is the GRWM tile's template
  * - spin-dispatch templates are backed by TikTok30
@@ -115,4 +130,29 @@ export function featureKeyForTemplate(t: {
   if (t.dispatch === "ugc") return "ugc";
   if (t.category === "Kids") return "kids";
   return null;
+}
+
+/**
+ * A settled admin check, bound to the subject it was verified for.
+ * `subject` is the Supabase user id the check ran as (null = signed out) and
+ * `nonce` the refresh generation, so a verdict can never be mistaken for the
+ * answer about a different session.
+ */
+export type AdminVerdict = { subject: string | null; nonce: number; isAdmin: boolean };
+
+/**
+ * Returns the verdict only if it was verified for exactly the viewer the
+ * caller currently sees (same subject, same refresh generation, auth
+ * resolved); otherwise null, meaning "not checked yet — keep waiting".
+ * A previous session's positive answer must never be reused for the next
+ * signed-in user, and a stale negative must never reject an admin who just
+ * signed in mid-session.
+ */
+export function currentAdminVerdict(
+  verdict: AdminVerdict | null,
+  viewer: { authLoading: boolean; userId: string | null; nonce: number },
+): AdminVerdict | null {
+  if (viewer.authLoading || !verdict) return null;
+  if (verdict.subject !== viewer.userId || verdict.nonce !== viewer.nonce) return null;
+  return verdict;
 }

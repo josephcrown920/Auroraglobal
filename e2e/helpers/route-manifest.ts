@@ -25,6 +25,13 @@ export const REDIRECTS: Record<string, string> = {
 };
 
 /**
+ * Redirect targets that are themselves signed-in-only. A signed-out visitor
+ * lands there and is bounced straight on to /auth, so the anonymous pass
+ * accepts /auth for these — the redirect itself is still proven signed in.
+ */
+export const AUTH_GATED_REDIRECT_TARGETS: ReadonlySet<string> = new Set(["/studio", "/motion"]);
+
+/**
  * Sample URLs for dynamic ($param) routes. `expectText` additionally asserts
  * the page's own graceful state rendered (e.g. a bogus share token must show
  * the share route's friendly not-found card — not a crash, not a blank page).
@@ -37,6 +44,33 @@ export const PARAM_SAMPLES: Record<string, { url: string; expectText?: RegExp }[
   ],
 };
 
+/**
+ * Sample URLs for routes whose `validateSearch` REQUIRES a query param. A bare
+ * visit to these is a schema error (HTTP 500), not a page, so — exactly like
+ * PARAM_SAMPLES — the suite visits a concrete sample instead. `authRequired`
+ * routes bounce signed-out visitors to /auth before rendering anything, so the
+ * anonymous pass asserts that bounce and `expectText` is checked signed in.
+ */
+export const SEARCH_SAMPLES: Record<
+  string,
+  { url: string; expectText?: RegExp; authRequired?: boolean }[]
+> = {
+  "/video-agent-edit": [
+    {
+      url: "/video-agent-edit?id=e2e-nonexistent",
+      expectText: /Project not found/i,
+      authRequired: true,
+    },
+  ],
+  "/video-agent-process": [
+    {
+      url: "/video-agent-process?id=e2e-nonexistent",
+      expectText: /Project not found/i,
+      authRequired: true,
+    },
+  ],
+};
+
 export type RouteVisit = {
   /** Route pattern the visit belongs to (e.g. "/legal/$slug"). */
   pattern: string;
@@ -44,8 +78,13 @@ export type RouteVisit = {
   url: string;
   /** Expected landing pathname when the route is a pure redirect. */
   redirectTo?: string;
-  /** Page-specific graceful-state assertion (see PARAM_SAMPLES). */
+  /** Page-specific graceful-state assertion (see PARAM_SAMPLES / SEARCH_SAMPLES). */
   expectText?: RegExp;
+  /**
+   * Signed-out visitors end up on /auth (a sample of a signed-in-only page, or
+   * a redirect whose target is signed-in-only); `expectText` applies signed in.
+   */
+  authRequired?: boolean;
 };
 
 function filenameToPattern(file: string): string | null {
@@ -92,7 +131,25 @@ export function buildRouteVisits(): RouteVisit[] {
       }
       continue;
     }
-    visits.push({ pattern, url: pattern, redirectTo: REDIRECTS[pattern] });
+    const searchSamples = SEARCH_SAMPLES[pattern];
+    if (searchSamples && searchSamples.length > 0) {
+      for (const sample of searchSamples) {
+        visits.push({
+          pattern,
+          url: sample.url,
+          expectText: sample.expectText,
+          authRequired: sample.authRequired,
+        });
+      }
+      continue;
+    }
+    const redirectTo = REDIRECTS[pattern];
+    visits.push({
+      pattern,
+      url: pattern,
+      redirectTo,
+      authRequired: redirectTo ? AUTH_GATED_REDIRECT_TARGETS.has(redirectTo) : undefined,
+    });
   }
 
   if (missingSamples.length > 0) {

@@ -10,7 +10,6 @@ import {
   adminModelWatchSetStatus,
 } from "@/lib/admin.functions";
 import type { ModelWatchRow } from "@/lib/model-watch.server";
-import { AdminGate, useAdminAutoUnlock } from "@/components/AdminGate";
 import { ArrowLeft, Check, EyeOff, Loader2, Radar, RefreshCw } from "lucide-react";
 
 export const Route = createLazyFileRoute("/admin/models")({
@@ -33,7 +32,6 @@ const PROVIDER_CLS: Record<string, string> = {
 function ModelWatchPage() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
-  const [unlocked, setUnlocked] = useAdminAutoUnlock(!!user);
 
   useEffect(() => {
     if (!loading && !user) navigate({ to: "/auth", search: authNextSearch() });
@@ -46,7 +44,7 @@ function ModelWatchPage() {
   const { data, isLoading, error, refetch, isFetching } = useQuery({
     queryKey: ["admin-model-watch"],
     queryFn: () => listFn(),
-    enabled: !!user && unlocked,
+    enabled: !!user,
     staleTime: 30_000,
   });
 
@@ -90,7 +88,6 @@ function ModelWatchPage() {
   const ignoredCount = rows.filter((r) => r.status === "ignored").length;
 
   if (loading || !user) return null;
-  if (!unlocked) return <AdminGate onUnlocked={() => setUnlocked(true)} />;
 
   return (
     <div className="min-h-dvh bg-background px-4 pb-24 pt-6">

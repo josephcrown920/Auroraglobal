@@ -11,7 +11,7 @@
  *
  * If you add a page and it cannot pass this suite, the page is not done.
  */
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type BrowserContext, type Page } from "@playwright/test";
 import { createClient } from "@supabase/supabase-js";
 import { signInWithPassword } from "./helpers/auth";
 import { buildRouteVisits, type RouteVisit } from "./helpers/route-manifest";
@@ -89,7 +89,15 @@ async function verifyVisit(
   await page.waitForTimeout(400);
 
   const pathname = new URL(page.url()).pathname;
-  if (visit.redirectTo && pathname !== visit.redirectTo) {
+  // Signed-out visitors to signed-in-only pages (or to redirects whose target
+  // is one) must end up on /auth; everyone else must land exactly where the
+  // route promises and show its own graceful state.
+  const expectAuthBounce = !!visit.authRequired && !opts.signedIn;
+  if (expectAuthBounce) {
+    if (pathname !== "/auth") {
+      failures.push(`signed-out visit should bounce to /auth, landed on ${pathname}`);
+    }
+  } else if (visit.redirectTo && pathname !== visit.redirectTo) {
     failures.push(`expected redirect to ${visit.redirectTo}, landed on ${pathname}`);
   }
 
@@ -97,7 +105,7 @@ async function verifyVisit(
   if (bodyText.includes("Something went wrong")) {
     failures.push("rendered the global error boundary");
   }
-  if (visit.expectText && !visit.expectText.test(bodyText)) {
+  if (!expectAuthBounce && visit.expectText && !visit.expectText.test(bodyText)) {
     failures.push(`missing expected graceful state ${visit.expectText}`);
   }
   if (opts.signedIn && visit.url !== "/auth" && pathname === "/auth") {
@@ -112,17 +120,27 @@ async function verifyVisit(
   return failures;
 }
 
-async function runPass(page: Page, opts: { signedIn: boolean }) {
-  const collect = { pageErrors: [] as string[], fatalConsole: [] as string[] };
-  page.on("pageerror", (error) => collect.pageErrors.push(error.message));
-  page.on("console", (message) => {
-    if (message.type() === "error" && FATAL_CONSOLE_PATTERN.test(message.text())) {
-      collect.fatalConsole.push(message.text());
-    }
-  });
-
+/**
+ * Each visit gets its own tab, closed as soon as it is judged. ~85 back-to-back
+ * navigations in ONE tab let Chromium's renderer pile up thousands of
+ * shared-memory regions (decoded images, raster tiles) that are only purged
+ * under memory pressure; in this container that ended in "Page crashed"
+ * (SIGBUS) and ERR_INSUFFICIENT_RESOURCES a couple of dozen routes in — noise
+ * that hid real regressions. Closing the tab releases its renderer for good.
+ * The context (and with it the signed-in session in localStorage) is shared.
+ */
+async function runPass(context: BrowserContext, opts: { signedIn: boolean }) {
   const failures: string[] = [];
   for (const visit of VISITS) {
+    const page = await context.newPage();
+    const collect = { pageErrors: [] as string[], fatalConsole: [] as string[] };
+    page.on("pageerror", (error) => collect.pageErrors.push(error.message));
+    page.on("console", (message) => {
+      if (message.type() === "error" && FATAL_CONSOLE_PATTERN.test(message.text())) {
+        collect.fatalConsole.push(message.text());
+      }
+    });
+
     try {
       const visitFailures = await verifyVisit(page, visit, opts, collect);
       for (const failure of visitFailures) failures.push(`${visit.url}: ${failure}`);
@@ -130,11 +148,7 @@ async function runPass(page: Page, opts: { signedIn: boolean }) {
       failures.push(`${visit.url}: ${error instanceof Error ? error.message : String(error)}`);
     }
 
-    if (failures.some((f) => f.startsWith(`${visit.url}: `))) {
-      if (page.isClosed()) {
-        failures.push(`${visit.url}: browser page closed unexpectedly`);
-        break;
-      }
+    if (failures.some((f) => f.startsWith(`${visit.url}: `)) && !page.isClosed()) {
       await test
         .info()
         .attach(`all-routes${visit.url.replaceAll("/", "-") || "-root"}`, {
@@ -143,6 +157,7 @@ async function runPass(page: Page, opts: { signedIn: boolean }) {
         })
         .catch(() => {});
     }
+    await page.close().catch(() => {});
   }
 
   expect(failures, failures.join("\n")).toEqual([]);
@@ -154,14 +169,15 @@ test.describe("All routes render safely", () => {
     expect(VISITS.length).toBeGreaterThan(80);
   });
 
-  test("every route renders for anonymous visitors", async ({ page }) => {
+  test("every route renders for anonymous visitors", async ({ context }) => {
     test.setTimeout(Math.max(300_000, VISITS.length * 12_000));
-    await runPass(page, { signedIn: false });
+    await runPass(context, { signedIn: false });
   });
 
-  test("every route renders for a signed-in admin", async ({ page }) => {
+  test("every route renders for a signed-in admin", async ({ context, page }) => {
     test.setTimeout(Math.max(300_000, VISITS.length * 12_000));
     await signInWithPassword(page, testEmail, TEST_PASSWORD);
-    await runPass(page, { signedIn: true });
+    await page.close();
+    await runPass(context, { signedIn: true });
   });
 });

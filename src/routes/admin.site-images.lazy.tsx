@@ -4,7 +4,6 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { getSiteImages, adminUpdateSiteImage, adminResetSiteImage, type SiteImageRow } from "@/lib/site-images.functions";
 import { SITE_IMAGE_DEFAULTS, SITE_IMAGES_REFRESH_EVENT } from "@/components/landing/SiteImagesProvider";
-import { AdminGate, useAdminAutoUnlock } from "@/components/AdminGate";
 import { LandingLivePreview } from "@/components/admin/LandingLivePreview";
 import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
@@ -25,9 +24,7 @@ const SECTION_LABELS: Record<string, string> = {
 
 function SiteImagesAdminPage() {
   const { user } = useAuth();
-  const [unlocked, setUnlocked] = useAdminAutoUnlock(!!user);
 
-  if (!unlocked) return <AdminGate onUnlocked={() => setUnlocked(true)} />;
   return <ImagesGrid />;
 }
 

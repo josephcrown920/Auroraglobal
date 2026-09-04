@@ -19,7 +19,6 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/use-auth";
-import { AdminGate, useAdminAutoUnlock } from "@/components/AdminGate";
 import { usePerformanceShotJobFn } from "@/lib/use-job-polling";
 import { adminUpdateSiteImage } from "@/lib/site-images.functions";
 import {
@@ -155,7 +154,6 @@ type ResultShot = { url: string; prompt: string };
 function SocialStudio() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
-  const [unlocked, setUnlocked] = useAdminAutoUnlock(!!user);
 
   useEffect(() => {
     if (!loading && !user) navigate({ to: "/auth", search: authNextSearch() });
@@ -242,7 +240,6 @@ function SocialStudio() {
     }
   }
 
-  if (!unlocked) return <AdminGate onUnlocked={() => setUnlocked(true)} />;
 
   return (
     <div className="min-h-screen bg-background text-foreground">

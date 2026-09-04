@@ -1,6 +1,31 @@
+import fs from "node:fs";
 import { defineConfig } from "@playwright/test";
 
 const PORT = process.env.PORT || "8080";
+
+/**
+ * Playwright launches Chromium with --disable-dev-shm-usage by default, which
+ * moves every shared-memory region (raster tiles, GPU transfer buffers, decoded
+ * images) out of /dev/shm and into /tmp. In this container /tmp is a btrfs
+ * volume with a quota whose accounting lags Chromium's create/unlink churn, so
+ * a long multi-page pass eventually gets EDQUOT from shm_open and the renderer
+ * dies with SIGBUS ("Page crashed") — the kind of infra crash that took down the
+ * all-routes suite. When /dev/shm is a real tmpfs with room to spare, keep shm
+ * where Chromium wants it. Containers with the classic tiny 64MB /dev/shm keep
+ * Playwright's default.
+ */
+const DEV_SHM_MIN_BYTES = 1024 * 1024 * 1024;
+function devShmIsRoomy(): boolean {
+  try {
+    const stats = fs.statfsSync("/dev/shm");
+    return stats.bsize * stats.blocks >= DEV_SHM_MIN_BYTES;
+  } catch {
+    return false;
+  }
+}
+const launchOptions = devShmIsRoomy()
+  ? { ignoreDefaultArgs: ["--disable-dev-shm-usage"] }
+  : {};
 
 export default defineConfig({
   testDir: "./e2e",
@@ -18,6 +43,7 @@ export default defineConfig({
     headless: true,
     screenshot: "only-on-failure",
     trace: "retain-on-failure",
+    launchOptions,
   },
   projects: [
     {

@@ -36,7 +36,7 @@ import { cn } from "@/lib/utils";
 import { useTheme } from "@/lib/theme-context";
 import { WhatsNew } from "@/components/WhatsNew";
 import { HiddenBadge, useFeatureVisibility } from "@/components/FeatureVisibilityProvider";
-import { featureKeyForRoute } from "@/lib/feature-visibility";
+import { featureKeyForRoute, filterNavFeatures } from "@/lib/feature-visibility";
 
 type Feature = {
   to: string;
@@ -46,6 +46,8 @@ type Feature = {
   badge?: string;
   previewImg?: string;
   starred?: boolean;
+  /** Only rendered once the viewer is a server-verified admin (never before the check settles). */
+  adminOnly?: boolean;
 };
 
 
@@ -120,7 +122,7 @@ const ACCOUNT_FEATURES: Feature[] = [
   { to: "/creator/dashboard", label: "Creator Hub", icon: TrendingUp },
   { to: "/settings", label: "Settings", icon: UserRound },
   { to: "/partners", label: "Earn Free Aura", icon: Users },
-  { to: "/admin", label: "Admin", icon: Shield },
+  { to: "/admin", label: "Admin", icon: Shield, adminOnly: true },
 ];
 
 /** Archived — hidden from the main nav; still reachable from /admin.
@@ -248,11 +250,14 @@ export function MobileNav() {
   const [open, setOpen] = useState(false);
   const touchStartX = useRef<number | null>(null);
   const { theme, toggle } = useTheme();
-  const { showFeature, isHiddenFromUsers } = useFeatureVisibility();
+  const { showFeature, isHiddenFromUsers, isAdmin } = useFeatureVisibility();
 
   // Artist-only gating: drop nav items whose feature is hidden for this
   // viewer. Admins keep every item (with a "Hidden" badge on gated ones).
-  const visible = (items: Feature[]) => items.filter((f) => showFeature(featureKeyForRoute(f.to)));
+  // Admin-only entries (the Admin console) are dropped for everyone until the
+  // server-verified admin check has settled as admin — partner, referral and
+  // ordinary accounts never see them, whatever sits in session/local storage.
+  const visible = (items: Feature[]) => filterNavFeatures(items, { isAdmin, showFeature });
   const gatedBadge = (f: Feature) => isHiddenFromUsers(featureKeyForRoute(f.to));
   const visibleTabs = TAB_ITEMS.filter((t) => showFeature(featureKeyForRoute(t.to)));
   const quickAccessTabs = visibleTabs.filter((t) => t.to !== "/spin");

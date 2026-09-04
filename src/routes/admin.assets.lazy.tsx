@@ -1,7 +1,6 @@
 import { createLazyFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState, useCallback } from "react";
 import { ArrowLeft, Plus, Trash2, Loader2, Shirt, Mountain, Upload } from "lucide-react";
-import { AdminGate, useAdminAutoUnlock } from "@/components/AdminGate";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -24,12 +23,6 @@ type Pack = {
 };
 
 function AdminAssetsPage() {
-  const [unlocked, setUnlocked] = useAdminAutoUnlock(true);
-  if (!unlocked) return <AdminGate onUnlocked={() => setUnlocked(true)} />;
-  return <AdminAssetsInner />;
-}
-
-function AdminAssetsInner() {
   const [tab, setTab] = useState<Category>("outfit");
   const [packs, setPacks] = useState<Pack[]>([]);
   const [loading, setLoading] = useState(true);

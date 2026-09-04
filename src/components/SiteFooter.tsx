@@ -3,6 +3,7 @@ import { Sparkles } from "lucide-react";
 import { useRef } from "react";
 import { openConsentManager } from "@/lib/consent";
 import { useFeatureVisibility } from "@/components/FeatureVisibilityProvider";
+import { requestAdminGate } from "@/components/AdminGate";
 
 export function SiteFooter({ tone = "dark" }: { tone?: "dark" | "light" }) {
   const { showFeature } = useFeatureVisibility();
@@ -17,6 +18,9 @@ export function SiteFooter({ tone = "dark" }: { tone?: "dark" | "light" }) {
     taps.current = [...taps.current.filter((t) => now - t < 3000), now];
     if (taps.current.length >= 7) {
       taps.current = [];
+      // Hidden owner entrance: lets the /admin boundary offer the passcode
+      // form rather than redirecting; grants nothing by itself.
+      requestAdminGate();
       navigate({ to: "/admin" });
     }
   };

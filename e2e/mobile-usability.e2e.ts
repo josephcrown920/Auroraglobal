@@ -88,7 +88,10 @@ test.describe("Phone viewport usability", () => {
       page.getByPlaceholder("Try describing the image you want to create"),
     ).toBeVisible();
     await expect(page.getByRole("button", { name: "Add a reference photo" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Generate", exact: true })).toBeVisible();
+    // The studio home renders two composers (hero + sticky bottom bar), each
+    // with a Generate control — assert the primary one is reachable rather
+    // than tripping strict mode on the pair.
+    await expect(page.getByRole("button", { name: "Generate", exact: true }).first()).toBeVisible();
 
     await visit(page, "/lipsync");
     await expect(page.getByText("Performance source", { exact: true })).toBeVisible();
@@ -98,7 +101,9 @@ test.describe("Phone viewport usability", () => {
 
     await visit(page, "/canvas");
     await expect(page.getByRole("link", { name: /Canvas/i })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Run", exact: true })).toBeVisible();
+    // Canvas has a toolbar Run and a prompt-bar Run; the primary one being
+    // reachable is the phone-usability contract, not the count.
+    await expect(page.getByRole("button", { name: "Run", exact: true }).first()).toBeVisible();
     await expect(page.getByRole("button", { name: "Canvas menu" })).toBeVisible();
   });
 });

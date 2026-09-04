@@ -175,6 +175,7 @@ import { Route as ApiPublicCliDeviceStartRouteImport } from './routes/api/public
 import { Route as ApiPublicWorkersFilesNameRouteImport } from './routes/api/public/workers/files/$name'
 
 const BeatReelLazyRouteImport = createFileRoute('/beat-reel')()
+const AdminIndexLazyRouteImport = createFileRoute('/admin/')()
 const AdminObservabilityLazyRouteImport = createFileRoute(
   '/admin/observability',
 )()
@@ -561,6 +562,11 @@ const WorkflowsRoute = WorkflowsRouteImport.update({
   path: '/workflows',
   getParentRoute: () => rootRouteImport,
 } as any).lazy(() => import('./routes/workflows.lazy').then((d) => d.Route))
+const AdminIndexLazyRoute = AdminIndexLazyRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AdminRoute,
+} as any).lazy(() => import('./routes/admin.index.lazy').then((d) => d.Route))
 const AdminAssetsRoute = AdminAssetsRouteImport.update({
   id: '/assets',
   path: '/assets',
@@ -1153,6 +1159,7 @@ export interface FileRoutesByFullPath {
   '/admin/observability': typeof AdminObservabilityLazyRoute
   '/cli/': typeof CliIndexRoute
   '/guides/': typeof GuidesIndexRoute
+  '/admin/': typeof AdminIndexLazyRoute
   '/api/admin/feature-visibility': typeof ApiAdminFeatureVisibilityRoute
   '/api/admin/run-smoke-step14': typeof ApiAdminRunSmokeStep14Route
   '/api/admin/upload-image': typeof ApiAdminUploadImageRoute
@@ -1217,7 +1224,6 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/account': typeof AccountRoute
-  '/admin': typeof AdminRouteWithChildren
   '/ads': typeof AdsRoute
   '/affiliate': typeof AffiliateRoute
   '/agent': typeof AgentRoute
@@ -1319,6 +1325,7 @@ export interface FileRoutesByTo {
   '/admin/observability': typeof AdminObservabilityLazyRoute
   '/cli': typeof CliIndexRoute
   '/guides': typeof GuidesIndexRoute
+  '/admin': typeof AdminIndexLazyRoute
   '/api/admin/feature-visibility': typeof ApiAdminFeatureVisibilityRoute
   '/api/admin/run-smoke-step14': typeof ApiAdminRunSmokeStep14Route
   '/api/admin/upload-image': typeof ApiAdminUploadImageRoute
@@ -1486,6 +1493,7 @@ export interface FileRoutesById {
   '/admin/observability': typeof AdminObservabilityLazyRoute
   '/cli/': typeof CliIndexRoute
   '/guides/': typeof GuidesIndexRoute
+  '/admin/': typeof AdminIndexLazyRoute
   '/api/admin/feature-visibility': typeof ApiAdminFeatureVisibilityRoute
   '/api/admin/run-smoke-step14': typeof ApiAdminRunSmokeStep14Route
   '/api/admin/upload-image': typeof ApiAdminUploadImageRoute
@@ -1654,6 +1662,7 @@ export interface FileRouteTypes {
     | '/admin/observability'
     | '/cli/'
     | '/guides/'
+    | '/admin/'
     | '/api/admin/feature-visibility'
     | '/api/admin/run-smoke-step14'
     | '/api/admin/upload-image'
@@ -1718,7 +1727,6 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/account'
-    | '/admin'
     | '/ads'
     | '/affiliate'
     | '/agent'
@@ -1820,6 +1828,7 @@ export interface FileRouteTypes {
     | '/admin/observability'
     | '/cli'
     | '/guides'
+    | '/admin'
     | '/api/admin/feature-visibility'
     | '/api/admin/run-smoke-step14'
     | '/api/admin/upload-image'
@@ -1986,6 +1995,7 @@ export interface FileRouteTypes {
     | '/admin/observability'
     | '/cli/'
     | '/guides/'
+    | '/admin/'
     | '/api/admin/feature-visibility'
     | '/api/admin/run-smoke-step14'
     | '/api/admin/upload-image'
@@ -2714,6 +2724,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof WorkflowsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/': {
+      id: '/admin/'
+      path: '/'
+      fullPath: '/admin/'
+      preLoaderRoute: typeof AdminIndexLazyRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/assets': {
       id: '/admin/assets'
       path: '/assets'
@@ -3363,6 +3380,7 @@ interface AdminRouteChildren {
   AdminTemplatesRoute: typeof AdminTemplatesRoute
   AdminWorkflowsRoute: typeof AdminWorkflowsRoute
   AdminObservabilityLazyRoute: typeof AdminObservabilityLazyRoute
+  AdminIndexLazyRoute: typeof AdminIndexLazyRoute
 }
 
 const AdminRouteChildren: AdminRouteChildren = {
@@ -3381,6 +3399,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminTemplatesRoute: AdminTemplatesRoute,
   AdminWorkflowsRoute: AdminWorkflowsRoute,
   AdminObservabilityLazyRoute: AdminObservabilityLazyRoute,
+  AdminIndexLazyRoute: AdminIndexLazyRoute,
 }
 
 const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
