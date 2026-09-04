@@ -64,6 +64,7 @@ Every task must be propagated across all artifacts before it is considered done.
 3. `artifacts/aurora-adult` — Adult School
 4. `artifacts/aurora-colors` — Aurora Colors Studio
 5. `artifacts/ugc-line` — Aurora Content Line
+6. `artifacts/video-agent` — Aurora Video Agent
 7. `artifacts/perform-anywhere` — Perform Anywhere
 8. `artifacts/aurora-mobile` — Aurora Studio (Expo mobile)
 

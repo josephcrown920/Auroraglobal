@@ -19,6 +19,21 @@ export default defineConfig({
     screenshot: "only-on-failure",
     trace: "retain-on-failure",
   },
+  projects: [
+    {
+      name: "desktop",
+      testIgnore: /mobile-usability\.e2e\.ts/,
+    },
+    {
+      name: "mobile",
+      testMatch: /mobile-usability\.e2e\.ts/,
+      use: {
+        viewport: { width: 375, height: 667 },
+        hasTouch: true,
+        isMobile: true,
+      },
+    },
+  ],
   webServer: [
     {
       // Use the same node-path-aware command as the "Start application" workflow so
