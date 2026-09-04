@@ -1,0 +1,80 @@
+Install
+Install the CLI on Linux, macOS, or WSL:
+curl -fsSL https://vast.ai/install.sh | bash
+
+On Windows, or to use the Python SDK, install from PyPI:
+pip install --upgrade vastai
+
+View the package on PyPI, or browse the source on GitHub.
+Quickstart
+Generate an API key on the Manage Keys page, then register it with the CLI.
+vastai set api-key <api_key>
+
+Replace <api_key> with your actual key. Don't share it. The SDK reads the same key via the VAST_API_KEY environment variable.
+List a few offers to confirm it's working:
+vastai search offers --limit 3
+
+Launch an instance with the PyTorch image, 32 GB disk, and SSH access:
+vastai create instance <offer_id> --image pytorch/pytorch --disk 32 --ssh --direct
+
+Replace <offer_id> with an ID from the search above.
+Add your SSH public key to your account so you can connect:
+vastai create ssh-key "$(cat ~/.ssh/id_ed25519.pub)"
+
+Replace the filename if your key lives elsewhere, or omit the argument to generate a new key pair. List registered keys with vastai show ssh-keys.
+First boot can take a few minutes while the image pulls. Check status with:
+vastai show instances
+
+Once it's running, get the SSH connection string:
+vastai ssh-url <instance_id>
+
+Copy the printed ssh command and run it to connect. On bash or zsh, pipe the URL straight into ssh:
+ssh $(vastai ssh-url <instance_id>)
+
+CLI
+List all commands:
+vastai --help
+
+See flags for a specific command:
+vastai search offers --help
+
+The search offers command accepts the same filters and sort options as the web UI. For example, find single-GPU RTX 4090 offers:
+vastai search offers 'gpu_name=RTX_4090 num_gpus=1'
+
+For the full list of commands, see the CLI command reference.
+Install the Vast.ai skill for AI coding agents (Claude Code, Codex, Cursor, Windsurf, etc.):
+npx skills add vast-ai/vast-cli
+
+Python SDK
+The SDK reads VAST_API_KEY from the environment, or accepts a key directly. Most methods mirror a CLI command.
+from vastai import VastAI
+
+vast = VastAI()  # uses VAST_API_KEY env var, or pass api_key="..."
+
+vast.search_offers(query='gpu_name=RTX_4090 num_gpus>=4')
+vast.show_instances()
+vast.start_instance(id=12345)
+vast.stop_instance(id=12345)
+
+Use help(vast.search_offers) (or any other method) to view its signature and docstring. For the full list of methods, see the Python SDK quickstart.
+Legacy from vastai_sdk import VastAI imports still work for backward compatibility.
+Serverless client
+Send inference requests to serverless endpoints without managing workers yourself.
+import asyncio
+from vastai import Serverless
+
+async def main():
+    async with Serverless() as serverless:  # or Serverless("YOUR_API_KEY")
+        endpoint = await serverless.get_endpoint("my-endpoint")
+        response = await endpoint.request(
+            "/v1/completions",
+            {
+                "model": "Qwen/Qwen3-8B",
+                "prompt": "Who are you?",
+                "max_tokens": 100,
+                "temperature": 0.7,
+            },
+        )
+        print(response["response"]["choices"][0]["text"])
+
+asyncio.run(main())
