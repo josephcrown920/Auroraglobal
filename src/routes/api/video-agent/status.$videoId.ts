@@ -68,6 +68,7 @@ export const Route = createFileRoute("/api/video-agent/status/$videoId")({
           // v2 API — consistent with the video/generate v2 submit endpoint.
           const res = await fetch(`https://api.heygen.com/v2/videos/${encodeURIComponent(videoId)}`, {
             headers: { "X-Api-Key": heygenKey },
+            signal: AbortSignal.timeout(20_000),
           });
           if (!res.ok) {
             return new Response(

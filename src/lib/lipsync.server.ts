@@ -204,12 +204,22 @@ export async function runLipsyncJob(opts: {
       .update({ status: "error", error: msg.slice(0, 500) })
       .eq("id", row.id);
     if (!adminUser) {
-      await supabaseAdmin.rpc("grant_credits", {
+      const { error: refundError } = await supabaseAdmin.rpc("grant_credits", {
         _user: opts.userId,
         _amount: lipsyncCost,
         _reason: "refund_failed_generation",
         _ref: row.id,
       });
+      if (refundError) {
+        // A failed refund silently leaves a charged user — make it loud.
+        console.error(
+          `[lipsync] refund_failed_generation failed for job ${row.id} (user ${opts.userId}, ${lipsyncCost} credits): ${refundError.message}`,
+        );
+        const { reportServerException } = await import("@/lib/sentry.server");
+        reportServerException(new Error(`lipsync refund failed: ${refundError.message}`), {
+          source: "lipsync-refund",
+        });
+      }
     }
     return { id: row.id, status: "error" as const, error: msg };
   }

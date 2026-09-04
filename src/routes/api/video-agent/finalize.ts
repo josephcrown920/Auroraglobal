@@ -103,6 +103,7 @@ export const Route = createFileRoute("/api/video-agent/finalize")({
         try {
           const res = await fetch(`https://api.heygen.com/v2/videos/${encodeURIComponent(videoId)}`, {
             headers: { "X-Api-Key": heygenKey },
+            signal: AbortSignal.timeout(20_000),
           });
           if (!res.ok) throw new Error(`HeyGen ${res.status}`);
           const json: unknown = await res.json();

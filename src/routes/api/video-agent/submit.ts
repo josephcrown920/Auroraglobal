@@ -113,6 +113,7 @@ export const Route = createFileRoute("/api/video-agent/submit")({
           // Resolve default avatar/voice.
           const avatarsRes = await fetch("https://api.heygen.com/v2/avatars?page=1&limit=1", {
             headers: { "X-Api-Key": heygenKey },
+            signal: AbortSignal.timeout(20_000),
           });
           const avatarsJson = avatarsRes.ok ? await avatarsRes.json() : null;
           const pick = avatarsJson?.data?.avatars?.[0];
@@ -123,6 +124,7 @@ export const Route = createFileRoute("/api/video-agent/submit")({
           const createRes = await fetch("https://api.heygen.com/v2/video/generate", {
             method: "POST",
             headers: { "Content-Type": "application/json", "X-Api-Key": heygenKey },
+            signal: AbortSignal.timeout(45_000),
             body: JSON.stringify({
               title: "Aurora Video Agent",
               video_inputs: [

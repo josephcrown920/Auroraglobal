@@ -1513,9 +1513,18 @@ function CanvasPage() {
     }));
   }, [setNodes]);
 
+  // Storage keys are built from user-supplied filenames — reduce to a safe
+  // basename so a crafted name (path separators, "..") can never escape the
+  // user's own folder.
+  const safeStorageFileName = (name: string): string => {
+    const base = name.split(/[\\/]/).pop() ?? "upload";
+    const cleaned = base.replace(/\.\./g, "").replace(/[^A-Za-z0-9._-]/g, "_").slice(0, 80);
+    return cleaned || "upload";
+  };
+
   const onFile = useCallback(async (id: string, file: File) => {
     if (!user) return;
-    const path = `${user.id}/canvas/${Date.now()}-${file.name}`;
+    const path = `${user.id}/canvas/${Date.now()}-${safeStorageFileName(file.name)}`;
     const { error } = await supabase.storage.from("studio").upload(path, file, { upsert: true, contentType: file.type });
     if (error) { toast.error(error.message); return; }
     const { data: signed, error: signErr } = await supabase.storage
@@ -1526,7 +1535,7 @@ function CanvasPage() {
 
   const onOutfitFile = useCallback(async (id: string, file: File) => {
     if (!user) return;
-    const path = `${user.id}/canvas/outfit-${Date.now()}-${file.name}`;
+    const path = `${user.id}/canvas/outfit-${Date.now()}-${safeStorageFileName(file.name)}`;
     const { error } = await supabase.storage.from("studio").upload(path, file, { upsert: true, contentType: file.type });
     if (error) { toast.error(error.message); return; }
     const { data: signed, error: signErr } = await supabase.storage
