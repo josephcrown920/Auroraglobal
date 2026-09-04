@@ -3019,6 +3019,7 @@ export type Database = {
           id: string
           posted_at: string | null
           publish_id: string | null
+          retry_count: number
           status: string
           title: string | null
           updated_at: string
@@ -3032,6 +3033,7 @@ export type Database = {
           id?: string
           posted_at?: string | null
           publish_id?: string | null
+          retry_count?: number
           status?: string
           title?: string | null
           updated_at?: string
@@ -3045,6 +3047,7 @@ export type Database = {
           id?: string
           posted_at?: string | null
           publish_id?: string | null
+          retry_count?: number
           status?: string
           title?: string | null
           updated_at?: string
@@ -3758,6 +3761,34 @@ export type Database = {
       claim_onboarding_bonus: {
         Args: { _amount: number; _user: string }
         Returns: boolean
+      }
+      claim_tiktok_retry: {
+        Args: {
+          p_cooldown_ms: number
+          p_max_attempts: number
+          p_post_id: string
+          p_user_id: string
+        }
+        Returns: {
+          created_at: string
+          error_msg: string | null
+          generation_id: string | null
+          id: string
+          posted_at: string | null
+          publish_id: string | null
+          retry_count: number
+          status: string
+          title: string | null
+          updated_at: string
+          user_id: string
+          video_url: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "tiktok_posts"
+          isOneToOne: false
+          isSetofReturn: true
+        }
       }
       commit_reservation: {
         Args: { _amount: number; _reason: string; _ref: string; _user: string }
