@@ -1,13 +1,13 @@
 import { authNextSearch } from "@/lib/auth-return-path";
 import { createLazyFileRoute, Link, useNavigate, useSearch } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ArrowLeft, CheckCircle2, ExternalLink, Fingerprint, Loader2, LogOut, Music2, Plus, Shield, Trash2, UserCircle2, X } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Clock, ExternalLink, Fingerprint, Loader2, LogOut, Music2, Plus, RotateCcw, Shield, Trash2, UserCircle2, X } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useBiometricSupport } from "@/hooks/use-biometric-support";
-import { getMyTiktokAccount, initTiktokConnect, disconnectTiktok } from "@/lib/tiktok-posting.functions";
+import { getMyTiktokAccount, initTiktokConnect, disconnectTiktok, listMyTiktokPosts, pollTiktokPostStatus, postToTiktok } from "@/lib/tiktok-posting.functions";
 import {
   beginPasskeyRegistration,
   completePasskeyRegistration,
@@ -17,6 +17,11 @@ import {
 import { SiteFooter } from "@/components/SiteFooter";
 
 export const Route = createLazyFileRoute("/settings")({ component: SettingsPage });
+
+type TiktokPostRow = Awaited<ReturnType<typeof listMyTiktokPosts>>[number];
+
+const TERMINAL_TIKTOK_STATUSES = new Set(["publish_complete", "failed", "publish_from_creator_fail"]);
+const isTerminalTiktokStatus = (status: string) => TERMINAL_TIKTOK_STATUSES.has(status);
 
 function SettingsPage() {
   const { user, loading } = useAuth();
@@ -71,6 +76,56 @@ function SettingsPage() {
       qc.invalidateQueries({ queryKey: ["tiktok-account"] });
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Failed to disconnect"),
+  });
+
+  // ── TikTok post history ────────────────────────────────────────────────────
+  const listPostsFn = useServerFn(listMyTiktokPosts);
+  const pollPostFn = useServerFn(pollTiktokPostStatus);
+  const postFn = useServerFn(postToTiktok);
+
+  const postsQ = useQuery({
+    queryKey: ["tiktok-posts"],
+    queryFn: () => listPostsFn(),
+    enabled: !!user && !!tiktokAccount?.connected,
+    refetchInterval: (query) => {
+      const rows = query.state.data;
+      return Array.isArray(rows) && rows.some((p) => !isTerminalTiktokStatus(p.status)) ? 15_000 : false;
+    },
+  });
+
+  // Refresh non-terminal rows from TikTok once per mount so the list is live.
+  const polledPostsRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    const rows = postsQ.data ?? [];
+    const fresh = rows.filter((p) => !isTerminalTiktokStatus(p.status) && p.publishId && !polledPostsRef.current.has(p.id));
+    if (fresh.length === 0) return;
+    fresh.forEach((p) => polledPostsRef.current.add(p.id));
+    let cancelled = false;
+    void (async () => {
+      const results = await Promise.allSettled(fresh.map((p) => pollPostFn({ data: { postId: p.id } })));
+      if (!cancelled && results.some((r) => r.status === "fulfilled")) {
+        qc.invalidateQueries({ queryKey: ["tiktok-posts"] });
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [postsQ.data]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const retryPostMut = useMutation({
+    mutationFn: (p: TiktokPostRow) =>
+      postFn({
+        data: {
+          videoUrl: p.videoUrl,
+          generationId: p.generationId ?? undefined,
+          title: p.title ?? undefined,
+        },
+      }),
+    onSuccess: () => {
+      toast.success("Retrying — TikTok is processing the video again.");
+      qc.invalidateQueries({ queryKey: ["tiktok-posts"] });
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Retry failed"),
   });
 
   // ── Sign-in methods (Face ID / fingerprint) ────────────────────────────────
@@ -340,6 +395,98 @@ function SettingsPage() {
             </div>
           )}
         </section>
+
+        {/* TikTok Post History */}
+        {tiktok?.connected && (
+          <section className="aurora-card rounded-2xl p-5 space-y-4">
+            <div className="flex items-center gap-2">
+              <Clock className="size-4 text-[#25F4EE]" />
+              <h2 className="text-sm font-semibold">TikTok posts</h2>
+              {postsQ.isFetching && !postsQ.isLoading && (
+                <Loader2 className="size-3 animate-spin text-muted-foreground ml-auto" />
+              )}
+            </div>
+
+            {postsQ.isLoading ? (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="size-4 animate-spin" /> Loading…
+              </div>
+            ) : (postsQ.data ?? []).length === 0 ? (
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                Nothing posted yet — videos you share to TikTok will show up here with their status.
+              </p>
+            ) : (
+              <ul className="space-y-2">
+                {(postsQ.data ?? []).map((p) => {
+                  const posted = p.status === "publish_complete";
+                  const failed = p.status === "failed" || p.status === "publish_from_creator_fail";
+                  return (
+                    <li key={p.id} className="flex items-center gap-3 rounded-xl border border-border px-3 py-2.5">
+                      <div className="relative size-12 flex-shrink-0 overflow-hidden rounded-lg border border-border bg-muted">
+                        <Music2 className="absolute inset-0 m-auto size-4 text-muted-foreground" />
+                        <video
+                          src={p.videoUrl}
+                          muted
+                          playsInline
+                          preload="metadata"
+                          className="relative h-full w-full object-cover"
+                          onError={(e) => {
+                            e.currentTarget.style.display = "none";
+                          }}
+                        />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium text-foreground truncate">{p.title || "Untitled video"}</p>
+                        <p className="text-[11px] text-muted-foreground">
+                          {new Date(p.createdAt).toLocaleString()}
+                          {posted && p.postedAt ? ` · Live since ${new Date(p.postedAt).toLocaleDateString()}` : ""}
+                        </p>
+                        {failed && p.errorMsg && (
+                          <p className="mt-0.5 text-[11px] text-red-300/80 line-clamp-2">{p.errorMsg}</p>
+                        )}
+                      </div>
+                      <div className="flex flex-shrink-0 flex-col items-end gap-1.5">
+                        <span
+                          className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold ${
+                            posted
+                              ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-400"
+                              : failed
+                                ? "border-red-400/30 bg-red-400/10 text-red-400"
+                                : "border-amber-400/30 bg-amber-400/10 text-amber-300"
+                          }`}
+                        >
+                          {posted ? (
+                            <CheckCircle2 className="size-3" />
+                          ) : failed ? (
+                            <X className="size-3" />
+                          ) : (
+                            <Loader2 className="size-3 animate-spin" />
+                          )}
+                          {posted ? "Posted" : failed ? "Failed" : "Posting…"}
+                        </span>
+                        {failed && (
+                          <button
+                            type="button"
+                            onClick={() => retryPostMut.mutate(p)}
+                            disabled={retryPostMut.isPending}
+                            className="inline-flex items-center gap-1 rounded-full border border-border px-2.5 py-1 text-[11px] font-semibold text-muted-foreground hover:text-foreground hover:border-foreground/30 disabled:opacity-50"
+                          >
+                            {retryPostMut.isPending && retryPostMut.variables?.id === p.id ? (
+                              <Loader2 className="size-3 animate-spin" />
+                            ) : (
+                              <RotateCcw className="size-3" />
+                            )}
+                            Retry
+                          </button>
+                        )}
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </section>
+        )}
 
         {/* Legal */}
         <section className="aurora-card rounded-2xl p-5 space-y-3">

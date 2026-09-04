@@ -193,6 +193,42 @@ export const pollTiktokPostStatus = createServerFn({ method: "POST" })
     return { status, errorMsg: failReason ?? null };
   });
 
+/** List the current user's TikTok post history (newest first, max 50). */
+export const listMyTiktokPosts = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { userId } = context;
+    const { data, error } = await supabaseAdmin
+      .from("tiktok_posts")
+      .select("id, generation_id, video_url, title, status, error_msg, publish_id, posted_at, created_at")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false })
+      .limit(50);
+    if (error) throw new Error("Failed to load your TikTok posts.");
+    const rows = (data ?? []) as unknown as Array<{
+      id: string;
+      generation_id: string | null;
+      video_url: string;
+      title: string | null;
+      status: string;
+      error_msg: string | null;
+      publish_id: string | null;
+      posted_at: string | null;
+      created_at: string;
+    }>;
+    return rows.map((r) => ({
+      id: r.id,
+      generationId: r.generation_id,
+      videoUrl: r.video_url,
+      title: r.title,
+      status: r.status,
+      errorMsg: r.error_msg,
+      publishId: r.publish_id,
+      postedAt: r.posted_at,
+      createdAt: r.created_at,
+    }));
+  });
+
 /** Get the tiktok_posts rows for a specific generation (to show button state). */
 export const getTiktokPostForGeneration = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
