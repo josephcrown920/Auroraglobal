@@ -194,6 +194,22 @@ export function lyricAnalysisMarkerAfterCleanup(
   return null;
 }
 
+/**
+ * The exact timing contract submitted by both Lyric Video entry points.
+ * Supplying an empty/no beat grid deliberately uses the documented even
+ * fallback only after the UI's analysis gate has settled.
+ */
+export function buildLyricVideoSegments(
+  durationSeconds: number | null,
+  rawLines: string[],
+  beatTimestamps: number[] | null,
+): LyricSegment[] {
+  if (!durationSeconds) return [];
+  return beatTimestamps && beatTimestamps.length > 0
+    ? buildBeatAlignedSegments(durationSeconds, rawLines, beatTimestamps)
+    : buildEvenLyricSegments(durationSeconds, rawLines);
+}
+
 const MIN_LINE_GAP_SECONDS = 0.4;
 
 /**

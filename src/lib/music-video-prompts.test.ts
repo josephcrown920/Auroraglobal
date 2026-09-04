@@ -2,6 +2,7 @@ import { describe, expect, it } from "bun:test";
 import {
   buildBeatAlignedSegments,
   buildEvenLyricSegments,
+  buildLyricVideoSegments,
   lyricAnalysisMarkerAfterCleanup,
   lyricBeatGate,
 } from "./music-video-prompts";
@@ -179,5 +180,27 @@ describe("lyricAnalysisMarkerAfterCleanup", () => {
 
   it("never touches a marker for a different URL", () => {
     expect(lyricAnalysisMarkerAfterCleanup("url-a", "url-b")).toBe("url-a");
+  });
+});
+
+describe("shared Lyric Video timing contract", () => {
+  const duration = 12;
+  const lines = ["first line", "second line", "third line"];
+  const beats = [0.4, 4.2, 8.1];
+
+  it("gives Music Video and Motion the same beat-aligned payload timing", () => {
+    // Both /music-video and /motion call this shared function before
+    // generateLyricVideoFromSong, so they cannot quietly diverge.
+    const musicVideoPayload = buildLyricVideoSegments(duration, lines, beats);
+    const motionPayload = buildLyricVideoSegments(duration, lines, beats);
+    expect(musicVideoPayload).toEqual(motionPayload);
+    expect(musicVideoPayload).toEqual(buildBeatAlignedSegments(duration, lines, beats));
+  });
+
+  it("gives both entry points the explicit even-split fallback when no beat grid exists", () => {
+    const musicVideoPayload = buildLyricVideoSegments(duration, lines, null);
+    const motionPayload = buildLyricVideoSegments(duration, lines, []);
+    expect(musicVideoPayload).toEqual(buildEvenLyricSegments(duration, lines));
+    expect(motionPayload).toEqual(buildEvenLyricSegments(duration, lines));
   });
 });

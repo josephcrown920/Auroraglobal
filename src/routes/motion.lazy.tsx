@@ -68,13 +68,14 @@ import {
   MUSIC_VIDEO_STYLES,
   MUSIC_VIDEO_MODES,
   buildMusicVideoPrompt,
-  buildEvenLyricSegments,
+  buildLyricVideoSegments,
   LOCATION_SUGGESTIONS,
   SUBJECT_SUGGESTIONS,
   type MusicVideoMode,
   type MusicVideoStyle,
 } from "@/lib/music-video-prompts";
 import { useBeatDetect } from "@/hooks/use-beat-detect";
+import { useLyricBeatAnalysis } from "@/hooks/use-lyric-beat-analysis";
 import { cn, AUDIO_ACCEPT } from "@/lib/utils";
 import { HiggsHero, HiggsDivider, FanPhotos } from "@/components/studio/HiggsLayout";
 
@@ -266,13 +267,20 @@ function MotionStudio() {
   const { state: beatState, analyze: analyzeBeat, reset: resetBeat } = useBeatDetect();
 
   const isMvLyric = mvMode === "lyric-style";
+  const lyricBeatAnalysis = useLyricBeatAnalysis(lyricAudioUrl, isMvLyric);
   const mvCurrentMode = MUSIC_VIDEO_MODES.find((m) => m.key === mvMode)!;
   const mvVideoCost = computeCost({ features: ["video"], model: mvVideoModel, durationSeconds: 5, resolution: "720p" }).total;
   const mvLyricCost = computeCost({ features: ["lyric_video"] }).total;
   const mvDisplayCost = isMvLyric ? mvLyricCost : mvCurrentMode?.needsImage ? mvVideoCost : 1;
 
   const lyricLines = lyricsText.split("\n").map((l) => l.trim()).filter(Boolean);
-  const lyricSegments = lyricAudioDuration ? buildEvenLyricSegments(lyricAudioDuration, lyricLines) : [];
+  const lyricBeatTimestamps = lyricBeatAnalysis.beatTimestamps;
+  const lyricGenerationGate = lyricBeatAnalysis.gate;
+  const lyricSegments = buildLyricVideoSegments(
+    lyricAudioDuration,
+    lyricLines,
+    lyricBeatTimestamps,
+  );
 
   useEffect(() => {
     setMvPrompt(buildMusicVideoPrompt(mvMode, mvStyle, mvLocation, mvSubject));
@@ -1795,7 +1803,14 @@ function MotionStudio() {
                   <p className="text-xs text-muted-foreground">Duration: {Math.round(lyricAudioDuration)}s</p>
                 )}
                 <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground pt-1">
-                  Lyrics <span className="ml-1 font-normal normal-case opacity-60">one line per lyric</span>
+                  Lyrics{" "}
+                  <span className="ml-1 font-normal normal-case opacity-60">
+                    {lyricBeatTimestamps
+                      ? "one line per lyric — snapped to the detected beat grid"
+                      : lyricGenerationGate === "pending"
+                        ? "one line per lyric — detecting beats…"
+                        : "one line per lyric — beat detection unavailable, evenly timed"}
+                  </span>
                 </p>
                 <Textarea
                   rows={7}
@@ -1808,7 +1823,9 @@ function MotionStudio() {
                   <p className="text-xs text-muted-foreground">
                     {lyricLines.length} line{lyricLines.length === 1 ? "" : "s"}
                     {lyricAudioDuration != null && lyricSegments.length > 0
-                      ? ` · ~${(lyricAudioDuration / lyricLines.length).toFixed(1)}s per line`
+                      ? lyricBeatTimestamps
+                        ? ` · beat-aligned (${lyricBeatTimestamps.length} beats detected)`
+                        : ` · ~${(lyricAudioDuration / lyricLines.length).toFixed(1)}s per line`
                       : ""}
                   </p>
                 )}
@@ -1819,9 +1836,12 @@ function MotionStudio() {
                   ETA: <span className="text-foreground font-medium">~20–40s</span>
                 </div>
                 <Button
-                  disabled={!lyricAudioUrl || lyricSegments.length === 0}
+                  disabled={lyricGenerationGate !== "ready" || lyricSegments.length === 0}
                   onClick={async () => {
                     if (!lyricAudioUrl) return toast.error("Upload a song first");
+                    if (lyricGenerationGate === "pending") {
+                      return toast.error("Beat analysis is still running — wait a moment before generating.");
+                    }
                     if (lyricSegments.length === 0) return toast.error("Paste at least one lyric line");
                     const res = await lyricVideoFn({ data: { audioUrl: lyricAudioUrl, lines: lyricSegments } });
                     if (!res.ok) { toast.error(res.error); return; }
@@ -1834,6 +1854,15 @@ function MotionStudio() {
                 >
                   <Wand2 className="size-4 mr-2" /> Generate Lyric Video · {mvDisplayCost} Aura
                 </Button>
+                {lyricGenerationGate === "pending" ? (
+                  <p className="text-center text-xs text-muted-foreground flex items-center justify-center gap-1.5">
+                    <Loader2 className="size-3 animate-spin" /> Detecting the beat grid before timing your lyrics…
+                  </p>
+                ) : (!lyricAudioUrl || lyricSegments.length === 0) && (
+                  <p className="text-center text-xs text-muted-foreground">
+                    {!lyricAudioUrl ? "↑ Upload a song to continue" : "↑ Paste at least one lyric line"}
+                  </p>
+                )}
               </section>
             )}
 

@@ -40,16 +40,14 @@ import {
   MUSIC_VIDEO_STYLES,
   MUSIC_VIDEO_MODES,
   buildMusicVideoPrompt,
-  buildEvenLyricSegments,
-  buildBeatAlignedSegments,
-  lyricAnalysisMarkerAfterCleanup,
-  lyricBeatGate,
+  buildLyricVideoSegments,
   LOCATION_SUGGESTIONS,
   SUBJECT_SUGGESTIONS,
   type MusicVideoMode,
   type MusicVideoStyle,
 } from "@/lib/music-video-prompts";
 import { useBeatDetect } from "@/hooks/use-beat-detect";
+import { useLyricBeatAnalysis } from "@/hooks/use-lyric-beat-analysis";
 import { cn, AUDIO_ACCEPT } from "@/lib/utils";
 import { EditableCopy } from "@/components/EditableCopy";
 import { useSiteCopyValue } from "@/components/landing/SiteCopyProvider";
@@ -78,27 +76,15 @@ function MusicVideoPage() {
   const beatFileRef = useRef<HTMLInputElement>(null);
   const [beatFileName, setBeatFileName] = useState<string | null>(null);
   const { state: beatState, analyze: analyzeBeat, reset: resetBeat } = useBeatDetect();
-  // Lyric mode gets its OWN detector instance so auto-analysis of the lyric
-  // song can never race with or bleed into Beat-Sync mode's manual analysis.
-  const {
-    state: lyricBeatState,
-    analyze: analyzeLyricBeat,
-    reset: resetLyricBeat,
-  } = useBeatDetect();
-
-  // Lyric Video mode — song upload + pasted lyrics. Lines snap to the
-  // detected beat grid when analysis succeeds; otherwise they fall back to
-  // an even split across the duration (see buildBeatAlignedSegments).
+  // Lyric Video mode — the shared hook is also used by /motion, so either
+  // entry point waits for the same beat analysis before submitting a render.
   const [lyricAudioUrl, setLyricAudioUrl] = useState<string | null>(null);
   const [lyricAudioDuration, setLyricAudioDuration] = useState<number | null>(null);
   const [lyricsText, setLyricsText] = useState("");
-  // A signed-URL fetch can fail before useBeatDetect sees a File. Treat that
-  // as an explicit detection failure: users may proceed with the documented
-  // even-split fallback, not silently bypass a still-pending analysis.
-  const [lyricBeatFetchFailed, setLyricBeatFetchFailed] = useState(false);
 
   const currentMode = MUSIC_VIDEO_MODES.find((m) => m.key === mode)!;
   const isLyricVideo = mode === "lyric-style";
+  const lyricBeatAnalysis = useLyricBeatAnalysis(lyricAudioUrl, isLyricVideo);
 
   const videoCost = useMemo(
     () =>
@@ -115,22 +101,10 @@ function MusicVideoPage() {
     () => lyricsText.split("\n").map((l) => l.trim()).filter(Boolean),
     [lyricsText],
   );
-  const lyricBeatTimestamps =
-    lyricBeatState.status === "done" && lyricBeatState.result.beatTimestamps.length > 0
-      ? lyricBeatState.result.beatTimestamps
-      : null;
-  const lyricGenerationGate = lyricBeatGate({
-    hasAudio: !!lyricAudioUrl,
-    beatStatus: lyricBeatState.status,
-    analysisFailed: lyricBeatFetchFailed,
-  });
+  const lyricBeatTimestamps = lyricBeatAnalysis.beatTimestamps;
+  const lyricGenerationGate = lyricBeatAnalysis.gate;
   const lyricSegments = useMemo(
-    () => {
-      if (!lyricAudioDuration) return [];
-      return lyricBeatTimestamps
-        ? buildBeatAlignedSegments(lyricAudioDuration, lyricLines, lyricBeatTimestamps)
-        : buildEvenLyricSegments(lyricAudioDuration, lyricLines);
-    },
+    () => buildLyricVideoSegments(lyricAudioDuration, lyricLines, lyricBeatTimestamps),
     [lyricAudioDuration, lyricLines, lyricBeatTimestamps],
   );
 
@@ -163,48 +137,6 @@ function MusicVideoPage() {
       audio.removeEventListener("error", onError);
     };
   }, [lyricAudioUrl]);
-
-  // Auto-run beat detection on the lyric-mode song so lines snap to the
-  // track's beat grid. Best-effort: if the fetch or analysis fails, the
-  // even split remains as the fallback timing.
-  const lyricBeatAnalyzedForRef = useRef<string | null>(null);
-  useEffect(() => {
-    if (!lyricAudioUrl) {
-      lyricBeatAnalyzedForRef.current = null;
-      setLyricBeatFetchFailed(false);
-      if (isLyricVideo) resetLyricBeat();
-      return;
-    }
-    if (!isLyricVideo) return;
-    if (lyricBeatAnalyzedForRef.current === lyricAudioUrl) return;
-    lyricBeatAnalyzedForRef.current = lyricAudioUrl;
-    // Invalidate any in-flight or completed analysis of the PREVIOUS song
-    // immediately — its run id is bumped here, so it cannot commit during the
-    // new song's download window and beat-align the new lyrics to stale beats.
-    resetLyricBeat();
-    setLyricBeatFetchFailed(false);
-    let cancelled = false;
-    void (async () => {
-      try {
-        const res = await fetch(lyricAudioUrl);
-        if (!res.ok) throw new Error(`song fetch ${res.status}`);
-        const blob = await res.blob();
-        if (cancelled) return;
-        void analyzeLyricBeat(new File([blob], "song", { type: blob.type || "audio/mpeg" }));
-      } catch {
-        // Even-split timing remains as the fallback.
-        if (!cancelled) setLyricBeatFetchFailed(true);
-      }
-    })();
-    return () => {
-      cancelled = true;
-      lyricBeatAnalyzedForRef.current = lyricAnalysisMarkerAfterCleanup(
-        lyricBeatAnalyzedForRef.current,
-        lyricAudioUrl,
-      );
-      resetLyricBeat();
-    };
-  }, [isLyricVideo, lyricAudioUrl, analyzeLyricBeat, resetLyricBeat]);
 
   const genFn = usePerformanceShotJobFn();
   const videoFn = useVideoFromImageJobFn();
@@ -407,7 +339,7 @@ function MusicVideoPage() {
             <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground pt-2">
               Lyrics
               <span className="ml-2 text-[10px] font-normal normal-case opacity-60">
-                {lyricBeatState.status === "done"
+                {lyricBeatTimestamps
                   ? "one line per lyric — snapped to the detected beat grid"
                   : lyricGenerationGate === "pending"
                     ? "one line per lyric — detecting beats…"
