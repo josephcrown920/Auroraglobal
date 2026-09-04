@@ -151,3 +151,4 @@
 - [Dependency security upgrades](dependency-security-upgrades.md) — ML dependency floors need worker provisioning smoke tests; document unavoidable transitive advisories instead of forcing breaking majors.
 - [Admin route boundary & nav gating](admin-route-boundary.md) — /admin is a layout route gated on server-verified isAdmin (token presence ≠ unlocked); a route component without <Outlet /> swallows every child URL; gate-marker clearing races the re-check.
 - [Playwright Chromium shm crash](playwright-chromium-shm-crash.md) — long single-tab route crawls SIGBUS/ERR_INSUFFICIENT_RESOURCES here; keep shm on /dev/shm (ignore --disable-dev-shm-usage) + fresh tab per visit.
+- [Corepack pnpm pinning is directory-scoped](corepack-pnpm-version-pinning.md) — corepack honors packageManager only from the pinned dir (root runs latest v11); bare `pnpm` in package scripts dies in corepack-only envs — use `corepack pnpm` in scripts.
