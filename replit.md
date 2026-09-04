@@ -114,6 +114,16 @@ production job queue (`video_agent_render` kind in `src/lib/jobs.server.ts`).
   `/admin/orchestration` → "Generation queue" panel.
 - Live schema check without provider spend: `bun run scripts/va-live-roundtrip.ts`.
 
+## Vast.ai CLI / SDK (workspace tooling)
+
+The official `vastai` CLI + Python SDK live in `.pythonlibs` (install/upgrade/repair:
+`bash scripts/setup-vast-tools.sh`). The key is the `VASTAI_API_KEY` secret; the tools
+expect `VAST_API_KEY`, so the setup script installs a `usercustomize.py` hook (source:
+`scripts/vast-usercustomize.py`) that maps the name in-process — bare `vastai …` and
+`VastAI()` just work. Never `vastai set api-key` or `--explain` (both expose the key).
+Read-only commands only (`search offers`, `show …`); renting/stopping/destroying goes
+through the guarded `aurora vast …` flow. Details: `docs/VAST_TOOLS.md`.
+
 ## Development principles (Karpathy Guidelines)
 
 Apply these four principles on every code task:

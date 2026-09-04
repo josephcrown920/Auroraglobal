@@ -6,14 +6,34 @@
  */
 export function authNextSearch(): { next: string } | undefined {
   if (typeof window === "undefined") return undefined;
-  // Route guards can briefly remain mounted while the router finishes a
-  // redirect. Once the destination is already /auth, using it as the next
-  // value would turn /admin → /auth?next=/admin into a nested auth redirect.
-  if (window.location.pathname === "/auth") return undefined;
+  // Route guards fire again while the router finishes a redirect (see
+  // isAuthRedirectInFlight). Once the URL already reads /auth, the page
+  // itself must never become the return path (/auth?next=/auth?next=…);
+  // instead re-use the `next` the first redirect already put in the URL, so
+  // a repeat navigate({ to: "/auth", search: authNextSearch() }) from any of
+  // the ~40 inline route guards keeps the destination instead of wiping it.
+  if (isAuthRedirectInFlight()) {
+    const current = new URLSearchParams(window.location.search).get("next");
+    const kept = current === null ? undefined : safeAuthReturnPath(current);
+    return kept && kept !== "/" ? { next: kept } : undefined;
+  }
   const next = safeAuthReturnPath(
     `${window.location.pathname}${window.location.search}${window.location.hash}`,
   );
   return next && next !== "/" ? { next } : undefined;
+}
+
+/**
+ * True once the router has already been pointed at /auth. The root layout
+ * keys its route wrapper on the pathname, so as soon as a guard redirects,
+ * the still-pending page remounts and the guard's effect runs a second time
+ * while the URL already reads /auth. A guard that navigates again at that
+ * point replaces `/auth?next=…` with a bare `/auth` and loses the return
+ * path — so guards must skip the navigation entirely when this is true.
+ * Client-only: false during SSR.
+ */
+export function isAuthRedirectInFlight(): boolean {
+  return typeof window !== "undefined" && window.location.pathname === "/auth";
 }
 
 /**

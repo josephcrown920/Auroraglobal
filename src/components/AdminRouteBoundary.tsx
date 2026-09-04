@@ -4,7 +4,7 @@ import { Loader2 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useFeatureVisibility } from "@/components/FeatureVisibilityProvider";
 import { AdminGate, clearAdminGateRequest, hasAdminGateRequest } from "@/components/AdminGate";
-import { authNextSearch } from "@/lib/auth-return-path";
+import { authNextSearch, isAuthRedirectInFlight } from "@/lib/auth-return-path";
 
 /** Where a signed-in viewer without admin authorization is sent (same as FeatureGuard). */
 export const ADMIN_REJECT_ROUTE = "/studio";
@@ -50,6 +50,9 @@ export function AdminRouteBoundary({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (signedOut) {
+      // The root layout remounts this boundary the moment the URL flips to
+      // /auth; navigating again from that remount would drop the next= param.
+      if (isAuthRedirectInFlight()) return;
       void navigate({ to: "/auth", search: authNextSearch(), replace: true });
     } else if (rejected) {
       void navigate({ to: ADMIN_REJECT_ROUTE, replace: true });

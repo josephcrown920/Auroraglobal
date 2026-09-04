@@ -108,7 +108,7 @@ deprecated.
 |---|---|
 | `AURORA_REGISTER_SECRET` | Worker self-registration (`apikey` header, anon-key scoped) |
 | `RUNPOD_API_KEY` / `RUNPOD_ENDPOINT_ID` | RunPod adapter |
-| `VASTAI_API_KEY` / `VAST_INFERENCE_URL` / `VAST_INFERENCE_TOKEN` | Vast.ai adapter + lifecycle management |
+| `VASTAI_API_KEY` / `VAST_INFERENCE_URL` / `VAST_INFERENCE_TOKEN` | Vast.ai adapter + lifecycle management; the workspace `vastai` CLI/SDK reads the same key through the `usercustomize.py` hook (see `docs/VAST_TOOLS.md`) |
 | `COMFYUI_URL` / `COMFYUI_TOKEN` / `COMFYUI_EDITOR_URL` | Self-hosted ComfyUI backend |
 | `COMFY_STUDIO_URL` / `COMFY_API_KEY` | ComfyUI Studio (second backend, gated separately) |
 | `HF_SPACE_URL` / `HF_FN_NAME` | Hugging Face Space worker |

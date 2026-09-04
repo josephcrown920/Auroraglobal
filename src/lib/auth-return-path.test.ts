@@ -1,5 +1,10 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { authNextSearch, parseAuthReturnPath, safeAuthReturnPath } from "./auth-return-path";
+import {
+  authNextSearch,
+  isAuthRedirectInFlight,
+  parseAuthReturnPath,
+  safeAuthReturnPath,
+} from "./auth-return-path";
 
 describe("safeAuthReturnPath", () => {
   test("keeps internal paths, queries, and hashes", () => {
@@ -48,8 +53,44 @@ describe("authNextSearch", () => {
   });
 
   test("never nests the auth page inside its own return path", () => {
-    stubLocation("/auth", "?next=%2Fadmin");
+    stubLocation("/auth");
     expect(authNextSearch()).toBeUndefined();
+    stubLocation("/auth", "", "#access_token=abc");
+    expect(authNextSearch()).toBeUndefined();
+  });
+
+  test("keeps the return path a first redirect already put on /auth", () => {
+    // The root layout remounts the pending page once the URL flips to /auth,
+    // so route guards call this a second time; that call must not wipe next=.
+    stubLocation("/auth", "?next=%2Fadmin");
+    expect(authNextSearch()).toEqual({ next: "/admin" });
+    stubLocation("/auth", "?next=%2Fvideo-agent-edit%3Fid%3Dabc%23step-2");
+    expect(authNextSearch()).toEqual({ next: "/video-agent-edit?id=abc#step-2" });
+  });
+
+  test("drops an unsafe or root next= already on /auth instead of re-using it", () => {
+    stubLocation("/auth", "?next=https%3A%2F%2Fevil.example%2F");
+    expect(authNextSearch()).toBeUndefined();
+    stubLocation("/auth", "?next=%2F");
+    expect(authNextSearch()).toBeUndefined();
+  });
+});
+
+describe("isAuthRedirectInFlight", () => {
+  const g = globalThis as { window?: unknown };
+  const originalWindow = g.window;
+  afterEach(() => {
+    if (originalWindow === undefined) delete g.window;
+    else g.window = originalWindow;
+  });
+
+  test("is true only once the URL already points at /auth (and never during SSR)", () => {
+    g.window = { location: { pathname: "/auth", search: "?next=%2Fadmin", hash: "" } };
+    expect(isAuthRedirectInFlight()).toBe(true);
+    g.window = { location: { pathname: "/admin", search: "", hash: "" } };
+    expect(isAuthRedirectInFlight()).toBe(false);
+    delete g.window;
+    expect(isAuthRedirectInFlight()).toBe(false);
   });
 });
 
