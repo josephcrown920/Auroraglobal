@@ -46,6 +46,11 @@ describe("authNextSearch", () => {
     delete g.window;
     expect(authNextSearch()).toBeUndefined();
   });
+
+  test("never nests the auth page inside its own return path", () => {
+    stubLocation("/auth", "?next=%2Fadmin");
+    expect(authNextSearch()).toBeUndefined();
+  });
 });
 
 describe("parseAuthReturnPath", () => {

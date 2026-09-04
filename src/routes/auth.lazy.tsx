@@ -1,6 +1,8 @@
 import { createLazyFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { parseAuthReturnPath } from "@/lib/auth-return-path";
+import { describeAuthError } from "@/lib/auth-error-message";
 import { useAuth } from "@/hooks/use-auth";
+import { hasBackendEnv } from "@/integrations/backend-config";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,6 +11,9 @@ import { Github, MailCheck, Fingerprint, Loader2, Eye, EyeOff, KeyRound, Mic2, C
 
 /** Asked once, on the signup form. Decides which side of the studio opens by
  *  default and how tools are ranked. Stored on profiles.persona. */
+const AUTH_UNAVAILABLE_MESSAGE =
+  "Sign-in isn't available on this deployment right now. Please try again later.";
+
 const PERSONA_OPTIONS = [
   { id: "artist" as const,  label: "Artist",  blurb: "Music, performance, visuals.", Icon: Mic2 },
   { id: "creator" as const, label: "Creator", blurb: "UGC, short-form, ads.",        Icon: Clapperboard },
@@ -81,6 +86,9 @@ function AuthPage() {
   const [recoveryBusy, setRecoveryBusy] = useState(false);
   const biometricSupported = useBiometricSupport();
   const embeddedBrowser = useEmbeddedBrowser();
+  // The Supabase client throws on first use when its env is missing. Rather
+  // than crash the page (or let the form spin), say so up front.
+  const authAvailable = hasBackendEnv();
   // Passkeys only work in a real browser tab — in-app/embedded webviews deny
   // the Face ID prompt before we can authenticate.
   const canUsePasskeys = biometricSupported && !embeddedBrowser;
@@ -122,11 +130,12 @@ function AuthPage() {
     if (typeof window !== "undefined" && window.location.hash.includes("type=recovery")) {
       setRecoveryMode(true);
     }
+    if (!authAvailable) return;
     const { data: sub } = supabase.auth.onAuthStateChange((event) => {
       if (event === "PASSWORD_RECOVERY") setRecoveryMode(true);
     });
     return () => sub.subscription.unsubscribe();
-  }, []);
+  }, [authAvailable]);
 
   // OAuth providers and Supabase's own auth server report failures (denied
   // consent, expired/invalid code, misconfigured provider, etc.) by
@@ -191,7 +200,7 @@ function AuthPage() {
       if (error) throw error;
       toast.success("Password reset email sent — check your inbox");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Could not send reset email");
+      toast.error(describeAuthError(err, "Could not send reset email"));
     } finally {
       setResetBusy(false);
     }
@@ -211,7 +220,7 @@ function AuthPage() {
       setRecoveryMode(false);
       navigateToReturnPath();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Could not update password");
+      toast.error(describeAuthError(err, "Could not update password"));
     } finally {
       setRecoveryBusy(false);
     }
@@ -219,6 +228,10 @@ function AuthPage() {
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!authAvailable) {
+      toast.error(AUTH_UNAVAILABLE_MESSAGE);
+      return;
+    }
     setBusy(true);
     try {
       if (mode === "signup") {
@@ -255,7 +268,7 @@ function AuthPage() {
         navigateToReturnPath();
       }
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Auth failed");
+      toast.error(describeAuthError(err, mode === "signup" ? "Could not create your account" : "Sign-in failed"));
     } finally {
       setBusy(false);
     }
@@ -266,6 +279,10 @@ function AuthPage() {
     provider: "google" | "github" | "apple",
     setBusy: (v: boolean) => void,
   ) => {
+    if (!authAvailable) {
+      toast.error(AUTH_UNAVAILABLE_MESSAGE);
+      return;
+    }
     setBusy(true);
     try {
       if (mode === "signup" && typeof window !== "undefined") {
@@ -289,7 +306,7 @@ function AuthPage() {
       }
     } catch (err) {
       const label = provider === "google" ? "Google" : provider === "apple" ? "Apple" : "GitHub";
-      toast.error(err instanceof Error ? err.message : `${label} sign-in failed`);
+      toast.error(describeAuthError(err, `${label} sign-in failed`));
     } finally {
       setBusy(false);
     }
@@ -561,6 +578,15 @@ function AuthPage() {
           </Button>
         )}
 
+        {!authAvailable && (
+          <div
+            role="alert"
+            className="mb-4 rounded-xl border border-destructive/40 bg-destructive/10 px-3.5 py-3 text-xs leading-snug text-foreground"
+          >
+            {AUTH_UNAVAILABLE_MESSAGE}
+          </div>
+        )}
+
         <form
           onSubmit={submit}
           data-auth-form="password"
@@ -642,7 +668,7 @@ function AuthPage() {
           </div>
           <Button
             type="submit"
-            disabled={busy || (mode === "signup" && !persona)}
+            disabled={busy || !authAvailable || (mode === "signup" && !persona)}
             className="w-full h-11 rounded-xl text-base font-semibold text-white border-0 hover:opacity-90"
             style={{ background: "var(--gradient-hero)" }}
           >

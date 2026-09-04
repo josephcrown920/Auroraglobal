@@ -6,6 +6,10 @@
  */
 export function authNextSearch(): { next: string } | undefined {
   if (typeof window === "undefined") return undefined;
+  // Route guards can briefly remain mounted while the router finishes a
+  // redirect. Once the destination is already /auth, using it as the next
+  // value would turn /admin → /auth?next=/admin into a nested auth redirect.
+  if (window.location.pathname === "/auth") return undefined;
   const next = safeAuthReturnPath(
     `${window.location.pathname}${window.location.search}${window.location.hash}`,
   );

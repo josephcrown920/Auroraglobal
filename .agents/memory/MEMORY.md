@@ -153,3 +153,5 @@
 - [Playwright Chromium shm crash](playwright-chromium-shm-crash.md) — long single-tab route crawls SIGBUS/ERR_INSUFFICIENT_RESOURCES here; keep shm on /dev/shm (ignore --disable-dev-shm-usage) + fresh tab per visit.
 - [Corepack pnpm pinning is directory-scoped](corepack-pnpm-version-pinning.md) — corepack honors packageManager only from the pinned dir (root runs latest v11); bare `pnpm` in package scripts dies in corepack-only envs — use `corepack pnpm` in scripts.
 - [Atomic rate controls in review](atomic-rate-controls-in-review.md) — cooldowns/caps/throttles must be atomic (conditional-UPDATE reservation or service-role RPC); read-then-act is rejected; RQ user-data keys need user.id partitioning.
+- [Route wrapper transform = containing block](route-wrapper-transform-containing-block.md) — the route-transition wrapper animates opacity ONLY; a leftover transform re-anchors every fixed/absolute descendant (landing nav went off-screen).
+- [Reserved DOM ids](reserved-dom-ids-window-globals.md) — never id="process"/global/module…: window named access hijacks Vite dev `process.env` defines → server-fn modules crash on client nav (works on direct load).

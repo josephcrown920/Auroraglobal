@@ -386,33 +386,63 @@ function LandingPage() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100 font-display antialiased selection:bg-[#8b5cf6] selection:text-white">
+    // `relative` makes this page the containing block for the absolute nav
+    // below. Without it the nav resolved against whichever ancestor happened
+    // to be positioned/transformed (the route-transition wrapper), and a
+    // collapsed negative margin on the hero dragged it above the viewport —
+    // the landing had no visible logo, Sign in, or Start creating at all.
+    <div className="relative min-h-screen bg-zinc-950 text-zinc-100 font-display antialiased selection:bg-[#8b5cf6] selection:text-white">
       <Suspense fallback={null}>{introVisible && <IntroAnimation onDone={handleIntroDone} />}</Suspense>
 
       {/* ── Nav ─────────────────────────────────────────────────────────── */}
-      <nav className="absolute top-0 left-0 right-0 z-40 w-full">
-        <div className="flex h-14 items-center justify-end px-5">
-          <div className="flex items-center gap-3">
+      <nav aria-label="Primary" className="landing-nav absolute inset-x-0 top-0 z-40 w-full">
+        <div className="flex h-14 items-center justify-between gap-3 px-5">
+          <Link
+            to="/"
+            aria-label="Aurora Performance Studio — home"
+            className="flex min-w-0 shrink items-center gap-2.5 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#8b5cf6] focus-visible:ring-offset-2 focus-visible:ring-offset-black"
+          >
+            {/* Same cropped mark + tile as the signed-in sidebar, so the brand
+                reads identically whether a visitor is logged in or not. */}
+            <span className="relative flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-[#0a0a0f] ring-1 ring-white/15 shadow-[0_0_20px_-6px_rgba(139,92,246,0.75)]">
+              <img
+                src="/brand/aurora-mark.webp"
+                alt=""
+                width={36}
+                height={36}
+                decoding="async"
+                className="size-full scale-110 object-cover"
+              />
+            </span>
+            <span className="flex min-w-0 flex-col leading-tight drop-shadow-[0_1px_10px_rgba(0,0,0,0.75)]">
+              <span className="truncate text-[13px] font-bold tracking-tight text-white">AURORA</span>
+              <span className="landing-nav-sub truncate text-[10px] font-medium uppercase tracking-[0.16em] text-zinc-400">
+                Performance Studio
+              </span>
+            </span>
+          </Link>
+          <div className="flex shrink-0 items-center gap-3">
             {canInstall && (
               <button
                 type="button"
                 onClick={install}
-                className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-[11px] font-semibold text-zinc-300 backdrop-blur-sm transition-colors hover:bg-white/10"
+                aria-label="Install the Aurora app"
+                className="inline-flex min-h-9 items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-[11px] font-semibold text-zinc-300 backdrop-blur-sm transition-colors hover:bg-white/10"
               >
                 <Download className="size-3 shrink-0" />
-                Install
+                <span className="landing-nav-install-label">Install</span>
               </button>
             )}
             <Link
               to="/partners"
-              className="text-sm font-medium text-zinc-400 hover:text-zinc-100 transition-colors"
+              className="landing-nav-partners inline-flex min-h-10 items-center px-1 text-sm font-medium text-zinc-400 transition-colors hover:text-zinc-100"
             >
               Partners
             </Link>
             {user ? (
               <Link
                 to="/studio"
-                className="inline-flex items-center rounded-full bg-[#8b5cf6] py-2 pl-3 pr-4 text-sm font-semibold text-white transition-transform hover:scale-[1.02] active:scale-95"
+                className="inline-flex min-h-9 items-center rounded-full bg-[#8b5cf6] py-2 pl-3 pr-4 text-sm font-semibold text-white transition-transform hover:scale-[1.02] active:scale-95"
               >
                 <Plus className="size-4 mr-1.5 shrink-0" strokeWidth={2.5} />
                 Open Studio
@@ -421,13 +451,13 @@ function LandingPage() {
               <>
                 <Link
                   to="/auth"
-                  className="text-sm font-medium text-zinc-300 hover:text-zinc-100 transition-colors"
+                  className="inline-flex min-h-10 items-center px-1 text-sm font-medium text-zinc-200 transition-colors hover:text-white"
                 >
                   Sign in
                 </Link>
                 <Link
                   to="/auth"
-                  className="inline-flex items-center rounded-full bg-[#8b5cf6] py-2 pl-3 pr-4 text-sm font-semibold text-white transition-transform hover:scale-[1.02] active:scale-95"
+                  className="inline-flex min-h-9 items-center whitespace-nowrap rounded-full bg-[#8b5cf6] py-2 pl-3 pr-4 text-sm font-semibold text-white transition-transform hover:scale-[1.02] active:scale-95"
                 >
                   <Plus className="size-4 mr-1.5 shrink-0" strokeWidth={2.5} />
                   Start creating
@@ -439,7 +469,10 @@ function LandingPage() {
       </nav>
 
       {/* ── Hero ────────────────────────────────────────────────────────── */}
-      <header className="relative -mt-14 flex min-h-screen flex-col justify-end overflow-hidden pb-20 px-5">
+      {/* No negative top margin here: the nav is absolutely positioned (takes
+          no flow space), so a -mt-14 only collapsed through the page root and
+          shifted the whole route — nav included — 56px above the fold. */}
+      <header className="relative flex min-h-screen flex-col justify-end overflow-hidden pb-20 px-5">
         {/* Slideshow */}
         <div className="absolute inset-0 z-0">
           <DemoMedia
@@ -625,7 +658,14 @@ function LandingPage() {
       </div>
 
       {/* ── Process ─────────────────────────────────────────────────────── */}
-      <section id="process" className="px-5 py-12">
+      {/* Never give a landing element the id `process`: browsers expose
+          element ids as window globals, so `window.process` became this
+          <section> and Vite's dev-time `process.env.TSS_SERVER_FN_BASE`
+          define landed on a DOM node. Once hydration swapped the node, every
+          route that lazy-loaded a server function from the landing — /auth
+          included — crashed at import time with "reading
+          'TSS_SERVER_FN_BASE'". Guarded by reserved-dom-ids.test.ts. */}
+      <section id="how-it-works" className="px-5 py-12">
         <div className="mb-7">
           <span className="text-xs font-bold uppercase tracking-[0.3em] text-[#8b5cf6]">
             The studio flow

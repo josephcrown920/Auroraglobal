@@ -80,13 +80,35 @@
 
 /* Cinematic output kit: explicit media queries are intentional. Aurora's
    Tailwind breakpoints are disabled globally to preserve the phone-first app. */
+/* Opacity only — never animate transform on this wrapper. A transform (even
+   the translateY(0) that `both` leaves behind after the keyframes finish)
+   turns the route wrapper into the containing block for every fixed /
+   absolute descendant: fixed bottom bars pinned to the document instead of
+   the viewport and the landing nav rendered above the fold. */
 .aurora-route-enter {
-  animation: aurora-route-enter 340ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: aurora-route-enter 340ms ease-out both;
 }
 
 @keyframes aurora-route-enter {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: translateY(0); }
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Public landing nav. Tailwind breakpoints are disabled app-wide, so the
+   narrow-screen trims live here. The brand sub-line, the Partners text link
+   and the Install label give way before the logo, Sign in and the primary
+   CTA ever have to. */
+@media (max-width: 479px) {
+  .landing-nav .landing-nav-sub,
+  .landing-nav .landing-nav-install-label {
+    display: none;
+  }
+}
+
+@media (max-width: 419px) {
+  .landing-nav .landing-nav-partners {
+    display: none;
+  }
 }
 
 .aurora-visual-banner {
