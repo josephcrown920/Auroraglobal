@@ -41,6 +41,7 @@ import {
   MUSIC_VIDEO_MODES,
   buildMusicVideoPrompt,
   buildEvenLyricSegments,
+  buildBeatAlignedSegments,
   LOCATION_SUGGESTIONS,
   SUBJECT_SUGGESTIONS,
   type MusicVideoMode,
@@ -76,8 +77,9 @@ function MusicVideoPage() {
   const [beatFileName, setBeatFileName] = useState<string | null>(null);
   const { state: beatState, analyze: analyzeBeat, reset: resetBeat } = useBeatDetect();
 
-  // Lyric Video mode — song upload + pasted lyrics, timed by an even split
-  // across the song's duration (no ASR alignment; see buildEvenLyricSegments).
+  // Lyric Video mode — song upload + pasted lyrics. Lines snap to the
+  // detected beat grid when analysis succeeds; otherwise they fall back to
+  // an even split across the duration (see buildBeatAlignedSegments).
   const [lyricAudioUrl, setLyricAudioUrl] = useState<string | null>(null);
   const [lyricAudioDuration, setLyricAudioDuration] = useState<number | null>(null);
   const [lyricsText, setLyricsText] = useState("");
@@ -100,9 +102,18 @@ function MusicVideoPage() {
     () => lyricsText.split("\n").map((l) => l.trim()).filter(Boolean),
     [lyricsText],
   );
+  const lyricBeatTimestamps =
+    beatState.status === "done" && beatState.result.beatTimestamps.length > 0
+      ? beatState.result.beatTimestamps
+      : null;
   const lyricSegments = useMemo(
-    () => (lyricAudioDuration ? buildEvenLyricSegments(lyricAudioDuration, lyricLines) : []),
-    [lyricAudioDuration, lyricLines],
+    () => {
+      if (!lyricAudioDuration) return [];
+      return lyricBeatTimestamps
+        ? buildBeatAlignedSegments(lyricAudioDuration, lyricLines, lyricBeatTimestamps)
+        : buildEvenLyricSegments(lyricAudioDuration, lyricLines);
+    },
+    [lyricAudioDuration, lyricLines, lyricBeatTimestamps],
   );
 
   useEffect(() => {
@@ -134,6 +145,36 @@ function MusicVideoPage() {
       audio.removeEventListener("error", onError);
     };
   }, [lyricAudioUrl]);
+
+  // Auto-run beat detection on the lyric-mode song so lines snap to the
+  // track's beat grid. Best-effort: if the fetch or analysis fails, the
+  // even split remains as the fallback timing.
+  const lyricBeatAnalyzedForRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!lyricAudioUrl) {
+      lyricBeatAnalyzedForRef.current = null;
+      if (isLyricVideo) resetBeat();
+      return;
+    }
+    if (!isLyricVideo) return;
+    if (lyricBeatAnalyzedForRef.current === lyricAudioUrl) return;
+    lyricBeatAnalyzedForRef.current = lyricAudioUrl;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await fetch(lyricAudioUrl);
+        if (!res.ok) throw new Error(`song fetch ${res.status}`);
+        const blob = await res.blob();
+        if (cancelled) return;
+        void analyzeBeat(new File([blob], "song", { type: blob.type || "audio/mpeg" }));
+      } catch {
+        // Even-split timing remains as the fallback.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isLyricVideo, lyricAudioUrl, analyzeBeat, resetBeat]);
 
   const genFn = usePerformanceShotJobFn();
   const videoFn = useVideoFromImageJobFn();
@@ -336,7 +377,11 @@ function MusicVideoPage() {
             <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground pt-2">
               Lyrics
               <span className="ml-2 text-[10px] font-normal normal-case opacity-60">
-                one line per lyric — evenly timed across the song
+                {beatState.status === "done"
+                  ? "one line per lyric — snapped to the detected beat grid"
+                  : beatState.status === "analyzing"
+                    ? "one line per lyric — detecting beats…"
+                    : "one line per lyric — evenly timed across the song"}
               </span>
             </h2>
             <Textarea
@@ -350,7 +395,9 @@ function MusicVideoPage() {
               <p className="text-xs text-muted-foreground">
                 {lyricLines.length} line{lyricLines.length === 1 ? "" : "s"}
                 {lyricAudioDuration != null && lyricSegments.length > 0
-                  ? ` · ~${(lyricAudioDuration / lyricLines.length).toFixed(1)}s per line`
+                  ? lyricBeatTimestamps
+                    ? ` · beat-aligned (${lyricBeatTimestamps.length} beats detected)`
+                    : ` · ~${(lyricAudioDuration / lyricLines.length).toFixed(1)}s per line`
                   : ""}
               </p>
             )}

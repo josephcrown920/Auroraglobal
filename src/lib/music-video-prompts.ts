@@ -156,3 +156,61 @@ export function buildEvenLyricSegments(durationSeconds: number, rawLines: string
     text,
   }));
 }
+
+const MIN_LINE_GAP_SECONDS = 0.4;
+
+/**
+ * Snap lyric lines onto detected beat timestamps. Each line's ideal start is
+ * its even-split position (i * duration / lineCount); that start is moved to
+ * the nearest beat, keeping starts strictly increasing with a minimum gap so
+ * captions never overlap or collapse. Lines whose ideal position has no
+ * remaining beats keep their even-split start, so this always produces one
+ * sane segment per line. No usable beats → identical to buildEvenLyricSegments.
+ */
+export function buildBeatAlignedSegments(
+  durationSeconds: number,
+  rawLines: string[],
+  beatTimestamps: number[],
+): LyricSegment[] {
+  const lines = rawLines.map((l) => l.trim()).filter(Boolean);
+  if (lines.length === 0 || !Number.isFinite(durationSeconds) || durationSeconds <= 0) return [];
+
+  const beats = beatTimestamps
+    .filter((t) => Number.isFinite(t) && t >= 0 && t < durationSeconds)
+    .sort((a, b) => a - b);
+  if (beats.length === 0) return buildEvenLyricSegments(durationSeconds, lines);
+
+  const segLen = durationSeconds / lines.length;
+  const minGap = Math.min(MIN_LINE_GAP_SECONDS, segLen);
+  const starts: number[] = [];
+  let beatIdx = 0;
+
+  for (let i = 0; i < lines.length; i++) {
+    const ideal = i * segLen;
+    const earliest = i === 0 ? 0 : starts[i - 1] + minGap;
+    // Skip beats that would overlap the previous line, then walk forward
+    // while the next beat is closer to the ideal position.
+    while (beatIdx < beats.length && beats[beatIdx] < earliest) beatIdx++;
+    while (
+      beatIdx + 1 < beats.length &&
+      Math.abs(beats[beatIdx + 1] - ideal) <= Math.abs(beats[beatIdx] - ideal)
+    ) {
+      beatIdx++;
+    }
+    let start: number;
+    if (beatIdx < beats.length) {
+      start = Math.max(beats[beatIdx], earliest);
+      beatIdx++;
+    } else {
+      start = Math.max(ideal, earliest);
+    }
+    starts.push(Math.min(start, durationSeconds));
+  }
+
+  const r2 = (n: number) => Math.round(n * 100) / 100;
+  return lines.map((text, i) => {
+    const start = r2(starts[i]);
+    const end = r2(i + 1 < lines.length ? starts[i + 1] : durationSeconds);
+    return { start, end: Math.max(end, start), text };
+  });
+}
