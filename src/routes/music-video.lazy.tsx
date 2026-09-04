@@ -76,6 +76,13 @@ function MusicVideoPage() {
   const beatFileRef = useRef<HTMLInputElement>(null);
   const [beatFileName, setBeatFileName] = useState<string | null>(null);
   const { state: beatState, analyze: analyzeBeat, reset: resetBeat } = useBeatDetect();
+  // Lyric mode gets its OWN detector instance so auto-analysis of the lyric
+  // song can never race with or bleed into Beat-Sync mode's manual analysis.
+  const {
+    state: lyricBeatState,
+    analyze: analyzeLyricBeat,
+    reset: resetLyricBeat,
+  } = useBeatDetect();
 
   // Lyric Video mode — song upload + pasted lyrics. Lines snap to the
   // detected beat grid when analysis succeeds; otherwise they fall back to
@@ -103,8 +110,8 @@ function MusicVideoPage() {
     [lyricsText],
   );
   const lyricBeatTimestamps =
-    beatState.status === "done" && beatState.result.beatTimestamps.length > 0
-      ? beatState.result.beatTimestamps
+    lyricBeatState.status === "done" && lyricBeatState.result.beatTimestamps.length > 0
+      ? lyricBeatState.result.beatTimestamps
       : null;
   const lyricSegments = useMemo(
     () => {
@@ -153,7 +160,7 @@ function MusicVideoPage() {
   useEffect(() => {
     if (!lyricAudioUrl) {
       lyricBeatAnalyzedForRef.current = null;
-      if (isLyricVideo) resetBeat();
+      if (isLyricVideo) resetLyricBeat();
       return;
     }
     if (!isLyricVideo) return;
@@ -166,7 +173,7 @@ function MusicVideoPage() {
         if (!res.ok) throw new Error(`song fetch ${res.status}`);
         const blob = await res.blob();
         if (cancelled) return;
-        void analyzeBeat(new File([blob], "song", { type: blob.type || "audio/mpeg" }));
+        void analyzeLyricBeat(new File([blob], "song", { type: blob.type || "audio/mpeg" }));
       } catch {
         // Even-split timing remains as the fallback.
       }
@@ -174,7 +181,7 @@ function MusicVideoPage() {
     return () => {
       cancelled = true;
     };
-  }, [isLyricVideo, lyricAudioUrl, analyzeBeat, resetBeat]);
+  }, [isLyricVideo, lyricAudioUrl, analyzeLyricBeat, resetLyricBeat]);
 
   const genFn = usePerformanceShotJobFn();
   const videoFn = useVideoFromImageJobFn();
@@ -377,9 +384,9 @@ function MusicVideoPage() {
             <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground pt-2">
               Lyrics
               <span className="ml-2 text-[10px] font-normal normal-case opacity-60">
-                {beatState.status === "done"
+                {lyricBeatState.status === "done"
                   ? "one line per lyric — snapped to the detected beat grid"
-                  : beatState.status === "analyzing"
+                  : lyricBeatState.status === "analyzing"
                     ? "one line per lyric — detecting beats…"
                     : "one line per lyric — evenly timed across the song"}
               </span>

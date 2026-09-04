@@ -92,6 +92,31 @@ describe("buildBeatAlignedSegments", () => {
     expect(segs[1].start).toBe(6);
   });
 
+  it("reserves room so late-only beats cannot collapse the tail", () => {
+    // The only beat is at 9.9s of a 10s song — no line may take it, because
+    // the later lines would have nowhere to go. Result is the even split.
+    const segs = buildBeatAlignedSegments(10, ["a", "b", "c"], [9.9]);
+    expect(segs.map((s) => s.start)).toEqual([0, 3.33, 6.67]);
+    for (const s of segs) expect(s.end).toBeGreaterThan(s.start);
+    expect(segs[2].end).toBe(10);
+  });
+
+  it("only snaps when a beat is near the line's even position", () => {
+    // Beat at 3.4s is closest to line 2's even position (3.33s); line 1
+    // keeps its 0s even start rather than jumping to 3.4s.
+    const segs = buildBeatAlignedSegments(10, ["a", "b", "c"], [3.4]);
+    expect(segs.map((s) => s.start)).toEqual([0, 3.4, 6.67]);
+  });
+
+  it("keeps rounded boundaries monotonic on very short songs", () => {
+    const segs = buildBeatAlignedSegments(2, ["a", "b", "c", "d"], [0.4, 0.9, 1.4, 1.9]);
+    for (let i = 1; i < segs.length; i++) {
+      expect(segs[i].start).toBeGreaterThanOrEqual(segs[i - 1].start);
+      expect(segs[i].end).toBeGreaterThanOrEqual(segs[i].start);
+    }
+    expect(segs[segs.length - 1].end).toBe(2);
+  });
+
   it("returns an empty array for empty lines or invalid duration", () => {
     expect(buildBeatAlignedSegments(30, [], [1, 2])).toEqual([]);
     expect(buildBeatAlignedSegments(0, ["x"], [1])).toEqual([]);

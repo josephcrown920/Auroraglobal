@@ -162,10 +162,13 @@ const MIN_LINE_GAP_SECONDS = 0.4;
 /**
  * Snap lyric lines onto detected beat timestamps. Each line's ideal start is
  * its even-split position (i * duration / lineCount); that start is moved to
- * the nearest beat, keeping starts strictly increasing with a minimum gap so
- * captions never overlap or collapse. Lines whose ideal position has no
- * remaining beats keep their even-split start, so this always produces one
- * sane segment per line. No usable beats → identical to buildEvenLyricSegments.
+ * the nearest beat within half a slot of the ideal (a beat further away says
+ * nothing about when the line is sung, so the line keeps its even start).
+ * Two invariants are enforced for every line: its start is at least
+ * min(minGap, slot) after the previous line's start, and enough room is
+ * reserved for every remaining line — so starts are strictly increasing and
+ * no segment can collapse onto the end of the track. No usable beats →
+ * identical to buildEvenLyricSegments.
  */
 export function buildBeatAlignedSegments(
   durationSeconds: number,
@@ -182,35 +185,52 @@ export function buildBeatAlignedSegments(
 
   const segLen = durationSeconds / lines.length;
   const minGap = Math.min(MIN_LINE_GAP_SECONDS, segLen);
+  const n = lines.length;
   const starts: number[] = [];
   let beatIdx = 0;
 
-  for (let i = 0; i < lines.length; i++) {
+  for (let i = 0; i < n; i++) {
     const ideal = i * segLen;
     const earliest = i === 0 ? 0 : starts[i - 1] + minGap;
-    // Skip beats that would overlap the previous line, then walk forward
-    // while the next beat is closer to the ideal position.
-    while (beatIdx < beats.length && beats[beatIdx] < earliest) beatIdx++;
+    // Reserve room for the remaining lines (this one included) so a late
+    // beat can never collapse the tail into zero-length segments.
+    const latest = durationSeconds - minGap * (n - i);
+    // Only consider beats near this line's even position.
+    const lower = Math.max(earliest, ideal - segLen / 2);
+    const upper = Math.min(latest, ideal + segLen / 2);
+    while (beatIdx < beats.length && beats[beatIdx] < lower) beatIdx++;
+    // Walk to the beat nearest the ideal position, staying inside the window.
     while (
       beatIdx + 1 < beats.length &&
+      beats[beatIdx + 1] <= upper &&
       Math.abs(beats[beatIdx + 1] - ideal) <= Math.abs(beats[beatIdx] - ideal)
     ) {
       beatIdx++;
     }
     let start: number;
-    if (beatIdx < beats.length) {
-      start = Math.max(beats[beatIdx], earliest);
+    if (beatIdx < beats.length && beats[beatIdx] <= upper) {
+      start = beats[beatIdx];
       beatIdx++;
     } else {
-      start = Math.max(ideal, earliest);
+      start = Math.min(Math.max(ideal, earliest), latest);
     }
-    starts.push(Math.min(start, durationSeconds));
+    starts.push(start);
   }
 
-  const r2 = (n: number) => Math.round(n * 100) / 100;
-  return lines.map((text, i) => {
-    const start = r2(starts[i]);
-    const end = r2(i + 1 < lines.length ? starts[i + 1] : durationSeconds);
-    return { start, end: Math.max(end, start), text };
-  });
+  const r2 = (x: number) => Math.round(x * 100) / 100;
+  const segments: LyricSegment[] = [];
+  for (let i = 0; i < n; i++) {
+    let start = r2(starts[i]);
+    if (i > 0 && start <= segments[i - 1].start) {
+      // Sub-0.01s per-line slices can round onto each other; nudge forward
+      // so rounded boundaries stay monotonic like the even split's.
+      start = Math.min(r2(segments[i - 1].start + 0.01), r2(durationSeconds));
+    }
+    segments.push({ start, end: start, text: lines[i] });
+  }
+  for (let i = 0; i < n; i++) {
+    segments[i].end = i + 1 < n ? segments[i + 1].start : r2(durationSeconds);
+    if (segments[i].end < segments[i].start) segments[i].end = segments[i].start;
+  }
+  return segments;
 }
