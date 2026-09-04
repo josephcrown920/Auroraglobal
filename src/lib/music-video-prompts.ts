@@ -181,18 +181,17 @@ export function lyricBeatGate(opts: {
 
 /**
  * Marker bookkeeping for the lyric auto-analysis effect's cleanup. The
- * per-URL marker is cleared unless that URL's analysis completed — so
- * leaving Lyric mode mid-download (or swapping songs) lets a later return
- * re-run analysis instead of skipping it forever, while a finished analysis
- * is reused instead of re-downloaded.
+ * per-URL marker is cleared whenever its effect is cancelled. Leaving Lyric
+ * mode or swapping songs must invalidate the prior detector run right away:
+ * otherwise returning while a download is pending can permanently skip
+ * analysis for that track and submit unaligned timing.
  */
 export function lyricAnalysisMarkerAfterCleanup(
   marker: string | null,
   url: string,
-  beatStatus: "idle" | "analyzing" | "done" | "error",
 ): string | null {
   if (marker !== url) return marker;
-  return beatStatus === "done" ? marker : null;
+  return null;
 }
 
 const MIN_LINE_GAP_SECONDS = 0.4;

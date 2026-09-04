@@ -42,6 +42,8 @@ import {
   buildMusicVideoPrompt,
   buildEvenLyricSegments,
   buildBeatAlignedSegments,
+  lyricAnalysisMarkerAfterCleanup,
+  lyricBeatGate,
   LOCATION_SUGGESTIONS,
   SUBJECT_SUGGESTIONS,
   type MusicVideoMode,
@@ -90,6 +92,10 @@ function MusicVideoPage() {
   const [lyricAudioUrl, setLyricAudioUrl] = useState<string | null>(null);
   const [lyricAudioDuration, setLyricAudioDuration] = useState<number | null>(null);
   const [lyricsText, setLyricsText] = useState("");
+  // A signed-URL fetch can fail before useBeatDetect sees a File. Treat that
+  // as an explicit detection failure: users may proceed with the documented
+  // even-split fallback, not silently bypass a still-pending analysis.
+  const [lyricBeatFetchFailed, setLyricBeatFetchFailed] = useState(false);
 
   const currentMode = MUSIC_VIDEO_MODES.find((m) => m.key === mode)!;
   const isLyricVideo = mode === "lyric-style";
@@ -113,6 +119,11 @@ function MusicVideoPage() {
     lyricBeatState.status === "done" && lyricBeatState.result.beatTimestamps.length > 0
       ? lyricBeatState.result.beatTimestamps
       : null;
+  const lyricGenerationGate = lyricBeatGate({
+    hasAudio: !!lyricAudioUrl,
+    beatStatus: lyricBeatState.status,
+    analysisFailed: lyricBeatFetchFailed,
+  });
   const lyricSegments = useMemo(
     () => {
       if (!lyricAudioDuration) return [];
@@ -160,6 +171,7 @@ function MusicVideoPage() {
   useEffect(() => {
     if (!lyricAudioUrl) {
       lyricBeatAnalyzedForRef.current = null;
+      setLyricBeatFetchFailed(false);
       if (isLyricVideo) resetLyricBeat();
       return;
     }
@@ -170,6 +182,7 @@ function MusicVideoPage() {
     // immediately — its run id is bumped here, so it cannot commit during the
     // new song's download window and beat-align the new lyrics to stale beats.
     resetLyricBeat();
+    setLyricBeatFetchFailed(false);
     let cancelled = false;
     void (async () => {
       try {
@@ -180,10 +193,16 @@ function MusicVideoPage() {
         void analyzeLyricBeat(new File([blob], "song", { type: blob.type || "audio/mpeg" }));
       } catch {
         // Even-split timing remains as the fallback.
+        if (!cancelled) setLyricBeatFetchFailed(true);
       }
     })();
     return () => {
       cancelled = true;
+      lyricBeatAnalyzedForRef.current = lyricAnalysisMarkerAfterCleanup(
+        lyricBeatAnalyzedForRef.current,
+        lyricAudioUrl,
+      );
+      resetLyricBeat();
     };
   }, [isLyricVideo, lyricAudioUrl, analyzeLyricBeat, resetLyricBeat]);
 
@@ -390,9 +409,9 @@ function MusicVideoPage() {
               <span className="ml-2 text-[10px] font-normal normal-case opacity-60">
                 {lyricBeatState.status === "done"
                   ? "one line per lyric — snapped to the detected beat grid"
-                  : lyricBeatState.status === "analyzing"
+                  : lyricGenerationGate === "pending"
                     ? "one line per lyric — detecting beats…"
-                    : "one line per lyric — evenly timed across the song"}
+                    : "one line per lyric — beat detection unavailable, evenly timed"}
               </span>
             </h2>
             <Textarea
@@ -421,7 +440,11 @@ function MusicVideoPage() {
             </div>
 
             <Button
-              disabled={lyricGenMut.isPending || !lyricAudioUrl || lyricSegments.length === 0}
+              disabled={
+                lyricGenMut.isPending ||
+                lyricGenerationGate !== "ready" ||
+                lyricSegments.length === 0
+              }
               onClick={() => lyricGenMut.mutate()}
               className="w-full h-14 text-base font-medium shadow-[var(--shadow-glow)]"
               style={{ background: "var(--gradient-hero)" }}
@@ -436,7 +459,11 @@ function MusicVideoPage() {
                 </>
               )}
             </Button>
-            {(!lyricAudioUrl || lyricSegments.length === 0) && (
+            {lyricGenerationGate === "pending" ? (
+              <p className="text-center text-xs text-muted-foreground flex items-center justify-center gap-1.5">
+                <Loader2 className="size-3 animate-spin" /> Detecting the beat grid before timing your lyrics…
+              </p>
+            ) : (!lyricAudioUrl || lyricSegments.length === 0) && (
               <p className="text-center text-xs text-muted-foreground">
                 {!lyricAudioUrl ? "↑ Upload a song to continue" : "↑ Paste at least one lyric line"}
               </p>

@@ -149,3 +149,35 @@ describe("buildBeatAlignedSegments", () => {
     expect(buildBeatAlignedSegments(10, ["   "], [1])).toEqual([]);
   });
 });
+
+describe("lyricBeatGate", () => {
+  it("blocks generation while beat detection is pending", () => {
+    // The pre-effect render (idle with a song set) and the analysis window
+    // must both keep Generate disabled — submitting then would silently use
+    // even-split timing.
+    expect(lyricBeatGate({ hasAudio: true, beatStatus: "idle", analysisFailed: false })).toBe("pending");
+    expect(lyricBeatGate({ hasAudio: true, beatStatus: "analyzing", analysisFailed: false })).toBe("pending");
+  });
+
+  it("opens generation once detection settles, with even split as the failure fallback", () => {
+    expect(lyricBeatGate({ hasAudio: true, beatStatus: "done", analysisFailed: false })).toBe("ready");
+    expect(lyricBeatGate({ hasAudio: true, beatStatus: "error", analysisFailed: false })).toBe("ready");
+    expect(lyricBeatGate({ hasAudio: true, beatStatus: "idle", analysisFailed: true })).toBe("ready");
+  });
+
+  it("stays blocked without an uploaded song", () => {
+    expect(lyricBeatGate({ hasAudio: false, beatStatus: "done", analysisFailed: false })).toBe("no-audio");
+  });
+});
+
+describe("lyricAnalysisMarkerAfterCleanup", () => {
+  it("clears the marker after a cancelled analysis so returning re-analyzes", () => {
+    // Leave/return while the download or decode is pending must not skip
+    // analysis forever for that file.
+    expect(lyricAnalysisMarkerAfterCleanup("url-a", "url-a")).toBeNull();
+  });
+
+  it("never touches a marker for a different URL", () => {
+    expect(lyricAnalysisMarkerAfterCleanup("url-a", "url-b")).toBe("url-a");
+  });
+});
