@@ -14,6 +14,24 @@ import { detectCurrency } from "@/lib/geo.functions";
 import { ResponsiveImage } from "@/components/ui/responsive-image";
 import { LANDING_IMAGE_SRCSET } from "@/lib/landing-image-manifest";
 import { TOOL_DIRECTORY } from "@/lib/tool-directory";
+import {
+  COST_TIKTOK_REMIX_CUT,
+  COST_UGC_AD,
+  computeCost,
+  lipsyncEngineCost,
+} from "@/lib/pricing";
+
+const PRICE_IMAGE = computeCost({ features: ["image"] }).total;
+const PRICE_MOTION = computeCost({ features: ["motion"] }).total;
+const PRICE_PERFORMANCE = computeCost({
+  features: ["video", "motion"],
+  model: "seedance-2.0-fast",
+}).total;
+const PRICE_VIDEO_AGENT = computeCost({
+  features: ["video"],
+  model: "heygen/video-agent",
+}).total;
+const PRICE_AVATAR = lipsyncEngineCost("heygen-photo");
 
 // Below-fold sections — lazy-loaded so the landing page hero ships without
 // pulling in framer-motion, spin-engine, server-fn hooks, and media assets.
@@ -192,35 +210,35 @@ const FEATURED_TOOLS: ReadonlyArray<{
     desc: "Transfer your real 30-second performance into any AI scene.",
     to: "/motion",
     icon: Wand2,
-    price: "From 300 Aura",
+    price: `From ${PRICE_MOTION} Aura`,
   },
   {
     label: "Perform Anywhere",
     desc: "Phone performance + avatar + outfit + scene → cinematic video, anywhere.",
     to: "/perform",
     icon: Film,
-    price: "From 400 Aura",
+    price: `From ${PRICE_PERFORMANCE} Aura`,
   },
   {
     label: "Aurora Video Agent",
     desc: "Plan, storyboard, edit, and render a complete cinematic video.",
     to: "/video-agent",
     icon: Clapperboard,
-    price: "From 24 Aura",
+    price: `From ${PRICE_VIDEO_AGENT} Aura`,
   },
   {
     label: "Colors Performance Sessions",
     desc: "Direct your palette across cyc, indoor and rooftop performance sets.",
     to: "/colors",
     icon: Palette,
-    price: "From 10 Aura",
+    price: `From ${PRICE_IMAGE} Aura`,
   },
   {
     label: "Get Ready With Me",
     desc: "Outfit swap talking GRWM reels straight from a single selfie.",
     to: "/studio",
     icon: UserCircle2,
-    price: "From 5 Aura",
+    price: `From ${COST_UGC_AD} Aura`,
     feature: "grwm",
   },
   {
@@ -228,7 +246,7 @@ const FEATURED_TOOLS: ReadonlyArray<{
     desc: "Create 30 campaign posts, animate any result, or send it to Motion Control.",
     to: "/spin",
     icon: Flame,
-    price: "85 Aura",
+    price: `${COST_TIKTOK_REMIX_CUT} Aura`,
     feature: "spin",
   },
   {
@@ -236,7 +254,7 @@ const FEATURED_TOOLS: ReadonlyArray<{
     desc: "Write the script, choose the face and voice, then generate a camera-ready avatar video.",
     to: "/avatar",
     icon: UserCircle2,
-    price: "From 100 Aura",
+    price: `From ${PRICE_AVATAR} Aura`,
     feature: "talking-avatars",
   },
 ];
@@ -688,7 +706,7 @@ function LandingPage() {
           />
           <div className="relative px-6 py-10 flex flex-col gap-6">
             <div>
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-violet-400/25 bg-violet-400/[0.06] px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-violet-300">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-violet-400/[0.06] px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-violet-300">
                 {"</>"}  Playground
               </span>
               <h2 className="mt-4 text-3xl font-bold tracking-tight text-white">
@@ -704,7 +722,7 @@ function LandingPage() {
 
             <ul className="flex flex-wrap gap-2">
               {["Sandboxed in-browser", "Spends real Aura", "Same models as Studio"].map((f) => (
-                <li key={f} className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.03] px-3 py-1.5 text-xs text-zinc-300">
+                <li key={f} className="flex items-center gap-1.5 rounded-full bg-white/[0.03] px-3 py-1.5 text-xs text-zinc-300">
                   <span className="size-1.5 rounded-full bg-violet-400 shrink-0" />
                   {f}
                 </li>
@@ -973,7 +991,7 @@ function LandingPage() {
               No crew. No studio. No waiting weeks for edits. Aurora delivers cinematic content in seconds — start free, upgrade when you're ready.
             </p>
             {hasLocalPricing && (
-              <span className="mt-4 inline-flex rounded-full border border-emerald-400/30 bg-emerald-400/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-emerald-200">
+              <span className="mt-4 inline-flex rounded-full bg-emerald-400/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-emerald-200">
                 Local pricing applied
               </span>
             )}

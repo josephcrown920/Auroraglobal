@@ -196,7 +196,7 @@ export function FinishedWorkflowsGallery({
                 <p className="text-[10px] uppercase tracking-widest text-white/50">Models used</p>
                 <div className="mt-2 flex flex-wrap gap-1.5">
                   {active.models.map((m) => (
-                    <span key={m} className="px-2 py-1 rounded-full bg-white/5 border border-white/10 text-[11px]">
+                    <span key={m} className="px-2 py-1 rounded-full bg-white/5 text-[11px]">
                       {m}
                     </span>
                   ))}

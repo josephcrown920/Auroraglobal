@@ -160,10 +160,10 @@ export function TikTokSection() {
             <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-6">
               <div className="max-w-2xl">
                 <div className="flex items-center gap-2">
-                  <span className="inline-flex items-center gap-2 rounded-md border border-[#8b5cf6]/25 bg-[#8b5cf6]/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-[#c4b5fd]">
+                  <span className="inline-flex items-center gap-2 rounded-md bg-[#8b5cf6]/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-[#c4b5fd]">
                     <Flame className="size-3.5" /> On TikTok
                   </span>
-                  <span className="inline-flex items-center gap-2 rounded-md border border-white/10 bg-white/5 px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-white/70">
+                  <span className="inline-flex items-center gap-2 rounded-md bg-white/5 px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-white/70">
                     <Music2 className="size-3.5" /> {HANDLE}
                   </span>
                 </div>

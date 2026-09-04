@@ -259,7 +259,7 @@ export function BalloonLipsync() {
         />
 
         {/* Live badge */}
-        <div className="absolute top-4 left-4 inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/70 backdrop-blur border border-white/10 text-[10px] font-bold uppercase tracking-widest text-white">
+        <div className="absolute top-4 left-4 inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/70 backdrop-blur text-[10px] font-bold uppercase tracking-widest text-white">
           <span className={`size-1.5 rounded-full bg-[#8b5cf6] ${playing ? "animate-pulse" : ""}`} />
           Live lip-sync · Sync 1.9
         </div>
@@ -378,10 +378,10 @@ export function BalloonLipsync() {
               </p>
               <div className="flex flex-wrap gap-2">
                 <label
-                  className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-full text-xs font-medium cursor-pointer border transition-colors ${
+                  className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-full text-xs font-medium cursor-pointer transition-colors focus-within:ring-2 focus-within:ring-[#8b5cf6]/70 ${
                     transcribing
-                      ? "border-white/8 text-white/25 pointer-events-none"
-                      : "border-white/15 text-white/60 hover:border-[#8b5cf6]/50 hover:text-white bg-white/4 hover:bg-[#8b5cf6]/8"
+                      ? "bg-white/[0.02] text-white/25 pointer-events-none"
+                      : "bg-white/4 text-white/60 hover:text-white hover:bg-[#8b5cf6]/8"
                   }`}
                 >
                   {transcribing ? (

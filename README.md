@@ -50,6 +50,7 @@ Full policy, rotation steps, and a pre-ship checklist: **[`docs/KLING_SECRETS.md
 Copy [`.env.example`](.env.example) to a local `.env.local` for reference — it documents every variable name and its expected shape with **no real values**. `.gitignore` blocks `.env`, `.env.*` (except `.env.example`), and common Kling credential filenames.
 
 ## Documentation
+- [`UI_SNAPSHOT.md`](UI_SNAPSHOT.md) — current visual rules, including borderless decorative chips and canonical Aura pricing-copy guidance.
 
 - [`docs/KLING_SECRETS.md`](docs/KLING_SECRETS.md) — Kling credential handling, rotation, and code locations
 - [`docs/ENV.md`](docs/ENV.md) — environment variables and secrets

@@ -14,9 +14,9 @@ import { supabase } from "@/lib/supabase";
 const SUPABASE_PUBLISHABLE_KEY =
   "sb_publishable_SGO6FEm9zbgYEOsFqlSX8Q_dFVMJf4x";
 
-// Client-side price hints. The server (src/lib/pricing.ts) is the source of
-// truth and does the real charge — these only drive UI copy and the
-// "not enough Aura" pre-check, so keep them at the known base rates.
+// Legacy synchronous hints used by generation flows. The server remains
+// authoritative for the real charge; read-only pricing copy should use
+// getPublicPricing() so it cannot drift from src/lib/pricing.ts.
 export const IMAGE_COST = 10;
 export const VIDEO_COST_FROM = 100;
 // Performance Shot (clip reskin): computeCost({features:["video","motion"]})
@@ -28,6 +28,29 @@ function getApiBase(): string {
   const domain = process.env.EXPO_PUBLIC_DOMAIN;
   if (domain) return `https://${domain}`;
   return "https://auroraperformancestudio.com";
+}
+
+export type PublicPricing = {
+  version: number;
+  imageFrom: number;
+  videoFrom: number;
+  lipSyncFrom: number;
+  motionFrom: number;
+  performanceFrom: number;
+  ugcAd: number;
+  tiktokRemixCut: number;
+  productDemo: number;
+  autoCut: number;
+};
+
+export async function getPublicPricing(): Promise<PublicPricing> {
+  const res = await fetchWithTimeout(
+    `${getApiBase()}/api/public/pricing`,
+    { method: "GET", headers: { Accept: "application/json" } },
+    10_000,
+  );
+  if (!res.ok) throw new Error(`Pricing unavailable (HTTP ${res.status})`);
+  return (await res.json()) as PublicPricing;
 }
 
 async function getAuthHeaders(): Promise<Record<string, string>> {

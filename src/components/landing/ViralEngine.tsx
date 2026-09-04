@@ -136,7 +136,7 @@ export function ViralEngine() {
                 <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-brand">Real output</p>
                 <p className="text-xs font-semibold text-white mt-0.5">9 campaign shots · one studio session</p>
               </div>
-              <span className="rounded-full bg-brand/20 border border-brand/40 px-2.5 py-1 text-[10px] font-bold text-brand">
+              <span className="rounded-full bg-brand/20 px-2.5 py-1 text-[10px] font-bold text-brand">
                 TikTok30
               </span>
             </div>
@@ -151,10 +151,10 @@ export function ViralEngine() {
                 key={chip.topic}
                 type="button"
                 onClick={() => handleChipClick(chip)}
-                className={`inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-xs font-semibold transition-all duration-150 ${
+                className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/70 ${
                   isActive
-                    ? "border-brand/60 bg-brand/20 text-brand shadow-[0_0_12px_-4px] shadow-brand/50"
-                    : "border-white/10 bg-white/5 text-zinc-400 hover:border-white/20 hover:text-zinc-200"
+                    ? "bg-brand/20 text-brand shadow-[0_0_12px_-4px] shadow-brand/50"
+                    : "bg-white/5 text-zinc-400 hover:bg-white/10 hover:text-zinc-200"
                 }`}
               >
                 <Sparkles className="size-3 shrink-0 opacity-70" />

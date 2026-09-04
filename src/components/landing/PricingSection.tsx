@@ -10,19 +10,53 @@ import { PLANS, computePaystackPrice, formatLocalPrice, type PlanKey } from "@/l
 import { detectCurrency } from "@/lib/geo.functions";
 import { useAuth } from "@/hooks/use-auth";
 import { track } from "@/lib/tracking";
+import {
+  LIPSYNC_TIER_AURA,
+  VIDEO_TIER_AURA,
+  auraValueEstimate,
+  computeCost,
+} from "@/lib/pricing";
 
-const META: Record<"starter" | "creator" | "studio", { name: string; tagline: string; features: string[]; icon: typeof Sparkles; highlight?: boolean }> = {
+const imageCost = computeCost({ features: ["image"] }).total;
+const budgetVideoCost = VIDEO_TIER_AURA.budget;
+const premiumVideoCost = VIDEO_TIER_AURA.premium;
+const budgetLipSyncCost = LIPSYNC_TIER_AURA.budget;
+
+const META: Record<"starter" | "creator" | "studio", {
+  name: string;
+  tagline: string;
+  features: (credits: number) => string[];
+  icon: typeof Sparkles;
+  highlight?: boolean;
+}> = {
   starter: {
     name: "Starter", tagline: "Test-drive the studio.", icon: Sparkles,
-    features: ["80 Aura (~16 images)", "All image models", "Lip-sync up to 8s", "Standard queue"],
+    features: (credits) => [
+      `${credits.toLocaleString()} Aura (~${auraValueEstimate(credits, "image").count} images)`,
+      "All image models",
+      "Lip-sync up to 8s",
+      "Standard queue",
+    ],
   },
   creator: {
     name: "Creator", tagline: "Built for daily posting.", icon: Zap, highlight: true,
-    features: ["240 Aura (~48 budget · ~15 premium videos)", "All image + video models", "Priority queue", "Commercial license", "Gallery sharing"],
+    features: (credits) => [
+      `${credits.toLocaleString()} Aura (~${Math.floor(credits / budgetVideoCost)} budget · ~${Math.floor(credits / premiumVideoCost)} premium videos)`,
+      "All image + video models",
+      "Priority queue",
+      "Commercial license",
+      "Gallery sharing",
+    ],
   },
   studio: {
     name: "Studio", tagline: "For agencies + power users.", icon: Crown,
-    features: ["640 Aura (~128 budget · ~40 premium videos)", "Every model, including Seedance Pro", "Top-priority queue", "Team sharing", "White-glove onboarding"],
+    features: (credits) => [
+      `${credits.toLocaleString()} Aura (~${Math.floor(credits / budgetVideoCost)} budget · ~${Math.floor(credits / premiumVideoCost)} premium videos)`,
+      "Every model, including Seedance Pro",
+      "Top-priority queue",
+      "Team sharing",
+      "White-glove onboarding",
+    ],
   },
 };
 
@@ -69,7 +103,8 @@ export function PricingSection() {
           Simple Aura. <span className="bg-gradient-to-r from-violet-300 via-fuchsia-300 to-pink-200 bg-clip-text text-transparent">No subscriptions.</span>
         </h2>
         <p className="text-white/65 mt-3 text-sm md:text-base">
-          One Aura ≈ one image. Budget video &amp; lip-sync from 5 Aura; premium models cost more. Aura never expires.
+          Images from {imageCost} Aura. Budget video from {budgetVideoCost} Aura and lip-sync from{" "}
+          {budgetLipSyncCost} Aura; premium models cost more. Aura never expires.
         </p>
       </div>
 
@@ -112,13 +147,13 @@ export function PricingSection() {
                   {formatLocalPrice({ ...price, amountMinor: Math.round(price.amountMinor / p.credits) })} / Aura
                 </p>
                 {hasLocalPricing && (
-                  <span className="mt-2 inline-flex rounded-full border border-emerald-400/30 bg-emerald-400/10 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-emerald-200">
+                  <span className="mt-2 inline-flex rounded-full bg-emerald-400/10 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-emerald-200">
                     Local pricing applied
                   </span>
                 )}
               </div>
               <ul className="space-y-2 text-sm text-white/80">
-                {meta.features.map((f) => (
+                {meta.features(p.credits).map((f) => (
                   <li key={f} className="flex items-start gap-2">
                     <Check className="size-4 text-emerald-400 shrink-0 mt-0.5" />
                     <span>{f}</span>
