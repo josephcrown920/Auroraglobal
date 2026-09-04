@@ -152,3 +152,4 @@
 - [Admin route boundary & nav gating](admin-route-boundary.md) — /admin is a layout route gated on server-verified isAdmin (token presence ≠ unlocked); a route component without <Outlet /> swallows every child URL; gate-marker clearing races the re-check.
 - [Playwright Chromium shm crash](playwright-chromium-shm-crash.md) — long single-tab route crawls SIGBUS/ERR_INSUFFICIENT_RESOURCES here; keep shm on /dev/shm (ignore --disable-dev-shm-usage) + fresh tab per visit.
 - [Corepack pnpm pinning is directory-scoped](corepack-pnpm-version-pinning.md) — corepack honors packageManager only from the pinned dir (root runs latest v11); bare `pnpm` in package scripts dies in corepack-only envs — use `corepack pnpm` in scripts.
+- [Atomic rate controls in review](atomic-rate-controls-in-review.md) — cooldowns/caps/throttles must be atomic (conditional-UPDATE reservation or service-role RPC); read-then-act is rejected; RQ user-data keys need user.id partitioning.
