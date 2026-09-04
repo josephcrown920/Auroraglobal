@@ -184,6 +184,11 @@ export function buildBeatAlignedSegments(
   if (beats.length === 0) return buildEvenLyricSegments(durationSeconds, lines);
 
   const segLen = durationSeconds / lines.length;
+  // Segment boundaries are rounded to centiseconds. When a line's slot is
+  // shorter than 0.01s, strictly increasing boundaries are mathematically
+  // impossible at that precision — keep the even split's behavior for such
+  // inputs rather than emitting a half-beat-aligned half-collapsed hybrid.
+  if (segLen < 0.01) return buildEvenLyricSegments(durationSeconds, lines);
   const minGap = Math.min(MIN_LINE_GAP_SECONDS, segLen);
   const n = lines.length;
   const starts: number[] = [];

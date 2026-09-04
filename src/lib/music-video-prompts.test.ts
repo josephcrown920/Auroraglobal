@@ -117,6 +117,26 @@ describe("buildBeatAlignedSegments", () => {
     expect(segs[segs.length - 1].end).toBe(2);
   });
 
+  it("keeps starts strictly increasing at the densest supported line count", () => {
+    // 1s song, 50 lines → 0.02s slots; every line has its own beat.
+    const beats = Array.from({ length: 50 }, (_, i) => i * 0.02);
+    const lines = Array.from({ length: 50 }, (_, i) => `line ${i}`);
+    const segs = buildBeatAlignedSegments(1, lines, beats);
+    for (let i = 1; i < segs.length; i++) {
+      expect(segs[i].start).toBeGreaterThan(segs[i - 1].start);
+    }
+    expect(segs[49].end).toBe(1);
+  });
+
+  it("falls back to the even split when distinct centisecond boundaries are impossible", () => {
+    // 0.01s song with 3 lines → 0.003s slots cannot produce distinct
+    // 2-decimal boundaries; defined behavior is the even split.
+    const lines = ["a", "b", "c"];
+    expect(buildBeatAlignedSegments(0.01, lines, [0.005])).toEqual(
+      buildEvenLyricSegments(0.01, lines),
+    );
+  });
+
   it("returns an empty array for empty lines or invalid duration", () => {
     expect(buildBeatAlignedSegments(30, [], [1, 2])).toEqual([]);
     expect(buildBeatAlignedSegments(0, ["x"], [1])).toEqual([]);

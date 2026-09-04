@@ -166,6 +166,10 @@ function MusicVideoPage() {
     if (!isLyricVideo) return;
     if (lyricBeatAnalyzedForRef.current === lyricAudioUrl) return;
     lyricBeatAnalyzedForRef.current = lyricAudioUrl;
+    // Invalidate any in-flight or completed analysis of the PREVIOUS song
+    // immediately — its run id is bumped here, so it cannot commit during the
+    // new song's download window and beat-align the new lyrics to stale beats.
+    resetLyricBeat();
     let cancelled = false;
     void (async () => {
       try {
