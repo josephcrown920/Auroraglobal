@@ -40,6 +40,9 @@ import auraBloom from "../../attached_assets/IMG_0629_1785995684443.jpeg";
 import auraCafe from "../../attached_assets/IMG_0626_1785995684443.jpeg";
 import { EditableCopy } from "@/components/EditableCopy";
 import { useSiteCopyValue } from "@/components/landing/SiteCopyProvider";
+import { PageHeroBanner } from "@/components/visual/PageHeroBanner";
+import { OutputGallery } from "@/components/visual/OutputGallery";
+import { DEMO_ASSETS } from "@/lib/demo-assets";
 
 // Artist-only mode: this feature is hidden from regular users by default.
 // Admins always pass; regular users are redirected to /studio unless the
@@ -291,6 +294,13 @@ function UGCStudio() {
         </nav>
       </header>
 
+      <PageHeroBanner
+        kicker="UGC Factory"
+        headline="Turn a product brief into creator-ready proof."
+        sub="Pair a product, creator, and scene; Aurora turns the direction into an ad your audience can picture."
+        media={DEMO_ASSETS.ugc.hero}
+        className="relative z-10 mx-6 mt-7 rounded-3xl border border-white/10"
+      />
       <section className="relative z-10 max-w-6xl mx-auto px-6 py-12">
          <EditableCopy
            copyKey="ugc_hero_kicker"
@@ -403,7 +413,13 @@ function UGCStudio() {
           </section>
 
         {/* ── Sample campaigns inspiration ────────────────────────── */}
-        <UGCInspirationBlock />
+        <OutputGallery
+          items={DEMO_ASSETS.ugc.gallery}
+          kicker="Campaign proof"
+          title="See the creator, product, and outcome together."
+          subtitle="Every reference is a real Aurora direction—not stock imagery."
+          showGalleryLink
+        />
 
         {/* Preset gallery */}
         <div className="mt-12">

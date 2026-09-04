@@ -38,6 +38,9 @@ import { ColorStudioBackdrop } from "@/components/studio/ColorStudioBackdrop";
 import tutorialStudioRefs from "@/assets/tutorial-studio-refs.jpg.asset.json";
 import tutorialColorsBlueFinal from "@/assets/tutorial-colors-blue-final.jpg.asset.json";
 import { ColorsStudioGuide } from "@/components/onboarding/ColorsStudioGuide";
+import { PageHeroBanner } from "@/components/visual/PageHeroBanner";
+import { OutputGallery } from "@/components/visual/OutputGallery";
+import { DEMO_ASSETS } from "@/lib/demo-assets";
 
 // Setups that take place on the seamless cyclorama get the real, per-color
 // animated COLORS studio environment as their preview backdrop (see
@@ -483,6 +486,15 @@ function ColorsStudio() {
         </div>
       </header>
 
+      <PageHeroBanner
+        compact
+        kicker="Colors Studio"
+        headline="See the world before you step into it."
+        sub="Test a palette against real performance imagery, then render the grade you want."
+        media={DEMO_ASSETS.colors.hero}
+        className="relative z-10 mx-5 mt-5 rounded-3xl border border-white/10"
+      />
+
       <div className="relative z-10 max-w-7xl mx-auto p-5 md:p-10 grid lg:grid-cols-[1fr_380px] gap-8">
         {/* LEFT — pickers */}
         <section className="space-y-7">
@@ -626,6 +638,13 @@ function ColorsStudio() {
 
           {/* Real shoots gallery — at the top for immediate inspiration */}
           <ColorsShotsGallery />
+          <OutputGallery
+            items={DEMO_ASSETS.colors.gallery}
+            kicker="Grade proof"
+            title="Look at the color, not just the swatch."
+            subtitle="Finished Aurora stills reveal what each atmosphere does to the performance."
+            showGalleryLink
+          />
 
           <TriedTestedShowcase
             accent="cyan"

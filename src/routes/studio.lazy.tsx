@@ -70,6 +70,9 @@ import { loadStudioSession, saveStudioSession } from "@/lib/studio-session";
 import { HiggsHero, StepGuide, HiggsDivider, type GuideStep } from "@/components/studio/HiggsLayout";
 import { StudioHeroComposer, type ComposerMode } from "@/components/studio/StudioHeroComposer";
 import { EditableCopy } from "@/components/EditableCopy";
+import { PageHeroBanner } from "@/components/visual/PageHeroBanner";
+import { OutputGallery } from "@/components/visual/OutputGallery";
+import { DEMO_ASSETS } from "@/lib/demo-assets";
 
 export const Route = createLazyFileRoute("/studio")({ component: StudioPage });
 
@@ -700,6 +703,14 @@ function StudioPage() {
       {/* ── Main scroll area (leave room for sticky prompt bar) ──── */}
       <div className="flex-1 overflow-y-auto pb-36 lg:pb-24 space-y-0">
 
+        <PageHeroBanner
+          compact
+          kicker="Aurora Studio"
+          headline="Direct the next visual."
+          sub="Start from a reference, then make the composition yours."
+          media={DEMO_ASSETS.studio.hero}
+        />
+
         {/* ── Hero composer — the signed-in front door ──────────── */}
         <StudioHeroComposer
           prompt={composerMode === "image" ? prompt : videoPrompt}
@@ -757,6 +768,12 @@ function StudioPage() {
                 copyKey="studio_empty_state"
                 fallback="Upload your photo above, then hit Generate"
                 className="text-xs text-zinc-600 text-center"
+              />
+              <OutputGallery
+                items={DEMO_ASSETS.studio.gallery}
+                title="Made in Studio"
+                subtitle="Real Aurora output — choose a style above to make the next one yours."
+                showGalleryLink
               />
               <section aria-labelledby="studio-sample-gallery-title">
                 <div className="mb-2 flex items-end justify-between gap-3">

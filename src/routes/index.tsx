@@ -8,6 +8,11 @@ import { lazy, Suspense, useCallback, useState, useEffect, useRef, type ReactNod
 import { track } from "@/lib/tracking";
 import { EditableCopy } from "@/components/EditableCopy";
 import { ResponsiveImage } from "@/components/ui/responsive-image";
+import { DemoMedia } from "@/components/visual/DemoMedia";
+import { OutputGallery } from "@/components/visual/OutputGallery";
+import { ScrollReveal } from "@/components/visual/ScrollReveal";
+import { EditableStaggeredHeadline } from "@/components/visual/EditableStaggeredHeadline";
+import { DEMO_ASSETS } from "@/lib/demo-assets";
 import { LANDING_IMAGE_SRCSET } from "@/lib/landing-image-manifest";
 import { TOOL_DIRECTORY } from "@/lib/tool-directory";
 import {
@@ -437,6 +442,11 @@ function LandingPage() {
       <header className="relative -mt-14 flex min-h-screen flex-col justify-end overflow-hidden pb-20 px-5">
         {/* Slideshow */}
         <div className="absolute inset-0 z-0">
+          <DemoMedia
+            asset={DEMO_ASSETS.landing.ambient}
+            priority
+            className="absolute inset-0 size-full object-cover opacity-75"
+          />
           {heroSlides.map((slide, i) => (
             <ResponsiveImage
               key={slide.src}
@@ -447,7 +457,7 @@ function LandingPage() {
               width={1200}
               height={1600}
               className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-1000 ${
-                i === slideIdx ? "opacity-100" : "opacity-0"
+                i === slideIdx ? "opacity-25" : "opacity-0"
               }`}
               fetchPriority={i === 0 ? "high" : "low"}
             />
@@ -506,13 +516,11 @@ function LandingPage() {
                 )}
               </div>
               <h1 className="text-[2.45rem] font-semibold leading-[0.97] tracking-tight text-white sm:text-[2.7rem]">
-                <span className="bg-gradient-to-r from-violet-200 via-violet-400 to-fuchsia-300 bg-clip-text font-sans font-semibold text-transparent">
-                  <EditableCopy
-                    copyKey={`landing_hero_${i}_headline`}
-                    fallback={slide.headline}
-                    previewClassName="text-[2.45rem] font-semibold leading-[0.97] tracking-tight sm:text-[2.7rem] bg-gradient-to-r from-violet-200 via-violet-400 to-fuchsia-300 bg-clip-text text-transparent"
-                  />
-                </span>
+                <EditableStaggeredHeadline
+                  copyKey={`landing_hero_${i}_headline`}
+                  fallback={slide.headline}
+                  className="bg-gradient-to-r from-violet-200 via-violet-400 to-fuchsia-300 bg-clip-text font-sans font-semibold text-transparent"
+                />
               </h1>
               <p className="mt-5 text-base leading-relaxed text-zinc-200">
                 <EditableCopy copyKey={`landing_hero_${i}_sub`} fallback={slide.sub} />
@@ -559,6 +567,27 @@ function LandingPage() {
           ))}
         </div>
       </header>
+
+      <section className="border-b border-white/8 bg-[#08080e] px-5 py-12">
+        <ScrollReveal className="mx-auto max-w-5xl">
+          <div className="mb-5 text-center">
+            <span className="text-xs font-bold uppercase tracking-[0.3em] text-[#a78bfa]">See it in action</span>
+            <h2 className="mt-2 text-3xl font-semibold text-white">A real Aurora output, from direction to delivery.</h2>
+            <p className="mx-auto mt-2 max-w-2xl text-sm leading-relaxed text-zinc-400">
+              Watch the kind of cinematic performance Aurora is built to take from a creative brief to the feed.
+            </p>
+          </div>
+          <div className="overflow-hidden rounded-3xl border border-white/10 bg-zinc-900 shadow-[0_24px_80px_-30px_rgba(139,92,246,0.55)]">
+            <DemoMedia
+              asset={DEMO_ASSETS.landing.walkthrough}
+              autoPlay={false}
+              controls
+              priority
+              className="aspect-video w-full object-cover"
+            />
+          </div>
+        </ScrollReveal>
+      </section>
 
       {/* ── Category Strip ──────────────────────────────────────────────── */}
       <div className="border-y border-white/8 bg-zinc-950">
@@ -634,6 +663,13 @@ function LandingPage() {
             alt="Final rendered artist portrait"
           />
         </div>
+        <OutputGallery
+          items={DEMO_ASSETS.landing.studio}
+          kicker="Studio proof"
+          title="A reference becomes a campaign world."
+          subtitle="Look through the kinds of visual direction Aurora Studio turns into finished assets."
+          showGalleryLink
+        />
       </section>
 
       {/* ── Featured Tools ───────────────────────────────────────────────── */}
@@ -669,22 +705,62 @@ function LandingPage() {
       </section>
 
       {/* ── Frontier Model Spotlight ───────────────────────────────────── */}
-      <Suspense fallback={null}><ModelSpotlight /></Suspense>
+      <ScrollReveal><Suspense fallback={null}><ModelSpotlight /></Suspense></ScrollReveal>
 
       {/* ── App Screenshots — "Inside Aurora" ────────────────────────── */}
-      <Suspense fallback={null}><AppScreenshotsSection /></Suspense>
+      <ScrollReveal><Suspense fallback={null}><AppScreenshotsSection /></Suspense></ScrollReveal>
+      <OutputGallery
+        items={DEMO_ASSETS.landing.colors}
+        kicker="Colors Studio"
+        title="Grade the feeling before you commit."
+        subtitle="Palette choices shown on finished Aurora frames, not color chips alone."
+        className="px-5"
+        showGalleryLink
+      />
 
       {/* ── UGC Ads (gateable — hidden in artist-only mode) ──────────── */}
-      {showFeature("ugc") && <Suspense fallback={null}><UGCAdsSection /></Suspense>}
+      {showFeature("ugc") && (
+        <ScrollReveal>
+          <Suspense fallback={null}><UGCAdsSection /></Suspense>
+          <OutputGallery
+            items={DEMO_ASSETS.landing.ugc}
+            kicker="UGC proof"
+            title="A brief people can see themselves in."
+            subtitle="Creator presence, product focus, and the final campaign outcome in one visual story."
+            className="px-5"
+            showGalleryLink
+          />
+        </ScrollReveal>
+      )}
 
       {/* ── Viral Engine (TikTok30/Spin — gateable) ──────────────────── */}
-      {showFeature("spin") && <Suspense fallback={null}><ViralEngine /></Suspense>}
+      {showFeature("spin") && (
+        <ScrollReveal>
+          <Suspense fallback={null}><ViralEngine /></Suspense>
+          <OutputGallery
+            items={DEMO_ASSETS.landing.spin}
+            kicker="TikTok30 proof"
+            title="One direction. A month of distinct posts."
+            subtitle="Templates, campaign stills, and moving vertical output from the same creative lane."
+            className="px-5"
+            showGalleryLink
+          />
+        </ScrollReveal>
+      )}
 
       {/* ── Every Face Sings (lip-sync demo) ─────────────────────────── */}
       <Suspense fallback={null}><BalloonLipsync /></Suspense>
 
       {/* ── CLI — whole studio from your terminal ────────────────────── */}
-      <Suspense fallback={null}><CliSection /></Suspense>
+      <ScrollReveal><Suspense fallback={null}><CliSection /></Suspense></ScrollReveal>
+      <OutputGallery
+        items={DEMO_ASSETS.landing.canvas}
+        kicker="Canvas workflow"
+        title="Plan the world, then connect the shots."
+        subtitle="Reference frames, scene direction, and a finished motion result in one visual workflow."
+        className="px-5"
+        showGalleryLink
+      />
 
       {/* ── Playground teaser ────────────────────────────────────────── */}
       <section className="relative z-10 px-5 py-16 border-t border-white/5">

@@ -65,8 +65,173 @@
 .btn-liquid:hover::after { opacity: 1; }
 .btn-liquid:active::after { opacity: 0.55; }
 @media (prefers-reduced-motion: reduce) {
+  .aurora-route-enter,
+  .aurora-visual-reveal,
+  .aurora-staggered-word,
+  .aurora-output-tile {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+    transition: none !important;
+  }
   .btn-liquid { transition: none !important; }
   .btn-liquid:active { transform: none !important; }
+}
+
+/* Cinematic output kit: explicit media queries are intentional. Aurora's
+   Tailwind breakpoints are disabled globally to preserve the phone-first app. */
+.aurora-route-enter {
+  animation: aurora-route-enter 340ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes aurora-route-enter {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.aurora-visual-banner {
+  min-height: 16rem;
+  isolation: isolate;
+  background: linear-gradient(135deg, rgba(9, 9, 20, 0.98), rgba(32, 16, 64, 0.82));
+}
+
+.aurora-visual-banner-content {
+  max-width: 72rem;
+  margin-inline: auto;
+}
+
+.aurora-visual-compact-sub {
+  display: none;
+}
+
+.aurora-visual-reveal {
+  opacity: 0;
+  transform: translateY(20px);
+  transition: opacity 560ms ease, transform 560ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.aurora-visual-reveal.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.aurora-staggered-headline {
+  display: inline;
+}
+
+.aurora-staggered-word {
+  display: inline-block;
+  background: inherit;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  opacity: 0;
+  transform: translateY(0.72em);
+  animation: aurora-word-arrive 620ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes aurora-word-arrive {
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.aurora-output-gallery {
+  width: 100%;
+}
+
+.aurora-output-toggle {
+  margin-top: 0.75rem;
+  border: 1px solid rgba(255,255,255,0.14);
+  border-radius: 999px;
+  padding: 0.5rem 0.85rem;
+  background: rgba(255,255,255,0.04);
+  color: rgba(255,255,255,0.74);
+  font-size: 0.7rem;
+  font-weight: 650;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  transition: background 180ms ease, color 180ms ease, border-color 180ms ease;
+}
+
+.aurora-output-toggle:hover,
+.aurora-output-toggle:focus-visible {
+  border-color: rgba(196,181,253,0.6);
+  background: rgba(139,92,246,0.16);
+  color: #fff;
+}
+
+.aurora-output-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.aurora-output-tile {
+  position: relative;
+  aspect-ratio: 0.85;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 1rem;
+  background: #11111b;
+  text-align: left;
+  transition: transform 240ms ease, border-color 240ms ease, box-shadow 240ms ease;
+}
+
+.aurora-output-tile:hover,
+.aurora-output-tile:focus-visible {
+  transform: translateY(-3px);
+  border-color: rgba(196,181,253,0.6);
+  box-shadow: 0 16px 32px -18px rgba(139,92,246,0.8);
+}
+
+.aurora-output-tile video,
+.aurora-output-tile img {
+  transition: transform 560ms ease;
+}
+
+.aurora-output-tile:hover video,
+.aurora-output-tile:hover img {
+  transform: scale(1.045);
+}
+
+@media (min-width: 768px) {
+  .aurora-visual-banner {
+    min-height: 21rem;
+    padding-top: 4.5rem;
+    padding-bottom: 4.5rem;
+  }
+
+  .aurora-visual-banner h1 {
+    font-size: clamp(2.6rem, 4.6vw, 5.25rem);
+  }
+
+  .aurora-visual-banner-content {
+    padding-inline: 2.5rem;
+  }
+
+  .aurora-visual-compact-sub {
+    display: block;
+  }
+
+  .aurora-output-grid {
+    gap: 1rem;
+  }
+
+  .aurora-output-grid[data-columns="2"] {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .aurora-output-grid[data-columns="3"] {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .aurora-output-grid[data-columns="4"] {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .aurora-output-tile {
+    aspect-ratio: 1.05;
+  }
 }
 
 /*

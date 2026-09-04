@@ -3,6 +3,9 @@ import { createLazyFileRoute, Link } from "@tanstack/react-router";
 import { AutoplayVideo } from "@/components/ui/AutoplayVideo";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ExampleOutputGrid } from "@/components/studio/ExampleOutputGrid";
+import { PageHeroBanner } from "@/components/visual/PageHeroBanner";
+import { OutputGallery } from "@/components/visual/OutputGallery";
+import { DEMO_ASSETS } from "@/lib/demo-assets";
 import { useServerFn } from "@tanstack/react-start";
 import { LipSyncDemo } from "@/components/landing/LipSyncDemo";
 import { Mic2, ArrowRight, Upload, Music2, Wand2, Download, Loader2, Play, Pause, CheckCircle2, X, Zap, Sparkles, Server, ImageIcon, Info } from "lucide-react";
@@ -31,6 +34,13 @@ function LipSyncStudioPage() {
   return (
     <div className="aurora-page-shell text-foreground">
       <span aria-hidden className="aurora-ambient" />
+      <PageHeroBanner
+        kicker="Lip Sync Studio"
+        headline="Make any face sing your hook."
+        sub="Use a portrait and your audio to create a performance with visible expression and timing."
+        media={DEMO_ASSETS.lipsync.hero}
+        className="relative z-10 mx-6 mt-8 rounded-3xl border border-white/10"
+      />
       <section className="relative z-10 px-6 md:px-12 pt-20 pb-4 animate-fade-in">
         <div className="max-w-5xl mx-auto">
           <span className="inline-flex items-center gap-1.5 text-xs uppercase tracking-[0.2em] text-primary border border-primary/30 bg-primary/10 px-3 py-1 rounded-full">
@@ -43,6 +53,14 @@ function LipSyncStudioPage() {
       </section>
 
       <LipSyncModeSwitcher />
+      <OutputGallery
+        items={DEMO_ASSETS.lipsync.gallery}
+        kicker="Performance proof"
+        title="A reference becomes a moving performance."
+        subtitle="Open any example to inspect the finished output full-screen."
+        showGalleryLink
+        className="relative z-10 px-6 pb-10"
+      />
     </div>
   );
 }

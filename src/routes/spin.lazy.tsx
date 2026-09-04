@@ -28,6 +28,9 @@ import {
   type SpinTemplate,
   type SpinTemplateId,
 } from "@/lib/spin-engine";
+import { PageHeroBanner } from "@/components/visual/PageHeroBanner";
+import { OutputGallery } from "@/components/visual/OutputGallery";
+import { DEMO_ASSETS } from "@/lib/demo-assets";
 
 // Artist-only mode: this feature is hidden from regular users by default.
 // Admins always pass; regular users are redirected to /studio unless the
@@ -421,6 +424,15 @@ function SpinPage() {
           lighting and mood — then renders them all with the <span className="text-foreground">same face</span>.
         </p>
 
+        <PageHeroBanner
+          compact
+          kicker="Campaign proof"
+          headline="One concept, 30 scroll-stopping posts."
+          sub="Choose the visual lane first, then let Spin build the release run."
+          media={DEMO_ASSETS.spin.hero}
+          className="mt-7 rounded-2xl border border-white/10"
+        />
+
         {/* Template picker */}
         <div className="mt-8">
           <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
@@ -459,6 +471,14 @@ function SpinPage() {
             ))}
           </div>
         </div>
+
+        <OutputGallery
+          items={DEMO_ASSETS.spin.gallery}
+          kicker="Real post patterns"
+          title="A campaign reads before it is explained."
+          subtitle="Template, framing, and finished motion from Aurora Spin."
+          showGalleryLink
+        />
 
         {/* Video ratio slider — 0 to 50 clips (budget i2v, 5 Aura each) */}
         {mode !== "video" && (

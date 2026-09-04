@@ -88,6 +88,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { OutputGallery } from "@/components/visual/OutputGallery";
+import { DEMO_ASSETS } from "@/lib/demo-assets";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import {
   DropdownMenu,
@@ -1385,6 +1387,7 @@ function CanvasPage() {
   const runActiveRef = useRef(false);
   const loadInFlightRef = useRef(false);
   const [agentOpen, setAgentOpen] = useState(false);
+  const [examplesOpen, setExamplesOpen] = useState(false);
   const [coachTplName, setCoachTplName] = useState<string | null>(null);
   const [lastTemplateId, setLastTemplateId] = useState<string | null>(null);
   const [lastTemplateGraph, setLastTemplateGraph] = useState<TemplateGraph | null>(null);
@@ -2011,6 +2014,14 @@ function CanvasPage() {
           </Button>
           <Button
             size="sm"
+            variant="outline"
+            onClick={() => setExamplesOpen(true)}
+            className="h-8 border-white/10 bg-white/5 text-xs"
+          >
+            Examples
+          </Button>
+          <Button
+            size="sm"
             onClick={() => {
               if (graphWarnings.length) { toast.error(graphWarnings[0]); return; }
               startRun(wfId);
@@ -2211,6 +2222,20 @@ function CanvasPage() {
       {/* Docked, collapsible session asset gallery — rendered at the top level so its
           fixed toggle/panel isn't trapped under the header by the canvas area's z-0 stacking context */}
       <GeneratedAssetGallery />
+
+      <Dialog open={examplesOpen} onOpenChange={setExamplesOpen}>
+        <DialogContent className="max-w-4xl border-white/10 bg-zinc-950">
+          <DialogHeader>
+            <DialogTitle>Canvas references, scene cards, and final motion</DialogTitle>
+          </DialogHeader>
+          <OutputGallery
+            items={DEMO_ASSETS.canvas.gallery}
+            kicker="Canvas proof"
+            title="Start with a visual, connect the workflow, finish in motion."
+            subtitle="These real Aurora outputs show the kind of direction a canvas can carry."
+          />
+        </DialogContent>
+      </Dialog>
 
       <AuroraAgentPanel
         open={agentOpen}

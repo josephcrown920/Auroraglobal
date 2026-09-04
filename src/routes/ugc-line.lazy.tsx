@@ -30,6 +30,9 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { SiteFooter } from "@/components/SiteFooter";
+import { PageHeroBanner } from "@/components/visual/PageHeroBanner";
+import { OutputGallery } from "@/components/visual/OutputGallery";
+import { DEMO_ASSETS, UGC_ANGLE_THUMBNAILS } from "@/lib/demo-assets";
 
 // Artist-only mode: this feature is hidden from regular users by default.
 // Admins always pass; regular users are redirected to /studio unless the
@@ -74,6 +77,7 @@ const LENGTHS = [
 // ─── Ticket card ─────────────────────────────────────────────────────────────
 function TicketCard({ brief, index }: { brief: UgcBrief & { id: number }; index: number }) {
   const [copied, setCopied] = useState<"script" | "json" | null>(null);
+  const thumbnail = UGC_ANGLE_THUMBNAILS[brief.angle] ?? DEMO_ASSETS.ugcLine.hero;
 
   function copy(type: "script" | "json") {
     navigator.clipboard.writeText(type === "script" ? brief.script : JSON.stringify(brief, null, 2));
@@ -96,6 +100,13 @@ function TicketCard({ brief, index }: { brief: UgcBrief & { id: number }; index:
         <div className="flex-1 p-4 min-w-0">
           {/* Hook + tags */}
           <div className="flex items-start gap-3 mb-3">
+            <img
+              src={thumbnail.src}
+              alt=""
+              loading="lazy"
+              onError={(event) => { event.currentTarget.style.display = "none"; }}
+              className="size-12 shrink-0 rounded-lg border border-white/10 object-cover"
+            />
             <p className="flex-1 text-sm font-medium text-white leading-snug">{brief.hook}</p>
             <div className="flex flex-col gap-1 items-end shrink-0">
               <span className="text-[9px] uppercase tracking-wider px-2 py-0.5 rounded border text-primary border-primary/40 bg-primary/10">
@@ -320,6 +331,15 @@ function ContentLine() {
           </div>
         </div>
 
+        <PageHeroBanner
+          compact
+          kicker="Content Line"
+          headline="Script, shoot, and ship a full batch."
+          sub="Build a coordinated arc of creator hooks before a single frame is rendered."
+          media={DEMO_ASSETS.ugcLine.hero}
+          className="mb-7 rounded-2xl border border-white/10"
+        />
+
         {/* Tab bar */}
         <div className="flex gap-2 mb-7">
           {[
@@ -490,13 +510,12 @@ function ContentLine() {
               </div>
 
               {briefs.length === 0 ? (
-                <div className="border border-dashed border-white/10 rounded-xl py-16 text-center">
-                  <div className="text-xl text-white/10 mb-3">▢</div>
-                  <p className="text-[13px] text-white/30">
-                    Set your brief and generate a batch.<br />
-                    Each brief is a distinct hook in a coordinated arc.
-                  </p>
-                </div>
+                <OutputGallery
+                  items={DEMO_ASSETS.ugcLine.gallery}
+                  kicker="The finished brief"
+                  title="Angles are built to look distinct."
+                  subtitle="Choose a product and audience to begin your own coordinated arc."
+                />
               ) : (
                 <div className="space-y-3">
                   {briefs.map((brief, i) => (
