@@ -392,15 +392,19 @@ function RootComponent() {
     // feature-visibility provider is NOT chrome: the route's FeatureGuard reads
     // its server-verified admin verdict, and without the provider the guard
     // sits on the unloaded default context forever — blank for admins and
-    // non-admins alike, never rendering and never redirecting.
+    // non-admins alike, never rendering and never redirecting. The error
+    // boundary wraps this branch too: a crash inside the isolated tree must
+    // not escape the app's recovery UI.
     return (
-      <QueryClientProvider client={queryClient}>
-        <FeatureVisibilityProvider>
-          <Outlet />
-          <Toaster />
-          <CookieConsentBanner />
-        </FeatureVisibilityProvider>
-      </QueryClientProvider>
+      <ErrorBoundary>
+        <QueryClientProvider client={queryClient}>
+          <FeatureVisibilityProvider>
+            <Outlet />
+            <Toaster />
+            <CookieConsentBanner />
+          </FeatureVisibilityProvider>
+        </QueryClientProvider>
+      </ErrorBoundary>
     );
   }
 
