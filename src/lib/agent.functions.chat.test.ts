@@ -32,7 +32,12 @@ function chatContext() {
   const memory = {
     select: () => memory,
     eq: () => memory,
-    maybeSingle: async () => ({ data: { memory: "I make moody performance videos.", structured_memory: null } }),
+    maybeSingle: async () => ({
+      data: {
+        memory: "I make moody performance videos.",
+        structured_memory: { recurring_characters: ["Nova"] },
+      },
+    }),
   };
   const history = {
     select: () => history,
@@ -154,6 +159,7 @@ describe("Aurora chat router integration", () => {
 
     const result = await chatWithAuroraAgentCore(context, {
       message: "Help me shape a cinematic music video treatment.",
+      memory: "Brand voice: luxurious, restrained, and intimate.",
     });
 
     expect(result).toEqual({
@@ -163,6 +169,12 @@ describe("Aurora chat router integration", () => {
       skillInvoked: null,
     });
     expect(generated).toHaveBeenCalled();
+    const firstRequest = generated.mock.calls[0]?.[0] as { system?: string } | undefined;
+    expect(firstRequest?.system).toContain("DIRECTOR MEMORY — USER-SUPPLIED CREATIVE CONTEXT");
+    expect(firstRequest?.system).toContain("Brand voice: luxurious, restrained, and intimate.");
+    expect(firstRequest?.system).toContain("STRUCTURED BRAND PROFILE");
+    expect(firstRequest?.system).toContain("Nova");
+    expect(firstRequest?.system).not.toContain("I make moody performance videos.");
     expect(inserts).toHaveLength(1);
     expect(inserts[0]).toEqual([
       { user_id: "test-user", role: "user", content: "Help me shape a cinematic music video treatment." },

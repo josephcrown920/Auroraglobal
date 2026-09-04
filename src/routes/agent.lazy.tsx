@@ -1012,7 +1012,13 @@ function AgentPage() {
     setIsLoading(true);
 
     try {
-      const result = await chatFn({ data: { message: fullMsg, cinematicMode: true } });
+      const result = await chatFn({
+        data: {
+          message: fullMsg,
+          cinematicMode: true,
+          memory: directorMemory,
+        },
+      });
       setMessages((prev) => [
         ...prev,
         {
@@ -1436,8 +1442,14 @@ function AgentPage() {
                 <Send className="size-4" />
               </button>
             </div>
-            <div className="mt-1.5 flex items-center justify-between text-xs font-bold uppercase tracking-[0.15em] text-ink-dim">
+            <div className="mt-1.5 flex flex-wrap items-center justify-between gap-2 text-xs font-bold uppercase tracking-[0.15em] text-ink-dim">
               <span>{inspector.focalLength}mm · {inspector.aperture} · {inspector.filmStock.split(" ")[0]} · {inspector.aspect} · → {inspector.targetModel}</span>
+              {directorMemory.trim() && (
+                <span className="inline-flex items-center gap-1 text-prime" title="Director Memory will guide Aurora's reply">
+                  <Brain className="size-3" aria-hidden="true" />
+                  Memory active
+                </span>
+              )}
               <span>Enter to send · Shift+Enter for newline</span>
             </div>
           </div>
