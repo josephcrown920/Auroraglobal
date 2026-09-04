@@ -1,0 +1,73 @@
+-- Only creates tables that don't exist — touches nothing else in your DB
+
+create table if not exists public.projects (
+  id              uuid primary key default gen_random_uuid(),
+  client_id       text not null,
+  title           text,
+  status          text not null default 'draft',
+  provider        text,
+  selected_model  text,
+  output_path     text,
+  enhanced_prompt text,
+  scene_prompt    text,
+  style_prompt    text,
+  error_message   text,
+  created_at      timestamptz not null default now(),
+  updated_at      timestamptz not null default now()
+);
+
+create table if not exists public.project_assets (
+  id           uuid primary key default gen_random_uuid(),
+  project_id   uuid not null references public.projects (id) on delete cascade,
+  client_id    text,
+  kind         text not null,
+  storage_path text not null,
+  mime_type    text,
+  created_at   timestamptz not null default now()
+);
+
+create table if not exists public.project_renders (
+  id               uuid primary key default gen_random_uuid(),
+  project_id       uuid not null references public.projects (id) on delete cascade,
+  client_id        text,
+  provider         text,
+  status           text not null default 'queued',
+  prompt           text,
+  output_path      text,
+  provider_task_id text,
+  error_message    text,
+  created_at       timestamptz not null default now(),
+  updated_at       timestamptz not null default now()
+);
+
+-- Storage buckets (skips if already exist)
+insert into storage.buckets (id, name, public) values ('uploads', 'uploads', false)
+  on conflict (id) do nothing;
+insert into storage.buckets (id, name, public) values ('renders', 'renders', false)
+  on conflict (id) do nothing;
+
+-- RLS: allow app to read/write its own tables
+alter table public.projects      enable row level security;
+alter table public.project_assets enable row level security;
+alter table public.project_renders enable row level security;
+
+drop policy if exists anon_all_projects       on public.projects;
+drop policy if exists anon_all_project_assets on public.project_assets;
+drop policy if exists anon_all_project_renders on public.project_renders;
+
+create policy anon_all_projects       on public.projects       for all to anon, authenticated using (true) with check (true);
+create policy anon_all_project_assets on public.project_assets  for all to anon, authenticated using (true) with check (true);
+create policy anon_all_project_renders on public.project_renders for all to anon, authenticated using (true) with check (true);
+
+-- Storage access
+drop policy if exists anon_storage_uploads_renders on storage.objects;
+create policy anon_storage_uploads_renders on storage.objects
+  for all to anon, authenticated
+  using  (bucket_id in ('uploads', 'renders'))
+  with check (bucket_id in ('uploads', 'renders'));
+
+-- Verify — expect 3 rows
+select table_name from information_schema.tables
+where table_schema = 'public'
+  and table_name in ('projects', 'project_assets', 'project_renders')
+order by table_name;
