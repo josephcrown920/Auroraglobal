@@ -157,6 +157,44 @@ export function buildEvenLyricSegments(durationSeconds: number, rawLines: string
   }));
 }
 
+export type LyricBeatGate = "no-audio" | "pending" | "ready";
+
+/**
+ * Decide whether lyric-video generation may be submitted. Beat detection
+ * auto-starts as soon as a song is uploaded; while it is pending the user
+ * must NOT be able to generate, or they would silently get the even-split
+ * timing this feature replaced. Once detection settles — done (with or
+ * without usable beats) or failed — generation opens, with the even split
+ * as the explicit fallback. "idle" with an uploaded song means the analysis
+ * effect hasn't run yet, which is still pending.
+ */
+export function lyricBeatGate(opts: {
+  hasAudio: boolean;
+  beatStatus: "idle" | "analyzing" | "done" | "error";
+  analysisFailed: boolean;
+}): LyricBeatGate {
+  if (!opts.hasAudio) return "no-audio";
+  if (opts.analysisFailed) return "ready";
+  if (opts.beatStatus === "done" || opts.beatStatus === "error") return "ready";
+  return "pending";
+}
+
+/**
+ * Marker bookkeeping for the lyric auto-analysis effect's cleanup. The
+ * per-URL marker is cleared unless that URL's analysis completed — so
+ * leaving Lyric mode mid-download (or swapping songs) lets a later return
+ * re-run analysis instead of skipping it forever, while a finished analysis
+ * is reused instead of re-downloaded.
+ */
+export function lyricAnalysisMarkerAfterCleanup(
+  marker: string | null,
+  url: string,
+  beatStatus: "idle" | "analyzing" | "done" | "error",
+): string | null {
+  if (marker !== url) return marker;
+  return beatStatus === "done" ? marker : null;
+}
+
 const MIN_LINE_GAP_SECONDS = 0.4;
 
 /**

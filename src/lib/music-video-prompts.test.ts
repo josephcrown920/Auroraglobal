@@ -1,5 +1,10 @@
 import { describe, expect, it } from "bun:test";
-import { buildBeatAlignedSegments, buildEvenLyricSegments } from "./music-video-prompts";
+import {
+  buildBeatAlignedSegments,
+  buildEvenLyricSegments,
+  lyricAnalysisMarkerAfterCleanup,
+  lyricBeatGate,
+} from "./music-video-prompts";
 
 describe("buildEvenLyricSegments", () => {
   it("evenly splits lines across the full duration, in order", () => {
