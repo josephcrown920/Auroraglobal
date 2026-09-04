@@ -1,4 +1,8 @@
 import { useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
+import { useQuery } from "@tanstack/react-query";
+import { listMyWorkflows } from "@/lib/workflows.functions";
+import { AutoplayVideo } from "@/components/ui/AutoplayVideo";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Sparkles, CheckCircle2, X, Copy, Check, Eye } from "lucide-react";
@@ -135,13 +139,17 @@ const FINISHED: FinishedWorkflow[] = [
 
 export function FinishedWorkflowsGallery({
   onLoad,
+  onLoadSaved,
   directLoad = false,
 }: {
   onLoad?: (id: string) => void;
+  onLoadSaved?: (id: string, shouldRun: boolean) => void;
   directLoad?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState<FinishedWorkflow | null>(null);
+  const listMyFn = useServerFn(listMyWorkflows);
+  const saved = useQuery({ queryKey: ["workflows", "mine"], queryFn: () => listMyFn({}), enabled: open });
 
   const loadWorkflow = (wf: FinishedWorkflow) => {
     onLoad?.(wf.id);
@@ -243,7 +251,32 @@ export function FinishedWorkflowsGallery({
             </div>
           </div>
         ) : (
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mt-2 max-h-[70vh] overflow-y-auto pr-1">
+          <div className="mt-2 max-h-[70vh] overflow-y-auto pr-1 space-y-6">
+            <section aria-label="Saved pipelines">
+              <h3 className="mb-2 text-xs font-semibold uppercase tracking-widest text-violet-200">Your saved pipelines</h3>
+              {(saved.data?.workflows ?? []).length > 0 ? <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                {saved.data!.workflows.map((workflow) => {
+                  const output = workflow.thumbnail_url ?? workflow.last_output_url;
+                  return <div key={workflow.id} className="overflow-hidden rounded-xl border border-violet-400/30 bg-black/40">
+                    <div className="aspect-[4/5] bg-violet-950/30">
+                      {output ? workflow.last_output_kind === "video"
+                        ? <AutoplayVideo src={output} className="h-full w-full object-cover" muted autoPlay playsInline preload="metadata" />
+                        : <img src={output} alt={`${workflow.name} output`} className="h-full w-full object-cover" loading="lazy" />
+                        : <SavedGraphPreview graph={workflow.graph} />}
+                    </div>
+                    <div className="p-2"><p className="truncate text-sm font-semibold">{workflow.name}</p>
+                      <p className="line-clamp-2 text-[10px] text-white/55">{workflow.description || "Saved Canvas pipeline"}</p>
+                      <Button size="sm" className="mt-2 w-full bg-gradient-to-r from-violet-600 to-purple-500" onClick={() => { onLoadSaved?.(workflow.id, true); setOpen(false); }}>
+                        Load &amp; Run
+                      </Button>
+                    </div>
+                  </div>;
+                })}
+              </div> : <p className="rounded-lg border border-dashed border-white/15 p-4 text-xs text-white/50">No saved pipelines yet. Save one from the Canvas menu.</p>}
+            </section>
+            <section>
+            <h3 className="mb-2 text-xs font-semibold uppercase tracking-widest text-emerald-300">Curated finished recipes</h3>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
             {FINISHED.map((wf) => (
               <div
                 key={wf.id}
@@ -273,10 +306,19 @@ export function FinishedWorkflowsGallery({
               </div>
             ))}
           </div>
+          </section>
+          </div>
         )}
       </DialogContent>
     </Dialog>
   );
+}
+
+function SavedGraphPreview({ graph }: { graph: unknown }) {
+  const nodes = (graph as { nodes?: { id: string; position?: { x: number; y: number } }[] })?.nodes ?? [];
+  return <svg viewBox="0 0 120 80" aria-label="Saved pipeline graph preview" className="h-full w-full">
+    {nodes.map((node, index) => <circle key={node.id} cx={15 + (node.position?.x ?? index * 80) / 10} cy={20 + (node.position?.y ?? (index % 2) * 50) / 10} r="6" fill="oklch(0.58 0.22 295)" stroke="white" strokeOpacity=".5" />)}
+  </svg>;
 }
 
 function Stat({ label, value }: { label: string; value: string }) {

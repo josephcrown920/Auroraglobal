@@ -3541,7 +3541,10 @@ export type Database = {
           graph: Json
           id: string
           is_public: boolean
+          last_output_kind: string | null
+          last_output_url: string | null
           name: string
+          thumbnail_url: string | null
           updated_at: string
           user_id: string
         }
@@ -3551,7 +3554,10 @@ export type Database = {
           graph?: Json
           id?: string
           is_public?: boolean
+          last_output_kind?: string | null
+          last_output_url?: string | null
           name: string
+          thumbnail_url?: string | null
           updated_at?: string
           user_id: string
         }
@@ -3561,7 +3567,10 @@ export type Database = {
           graph?: Json
           id?: string
           is_public?: boolean
+          last_output_kind?: string | null
+          last_output_url?: string | null
           name?: string
+          thumbnail_url?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -3725,6 +3734,10 @@ export type Database = {
           _user_id: string
         }
         Returns: string
+      }
+      get_daily_spend: {
+        Args: { _day_start: string; _user: string }
+        Returns: number
       }
       gpu_worker_inflight_dec: { Args: { _worker: string }; Returns: number }
       gpu_worker_inflight_inc: { Args: { _worker: string }; Returns: number }
