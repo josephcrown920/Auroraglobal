@@ -87,6 +87,7 @@ last_pro_entitlement=0
 last_vast=0
 last_ghsync=0
 last_grant_day=""
+last_promotion_day=""
 
 while true; do
   now=$(date +%s)
@@ -223,6 +224,24 @@ while true; do
       last_grant_day=$today
     else
       echo "[$ts][daily-grant] WARN — $resp (rc=$rc)"
+    fi
+  fi
+
+  # Promotion Hub stats refresh (once per UTC calendar day) — re-fetches every
+  # linked platform + stats-capable TikTok account into daily snapshot rows.
+  # Idempotent (one row per user×platform×day), so retry on failure next tick.
+  if [ "$today" != "$last_promotion_day" ]; then
+    resp=$(curl -sf "$APP/api/public/promotion/sync" \
+      -X POST \
+      -H "apikey: $APIKEY" \
+      -H "content-type: application/json" \
+      --max-time 240 2>&1) && rc=0 || rc=$?
+    ts=$(date -u +"%H:%M:%S")
+    if [ $rc -eq 0 ]; then
+      echo "[$ts][promotion-sync] OK — $resp"
+      last_promotion_day=$today
+    else
+      echo "[$ts][promotion-sync] WARN — $resp (rc=$rc)"
     fi
   fi
 

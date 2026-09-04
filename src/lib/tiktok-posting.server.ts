@@ -38,7 +38,10 @@ const TIKTOK_USER_URL = "https://open.tiktokapis.com/v2/user/info/?fields=open_i
 const TIKTOK_POST_URL = "https://open.tiktokapis.com/v2/post/publish/video/upload/";
 const TIKTOK_STATUS_URL = "https://open.tiktokapis.com/v2/post/publish/status/fetch/";
 
-const SCOPES = "user.info.basic,video.upload,video.publish";
+// Posting scopes + Display API scopes for the Promotion hub stats cards.
+// Accounts connected before the Display scopes were added keep posting but
+// get a "reconnect for stats" flag until they re-authorize.
+const SCOPES = "user.info.basic,user.info.stats,video.upload,video.publish,video.list";
 
 export function tiktokConfigured(): boolean {
   return !!(process.env.TIKTOK_CLIENT_KEY && process.env.TIKTOK_CLIENT_SECRET);
@@ -52,10 +55,14 @@ export function buildTiktokRedirectUri(origin: string): string {
 export async function initiateTiktokOAuth(
   userId: string,
   origin: string,
+  returnTo?: string,
 ): Promise<string> {
   if (!tiktokConfigured()) throw new Error("TikTok integration is not configured on this server.");
   const state = crypto.randomUUID();
   const redirectUri = buildTiktokRedirectUri(origin);
+  // Only the two in-app pages that start a connect flow; anything else (or
+  // absent) lands back on Settings like before.
+  const safeReturnTo = returnTo === "/promotion" ? "/promotion" : "/settings";
 
   // Check if there is already a connected (non-pending) account.
   // If so, only update the oauth_state fields — preserve existing tokens so a
@@ -74,6 +81,7 @@ export async function initiateTiktokOAuth(
       .update({
         oauth_state: state,
         oauth_state_at: new Date().toISOString(),
+        oauth_return_to: safeReturnTo,
       })
       .eq("user_id", userId);
   } else {
@@ -89,6 +97,7 @@ export async function initiateTiktokOAuth(
           refresh_expires_at: new Date(Date.now() + 10 * 60_000).toISOString(),
           oauth_state: state,
           oauth_state_at: new Date().toISOString(),
+          oauth_return_to: safeReturnTo,
         },
         { onConflict: "user_id" },
       );
@@ -109,19 +118,23 @@ export async function exchangeTiktokCode(
   code: string,
   state: string,
   origin: string,
-): Promise<{ userId: string; displayName: string | null }> {
+): Promise<{ userId: string; displayName: string | null; returnTo: string }> {
   if (!tiktokConfigured()) throw new Error("TikTok integration is not configured.");
 
   // Find the pending row by state.
   const { data: pending } = await tiktokAccounts()
-    .select("user_id, oauth_state_at")
+    .select("user_id, oauth_state_at, oauth_return_to")
     .eq("oauth_state", state)
     .maybeSingle();
 
   if (!pending) throw new Error("Invalid or expired OAuth state.");
 
   // State is valid for 10 minutes.
-  const p = pending as { user_id: string; oauth_state_at: string };
+  const p = pending as {
+    user_id: string;
+    oauth_state_at: string;
+    oauth_return_to: string | null;
+  };
   const stateAge = Date.now() - new Date(p.oauth_state_at).getTime();
   if (stateAge > 10 * 60_000) throw new Error("OAuth state has expired. Please try connecting again.");
 
@@ -191,10 +204,15 @@ export async function exchangeTiktokCode(
       scope,
       oauth_state: null,
       oauth_state_at: null,
+      oauth_return_to: null,
     })
     .eq("user_id", userId);
 
-  return { userId, displayName };
+  return {
+    userId,
+    displayName,
+    returnTo: p.oauth_return_to === "/promotion" ? "/promotion" : "/settings",
+  };
 }
 
 /** Refresh the access token if it expires within the next 5 minutes. */

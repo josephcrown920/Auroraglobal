@@ -42,6 +42,9 @@ export const getMyTiktokAccount = createServerFn({ method: "GET" })
       scope: string | null;
     };
     const sessionExpired = new Date(d.refresh_expires_at).getTime() < Date.now();
+    const granted = new Set((d.scope ?? "").split(/[,\s]+/).filter(Boolean));
+    const hasStatsScopes =
+      granted.has("user.info.stats") && granted.has("video.list");
     return {
       connected: true as const,
       openId: d.open_id,
@@ -50,13 +53,19 @@ export const getMyTiktokAccount = createServerFn({ method: "GET" })
       avatarUrl: d.avatar_url,
       scope: d.scope,
       sessionExpired,
+      hasStatsScopes,
     };
   });
 
-/** Returns the TikTok OAuth authorization URL to redirect the user to. */
+/** Returns the TikTok OAuth authorization URL to redirect the user to.
+ *  `returnTo` ("/settings" | "/promotion") decides where the callback lands. */
 export const initTiktokConnect = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
+  .inputValidator((data: unknown) => {
+    const d = (data ?? {}) as { returnTo?: unknown };
+    return { returnTo: d.returnTo === "/promotion" ? "/promotion" : "/settings" };
+  })
+  .handler(async ({ context, data }) => {
     if (!tiktokConfigured()) {
       throw new Error(
         "TikTok integration is not enabled on this server. The owner needs to add TIKTOK_CLIENT_KEY and TIKTOK_CLIENT_SECRET in the secrets panel.",
@@ -64,7 +73,7 @@ export const initTiktokConnect = createServerFn({ method: "POST" })
     }
     const { userId } = context;
     const origin = getOrigin();
-    const authUrl = await initiateTiktokOAuth(userId, origin);
+    const authUrl = await initiateTiktokOAuth(userId, origin, data.returnTo);
     return { authUrl };
   });
 

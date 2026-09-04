@@ -27,6 +27,7 @@ import {
   UserRound,
   Radio,
   Star,
+  BarChart3,
   type LucideIcon,
 } from "lucide-react";
 
@@ -93,6 +94,11 @@ const STUDIO_FEATURES: Feature[] = [
 const MUSIC_FEATURES: Feature[] = [
   { to: "/music-video", label: "Lyric Video", icon: Film,   previewImg: "/nav-previews/music-video.jpg" },
   { to: "/puremix",     label: "PureMix",     icon: Music2, previewImg: "/nav-previews/music-video.jpg", badge: "New" },
+];
+
+// ── Promotion — artist stats across streaming/social platforms ────────────
+const PROMOTION_FEATURES: Feature[] = [
+  { to: "/promotion", label: "Promotion Hub", icon: BarChart3, badge: "New" },
 ];
 
 // ── More — everything else that's live ────────────────────────────────────
@@ -362,6 +368,12 @@ export function MobileNav() {
             ))}
           </NavSection>
 
+          <NavSection label="Promotion">
+            {PROMOTION_FEATURES.map((f) => (
+              <LiveNavItem key={f.to} f={f} active={isActive(pathname, f.to)} onClick={() => {}} hiddenBadge={gatedBadge(f)} />
+            ))}
+          </NavSection>
+
           {visible(CONTENT_FEATURES).length > 0 && (
             <NavSection label="Content">
               {visible(CONTENT_FEATURES).map((f) => (
@@ -551,6 +563,12 @@ export function MobileNav() {
             <NavSection label="Music & Audio">
               {MUSIC_FEATURES.map((f) => (
                 <LiveNavItem key={f.to} f={f} active={isActive(pathname, f.to)} onClick={() => setOpen(false)} />
+              ))}
+            </NavSection>
+
+            <NavSection label="Promotion">
+              {PROMOTION_FEATURES.map((f) => (
+                <LiveNavItem key={f.to} f={f} active={isActive(pathname, f.to)} onClick={() => setOpen(false)} hiddenBadge={gatedBadge(f)} />
               ))}
             </NavSection>
 

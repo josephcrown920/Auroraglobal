@@ -1,5 +1,6 @@
 // TikTok OAuth callback — receives the authorization code from TikTok and
-// exchanges it for an access token, then redirects the user to /settings?tiktok=connected.
+// exchanges it for an access token, then redirects back to where the flow
+// began (/settings or /promotion) with a ?tiktok= status param.
 import { createFileRoute } from "@tanstack/react-router";
 import { exchangeTiktokCode } from "@/lib/tiktok-posting.server";
 
@@ -12,36 +13,28 @@ export const Route = createFileRoute("/api/public/tiktok/callback")({
         const state = url.searchParams.get("state");
         const errorParam = url.searchParams.get("error");
 
-        // TikTok sends error=access_denied when user cancels.
-        if (errorParam) {
-          return Response.redirect(
-            new URL("/settings?tiktok=cancelled", url.origin).href,
-            302,
-          );
-        }
+        // Default landing is Settings; a Promotion-started flow flips this.
+        const target = (base: string, params: string) =>
+          Response.redirect(new URL(`${base}${params}`, url.origin).href, 302);
 
-        if (!code || !state) {
-          return Response.redirect(
-            new URL("/settings?tiktok=error&msg=missing_params", url.origin).href,
-            302,
-          );
+        if (errorParam || !code || !state) {
+          const params = errorParam
+            ? "?tiktok=cancelled"
+            : "?tiktok=error&msg=missing_params";
+          // On cancel we don't know the origin page without a state lookup;
+          // Settings is the historical default.
+          return target("/settings", params);
         }
 
         try {
           const origin = `${url.protocol}//${url.host}`;
-          await exchangeTiktokCode(code, state, origin);
-          return Response.redirect(
-            new URL("/settings?tiktok=connected", url.origin).href,
-            302,
-          );
+          const { returnTo } = await exchangeTiktokCode(code, state, origin);
+          return target(returnTo, "?tiktok=connected");
         } catch (e) {
           const msg = encodeURIComponent(
             e instanceof Error ? e.message.slice(0, 120) : "unknown_error",
           );
-          return Response.redirect(
-            new URL(`/settings?tiktok=error&msg=${msg}`, url.origin).href,
-            302,
-          );
+          return target("/settings", `?tiktok=error&msg=${msg}`);
         }
       },
     },

@@ -57,6 +57,7 @@ import { Route as PartnersRouteImport } from './routes/partners'
 import { Route as PerformRouteImport } from './routes/perform'
 import { Route as PhotoEditRouteImport } from './routes/photo-edit'
 import { Route as PrivacyRouteImport } from './routes/privacy'
+import { Route as PromotionRouteImport } from './routes/promotion'
 import { Route as PuremixRouteImport } from './routes/puremix'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as ReshootRouteImport } from './routes/reshoot'
@@ -163,6 +164,7 @@ import { Route as ApiPublicGpuRegisterRouteImport } from './routes/api/public/gp
 import { Route as ApiPublicJobsTickRouteImport } from './routes/api/public/jobs/tick'
 import { Route as ApiPublicPaymentsSweepStuckRouteImport } from './routes/api/public/payments/sweep-stuck'
 import { Route as ApiPublicProAccessReconcileRouteImport } from './routes/api/public/pro-access/reconcile'
+import { Route as ApiPublicPromotionSyncRouteImport } from './routes/api/public/promotion/sync'
 import { Route as ApiPublicTiktokCallbackRouteImport } from './routes/api/public/tiktok/callback'
 import { Route as ApiPublicVastExpireRouteImport } from './routes/api/public/vast/expire'
 import { Route as ApiPublicWorkersHealthRouteImport } from './routes/api/public/workers/health'
@@ -421,6 +423,11 @@ const PrivacyRoute = PrivacyRouteImport.update({
   path: '/privacy',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PromotionRoute = PromotionRouteImport.update({
+  id: '/promotion',
+  path: '/promotion',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/promotion.lazy').then((d) => d.Route))
 const PuremixRoute = PuremixRouteImport.update({
   id: '/puremix',
   path: '/puremix',
@@ -999,6 +1006,11 @@ const ApiPublicProAccessReconcileRoute =
     path: '/api/public/pro-access/reconcile',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicPromotionSyncRoute = ApiPublicPromotionSyncRouteImport.update({
+  id: '/api/public/promotion/sync',
+  path: '/api/public/promotion/sync',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicTiktokCallbackRoute = ApiPublicTiktokCallbackRouteImport.update({
   id: '/api/public/tiktok/callback',
   path: '/api/public/tiktok/callback',
@@ -1101,6 +1113,7 @@ export interface FileRoutesByFullPath {
   '/perform': typeof PerformRoute
   '/photo-edit': typeof PhotoEditRoute
   '/privacy': typeof PrivacyRoute
+  '/promotion': typeof PromotionRoute
   '/puremix': typeof PuremixRoute
   '/reset-password': typeof ResetPasswordRoute
   '/reshoot': typeof ReshootRoute
@@ -1210,6 +1223,7 @@ export interface FileRoutesByFullPath {
   '/api/public/jobs/tick': typeof ApiPublicJobsTickRoute
   '/api/public/payments/sweep-stuck': typeof ApiPublicPaymentsSweepStuckRoute
   '/api/public/pro-access/reconcile': typeof ApiPublicProAccessReconcileRoute
+  '/api/public/promotion/sync': typeof ApiPublicPromotionSyncRoute
   '/api/public/tiktok/callback': typeof ApiPublicTiktokCallbackRoute
   '/api/public/vast/expire': typeof ApiPublicVastExpireRoute
   '/api/public/workers/health': typeof ApiPublicWorkersHealthRoute
@@ -1267,6 +1281,7 @@ export interface FileRoutesByTo {
   '/perform': typeof PerformRoute
   '/photo-edit': typeof PhotoEditRoute
   '/privacy': typeof PrivacyRoute
+  '/promotion': typeof PromotionRoute
   '/puremix': typeof PuremixRoute
   '/reset-password': typeof ResetPasswordRoute
   '/reshoot': typeof ReshootRoute
@@ -1376,6 +1391,7 @@ export interface FileRoutesByTo {
   '/api/public/jobs/tick': typeof ApiPublicJobsTickRoute
   '/api/public/payments/sweep-stuck': typeof ApiPublicPaymentsSweepStuckRoute
   '/api/public/pro-access/reconcile': typeof ApiPublicProAccessReconcileRoute
+  '/api/public/promotion/sync': typeof ApiPublicPromotionSyncRoute
   '/api/public/tiktok/callback': typeof ApiPublicTiktokCallbackRoute
   '/api/public/vast/expire': typeof ApiPublicVastExpireRoute
   '/api/public/workers/health': typeof ApiPublicWorkersHealthRoute
@@ -1435,6 +1451,7 @@ export interface FileRoutesById {
   '/perform': typeof PerformRoute
   '/photo-edit': typeof PhotoEditRoute
   '/privacy': typeof PrivacyRoute
+  '/promotion': typeof PromotionRoute
   '/puremix': typeof PuremixRoute
   '/reset-password': typeof ResetPasswordRoute
   '/reshoot': typeof ReshootRoute
@@ -1544,6 +1561,7 @@ export interface FileRoutesById {
   '/api/public/jobs/tick': typeof ApiPublicJobsTickRoute
   '/api/public/payments/sweep-stuck': typeof ApiPublicPaymentsSweepStuckRoute
   '/api/public/pro-access/reconcile': typeof ApiPublicProAccessReconcileRoute
+  '/api/public/promotion/sync': typeof ApiPublicPromotionSyncRoute
   '/api/public/tiktok/callback': typeof ApiPublicTiktokCallbackRoute
   '/api/public/vast/expire': typeof ApiPublicVastExpireRoute
   '/api/public/workers/health': typeof ApiPublicWorkersHealthRoute
@@ -1604,6 +1622,7 @@ export interface FileRouteTypes {
     | '/perform'
     | '/photo-edit'
     | '/privacy'
+    | '/promotion'
     | '/puremix'
     | '/reset-password'
     | '/reshoot'
@@ -1713,6 +1732,7 @@ export interface FileRouteTypes {
     | '/api/public/jobs/tick'
     | '/api/public/payments/sweep-stuck'
     | '/api/public/pro-access/reconcile'
+    | '/api/public/promotion/sync'
     | '/api/public/tiktok/callback'
     | '/api/public/vast/expire'
     | '/api/public/workers/health'
@@ -1770,6 +1790,7 @@ export interface FileRouteTypes {
     | '/perform'
     | '/photo-edit'
     | '/privacy'
+    | '/promotion'
     | '/puremix'
     | '/reset-password'
     | '/reshoot'
@@ -1879,6 +1900,7 @@ export interface FileRouteTypes {
     | '/api/public/jobs/tick'
     | '/api/public/payments/sweep-stuck'
     | '/api/public/pro-access/reconcile'
+    | '/api/public/promotion/sync'
     | '/api/public/tiktok/callback'
     | '/api/public/vast/expire'
     | '/api/public/workers/health'
@@ -1937,6 +1959,7 @@ export interface FileRouteTypes {
     | '/perform'
     | '/photo-edit'
     | '/privacy'
+    | '/promotion'
     | '/puremix'
     | '/reset-password'
     | '/reshoot'
@@ -2046,6 +2069,7 @@ export interface FileRouteTypes {
     | '/api/public/jobs/tick'
     | '/api/public/payments/sweep-stuck'
     | '/api/public/pro-access/reconcile'
+    | '/api/public/promotion/sync'
     | '/api/public/tiktok/callback'
     | '/api/public/vast/expire'
     | '/api/public/workers/health'
@@ -2105,6 +2129,7 @@ export interface RootRouteChildren {
   PerformRoute: typeof PerformRoute
   PhotoEditRoute: typeof PhotoEditRoute
   PrivacyRoute: typeof PrivacyRoute
+  PromotionRoute: typeof PromotionRoute
   PuremixRoute: typeof PuremixRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   ReshootRoute: typeof ReshootRoute
@@ -2193,6 +2218,7 @@ export interface RootRouteChildren {
   ApiPublicJobsTickRoute: typeof ApiPublicJobsTickRoute
   ApiPublicPaymentsSweepStuckRoute: typeof ApiPublicPaymentsSweepStuckRoute
   ApiPublicProAccessReconcileRoute: typeof ApiPublicProAccessReconcileRoute
+  ApiPublicPromotionSyncRoute: typeof ApiPublicPromotionSyncRoute
   ApiPublicTiktokCallbackRoute: typeof ApiPublicTiktokCallbackRoute
   ApiPublicVastExpireRoute: typeof ApiPublicVastExpireRoute
   ApiPublicWorkersHealthRoute: typeof ApiPublicWorkersHealthRoute
@@ -2533,6 +2559,13 @@ declare module '@tanstack/react-router' {
       path: '/privacy'
       fullPath: '/privacy'
       preLoaderRoute: typeof PrivacyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/promotion': {
+      id: '/promotion'
+      path: '/promotion'
+      fullPath: '/promotion'
+      preLoaderRoute: typeof PromotionRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/puremix': {
@@ -3291,6 +3324,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicProAccessReconcileRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/promotion/sync': {
+      id: '/api/public/promotion/sync'
+      path: '/api/public/promotion/sync'
+      fullPath: '/api/public/promotion/sync'
+      preLoaderRoute: typeof ApiPublicPromotionSyncRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/tiktok/callback': {
       id: '/api/public/tiktok/callback'
       path: '/api/public/tiktok/callback'
@@ -3491,6 +3531,7 @@ const rootRouteChildren: RootRouteChildren = {
   PerformRoute: PerformRoute,
   PhotoEditRoute: PhotoEditRoute,
   PrivacyRoute: PrivacyRoute,
+  PromotionRoute: PromotionRoute,
   PuremixRoute: PuremixRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   ReshootRoute: ReshootRoute,
@@ -3579,6 +3620,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicJobsTickRoute: ApiPublicJobsTickRoute,
   ApiPublicPaymentsSweepStuckRoute: ApiPublicPaymentsSweepStuckRoute,
   ApiPublicProAccessReconcileRoute: ApiPublicProAccessReconcileRoute,
+  ApiPublicPromotionSyncRoute: ApiPublicPromotionSyncRoute,
   ApiPublicTiktokCallbackRoute: ApiPublicTiktokCallbackRoute,
   ApiPublicVastExpireRoute: ApiPublicVastExpireRoute,
   ApiPublicWorkersHealthRoute: ApiPublicWorkersHealthRoute,

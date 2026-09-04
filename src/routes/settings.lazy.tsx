@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ArrowLeft, CheckCircle2, Clock, ExternalLink, Fingerprint, Loader2, LogOut, Music2, Plus, RefreshCw, RotateCcw, Shield, Trash2, UserCircle2, X } from "lucide-react";
+import { ArrowLeft, BarChart3, CheckCircle2, Clock, ExternalLink, Fingerprint, Loader2, LogOut, Music2, Plus, RefreshCw, RotateCcw, Shield, Trash2, UserCircle2, X } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useBiometricSupport } from "@/hooks/use-biometric-support";
 import { getMyTiktokAccount, initTiktokConnect, disconnectTiktok, listMyTiktokPosts, pollTiktokPostStatus, retryTiktokPost } from "@/lib/tiktok-posting.functions";
@@ -352,6 +352,13 @@ function SettingsPage() {
                 review them on TikTok before publishing. You can change the privacy setting there before posting to your
                 followers.
               </p>
+
+              <Link
+                to="/promotion"
+                className="inline-flex items-center gap-1.5 text-xs font-medium text-[#25F4EE] hover:text-[#25F4EE]/80"
+              >
+                <BarChart3 className="size-3.5" /> See your TikTok stats in Promotion →
+              </Link>
 
               <div className="flex gap-2">
                 {tiktok.sessionExpired && (

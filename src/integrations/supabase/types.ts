@@ -360,6 +360,84 @@ export type Database = {
         }
         Relationships: []
       }
+      artist_platform_links: {
+        Row: {
+          created_at: string
+          detail: Json
+          display_name: string | null
+          external_id: string | null
+          id: string
+          image_url: string | null
+          last_error: string | null
+          last_synced_at: string | null
+          platform: string
+          profile_url: string
+          sweep_seq: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          detail?: Json
+          display_name?: string | null
+          external_id?: string | null
+          id?: string
+          image_url?: string | null
+          last_error?: string | null
+          last_synced_at?: string | null
+          platform: string
+          profile_url: string
+          sweep_seq?: never
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          detail?: Json
+          display_name?: string | null
+          external_id?: string | null
+          id?: string
+          image_url?: string | null
+          last_error?: string | null
+          last_synced_at?: string | null
+          platform?: string
+          profile_url?: string
+          sweep_seq?: never
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      artist_platform_snapshots: {
+        Row: {
+          created_at: string
+          day: string
+          id: string
+          metrics: Json
+          platform: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          day: string
+          id?: string
+          metrics?: Json
+          platform: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          day?: string
+          id?: string
+          metrics?: Json
+          platform?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       aurora_templates: {
         Row: {
           character_variable_key: string
@@ -2317,6 +2395,57 @@ export type Database = {
         }
         Relationships: []
       }
+      promotion_sweep_state: {
+        Row: {
+          day: string
+          failed: number
+          lease_expires: string | null
+          lease_owner: string | null
+          link_cursor: number
+          links_done: boolean
+          retried_today: boolean
+          retry: Json
+          retry_overflow: number
+          skipped: number
+          synced: number
+          tiktok_cursor: string
+          tiktok_done: boolean
+          updated_at: string
+        }
+        Insert: {
+          day: string
+          failed?: number
+          lease_expires?: string | null
+          lease_owner?: string | null
+          link_cursor?: number
+          links_done?: boolean
+          retried_today?: boolean
+          retry?: Json
+          retry_overflow?: number
+          skipped?: number
+          synced?: number
+          tiktok_cursor?: string
+          tiktok_done?: boolean
+          updated_at?: string
+        }
+        Update: {
+          day?: string
+          failed?: number
+          lease_expires?: string | null
+          lease_owner?: string | null
+          link_cursor?: number
+          links_done?: boolean
+          retried_today?: boolean
+          retry?: Json
+          retry_overflow?: number
+          skipped?: number
+          synced?: number
+          tiktok_cursor?: string
+          tiktok_done?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
       provider_logs: {
         Row: {
           cost_usd: number | null
@@ -2956,6 +3085,7 @@ export type Database = {
           created_at: string
           display_name: string | null
           id: string
+          oauth_return_to: string | null
           oauth_state: string | null
           oauth_state_at: string | null
           open_id: string
@@ -2973,6 +3103,7 @@ export type Database = {
           created_at?: string
           display_name?: string | null
           id?: string
+          oauth_return_to?: string | null
           oauth_state?: string | null
           oauth_state_at?: string | null
           open_id: string
@@ -2990,6 +3121,7 @@ export type Database = {
           created_at?: string
           display_name?: string | null
           id?: string
+          oauth_return_to?: string | null
           oauth_state?: string | null
           oauth_state_at?: string | null
           open_id?: string
