@@ -185,7 +185,7 @@ function AdminPage() {
               { to: "/lipsync",          label: "Lip Sync Studio" },
               { to: "/music-video",      label: "Music Video Studio" },
               { to: "/spin",             label: "TikTok30 Factory" },
-              { to: "/admin/social-studio", label: "Social Studio" },
+              { to: "/admin/social-studio", label: "Aurora Marketing Studio" },
             ] as const).map((f) => (
               <Link
                 key={f.to}

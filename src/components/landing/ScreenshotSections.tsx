@@ -74,7 +74,7 @@ export function SupercomputerSection() {
   );
 }
 
-/* 2 ─ Marketing Studio — crimson radial */
+/* 2 ─ UGC Ads — customer-facing product advertising */
 export function MarketingStudioSection() {
   const cards = [
     { t: "Hyper Motion", d: "Pure CGI, product as hero", src: shot4 },
@@ -86,21 +86,21 @@ export function MarketingStudioSection() {
       style={{ background: "radial-gradient(circle at 50% 0%, #6b0f1f 0%, #2a0710 55%, #0a0306 100%)" }}>
       <div className="px-6 md:px-16 py-16">
         <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-white/20 bg-white/10 text-sm uppercase tracking-widest text-white/85">
-          <span className="px-1.5 py-0.5 rounded bg-white/15">New</span> Marketing Studio
+          <span className="px-1.5 py-0.5 rounded bg-white/15">New</span> UGC Ads
         </span>
         <h2 className="mt-6 text-4xl md:text-6xl font-bold tracking-tight text-white">
           ONE PROMPT, YOUR ENTIRE
           <span className="block text-white/70">CAMPAIGN</span>
         </h2>
         <p className="mt-4 text-white/70 max-w-2xl text-base md:text-lg">
-          Studio-quality UGC, product demos, and video ads. Scroll-stopping content for every channel.
+          Put your product in the hands of an AI presenter and create native-looking demos, reviews, and video ads.
         </p>
 
         <ul className="mt-6 space-y-2.5">
           {[
-            "Create your Avatar in 1 click",
-            "Add an image of your product",
-            "Generate a video",
+            "Choose an AI presenter",
+            "Describe your product and scene",
+            "Generate a talking product ad",
           ].map((t) => (
             <li key={t} className="flex items-center gap-3 text-white/90">
               <span className="size-6 rounded-full bg-white/15 flex items-center justify-center">
@@ -134,7 +134,7 @@ export function MarketingStudioSection() {
           to="/ugc"
           className="mt-10 inline-flex items-center justify-center gap-2 rounded-full bg-white px-6 py-3 text-sm font-bold text-black hover:opacity-95 no-underline"
         >
-          Open Marketing Studio <ArrowRight className="size-4" />
+          Open UGC Ads <ArrowRight className="size-4" />
         </Link>
       </div>
     </section>
