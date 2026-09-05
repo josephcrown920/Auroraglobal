@@ -165,7 +165,7 @@ const HERO_SLIDES = [
     eyebrow: "By Artists, for Artists",
     headline: "Direct Your Visual Identity.",
     sub: "The AI performance studio built by artists, for artists. Drop your references, direct the shoot in plain language, and ship studio-grade covers, promo, and cinematic performance reels — in seconds, not weeks.",
-    cta: "Start creating →",
+    cta: "Explore the studio →",
     ctaTo: "/studio",
     refPrompt: "Studio-grade artist portrait, dramatic red and blue stage lighting, cinematic film grain",
   },
@@ -461,13 +461,6 @@ function LandingPage() {
                   className="inline-flex min-h-10 items-center px-1 text-sm font-medium text-zinc-200 transition-colors hover:text-white"
                 >
                   Sign in
-                </Link>
-                <Link
-                  to="/auth"
-                  className="inline-flex min-h-9 items-center whitespace-nowrap rounded-full bg-[#8b5cf6] py-2 pl-3 pr-4 text-sm font-semibold text-white transition-transform hover:scale-[1.02] active:scale-95"
-                >
-                  <Plus className="size-4 mr-1.5 shrink-0" strokeWidth={2.5} />
-                  Start creating
                 </Link>
               </>
             )}
@@ -1015,7 +1008,7 @@ function LandingPage() {
               onClick={() => void track("hero_start_click")}
               className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold rounded-full text-white no-underline bg-[image:var(--gradient-hero)] shadow-[var(--shadow-glow-soft)] hover:brightness-110"
             >
-              <Sparkles className="size-4" /> Start creating free
+              <Sparkles className="size-4" /> Explore the studio
             </Link>
             <Link
               to="/templates"
