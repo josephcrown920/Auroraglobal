@@ -4,6 +4,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { COST_UGC_AD } from "@/lib/ugc.server";
 import { COST_PRODUCT_DEMO } from "@/lib/pricing";
+import { assertOwnedReferenceImage, assertOwnStudioUpload } from "@/lib/url-guard";
 
 /**
  * UGC ad generation — turn an avatar + scene + product into a native talking ad.
@@ -42,13 +43,22 @@ function rpcClient() {
   };
 }
 
-export const generateUGCAd = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((d: unknown) => UGCAdSchema.parse(d))
-  .handler(async ({ data, context }) => {
-    const { userId } = context;
+// Internal canonical dispatch — shared by the generateUGCAd handler AND the
+// admin smoke step so the two can never drift on the reserve/enqueue contract.
+// The character-image ownership guard lives HERE (not in the handler) so every
+// caller — server fn, smoke runner, or any future internal path — enforces it
+// BEFORE any credits are reserved, matching _enqueuePerformanceShot.
+export async function _enqueueUGCAd(
+  userId: string,
+  data: z.infer<typeof UGCAdSchema>,
+): Promise<{ jobId: string; generationId: string; status: "queued"; credits: number }> {
+  await assertOwnedReferenceImage(data.avatarImageUrl, userId);
+  // The voice track flows into provider/worker-side fetches at render time, so
+  // it gets the same SSRF + ownership discipline as the character image — the
+  // caller's own studio upload only — checked BEFORE any credits are reserved.
+  if (data.audioUrl) assertOwnStudioUpload(data.audioUrl, userId);
 
-    const payload = {
+  const payload = {
       avatarImageUrl: data.avatarImageUrl,
       avatarName: data.avatarName,
       vibe: data.vibe,
@@ -79,7 +89,15 @@ export const generateUGCAd = createServerFn({ method: "POST" })
       status: "queued" as const,
       credits: COST_UGC_AD,
     };
-  });
+}
+
+// Enqueue-only: reserves credits + creates the job/generation row atomically,
+// then returns immediately. The jobs/tick worker renders runUGCAd
+// independently of this request; the client polls getGenerationStatus.
+export const generateUGCAd = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => UGCAdSchema.parse(d))
+  .handler(async ({ data, context }) => _enqueueUGCAd(context.userId, data));
 
 const StatusSchema = z.object({ generationId: z.string().uuid() });
 
@@ -130,38 +148,44 @@ const ProductDemoSchema = z.object({
   backgroundId: z.string().max(80).optional(),
 });
 
+// Internal canonical dispatch — shared by the generateProductDemo handler AND
+// the admin smoke step so the two can never drift on the reserve/enqueue
+// contract (same convention as _enqueueUGCAd / _enqueuePerformanceShot).
+export async function _enqueueProductDemo(
+  userId: string,
+  data: z.infer<typeof ProductDemoSchema>,
+): Promise<{ jobId: string; generationId: string; status: "queued"; credits: number }> {
+  const payload = {
+    productName: data.productName,
+    features: data.features,
+    durationPresetId: data.durationPresetId,
+    audience: data.audience,
+    avatarId: data.avatarId,
+    voiceId: data.voiceId,
+    backgroundId: data.backgroundId,
+  };
+  const prompt = `Product demo: ${data.productName} (${data.features.length} feature${data.features.length === 1 ? "" : "s"})`;
+
+  const { data: rows, error } = await rpcClient().rpc("create_generation_and_reserve", {
+    _user: userId,
+    _kind: "product_demo",
+    _prompt: prompt,
+    _amount: COST_PRODUCT_DEMO,
+    _payload: payload,
+  });
+  if (error) {
+    throw new Error(/insufficient_credits/i.test(error.message) ? "Not enough Aura" : error.message);
+  }
+  const row = (Array.isArray(rows) ? rows[0] : rows) as { job_id: string; generation_id: string };
+  return {
+    jobId: row.job_id,
+    generationId: row.generation_id,
+    status: "queued" as const,
+    credits: COST_PRODUCT_DEMO,
+  };
+}
+
 export const generateProductDemo = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => ProductDemoSchema.parse(d))
-  .handler(async ({ data, context }) => {
-    const { userId } = context;
-
-    const payload = {
-      productName: data.productName,
-      features: data.features,
-      durationPresetId: data.durationPresetId,
-      audience: data.audience,
-      avatarId: data.avatarId,
-      voiceId: data.voiceId,
-      backgroundId: data.backgroundId,
-    };
-    const prompt = `Product demo: ${data.productName} (${data.features.length} feature${data.features.length === 1 ? "" : "s"})`;
-
-    const { data: rows, error } = await rpcClient().rpc("create_generation_and_reserve", {
-      _user: userId,
-      _kind: "product_demo",
-      _prompt: prompt,
-      _amount: COST_PRODUCT_DEMO,
-      _payload: payload,
-    });
-    if (error) {
-      throw new Error(/insufficient_credits/i.test(error.message) ? "Not enough Aura" : error.message);
-    }
-    const row = (Array.isArray(rows) ? rows[0] : rows) as { job_id: string; generation_id: string };
-    return {
-      jobId: row.job_id,
-      generationId: row.generation_id,
-      status: "queued" as const,
-      credits: COST_PRODUCT_DEMO,
-    };
-  });
+  .handler(async ({ data, context }) => _enqueueProductDemo(context.userId, data));

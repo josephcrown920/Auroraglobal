@@ -40,6 +40,8 @@ const STEPS = [
   "Speech TTS",
   "Perform Anywhere — Reshoot (Motion Transfer)",
   "Video Agent (HeyGen)",
+  "UGC talking ad (queued pipeline)",
+  "Product demo (queued pipeline)",
 ] as const;
 
 async function assertAdmin(userId: string) {
@@ -90,6 +92,36 @@ async function writeCheck(runId: string, step: number, name: string, result: Ste
     error: result.error ?? null,
     raw: (result.raw ?? null) as never,
   });
+}
+
+type TerminalGeneration = {
+  status: string;
+  error: string | null;
+  result_video_url: string | null;
+  result_image_url: string | null;
+};
+
+// Poll a generation row until it reaches a terminal status — the same signal
+// the /ugc page polls via getGenerationStatus (5s cadence), but through the
+// service role so the smoke runner can observe its own queued dispatches.
+// The jobs/tick worker drives the actual render independently of this loop.
+async function pollGenerationTerminal(generationId: string, budgetMs: number): Promise<TerminalGeneration> {
+  const deadline = Date.now() + budgetMs;
+  for (;;) {
+    const { data, error } = await supabaseAdmin
+      .from("generations")
+      .select("status, error, result_video_url, result_image_url")
+      .eq("id", generationId)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (data && ["succeeded", "failed", "cancelled"].includes(data.status)) return data;
+    if (Date.now() > deadline) {
+      throw new Error(
+        `generation still "${data?.status ?? "missing"}" after ${Math.round(budgetMs / 60000)}m — check the jobs queue`,
+      );
+    }
+    await new Promise((r) => setTimeout(r, 5000));
+  }
 }
 
 export const runSmokeTest = createServerFn({ method: "POST" })
@@ -735,12 +767,100 @@ export const runSmokeTest = createServerFn({ method: "POST" })
       await writeCheck(run.id, 21, STEPS[20], r21);
       total += r21.cost_usd;
 
+      // 22. UGC talking ad via the QUEUED pipeline — the exact dispatch the /ugc
+      //     "Generate talking ad" button runs: _enqueueUGCAd (ownership guard →
+      //     create_generation_and_reserve RPC, kind ugc_ad) → jobs/tick executes
+      //     runUGCAd (script → voice → xAI fast path or multi-stage → lip-sync).
+      //     Polls the generation row the same way the /ugc page does. Step 5 only
+      //     ever exercised image→video via direct orchestrate(); this one proves
+      //     the queued talking-ad path end to end.
+      const r22: StepResult = await (async (): Promise<StepResult> => {
+        if (!process.env.XAI_API_KEY) {
+          return {
+            status: "skip",
+            latency_ms: 0,
+            cost_usd: 0,
+            error: "XAI_API_KEY not configured — skipping queued talking-ad step (multi-stage fallback still runs for real users)",
+          };
+        }
+        return runStep(async () => {
+          // Stage the fixture avatar into the caller's own studio folder — the
+          // ownership guard (correctly) rejects the bare CDN selfie, exactly as
+          // it would any URL the caller doesn't own. The /ugc UI stages its
+          // bundled avatars the same way before dispatch.
+          const imgRes = await fetch(TEST_SELFIE_URL);
+          if (!imgRes.ok) throw new Error(`avatar fixture fetch failed: HTTP ${imgRes.status}`);
+          const avatarPath = `${context.userId}/smoke/ugc-avatar.jpg`;
+          const { error: upErr } = await supabaseAdmin.storage
+            .from("studio")
+            .upload(avatarPath, Buffer.from(await imgRes.arrayBuffer()), { contentType: "image/jpeg", upsert: true });
+          if (upErr) throw new Error(`avatar staging failed: ${upErr.message}`);
+          const avatarUrl = supabaseAdmin.storage.from("studio").getPublicUrl(avatarPath).data.publicUrl;
+
+          const { _enqueueUGCAd } = await import("./ugc-generation.functions");
+          const { generationId } = await _enqueueUGCAd(context.userId, {
+            avatarImageUrl: avatarUrl,
+            avatarName: "Smoke",
+            vibe: "smoke-test creator",
+            presetHint: "neutral studio backdrop, soft light",
+            presetName: "smoke preset",
+            productPrompt: "holding a glossy red lipstick label-out near the cheek",
+            aspect: "9:16",
+            duration: 8,
+          });
+          const gen = await pollGenerationTerminal(generationId, 8 * 60_000);
+          if (gen.status !== "succeeded") throw new Error(gen.error || `talking ad generation ${gen.status}`);
+          if (!gen.result_video_url) throw new Error("talking ad succeeded but produced no video URL");
+          return { url: gen.result_video_url, cost: 0, raw: { mode: "queued-ugc-ad", generationId } };
+        });
+      })();
+      await writeCheck(run.id, 22, STEPS[21], r22);
+      total += r22.cost_usd;
+
+      // 23. Product demo via the QUEUED pipeline — _enqueueProductDemo (kind
+      //     product_demo) → jobs/tick runs runProductDemo (HeyGen submit +
+      //     retry-loop poll). HeyGen "api"-pool exhaustion is a SKIP (account
+      //     state, not code) — same convention as the step-21 credit regex.
+      const r23: StepResult = await (async (): Promise<StepResult> => {
+        if (!process.env.HEYGEN_API_KEY) {
+          return {
+            status: "skip",
+            latency_ms: 0,
+            cost_usd: 0,
+            error: "HEYGEN_API_KEY not configured — skipping queued product-demo step",
+          };
+        }
+        const r = await runStep(async () => {
+          const { _enqueueProductDemo } = await import("./ugc-generation.functions");
+          const { generationId } = await _enqueueProductDemo(context.userId, {
+            productName: "Aurora Smoke Widget",
+            features: [{ name: "Instant render", description: "Turns a prompt into a finished clip" }],
+            durationPresetId: "quick",
+          });
+          const gen = await pollGenerationTerminal(generationId, 12 * 60_000);
+          if (gen.status !== "succeeded") throw new Error(gen.error || `product demo generation ${gen.status}`);
+          if (!gen.result_video_url) throw new Error("product demo succeeded but produced no video URL");
+          return { url: gen.result_video_url, cost: 0, raw: { mode: "queued-product-demo", generationId } };
+        });
+        if (r.status === "fail" && HEYGEN_CREDIT_SMOKE_RE.test(r.error ?? "")) {
+          return {
+            ...r,
+            status: "skip",
+            cost_usd: 0,
+            error: `HeyGen api credits exhausted — top up at app.heygen.com: ${(r.error ?? "").slice(0, 200)}`,
+          };
+        }
+        return r;
+      })();
+      await writeCheck(run.id, 23, STEPS[22], r23);
+      total += r23.cost_usd;
+
       await supabaseAdmin
         .from("smoke_runs")
         .update({
           finished_at: new Date().toISOString(),
           total_cost_usd: total,
-          summary: { passed: [r1, r2, r3, r4, r5, r6, r7, r8, r9, r10, r11, r12, r13, r14, r15, r16, r17, r18, r19, r20, r21].filter(r => r.status === "pass").length, total: 21 } as never,
+          summary: { passed: [r1, r2, r3, r4, r5, r6, r7, r8, r9, r10, r11, r12, r13, r14, r15, r16, r17, r18, r19, r20, r21, r22, r23].filter(r => r.status === "pass").length, total: 23 } as never,
         })
         .eq("id", run.id);
     })().catch(async (e) => {
