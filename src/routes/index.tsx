@@ -159,9 +159,24 @@ export const Route = createFileRoute("/")({
   component: LandingPage,
 });
 
-const HERO_SLIDES = [
+const HERO_SLIDES: ReadonlyArray<{
+  src: string;
+  /** Tailwind object-position class for subjects that aren't centred in the
+   *  photo — keeps them in frame when narrow viewports crop the sides. */
+  focus?: string;
+  eyebrow: string;
+  badge?: string;
+  headline: string;
+  sub: string;
+  cta: string;
+  ctaTo: string;
+  refPrompt: string;
+}> = [
   {
     src: "/hero/hero-direct-identity.png",
+    // The subject sits flush against the photo's right edge, so a centred
+    // object-cover crop on tall phone viewports slices the face in half.
+    focus: "object-right",
     eyebrow: "By Artists, for Artists",
     headline: "Direct Your Visual Identity.",
     sub: "The AI performance studio built by artists, for artists. Drop your references, direct the shoot in plain language, and ship studio-grade covers, promo, and cinematic performance reels — in seconds, not weeks.",
@@ -191,6 +206,7 @@ const HERO_SLIDES = [
   },
   {
     src: "/hero/hero-colors.png",
+    focus: "object-[70%_center]",
     eyebrow: "Colors Studio",
     badge: "★ Pro",
     headline: "One Performance. Unlimited Visual Worlds.",
@@ -201,6 +217,7 @@ const HERO_SLIDES = [
   },
   {
     src: "/hero/hero-7.png",
+    focus: "object-[75%_center]",
     eyebrow: "Press Ready",
     badge: "★ Pro",
     headline: "Look Like The Biggest Artist In Your City.",
@@ -487,8 +504,8 @@ function LandingPage() {
               width={1200}
               height={1600}
               className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-1000 ${
-                i === slideIdx ? "opacity-100" : "opacity-0"
-              }`}
+                slide.focus ?? "object-center"
+              } ${i === slideIdx ? "opacity-100" : "opacity-0"}`}
               fetchPriority={i === 0 ? "high" : "low"}
             />
           ))}

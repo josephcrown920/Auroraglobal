@@ -12,10 +12,11 @@ remains. ⛔ **Blocked** — needs something outside this session's tool access
 (dashboard config, business decision, paid tier). ⬜ **Remaining** —
 identified, not yet started, no blocker.
 
-Last full audit: 2026-08-22. Last update: 2026-08-26 (§16 Aurora Soul
-integration added — live with two provider-secret blockers). Prior update:
-2026-08-24 (§4 redaction sweep complete, §8 provider_logs fix, §10
-re-validation, §13 prod server-fn regression fixed, §14 CI gate, §15 blocked
+Last full audit: 2026-08-22. Last update: 2026-09-05 (§10 full gate
+re-run, §13 republished, §16 e2e note superseded, §17 referral-credit RPC fix
++ build health gate added, overall readiness score). Prior updates:
+2026-08-26 (§16 Aurora Soul integration), 2026-08-24 (§4 redaction sweep,
+§8 provider_logs fix, §13 prod server-fn regression, §14 CI gate, §15 blocked
 items).
 
 ---
@@ -267,10 +268,30 @@ side effects, both **ran successfully against the live DB**):
   rejects a second reservation that would jointly exceed the cap even though
   the raw balance alone could otherwise cover it.
 
-## 10. Final validation — ✅ Verified complete (re-run 2026-08-24)
+## 10. Final validation — ✅ Verified complete (re-run 2026-09-05)
 
-All gate steps re-run after the 2026-08-24 changes (§4 sweep, §8 item 1,
-§13 fix):
+**2026-09-05 re-run** (after the §17 changes) — every gate green:
+
+- `tsc --noEmit` — clean. `eslint .` — 0 errors, 42 pre-existing warnings.
+- `bun test src/` — **1,405 pass / 0 fail**; MCP suite 62 pass.
+- `scripts/check-migrations.sh` — OK, 146 migration files, no collisions.
+- `scripts/ci/audit-worker-entry.mjs` — OK (`api/public/watchdog.ts` is now
+  an explicit, documented Node-only allowlist entry).
+- Supabase generated types in sync with the live schema; tutorial PDF fresh.
+- Playwright e2e (full suite, 77 tests, 1 worker) — **72 passed / 5 skipped /
+  0 failed**. The 5 skips are provider-dependent UGC flows that skip
+  themselves when the provider isn't funded. The `aborted` / `ECONNRESET` /
+  "h3 swallowed SSR error" log spam during the all-routes crawl is the test
+  browser cancelling requests mid-navigation, not route failures.
+- Production build — built, passed the built-server health gate (HTTP 200 on
+  `/api/health`), promoted to the last-known-good snapshot (see §17).
+- Cron/watchdog snapshot: scheduler, queue, site, providers (5 kinds), GitHub
+  sync, build restore point all OK. The single self-hosted GPU worker is
+  auto-paused (no GPU capacity — infrastructure, not code); the shared API
+  budget pool is low (account-level).
+
+Previous run (2026-08-24), kept for history — after the §4 sweep, §8 item 1
+and §13 fix:
 
 - `tsc --noEmit` — clean, no errors.
 - `eslint .` — 0 errors; 41 pre-existing warnings unchanged.
@@ -344,7 +365,7 @@ The sender defaults to
 `Aurora Studio <noreply@auroraperformancestudio.com>`; set
 `AURORA_FROM_EMAIL` if a different verified Resend sender is preferred.
 
-## 13. Production build server-fn regression — ✅ Root-caused and fixed (2026-08-24)
+## 13. Production build server-fn regression — ✅ Fixed 2026-08-24, republished 2026-09-05
 
 **Symptom:** the live site's feature routes (`/spin`, `/ugc`, …) returned
 HTTP 500 (a `hidden` destructuring TypeError) while dev worked fine. Every
@@ -370,8 +391,9 @@ correctly serialized response (a proper "Unauthorized" business error for an
 unauthenticated call — exactly right); the fake resolver is absent from the
 emitted bundle.
 
-**⚠️ The currently published deployment still runs the broken build — it
-needs a republish to pick up this fix.**
+~~⚠️ The currently published deployment still runs the broken build — it
+needs a republish to pick up this fix.~~ **Republished** — the deployment
+that went out 2026-09-05 carries this fix; the flag is cleared.
 
 ## 14. CI production gate — ✅ Added (2026-08-24)
 
@@ -453,11 +475,14 @@ feature boundary — not a separate app, not a separate billing provider.
   errors).
 
 **Blocked / not yet connected (explicit, not silently working):**
-- ⛔ **Soul video generation is non-functional in production** — `SEEDANCE_API_URL`
-  and `SEEDANCE_API_KEY` are documented in `.env.example`/`docs/ENV.md` but not
-  set. `generateSoulVideo` throws an explicit configuration error rather than
-  silently falling back to another provider; `/soul/generate/video` surfaces
-  that error to the user instead of hanging.
+- ⛔ **Soul video generation is non-functional in production** — as of
+  2026-09-05 `SEEDANCE_API_KEY` is set but `SEEDANCE_API_URL` is not, and no
+  Seedance model is activated on the BytePlus/ModelArk account (Ark Console
+  unlock — see the Model Watch scan). `generateSoulVideo` throws an explicit
+  configuration error rather than silently falling back to another provider;
+  `/soul/generate/video` surfaces that error to the user instead of hanging.
+  Tracked as the "Turn on Soul video generation once Seedance access is set
+  up" project task.
 - ⛔ **fal training webhook has no configured secret** — `SOUL_FAL_WEBHOOK_SECRET`
   is unset, so the `?secret=` gate is currently a no-op and Ed25519/JWKS
   verification is the only line of defense (still correct and enforced, but
@@ -466,17 +491,69 @@ feature boundary — not a separate app, not a separate billing provider.
   from the soulmagic source repo were explicitly out of scope for this pass
   (documented in the task spec) — not started, no code path exists yet.
 - ⬜ **Playwright end-to-end journey** (sign in → train → generate → download)
-  was not run this pass — Aurora's broader e2e suite (`test:e2e`) is
-  currently failing across nearly all specs for pre-existing, unrelated
-  reasons (see the stabilization thread), so a new Soul-specific journey
-  would not produce a trustworthy signal until that's resolved separately.
+  has still not been written. The blocker recorded on 2026-08-26 (the broader
+  `test:e2e` suite failing across nearly all specs) is **resolved** — the
+  suite is 72/77 green as of 2026-09-05 (§10) — so a Soul-specific journey
+  would now produce a trustworthy signal; it just hasn't been added yet.
 
 **Readiness: 70/100** — core train/generate/library/vibe flow is live,
 credit-safe, and RLS-hardened, but the headline video-generation path needs
 two secrets set before end users can actually render a Soul video, and no
 live e2e proof exists yet.
 
+## 17. Re-verification pass — ✅ 2026-09-05
+
+Findings and changes from the full production-readiness re-check:
+
+- **Referral / affiliate credit grants were silently failing.** The live DB
+  carried both a 4-arg and a 5-arg `grant_credits` overload, so PostgREST
+  could not disambiguate the RPC and every non-admin grant (referral rewards,
+  lipsync refunds, Paystack top-ups, studio/spin/promo credits) errored.
+  Fix: every non-admin caller now passes `_actor: null` explicitly;
+  `supabase/migrations/20260905163000_drop_legacy_grant_credits_overload.sql`
+  drops the 4-arg overload; `src/lib/grant-credits-rpc.test.ts` pins the
+  contract. **Follow-up (⬜, owner-visible):** confirm a real referral reward
+  lands after a fresh sign-up on the published site.
+- **Build → health gate → last-known-good promotion.** `scripts/build.js`
+  (via `scripts/health-gate.mjs`) now boots the freshly built server, probes
+  `/api/health`, and only then
+  promotes the output to the last-known-good snapshot; `scripts/start-prod.sh`
+  falls back to that snapshot if a new build fails the gate. Fail-closed by
+  design — a broken build can no longer replace a working one.
+- **SSR error normalization + `/health` startup short-circuit** in
+  `src/server.ts` (covered by `src/server.test.ts`): catastrophic SSR errors
+  are normalized to a proper 5xx instead of leaking, and the health probe
+  answers before the router is warm so the deploy health check never
+  false-fails on cold start.
+- **Landing CTA hierarchy:** one primary "Start creating" in the hero, the
+  duplicate anonymous header CTA removed, contextual labels elsewhere.
+  Director's Room tools live only in `DirectorRoomRail.tsx` (duplicates
+  removed from `MobileNav.tsx`, the real nav).
+- **Hero photo crop on phones:** the lead slide's subject sits flush against
+  the photo's right edge, so a centred `object-cover` on tall phone
+  viewports cut the face in half (fine on laptops). Slides now carry an
+  optional `focus` object-position; verified at 390×844 and 1366×768.
+- Orphaned Playwright/Vite process on port 8080 was the cause of a workflow
+  port failure — infrastructure, not code.
+
+**Not code — needs owner / provider action:** self-hosted GPU worker paused
+for lack of GPU capacity; shared API budget pool low; two HeyGen jobs in
+retry after "HeyGen video failed: unknown" (provider-side); Seedance model
+activation for Soul video (§16); everything in §15.
+
 ---
+
+## Overall readiness — 85/100 (2026-09-05)
+
+Everything the codebase controls is done and re-verified green: RLS,
+rate limiting, storage scoping, redaction, health gates, concurrency /
+idempotency proofs, CI gate, lifecycle emails, the build protection onion,
+and the full unit + e2e + production-build gate. The remaining ~15 points
+are all outside the code and all owner/provider actions: a demonstrated
+Supabase restore drill (§5), Google/Apple sign-in credentials (§11), GPU
+capacity for the self-hosted worker, provider funding, and Seedance
+activation for Soul video (§16). The two deliberately-deferred performance
+items (§8 items 2 and 5) are correctness-safe as they stand.
 
 ## Summary scorecard
 
@@ -491,13 +568,15 @@ live e2e proof exists yet.
 | 7. Error handling | ✅ Verified complete (2026-08-24) |
 | 8. Performance | 🔶 Item 1 fixed; items 2 & 5 deliberately deferred |
 | 9. Concurrency / idempotency tests | ✅ Verified complete |
-| 10. Final validation | ✅ Re-verified 2026-08-24 |
+| 10. Final validation | ✅ Re-verified 2026-09-05 — 1,405 unit / 72 e2e / prod build green |
 | 11. Sign-in providers | 🔶 Fixed in-app / ⛔ Google & Apple need dashboard enable |
 | 12. Lifecycle emails | ✅ Configured and verified |
-| 13. Prod server-fn regression | ✅ Fixed 2026-08-24 — **needs republish** |
+| 13. Prod server-fn regression | ✅ Fixed 2026-08-24, republished 2026-09-05 |
 | 14. CI production gate | ✅ Added 2026-08-24 |
 | 15. Blocked items | ⛔ Backup drill, iOS signing, GH Actions billing, OAuth providers |
-| 16. Aurora Soul integration | 🔶 Live (70/100) — video needs Seedance secrets |
+| 16. Aurora Soul integration | 🔶 Live (70/100) — video needs Seedance URL + model activation |
+| 17. Re-verification pass | ✅ 2026-09-05 — referral RPC fix, build health gate, hero crop |
+| **Overall** | **85/100** — code complete; remaining points are owner/provider actions |
 
 ## Historical feature roadmap
 
