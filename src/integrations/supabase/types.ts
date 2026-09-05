@@ -3663,6 +3663,81 @@ export type Database = {
         }
         Relationships: []
       }
+      watchdog_actions: {
+        Row: {
+          action: string
+          after_state: Json | null
+          before_state: Json | null
+          created_at: string
+          id: string
+          result: string
+          subsystem: string
+        }
+        Insert: {
+          action: string
+          after_state?: Json | null
+          before_state?: Json | null
+          created_at?: string
+          id?: string
+          result: string
+          subsystem: string
+        }
+        Update: {
+          action?: string
+          after_state?: Json | null
+          before_state?: Json | null
+          created_at?: string
+          id?: string
+          result?: string
+          subsystem?: string
+        }
+        Relationships: []
+      }
+      watchdog_state: {
+        Row: {
+          alert_sent_at: string | null
+          consecutive_failures: number
+          detail: string | null
+          last_action: string | null
+          last_action_at: string | null
+          last_check_at: string | null
+          last_ok_at: string | null
+          recovery_sent_at: string | null
+          status: string
+          subsystem: string
+          transition_gen: number
+          updated_at: string
+        }
+        Insert: {
+          alert_sent_at?: string | null
+          consecutive_failures?: number
+          detail?: string | null
+          last_action?: string | null
+          last_action_at?: string | null
+          last_check_at?: string | null
+          last_ok_at?: string | null
+          recovery_sent_at?: string | null
+          status?: string
+          subsystem: string
+          transition_gen?: number
+          updated_at?: string
+        }
+        Update: {
+          alert_sent_at?: string | null
+          consecutive_failures?: number
+          detail?: string | null
+          last_action?: string | null
+          last_action_at?: string | null
+          last_check_at?: string | null
+          last_ok_at?: string | null
+          recovery_sent_at?: string | null
+          status?: string
+          subsystem?: string
+          transition_gen?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       webauthn_challenges: {
         Row: {
           challenge: string
@@ -4081,6 +4156,30 @@ export type Database = {
           _max_age_seconds: number
         }
         Returns: number
+      }
+      watchdog_claim_transition: {
+        Args: { p_kind: string; p_now: string; p_subsystem: string }
+        Returns: Json
+      }
+      watchdog_record_state: {
+        Args: {
+          p_degraded: boolean
+          p_detail: string
+          p_now: string
+          p_status: string
+          p_subsystem: string
+        }
+        Returns: undefined
+      }
+      watchdog_restore_transition: {
+        Args: {
+          p_claim_gen: number
+          p_kind: string
+          p_prev_alert: string
+          p_prev_recovery: string
+          p_subsystem: string
+        }
+        Returns: Json
       }
     }
     Enums: {

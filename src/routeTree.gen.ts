@@ -144,6 +144,7 @@ import { Route as ApiPublicProviderHealthCheckRouteImport } from './routes/api/p
 import { Route as ApiPublicSiteCopyRouteImport } from './routes/api/public/site-copy'
 import { Route as ApiPublicSiteImagesRouteImport } from './routes/api/public/site-images'
 import { Route as ApiPublicUptimeMonitorRouteImport } from './routes/api/public/uptime-monitor'
+import { Route as ApiPublicWatchdogRouteImport } from './routes/api/public/watchdog'
 import { Route as ApiPublicWatermarkImageRouteImport } from './routes/api/public/watermark-image'
 import { Route as ApiPublicWatermarkVideoRouteImport } from './routes/api/public/watermark-video'
 import { Route as ApiSoulFalWebhookRouteImport } from './routes/api/soul/fal-webhook'
@@ -900,6 +901,11 @@ const ApiPublicUptimeMonitorRoute = ApiPublicUptimeMonitorRouteImport.update({
   path: '/api/public/uptime-monitor',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicWatchdogRoute = ApiPublicWatchdogRouteImport.update({
+  id: '/api/public/watchdog',
+  path: '/api/public/watchdog',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicWatermarkImageRoute = ApiPublicWatermarkImageRouteImport.update({
   id: '/api/public/watermark-image',
   path: '/api/public/watermark-image',
@@ -1203,6 +1209,7 @@ export interface FileRoutesByFullPath {
   '/api/public/site-copy': typeof ApiPublicSiteCopyRoute
   '/api/public/site-images': typeof ApiPublicSiteImagesRoute
   '/api/public/uptime-monitor': typeof ApiPublicUptimeMonitorRoute
+  '/api/public/watchdog': typeof ApiPublicWatchdogRoute
   '/api/public/watermark-image': typeof ApiPublicWatermarkImageRoute
   '/api/public/watermark-video': typeof ApiPublicWatermarkVideoRoute
   '/api/soul/fal-webhook': typeof ApiSoulFalWebhookRoute
@@ -1371,6 +1378,7 @@ export interface FileRoutesByTo {
   '/api/public/site-copy': typeof ApiPublicSiteCopyRoute
   '/api/public/site-images': typeof ApiPublicSiteImagesRoute
   '/api/public/uptime-monitor': typeof ApiPublicUptimeMonitorRoute
+  '/api/public/watchdog': typeof ApiPublicWatchdogRoute
   '/api/public/watermark-image': typeof ApiPublicWatermarkImageRoute
   '/api/public/watermark-video': typeof ApiPublicWatermarkVideoRoute
   '/api/soul/fal-webhook': typeof ApiSoulFalWebhookRoute
@@ -1541,6 +1549,7 @@ export interface FileRoutesById {
   '/api/public/site-copy': typeof ApiPublicSiteCopyRoute
   '/api/public/site-images': typeof ApiPublicSiteImagesRoute
   '/api/public/uptime-monitor': typeof ApiPublicUptimeMonitorRoute
+  '/api/public/watchdog': typeof ApiPublicWatchdogRoute
   '/api/public/watermark-image': typeof ApiPublicWatermarkImageRoute
   '/api/public/watermark-video': typeof ApiPublicWatermarkVideoRoute
   '/api/soul/fal-webhook': typeof ApiSoulFalWebhookRoute
@@ -1712,6 +1721,7 @@ export interface FileRouteTypes {
     | '/api/public/site-copy'
     | '/api/public/site-images'
     | '/api/public/uptime-monitor'
+    | '/api/public/watchdog'
     | '/api/public/watermark-image'
     | '/api/public/watermark-video'
     | '/api/soul/fal-webhook'
@@ -1880,6 +1890,7 @@ export interface FileRouteTypes {
     | '/api/public/site-copy'
     | '/api/public/site-images'
     | '/api/public/uptime-monitor'
+    | '/api/public/watchdog'
     | '/api/public/watermark-image'
     | '/api/public/watermark-video'
     | '/api/soul/fal-webhook'
@@ -2049,6 +2060,7 @@ export interface FileRouteTypes {
     | '/api/public/site-copy'
     | '/api/public/site-images'
     | '/api/public/uptime-monitor'
+    | '/api/public/watchdog'
     | '/api/public/watermark-image'
     | '/api/public/watermark-video'
     | '/api/soul/fal-webhook'
@@ -2199,6 +2211,7 @@ export interface RootRouteChildren {
   ApiPublicSiteCopyRoute: typeof ApiPublicSiteCopyRoute
   ApiPublicSiteImagesRoute: typeof ApiPublicSiteImagesRoute
   ApiPublicUptimeMonitorRoute: typeof ApiPublicUptimeMonitorRoute
+  ApiPublicWatchdogRoute: typeof ApiPublicWatchdogRoute
   ApiPublicWatermarkImageRoute: typeof ApiPublicWatermarkImageRoute
   ApiPublicWatermarkVideoRoute: typeof ApiPublicWatermarkVideoRoute
   ApiSoulFalWebhookRoute: typeof ApiSoulFalWebhookRoute
@@ -3184,6 +3197,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicUptimeMonitorRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/watchdog': {
+      id: '/api/public/watchdog'
+      path: '/api/public/watchdog'
+      fullPath: '/api/public/watchdog'
+      preLoaderRoute: typeof ApiPublicWatchdogRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/watermark-image': {
       id: '/api/public/watermark-image'
       path: '/api/public/watermark-image'
@@ -3601,6 +3621,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicSiteCopyRoute: ApiPublicSiteCopyRoute,
   ApiPublicSiteImagesRoute: ApiPublicSiteImagesRoute,
   ApiPublicUptimeMonitorRoute: ApiPublicUptimeMonitorRoute,
+  ApiPublicWatchdogRoute: ApiPublicWatchdogRoute,
   ApiPublicWatermarkImageRoute: ApiPublicWatermarkImageRoute,
   ApiPublicWatermarkVideoRoute: ApiPublicWatermarkVideoRoute,
   ApiSoulFalWebhookRoute: ApiSoulFalWebhookRoute,
