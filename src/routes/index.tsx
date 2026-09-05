@@ -15,6 +15,10 @@ import { EditableStaggeredHeadline } from "@/components/visual/EditableStaggered
 import { DEMO_ASSETS } from "@/lib/demo-assets";
 import { LANDING_IMAGE_SRCSET } from "@/lib/landing-image-manifest";
 import { TOOL_DIRECTORY } from "@/lib/tool-directory";
+// Motion-reel clip: a real Aurora music-video render (see TikTokSection for
+// the rest of the set). Imported as URLs only — no runtime weight.
+import reelClip from "@/assets/josh/generated/clip-15-alley-neon.mp4";
+import reelPoster from "@/assets/josh/generated/still-15-alley-neon.jpg";
 import {
   COST_TIKTOK_REMIX_CUT,
   COST_UGC_AD,
@@ -476,13 +480,10 @@ function LandingPage() {
           no flow space), so a -mt-14 only collapsed through the page root and
           shifted the whole route — nav included — 56px above the fold. */}
       <header className="relative flex min-h-screen flex-col justify-end overflow-hidden pb-20 px-5">
-        {/* Slideshow */}
+        {/* Slideshow — full-opacity stills only. (An ambient video used to sit
+            under these at 75% with the stills at 25%; the two bled into each
+            other and read as a half-transparent "stuck" clip.) */}
         <div className="absolute inset-0 z-0">
-          <DemoMedia
-            asset={DEMO_ASSETS.landing.ambient}
-            priority
-            className="absolute inset-0 size-full object-cover opacity-75"
-          />
           {heroSlides.map((slide, i) => (
             <ResponsiveImage
               key={slide.src}
@@ -493,7 +494,7 @@ function LandingPage() {
               width={1200}
               height={1600}
               className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-1000 ${
-                i === slideIdx ? "opacity-25" : "opacity-0"
+                i === slideIdx ? "opacity-100" : "opacity-0"
               }`}
               fetchPriority={i === 0 ? "high" : "low"}
             />
@@ -974,24 +975,25 @@ function LandingPage() {
           </Link>
         </div>
         <div className="relative overflow-hidden rounded-2xl bg-zinc-900 ring-1 ring-white/5">
-          {/* Poster image paints instantly while the video buffers */}
-          <ResponsiveImage
-            src="/videos/landing-demo-reel-poster.jpg"
-            sizes="100vw"
-            alt="Cinematic Aurora-generated music video frame"
+          {/* Poster image paints instantly while the video buffers. The clip is
+              a real Aurora music-video render (9:16); a 4:5 frame keeps the
+              artist and the neon alley readable instead of a 16:9 mid-crop. */}
+          <img
+            src={reelPoster}
+            alt=""
             className="absolute inset-0 w-full h-full object-cover"
             aria-hidden
           />
           <video
-            src="/videos/landing-demo-reel.mp4"
-            poster="/videos/landing-demo-reel-poster.w720.webp"
+            src={reelClip}
+            poster={reelPoster}
             autoPlay
             muted
             loop
             playsInline
             preload="metadata"
-            className="aspect-video w-full object-cover relative"
-            aria-label="Aurora-generated cinematic music video — artist in a neon rain scene"
+            className="aspect-[4/5] w-full object-cover relative"
+            aria-label="Aurora-generated cinematic music video — artist in a neon rain-soaked alley"
           />
           {/* Subtle gradient + CTA at bottom */}
           <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/70 to-transparent pointer-events-none" />

@@ -251,138 +251,161 @@ id = "uuVDpq4W7VbbIZdWQslyD"
 uri = "file://notebooks/hybrid_ai_inference_colab.zip"
 type = "unspecified"
 title = "Hybrid AI Inference Engine — Colab Notebook (.ipynb in zip)"
+logical_id = "190bdc0d-1ceb-46a8-806d-84b5e2f4e861"
 
 [[outputs]]
 id = "tWPBmCjqHr_TffepxKXGn"
 uri = "file://attached_assets/image_search/option_A_slide_out_drawer.png"
 type = "image"
 title = "Option A — Slide-out drawer (hamburger menu): hidden until you tap the menu icon, then slides in over the page"
+logical_id = "59b16934-eb13-4c99-ab15-fa54cba7e588"
 
 [[outputs]]
 id = "HdmGqLeVOXApEQMpERxk2"
 uri = "file://attached_assets/image_search/option_B_bottom_tab_bar.png"
 type = "image"
 title = "Option B — Bottom tab bar: always visible along the bottom for one-tap switching between top features"
+logical_id = "c1892467-573e-443d-b94d-baa120ec9da5"
 
 [[outputs]]
 id = "3AxZfX3GBZ7wgTegDjjKt"
 uri = "file://.local/tasks/avatar-video-master-workflow.md"
 type = "text"
 title = "Talking-Avatar Master Workflow"
+logical_id = "f4832119-6be2-4066-83c1-c3eee8d70e44"
 
 [[outputs]]
 id = "B7PyI_1fKZSUcNxrwjGHn"
 uri = "file://.local/tasks/talking-avatar-master-workflow-full.md"
 type = "text"
 title = "Talking-Avatar Master Workflow (Full Edition)"
+logical_id = "7d702f49-6d58-46ee-857e-3a579567bd54"
 
 [[outputs]]
 id = "8k9BKlx6R-DgrRqTn12Gj"
 uri = "file://.local/tasks/self-hosting-gpu-guide.md"
 type = "text"
 title = "Self-Hosting the GPU Layer"
+logical_id = "185a84c1-81fb-48df-ab10-0627c9ffd22a"
 
 [[outputs]]
 id = "hj6aIWrHLarzCZyOV25rb"
 uri = "file://aurora_worker_kaggle.tar.gz"
 type = "unspecified"
 title = "Aurora Kaggle Worker Notebook (.ipynb)"
+logical_id = "fa20e25b-b7ff-4992-9552-1e5b11d522d6"
 
 [[outputs]]
 id = "7G7HGnStlC3DX9OkbUaor"
 uri = "file://attached_assets/generated/heygen-video-agent-test.mp4"
 type = "video"
 title = "HeyGen Video Agent test — \"AI Music Video App Launch Intro\""
+logical_id = "7f9b838c-85d7-4f25-819b-d9643fbf0a85"
 
 [[outputs]]
 id = "6ilGJVT0RlulRet2I3B0p"
 uri = "file://lipsync-samples/photo2-lipsync-sample.mp4"
 type = "video"
 title = "HeyGen Photo lip-sync sample (real test)"
+logical_id = "baae54b9-7709-4f09-9048-ca1d096af684"
 
 [[outputs]]
 id = "CqovO3c7A6VG4umoiARtE"
 uri = "file://public/nba-josh-looping-officers-plan.pdf"
 type = "pdf"
 title = "NBA Josh — Looping Officers Production Plan"
+logical_id = "620f57cc-d4d2-4dad-bc8c-7e1892c63b99"
 
 [[outputs]]
 id = "ajBxEsOHS5dVvUUJNgzV0"
 uri = "file://public/nba-josh-character-sheet.pdf"
 type = "pdf"
 title = "NBA Josh — Character & Outfit Sheet (with images)"
+logical_id = "2ae39ff2-441a-43a3-ab65-8a13f1483072"
 
 [[outputs]]
 id = "_PXLquqd8DxQKdZYHKLYn"
 uri = "file://public/josh-outfit-e-generated.png"
 type = "image"
 title = "NBA Josh — Outfit E: Red Puffer + Camo (Generated)"
+logical_id = "67d7b73b-e400-4dea-a269-7677f4cfd095"
 
 [[outputs]]
 id = "kho8e8cIQQRE04yoMblDK"
 uri = "file://public/nba-josh-all-docs.zip"
 type = "unspecified"
 title = "NBA Josh — All Docs (Character Sheet + Production Plan)"
+logical_id = "8b3dde23-ef4e-4685-8b05-f8d1b77c8228"
 
 [[outputs]]
 id = "Z9fRraSb_7M7cd7byu7_Q"
 uri = "file://attached_assets/Therealwavman-sniply-prompt-guide_1784194992190.pdf"
 type = "pdf"
 title = "Sniply Prompt Guide v1"
+logical_id = "dac063e9-e826-4542-9263-fd0597de562f"
 
 [[outputs]]
 id = "J4xmic-j5c86jIhQugp3o"
 uri = "file://attached_assets/Therealwavman-sniply-prompt-guide_2_1784194992190.pdf"
 type = "pdf"
 title = "Sniply Prompt Guide v2"
+logical_id = "d67bddbf-5972-4eba-b520-32f3d0e90902"
 
 [[outputs]]
 id = "JmCvVl5TnMbY6-ipUux1U"
 uri = "file://attached_assets/Therealwavman-Colors-Prompt-Guide_1784107335939.pdf"
 type = "pdf"
 title = "Colors Prompt Guide v1"
+logical_id = "968f8953-2f8e-43d7-be13-2ae0f7e89d9d"
 
 [[outputs]]
 id = "8eWfmbz7HU_Qss9vU69cT"
 uri = "file://attached_assets/Therealwavman-Colors-Prompt-Guide_2_1784194992190.pdf"
 type = "pdf"
 title = "Colors Prompt Guide v2"
+logical_id = "b1ba8c14-b0c0-4517-9b7b-f0ce0db27907"
 
 [[outputs]]
 id = "BVsdzxm5XV9dzpT7hYVnQ"
 uri = "file://attached_assets/Therealwavman-Colors-Prompt-Guide_3_1784194992190.pdf"
 type = "pdf"
 title = "Colors Prompt Guide v3"
+logical_id = "82cf23fe-ddaa-4b7f-aea9-53583af44602"
 
 [[outputs]]
 id = "JY2ESn4qBwzMtoxZpVmUT"
 uri = "file://attached_assets/Therealwavman-luxury-car-guide__1784194992190.pdf"
 type = "pdf"
 title = "Luxury Car Guide"
+logical_id = "5be97b56-0144-4e55-b9c2-1e4ed48bd9df"
 
 [[outputs]]
 id = "EVxCCTXoFhKCA6MbqpJLI"
 uri = "file://attached_assets/Therealwavman-viral-collage-video-guide_1784194992190.pdf"
 type = "pdf"
 title = "Viral Collage Video Guide"
+logical_id = "eb731fb3-fc0d-496a-89b7-7e2bb838dc9a"
 
 [[outputs]]
 id = "zS7CZcfPJcR0GWAOz9TZW"
 uri = "file://attached_assets/aurora-guides.zip"
 type = "unspecified"
 title = "All 7 Guides (PDFs)"
+logical_id = "70f130ac-127d-4deb-9f77-2e16e911b67f"
 
 [[outputs]]
 id = "Mr9N8Keu_2o2lxP76WkdJ"
 uri = "file://attached_assets/Aurora-Studio-Guides.zip"
 type = "unspecified"
 title = "Aurora Studio Guides (4 PDFs — fully rebranded)"
+logical_id = "807a9acd-e906-4c85-84d7-af9cb4f03ce9"
 
 [[outputs]]
 id = "82ZIzQU-Ptp0ekqPKUCjY"
 uri = "file://attached_assets/Aurora-Store-Icons.zip"
 type = "unspecified"
 title = "Aurora Store Icons (Play Store + App Store)"
+logical_id = "3d4845f1-03f8-471f-b0c8-a7eac029fe7e"
 
 [[outputs]]
 id = "4Q2EcJj1RYsc_rNAI1iu7"
@@ -390,6 +413,7 @@ uri = "file://exports/aurora-video-agent.zip"
 type = "unspecified"
 title = "Aurora Video Agent source export"
 description = "ZIP bundle containing the current Video Agent routes, processing/editor UI, APIs, prompt and skill packs, HeyGen capability, local store, tests, styling, manifest, and README."
+logical_id = "3ffd0203-58cb-4ab2-8997-85cf96b51d66"
 
 [[outputs]]
 id = "9kYIHrqdePOwe5DEJ8ccF"
@@ -397,6 +421,7 @@ uri = "file://attached_assets/aurora_hook_base_cut.mp4"
 type = "video"
 title = "Aurora hook base cut"
 description = "24.3-second 1080×1920 portrait music-video edit using the 10 uploaded performance images and the uploaded hook audio. This is the pre-lip-sync cut, ready for the Vast.ai animation pass."
+logical_id = "7fe35405-40c5-401c-9a05-923146817d3d"
 
 [[outputs]]
 id = "L6YQPSkrfSU7cJqOItQZx"
@@ -404,6 +429,7 @@ uri = "file://public/Aurora-Site-Layout-Map.pdf"
 type = "pdf"
 title = "Aurora Site Layout Map"
 description = "One-page A4 reference of Aurora's public, creator, admin, and separate adult-product routes."
+logical_id = "ad3b5d13-a8ff-4573-9c4f-3d2c1274267d"
 
 [[outputs]]
 id = "zdopqpqkJmtRS0UCPQ26A"
@@ -411,6 +437,7 @@ uri = "file://generated/output.png"
 type = "image"
 title = "Comfy Cloud starter still"
 description = "1024×1024 Flux Schnell portrait rendered through Comfy Cloud from the reusable workflow."
+logical_id = "ebf66d76-7fda-426e-825e-084fa39a7500"
 
 [[outputs]]
 id = "BpQmaBonzQFjjlJrEq2xH"
@@ -418,6 +445,7 @@ uri = "file://generated/wan_i2v_portrait.mp4"
 type = "video"
 title = "Wan 2.1 image-to-video render"
 description = "5-second 480x480 video animated from the Flux still on Comfy Cloud (open-source Wan 2.1 i2v — no partner credits charged)."
+logical_id = "8350d1c4-a105-4c0c-90f6-db26a024a3b6"
 
 [[outputs]]
 id = "mJxeLP3-VSb8rMBz8x56P"
@@ -425,6 +453,7 @@ uri = "file://generated/aurora-comfyui-gpu-stack.zip"
 type = "unspecified"
 title = "Aurora ComfyUI GPU Stack"
 description = "Runnable Core Engine app plus Aurora Kaggle and Colab ComfyUI worker notebooks, launchers, hybrid inference notebook, and setup documentation for image, video, motion, and lip-sync workflows."
+logical_id = "892b9e1f-9bcf-4e1e-bb74-a4040372334a"
 
 [[outputs]]
 id = "bFRsF5xEj0sYi09z8XCr1"
@@ -432,6 +461,7 @@ uri = "file://generated/aurora-comfy-full.zip"
 type = "unspecified"
 title = "Aurora Comfy Full Bundle"
 description = "Full Core Engine app source, ComfyUI Manager, Kaggle/Colab/ComfyUI worker launchers and notebooks, plus the latest Aurora fixes: Studio backend client, comfy server functions, /comfy Studio panel, ComfyUI admin, the new Admin GPU launch page, and Supabase migrations."
+logical_id = "addd945e-4e80-4896-bbb1-73d2bfc30453"
 
 [[outputs]]
 id = "oRimn7h0oEfEHH_EQTDeE"
@@ -439,3 +469,4 @@ uri = "file://artifacts/aurora-mobile/store/builds/aurora-studio-v1.0.0-vc2-70a2
 type = "unspecified"
 title = "Aurora Studio Android vc2 AAB"
 description = "Verified versionCode 2 release bundle for manual upload to Google Play Console Internal testing. SHA-256: f60c0ec1f6fc5980809c31ae5a9cd64694cc3c9f442a9400e8b527387e2eeb0f."
+logical_id = "64b26386-f960-441f-a465-8f2f738062f9"

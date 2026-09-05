@@ -183,10 +183,16 @@ describe("artifact.toml production startup probe", () => {
   it("production run command starts the bundle built from src/server.ts", () => {
     // vite.config.ts redirects the bundled server entry to src/server.ts, so
     // .output/server/index.mjs is the artifact that actually contains the
-    // /health short-circuit asserted above. If the run command stops starting
-    // that bundle, the probe contract no longer applies to what deploys run.
+    // /health short-circuit asserted above. The run command now goes through
+    // the start-time boot guard (scripts/start-prod.sh, docs/BACKUP_AND_DR.md),
+    // which must in turn exec that bundle (or its health-gated snapshot copy,
+    // whose server/index.mjs is the same hardlinked file). If either link
+    // breaks, the probe contract no longer applies to what deploys run.
     const table = readTomlTable(source, "services.production");
     expect(table).not.toBeNull();
-    expect(table?.run).toContain(".output/server/index.mjs");
+    expect(table?.run).toContain("scripts/start-prod.sh");
+    const guard = readFileSync(join(import.meta.dir, "..", "scripts/start-prod.sh"), "utf8");
+    expect(guard).toContain('exec bash scripts/replit-node.sh "$1/server/index.mjs"');
+    expect(guard).toMatch(/AURORA_BUILD_OUTPUT:-\$ROOT\/\.output/);
   });
 });

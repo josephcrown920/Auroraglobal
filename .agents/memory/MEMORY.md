@@ -1,4 +1,5 @@
 - [QA'ing a gated feature with a temp admin session](qa-gated-feature-with-temp-admin-session.md) — browser-use CLI isn't installed here; use Playwright + localStorage session injection to click through admin/auth-gated flows.
+- [Build protection onion invariants](build-protection-onion.md) — build/start scripts must stay fail-closed, attribute health probes via /proc socket ownership, and await SIGKILL; run drill + recovery suite after touching them.
 - [Vite double-plugin cartographer crash](vite-double-plugin-cartographer.md) — replitPlugins in BOTH top-level plugins: AND vite.plugins runs cartographer twice → duplicate attrs → SSR/client mismatch → "Invalid hook call" crash.
 - [TanStack Nitro namespace exports](tanstack-nitro-namespace-exports.md) — keep TanStack Start server packages external in SSR/Nitro or bundled export-star namespaces can leave createRequestHandler unbound.
 - [TanStack package version alignment](tanstack-package-versions.md) — router-plugin version cadence differs from react-start; verify each on npm before bumping; routeTree.gen.ts auto-regenerates on new route file addition during dev (no manual edit needed).
@@ -93,7 +94,6 @@
 - [Reference-image ownership guard](reference-image-ownership-guard.md) — assertOwnedReferenceImage (own studio upload OR own avatar) must guard every character-image URL param before reserve/dispatch; smoke chains stage-then-share, never bypass.
 - [Free-GPU-only can block success-path testing](free-gpu-only-blocks-success-path-testing.md) — check the live flag per-session: ON fails every paid provider pre-dispatch; OFF lets direct-invocation spend tests prove success.
 - [Register-secret 401 fingerprint diagnosis](register-secret-fingerprint-diagnosis.md) — compare one-way SHA-256 fingerprints (never raw secrets) to diagnose AURORA_REGISTER_SECRET mismatches.
-- [Orchestrator worker-routing test failures](orchestrator-gpu-preference-test-failures.md) — those 10 failures ran GREEN 2026-07-13 (732/732); re-run before calling them pre-existing.
 - [HeyGen "api" credit pool](heygen-api-credit-pool.md) — separate from remaining_quota; photo/video-agent calls can fail insufficient-credit even when remaining_quota looks healthy; not a concurrency bug.
 - [TanStack validateSearch optional types](tanstack-validatesearch-optional.md) — adding validateSearch to an existing route needs an explicit all-optional return annotation, or every `<Link>` to it fails TS2741.
 - [LLM structured-output tolerance](llm-structured-output-tolerance.md) — json_object mode does not enforce schemas; prompt must say "JSON", use union+transform (not preprocess) for model drift, ZodType<T,Def,unknown> for transformed schemas.

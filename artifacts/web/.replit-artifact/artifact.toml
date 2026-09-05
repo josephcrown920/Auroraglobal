@@ -1,29 +1,34 @@
 kind = "web"
-  previewPath = "/"
-  title = "Aurora"
-  version = "1.0.0"
-  id = "artifacts/web"
-  router = "path"
+previewPath = "/"
+title = "Aurora"
+version = "1.0.0"
+id = "artifacts/web"
+router = "path"
 
-  [[integratedSkills]]
-  name = "react-vite"
-  version = "1.0.0"
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
 
-  [[services]]
-  name = "web"
-  paths = [ "/" ]
-  localPort = 8080
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 8080
 
-  [services.development]
-  run = 'echo "Aurora dev server is already running via the Start application workflow on port 8080 (shared flat-root app, not a per-artifact process)." && sleep infinity'
+[services.development]
+run = 'echo "Aurora dev server is already running via the Start application workflow on port 8080 (shared flat-root app, not a per-artifact process)." && sleep infinity'
 
-  [services.production]
-  build = [ "bash", "-c", "NODE_OPTIONS=--max-old-space-size=3072 exec bash scripts/replit-node.sh node_modules/vite/bin/vite.js build" ]
-  run = [ "bash", "-c", "NODE_OPTIONS=--max-old-space-size=3072 PORT=8080 HOST=0.0.0.0 exec bash scripts/replit-node.sh .output/server/index.mjs" ]
+# Build: delegate to scripts/build.js (the deployer's cached command) so every
+# production build is snapshotted and health-gated (docs/BACKUP_AND_DR.md).
+# Heap cap: 3072 MB for the 4 GB deploy builder — must track app growth
+# together with the prod-build workflow (4608 MB dev container) and the
+# NODE_OPTIONS default inside scripts/build.js and scripts/start-prod.sh.
+[services.production]
+build = [ "bash", "-c", "NODE_OPTIONS=--max-old-space-size=3072 exec bash scripts/replit-node.sh scripts/build.js" ]
+run = [ "bash", "-c", "PORT=8080 HOST=0.0.0.0 exec bash scripts/start-prod.sh" ]
 
-  [services.production.health.startup]
-  path = "/health"
+[services.production.health.startup]
+path = "/health"
 
-  [services.env]
-  BASE_PATH = "/"
-  PORT = "8080"
+[services.env]
+BASE_PATH = "/"
+PORT = "8080"

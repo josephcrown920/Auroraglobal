@@ -128,7 +128,7 @@ outputType = "console"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "cd /home/runner/workspace && NODE_OPTIONS=--max-old-space-size=4608 bash scripts/replit-node.sh node_modules/vite/bin/vite.js build"
+args = "cd /home/runner/workspace && NODE_OPTIONS=--max-old-space-size=4608 bash scripts/replit-node.sh scripts/build.js"
 
 [[workflows.workflow]]
 name = "mcp-tests"

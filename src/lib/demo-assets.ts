@@ -24,13 +24,6 @@ const image = (
 
 export const DEMO_ASSETS = {
   landing: {
-    ambient: video(
-      "landing-reel",
-      "/videos/landing-demo-reel.mp4",
-      "Aurora-generated performer in a cinematic neon scene",
-      "/videos/landing-demo-reel-poster.jpg",
-      "Aurora Motion reel",
-    ),
     walkthrough: video(
       "studio-workflow",
       "/videos/aurora-workflow-overview.mp4",
