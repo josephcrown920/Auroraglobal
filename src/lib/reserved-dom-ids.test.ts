@@ -25,9 +25,18 @@ function walk(dir: string, out: string[] = []): string[] {
 }
 
 describe("DOM ids never shadow bundler globals", () => {
-  test("no src markup uses a reserved id", () => {
-    const pattern = new RegExp(`\\bid=["'](${RESERVED_IDS.join("|")})["']`);
-    const offenders = walk(join(import.meta.dir, "..")).filter((file) => pattern.test(readFileSync(file, "utf8")));
-    expect(offenders).toEqual([]);
-  });
+  // The synchronous full-src-tree walk below can exceed bun's default 5s
+  // test timeout purely from system contention when run alongside the full
+  // test suite, lint, typecheck, and e2e concurrently (observed flake, not a
+  // correctness issue — the same scan finishes in well under 100ms in
+  // isolation). Give it real headroom instead of a hair-trigger timeout.
+  test(
+    "no src markup uses a reserved id",
+    () => {
+      const pattern = new RegExp(`\\bid=["'](${RESERVED_IDS.join("|")})["']`);
+      const offenders = walk(join(import.meta.dir, "..")).filter((file) => pattern.test(readFileSync(file, "utf8")));
+      expect(offenders).toEqual([]);
+    },
+    20_000,
+  );
 });

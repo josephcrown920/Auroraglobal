@@ -63,24 +63,11 @@ const CORE_FEATURES: Feature[] = [
   { to: "/director-room", label: "Director's Room",     icon: Clapperboard, previewImg: "/nav-previews/music-video.jpg",     starred: true, badge: "$20k Look" },
 ];
 
-// Director's Room owns the planning rail. These entries also remain available
-// from the global directory so a creator can enter the exact stage they need.
-const DIRECTOR_ROOM_FEATURES: Feature[] = [
-  { to: "/director-room", href: "/director-room#wardrobe", label: "Wardrobe", icon: Camera },
-  { to: "/director-room", href: "/director-room#scenes", label: "Scenes", icon: Clapperboard },
-  { to: "/director-room", href: "/director-room#layers", label: "Layers", icon: Layers },
-  { to: "/edit", label: "AutoCut", icon: Clapperboard },
-  { to: "/director-room", href: "/director-room#storyboard", label: "Storyboard", icon: LayoutGrid },
-  { to: "/director-room", href: "/director-room#moodboard", label: "Moodboard", icon: Palette },
-  { to: "/canvas", label: "Infinity Canvas", icon: Workflow },
-  { to: "/scene-weaver", label: "Scene Weaver", icon: Sparkles },
-  { to: "/photo-edit", label: "Style Transfer", icon: Brush },
-  { to: "/puremix", label: "Soundweaver", icon: Music2 },
-  { to: "/director-room", href: "/director-room#flows", label: "Flows", icon: Workflow },
-  { to: "/edit", label: "Edits", icon: Brush },
-  { to: "/video-agent", label: "Video Agent Projects", icon: Film },
-  { to: "/agent", label: "Aurora AI Director", icon: Sparkles },
-];
+// Director's Room's internal tools (Wardrobe, Scenes, Layers, AutoCut,
+// Storyboard, Moodboard, Infinity Canvas, Scene Weaver, Style Transfer,
+// Soundweaver, Flows, Video Agent Projects, Aurora AI Director) live ONLY in
+// its in-workspace rail (DirectorRoomRail.tsx) — deliberately not repeated
+// here, so the global nav lists Director's Room once as a single destination.
 
 // ── Studio — image & scene tools ──────────────────────────────────────────
 const STUDIO_FEATURES: Feature[] = [
@@ -338,12 +325,6 @@ export function MobileNav() {
             ))}
           </NavSection>
 
-          <NavSection label="Director’s Room">
-            {DIRECTOR_ROOM_FEATURES.map((f) => (
-              <LiveNavItem key={`${f.label}-${f.href ?? f.to}`} f={f} active={isActive(pathname, f.to)} onClick={() => {}} />
-            ))}
-          </NavSection>
-
           <NavSection label="Quick Access">
             {quickAccessTabs.map((f) => (
               <LiveNavItem key={f.to} f={f} active={isActive(pathname, f.to)} onClick={() => {}} hiddenBadge={gatedBadge(f)} />
@@ -545,12 +526,6 @@ export function MobileNav() {
             <NavSection label="Start Here">
               {CORE_FEATURES.map((f) => (
                 <LiveNavItem key={f.to} f={f} active={isActive(pathname, f.to)} onClick={() => setOpen(false)} />
-              ))}
-            </NavSection>
-
-            <NavSection label="Director’s Room">
-              {DIRECTOR_ROOM_FEATURES.map((f) => (
-                <LiveNavItem key={`${f.label}-${f.href ?? f.to}`} f={f} active={isActive(pathname, f.to)} onClick={() => setOpen(false)} />
               ))}
             </NavSection>
 
