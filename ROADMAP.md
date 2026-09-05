@@ -312,33 +312,27 @@ and §13 fix:
   (loading-state now always resolves via `.finally`) without weakening any
   test.
 
-## 11. Sign-in providers — 🔶 Fixed in-app / ⛔ enabling more providers is dashboard-blocked
+## 11. Sign-in providers — 🔶 Google live / ⛔ Apple dashboard-blocked
 
 **Found 2026-08-23 (user report: sign-in says "provider is not enabled").**
-The live Supabase project (checked via its public `/auth/v1/settings`
-endpoint) has only **email/password, GitHub OAuth, and passkeys** enabled.
-Google and Apple OAuth are **disabled** at the Supabase level, but the
-`/auth` page rendered all three OAuth buttons unconditionally — so clicking
-"Continue with Google" or "Continue with Apple" always failed with
-Supabase's "provider is not enabled" error.
+The `/auth` page previously rendered all OAuth buttons unconditionally, so a
+disabled provider produced Supabase's "provider is not enabled" error.
 
 **Fixed in-app:** `src/routes/auth.lazy.tsx` now fetches the same public
 settings endpoint on mount and only renders OAuth buttons for providers that
-are actually enabled (currently: GitHub only). If the settings fetch fails,
+are actually enabled. If the settings fetch fails,
 it falls back to showing every button rather than hiding a working provider.
-No code change is needed later — the moment a provider is switched on in the
-Supabase dashboard, its button reappears automatically.
+No code change is needed later — the moment a provider is switched on or off
+in the Supabase dashboard, its button updates automatically.
 
-**⛔ Blocked on dashboard access (manual owner action):** actually offering
-Google/Apple sign-in requires enabling each provider in the Supabase
-dashboard (**Authentication → Providers**) with real credentials:
-- **Google:** an OAuth client ID/secret from Google Cloud Console, with the
-  Supabase callback URL registered.
-- **Apple:** an Apple Developer account (paid), a Services ID, and a signed
-  client secret key.
+**Verified live on 2026-09-05:** the public Supabase Auth settings report
+`google: true` and `apple: false`. The sign-in page therefore offers Google
+alongside the already-enabled email/password, GitHub, and passkeys.
 
-Until then, the sign-in page correctly offers email/password, GitHub, and
-passkeys only.
+**Remaining dashboard action:** Apple sign-in still requires enabling the
+provider under **Authentication → Providers** with an Apple Developer
+account, Services ID, and signed client secret key. Google is no longer a
+roadmap blocker.
 
 ## 12. Lifecycle emails — ✅ Configured and verified
 
@@ -569,7 +563,7 @@ items (§8 items 2 and 5) are correctness-safe as they stand.
 | 8. Performance | 🔶 Item 1 fixed; items 2 & 5 deliberately deferred |
 | 9. Concurrency / idempotency tests | ✅ Verified complete |
 | 10. Final validation | ✅ Re-verified 2026-09-05 — 1,405 unit / 72 e2e / prod build green |
-| 11. Sign-in providers | 🔶 Fixed in-app / ⛔ Google & Apple need dashboard enable |
+| 11. Sign-in providers | 🔶 Google enabled and surfaced; ⛔ Apple still needs dashboard enable |
 | 12. Lifecycle emails | ✅ Configured and verified |
 | 13. Prod server-fn regression | ✅ Fixed 2026-08-24, republished 2026-09-05 |
 | 14. CI production gate | ✅ Added 2026-08-24 |
