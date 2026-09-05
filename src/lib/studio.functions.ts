@@ -69,6 +69,7 @@ async function refundCredits(userId: string, amount: number, refId: string) {
     _amount: amount,
     _reason: "refund_failed_generation",
     _ref: refId,
+    _actor: null,
   });
 }
 

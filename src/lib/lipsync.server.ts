@@ -209,6 +209,7 @@ export async function runLipsyncJob(opts: {
         _amount: lipsyncCost,
         _reason: "refund_failed_generation",
         _ref: row.id,
+        _actor: null,
       });
       if (refundError) {
         // A failed refund silently leaves a charged user — make it loud.

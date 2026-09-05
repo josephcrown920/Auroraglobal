@@ -54,6 +54,7 @@ async function grantReferralAura(userId: string, reason: "referral_signup" | "re
     _amount: REFERRAL_AURA_EACH,
     _reason: reason,
     _ref: deterministicUuid(`${reason}:${refereeId}`),
+    _actor: null,
   });
   if (!error) return "granted" as const;
   if (error.code === "23505" || /duplicate key/i.test(error.message ?? "")) return "already" as const;

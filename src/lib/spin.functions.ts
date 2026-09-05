@@ -335,6 +335,7 @@ export const spinThirty = createServerFn({ method: "POST" })
           _amount: spinCost,
           _reason: "refund_failed_generation",
           _ref: creditRef,
+          _actor: null,
         });
       }
     };
@@ -585,6 +586,7 @@ export async function advanceSpinQueueAdmin(
                 _amount: variantCost,
                 _reason: "refund_failed_generation",
                 _ref: p.id,
+                _actor: null,
               });
             }
           }
@@ -883,6 +885,7 @@ export const tickSpinJob = createServerFn({ method: "POST" })
               _amount: variantCost,
               _reason: "refund_failed_generation",
               _ref: p.id,
+              _actor: null,
             });
           }
         }
