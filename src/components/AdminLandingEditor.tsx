@@ -139,6 +139,14 @@ const COPY_SCHEMA: CopySection[] = [
       { key: "landing_tools_blurb",      label: "Blurb",      default: "Every feature is credit based. No subscriptions required to start. 5 free Aura on signup.", multiline: true },
     ],
   },
+  {
+    section: "Collaborators strip",
+    fields: [
+      { key: "landing_collaborators_eyebrow", label: "Eyebrow",    default: "Collaborators" },
+      { key: "landing_collaborators_sub",     label: "Subheading", default: "Aurora plugs into the platforms where your music already lives." },
+      { key: "landing_collaborators_cta",     label: "Link text",  default: "See your stats in one place" },
+    ],
+  },
 ];
 
 // ─── Main sheet ──────────────────────────────────────────────────────────────

@@ -72,6 +72,9 @@ const PricingSection = lazy(() =>
 const FinalCTA = lazy(() =>
   import("@/components/landing/FinalCTA").then((m) => ({ default: m.FinalCTA })),
 );
+const CollaboratorsStrip = lazy(() =>
+  import("@/components/landing/CollaboratorsStrip").then((m) => ({ default: m.CollaboratorsStrip })),
+);
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -1137,6 +1140,9 @@ function LandingPage() {
       </section>
 
       <Suspense fallback={null}><FinalCTA /></Suspense>
+
+      {/* ── Collaborators strip — platforms Aurora plugs into ───────────── */}
+      <Suspense fallback={null}><CollaboratorsStrip /></Suspense>
 
       {/* ── Footer ──────────────────────────────────────────────────────── */}
       <footer className="border-t border-white/5 pt-14 pb-8 px-5">
