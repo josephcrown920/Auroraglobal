@@ -31,12 +31,14 @@ function SmokePage() {
     queryFn: () => listFn(),
     enabled: !!user,
     refetchInterval: 5_000,
+    staleTime: 0,
   });
 
   const active = useQuery({
     queryKey: ["smoke-run", activeRunId],
     queryFn: () => getFn({ data: { id: activeRunId! } }),
     enabled: !!activeRunId,
+    staleTime: 0,
     refetchInterval: (q) => {
       const finished = q.state.data?.run?.finished_at;
       return finished ? false : 2_000;

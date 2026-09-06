@@ -148,6 +148,7 @@ function MusicVideoPage() {
     queryFn: () => listFn(),
     enabled: !!user,
     refetchInterval: 8000,
+    staleTime: 0,
   });
 
   const genMut = useMutation({

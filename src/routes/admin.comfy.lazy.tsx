@@ -76,12 +76,14 @@ function AdminComfyPage() {
     queryKey: ["admin-comfy-templates"],
     enabled: !!user,
     queryFn: () => listFn({}),
+    staleTime: 5 * 60_000,
   });
   const runsQ = useQuery({
     queryKey: ["admin-comfy-runs"],
     enabled: !!user,
     queryFn: () => runsFn({}),
     refetchInterval: 15_000,
+    staleTime: 0,
   });
   const workersQ = useQuery({
     queryKey: ["admin-comfy-workers"],

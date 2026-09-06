@@ -20,6 +20,7 @@ function GuidesGallery() {
   const { data, isLoading, error } = useQuery({
     queryKey: ["guided-workflows"],
     queryFn: () => listFn(),
+    staleTime: 5 * 60_000,
   });
 
   const [category, setCategory] = useState<GuidedWorkflowCategory | "all">("all");

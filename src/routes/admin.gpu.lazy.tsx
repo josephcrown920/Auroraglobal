@@ -89,6 +89,7 @@ function AdminGpuPage() {
     enabled: !!user,
     queryFn: () => workersFn({}),
     refetchInterval: 15_000,
+    staleTime: 0,
   });
 
   const [copying, setCopying] = useState<string | null>(null);

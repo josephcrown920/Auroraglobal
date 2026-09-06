@@ -230,6 +230,7 @@ function ColorsStudio() {
     queryFn: () => listFn(),
     enabled: !!user,
     refetchInterval: 4000,
+    staleTime: 0,
   });
   const allItems = gens?.items ?? [];
   const recent = allItems

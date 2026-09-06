@@ -141,12 +141,14 @@ function TiktokRemixPage() {
     queryFn: () => listFn(),
     enabled: !!user,
     refetchInterval: 8000,
+    staleTime: 0,
   });
 
   const { data: tiktokAccount } = useQuery({
     queryKey: ["tiktok-account"],
     queryFn: () => tiktokAccountFn(),
     enabled: !!user,
+    staleTime: 60_000,
   });
 
   const detail = useQuery({
@@ -154,6 +156,7 @@ function TiktokRemixPage() {
     queryFn: () => getFn({ data: { id: activeRemixId! } }),
     enabled: !!activeRemixId,
     refetchInterval: 5000,
+    staleTime: 0,
   });
 
   useEffect(() => {

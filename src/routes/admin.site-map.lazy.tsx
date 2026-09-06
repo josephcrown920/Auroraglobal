@@ -47,7 +47,11 @@ function SiteMapManager() {
   const [editing, setEditing] = useState(false);
   const [confirmRemove, setConfirmRemove] = useState(false);
 
-  const mapQuery = useQuery({ queryKey: ["site-map"], queryFn: () => getFn() });
+  const mapQuery = useQuery({
+    queryKey: ["site-map"],
+    queryFn: () => getFn(),
+    staleTime: 5 * 60_000,
+  });
   const items = mapQuery.data ?? [];
   const visible = useMemo(() => filter === "all" ? items : items.filter((item) => item.kind === filter), [filter, items]);
   const persistRefresh = () => qc.invalidateQueries({ queryKey: ["site-map"] });

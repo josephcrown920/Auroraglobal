@@ -79,6 +79,8 @@ export const getRouter = () => {
         // state render. The old default (3 retries, exponential backoff) kept
         // broken pages in a fake "loading" state for ~7s per query.
         retry: 1,
+        staleTime: 30_000,
+        gcTime: 10 * 60 * 1000,
       },
     },
   });

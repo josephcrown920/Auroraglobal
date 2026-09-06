@@ -10,7 +10,6 @@ import {
   redirect,
 } from "@tanstack/react-router";
 
-
 import appCss from "../styles.css?url";
 import auroraLogo from "@/assets/aurora-logo.png.asset.json";
 import { CANONICAL_ORIGIN } from "@/lib/seo";
@@ -32,6 +31,7 @@ import { ThemeProvider } from "@/lib/theme-context";
 import { initCrashReporting } from "@/lib/crash-reporting";
 import { reloadOnceForStaleChunk } from "@/lib/stale-chunk";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { CONSENT_CHANGED_EVENT, hasAnalyticsConsent } from "@/lib/consent";
 
 function NotFoundComponent() {
   return (
@@ -170,20 +170,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 });
 
 
-
 function RootShell({ children }: { children: React.ReactNode }) {
-  // --- Google Tag Manager ---------------------------------------------------
-  // Paste your GTM Container ID (format: GTM-XXXXXXX) into the
-  // VITE_GTM_CONTAINER_ID environment variable (Secrets tab). Once set, the
-  // owner manages every tracking pixel (Meta, TikTok, GA4, etc.) from the GTM
-  // dashboard with no further code changes or redeploys. When the variable is
-  // unset or malformed, GTM is skipped entirely — no script, no iframe, no
-  // console errors. The strict format check also keeps the value safe to inline
-  // into the snippet below.
-  const gtmRaw = import.meta.env.VITE_GTM_CONTAINER_ID as string | undefined;
-  const gtmId =
-    gtmRaw && /^GTM-[A-Z0-9]+$/i.test(gtmRaw.trim()) ? gtmRaw.trim() : null;
-
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
@@ -200,65 +187,6 @@ function RootShell({ children }: { children: React.ReactNode }) {
             __html: `(function(){try{var t=localStorage.getItem('aurora-theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();`,
           }}
         />
-        {/* Google Tag Manager — non-essential analytics, so it only loads once
-            cookie consent allows it (GDPR/UK GDPR/CA). Mirrors the region
-            heuristic + storage key in src/lib/consent.ts; this has to be a
-            standalone inline script (no imports) because it must run before
-            hydration. Re-evaluates on the aurora:cookie_consent_changed
-            event so accepting via the banner loads GTM immediately without
-            a reload, and it stays off entirely if the visitor declines. */}
-        {gtmId ? (
-          <script
-            dangerouslySetInnerHTML={{
-              __html: `(function(){
-  try {
-    var GTM_ID='${gtmId}';
-    var KEY='aurora.cookie_consent.v1';
-    var CONSENT_VERSION='2026-07-05';
-    var REGULATED_COUNTRIES=["AT","BE","BG","HR","CY","CZ","DK","EE","FI","FR","DE","GR","HU","IE","IT","LV","LT","LU","MT","NL","PL","PT","RO","SK","SI","ES","SE","GB","IS","LI","NO","CA"];
-    var CA_TZ=["America/St_Johns","America/Halifax","America/Moncton","America/Glace_Bay","America/Goose_Bay","America/Blanc-Sablon","America/Toronto","America/Nipigon","America/Thunder_Bay","America/Iqaluit","America/Pangnirtung","America/Resolute","America/Atikokan","America/Rankin_Inlet","America/Winnipeg","America/Rainy_River","America/Regina","America/Swift_Current","America/Edmonton","America/Cambridge_Bay","America/Yellowknife","America/Inuvik","America/Creston","America/Dawson_Creek","America/Fort_Nelson","America/Vancouver","America/Whitehorse","America/Dawson"];
-    var EU_ATLANTIC=["Atlantic/Faroe","Atlantic/Canary","Atlantic/Madeira","Atlantic/Azores","Atlantic/Reykjavik"];
-    function isRegulated(){
-      try{
-        var loc=(navigator.language||(navigator.languages&&navigator.languages[0])||"");
-        var parts=loc.split("-");
-        var country=parts.length>1?parts[parts.length-1].toUpperCase():null;
-        if(country&&REGULATED_COUNTRIES.indexOf(country)!==-1)return true;
-      }catch(e){}
-      try{
-        var tz=Intl.DateTimeFormat().resolvedOptions().timeZone||"";
-        if(tz.indexOf("Europe/")===0)return true;
-        if(EU_ATLANTIC.indexOf(tz)!==-1)return true;
-        if(CA_TZ.indexOf(tz)!==-1)return true;
-      }catch(e){}
-      return false;
-    }
-    function hasConsent(){
-      var raw=null;
-      try{raw=localStorage.getItem(KEY);}catch(e){}
-      if(raw){
-        try{
-          var parsed=JSON.parse(raw);
-          if(parsed.version===CONSENT_VERSION){
-            if(parsed.status==="declined")return false;
-            if(parsed.status==="accepted")return true;
-          }
-        }catch(e){}
-      }
-      return !isRegulated();
-    }
-    function loadGtm(){
-      if(window.__auroraGtmLoaded__)return;
-      window.__auroraGtmLoaded__=true;
-      (function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src='https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);})(window,document,'script','dataLayer',GTM_ID);
-    }
-    if(hasConsent())loadGtm();
-    window.addEventListener("aurora:cookie_consent_changed",function(){if(hasConsent())loadGtm();});
-  } catch(e) {}
-})();`,
-            }}
-          />
-        ) : null}
       </head>
       <body>
         {/* No <noscript> GTM fallback: with JS disabled there is no way to
@@ -321,6 +249,7 @@ function RootComponent() {
     setHasStoredAuth(hasStoredSession());
   }, []);
   usePageViewTracking();
+  useDeferredGtm();
   useIdleRouteWarmup();
   useEffect(() => { captureRefFromUrl(); initCrashReporting(); }, []);
   useEffect(() => {
@@ -438,4 +367,50 @@ function RootComponent() {
       </ThemeProvider>
     </ErrorBoundary>
   );
+}
+
+declare global {
+  interface Window {
+    __auroraGtmLoaded__?: boolean;
+    dataLayer?: unknown[];
+  }
+}
+
+const gtmRaw = import.meta.env.VITE_GTM_CONTAINER_ID as string | undefined;
+const GTM_CONTAINER_ID =
+  gtmRaw && /^GTM-[A-Z0-9]+$/i.test(gtmRaw.trim()) ? gtmRaw.trim() : null;
+
+function loadGtm(containerId: string) {
+  if (typeof window === "undefined" || window.__auroraGtmLoaded__) return;
+
+  window.__auroraGtmLoaded__ = true;
+  window.dataLayer = window.dataLayer || [];
+  window.dataLayer.push({ "gtm.start": Date.now(), event: "gtm.js" });
+
+  const script = document.createElement("script");
+  script.async = true;
+  script.src = `https://www.googletagmanager.com/gtm.js?id=${encodeURIComponent(containerId)}`;
+  script.dataset.auroraGtm = "true";
+  document.head.appendChild(script);
+}
+
+function useDeferredGtm() {
+  useEffect(() => {
+    if (!GTM_CONTAINER_ID) return;
+
+    const maybeLoadGtm = () => {
+      if (hasAnalyticsConsent()) loadGtm(GTM_CONTAINER_ID);
+    };
+
+    // This runs after hydration, so the analytics script can never block the
+    // initial HTML parse or first paint. Consent changes still load GTM
+    // immediately for visitors who accept through the banner.
+    const timer = window.setTimeout(maybeLoadGtm, 0);
+    window.addEventListener(CONSENT_CHANGED_EVENT, maybeLoadGtm);
+
+    return () => {
+      window.clearTimeout(timer);
+      window.removeEventListener(CONSENT_CHANGED_EVENT, maybeLoadGtm);
+    };
+  }, []);
 }

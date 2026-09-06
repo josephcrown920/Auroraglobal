@@ -120,6 +120,7 @@ function SceneBuilderPage() {
     queryKey: ["scene-builder-gens", user?.id],
     queryFn: () => listFn(),
     enabled: !!user && hasActiveJobs,
+    staleTime: 0,
     refetchInterval: (query) => {
       if (!angleJobs.length) return false;
       type Item = { id: string; status: string };
@@ -134,7 +135,6 @@ function SceneBuilderPage() {
       });
       return allTerminal ? false : 3_000;
     },
-    staleTime: 0,
   });
 
   // Derive per-angle card data by cross-referencing tracked jobs with live gens.

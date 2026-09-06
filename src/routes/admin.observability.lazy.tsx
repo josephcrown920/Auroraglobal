@@ -27,7 +27,7 @@ function ObservabilityDashboard() {
     queryFn: () => observabilityFn(),
     enabled: !!user,
     refetchInterval: 60_000,
-    staleTime: 30_000,
+    staleTime: 0,
   });
 
 

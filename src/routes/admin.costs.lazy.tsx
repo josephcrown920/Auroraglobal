@@ -42,7 +42,7 @@ function CostDashboard() {
     queryFn: () => statsFn(),
     enabled: !!user,
     refetchInterval: 60_000,
-    staleTime: 30_000,
+    staleTime: 0,
   });
 
   const [viewDays, setViewDays] = useState<7 | 30>(30);

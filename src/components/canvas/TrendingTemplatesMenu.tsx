@@ -561,7 +561,7 @@ export function TrendingTemplatesMenu({ onPick }: { onPick: (g: TemplateGraph) =
   const { data: marketplaceTemplates = [] } = useQuery({
     queryKey: ["marketplace-templates-menu"],
     queryFn: () => marketplaceFn(),
-    staleTime: 120_000,
+    staleTime: 5 * 60_000,
     enabled: open,
   });
 

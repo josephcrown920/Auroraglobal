@@ -1487,6 +1487,7 @@ function CanvasPage() {
     queryKey: ["comfy-templates-canvas"],
     enabled: !!user,
     queryFn: () => comfyListFn({}),
+    staleTime: 5 * 60_000,
   });
   const comfyTemplates = (comfyTplQuery.data?.templates ?? []) as unknown as ComfyTemplate[];
 
@@ -1496,6 +1497,7 @@ function CanvasPage() {
     queryKey: ["aurora-templates-canvas"],
     enabled: !!user,
     queryFn: () => auroraListFn({}),
+    staleTime: 5 * 60_000,
   });
   const auroraTemplates = (auroraTemplatesQuery.data ?? []) as AuroraTemplateRow[];
 
@@ -1911,6 +1913,7 @@ function CanvasPage() {
   const wfList = useQuery({
     queryKey: ["workflows"], enabled: !!user && loadOpen,
     queryFn: () => listFn({}),
+    staleTime: 5 * 60_000,
   });
   const saveMut = useMutation({
     mutationFn: async () => {

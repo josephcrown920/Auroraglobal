@@ -515,6 +515,7 @@ function ContentMachinePage() {
     queryKey: ["cm-batch", activeBatchId],
     queryFn: () => statusFn({ data: { batchId: activeBatchId! } }),
     enabled: !!activeBatchId,
+    staleTime: 0,
     refetchInterval: (q) => {
       const c = q.state.data?.counts;
       return c && c.processing === 0 ? false : 4000;

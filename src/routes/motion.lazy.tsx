@@ -336,7 +336,7 @@ function MotionStudio() {
     queryKey: ["worker-capability", "motion"],
     queryFn: () => checkWorkerFn({ data: { capability: "motion" } }),
     enabled: !!user,
-    staleTime: 30_000,
+    staleTime: 0,
     refetchInterval: 60_000,
   });
   const motionOnline = motionWorker?.available ?? false;
@@ -346,6 +346,7 @@ function MotionStudio() {
     queryFn: () => listFn(),
     enabled: !!user,
     refetchInterval: 6000,
+    staleTime: 0,
   });
 
   // Step 1 — stage the still with pose reference
@@ -585,6 +586,7 @@ function MotionStudio() {
     queryFn: () => jobStatusFn({ data: { jobId: transferJobId! } }),
     enabled: !!transferJobId && transferActive,
     refetchInterval: 3_500,
+    staleTime: 0,
   });
   const reskinActive =
     reskinJobStatus === "queued" || reskinJobStatus === "processing" || reskinJobStatus === "finalizing";
@@ -593,6 +595,7 @@ function MotionStudio() {
     queryFn: () => jobStatusFn({ data: { jobId: reskinJobId! } }),
     enabled: !!reskinJobId && reskinActive,
     refetchInterval: 3_500,
+    staleTime: 0,
   });
 
   // Fire a toast + scroll the result panel into view the moment a job completes.

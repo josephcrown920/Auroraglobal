@@ -361,6 +361,7 @@ function KidsPage() {
     queryKey: ["kids-story", storyId],
     queryFn: () => statusFn({ data: { storyId: storyId! } }),
     enabled: !!storyId,
+    staleTime: 0,
     refetchInterval: (q) => {
       const s = q.state.data?.status;
       return s && TERMINAL.has(s) ? false : 4000;

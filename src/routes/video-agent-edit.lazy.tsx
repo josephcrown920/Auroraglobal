@@ -83,6 +83,7 @@ function VideoEditor() {
     queryFn: () => getProject({ data: { id } }),
     enabled: !!user && !!id,
     retry: false,
+    staleTime: 0,
     refetchInterval: (query) => {
       const status = query.state.data?.status;
       return status === "queued" || status === "processing" ? 4000 : false;

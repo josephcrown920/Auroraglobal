@@ -48,6 +48,7 @@ function AdminTemplatesPage() {
     queryFn: () => listFn(),
     enabled: !!user,
     refetchInterval: 30_000,
+    staleTime: 0,
   });
 
   const reviewMut = useMutation({

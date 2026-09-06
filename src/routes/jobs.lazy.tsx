@@ -141,6 +141,7 @@ function JobsPage() {
     queryFn: () => listFn(),
     enabled: !!user,
     refetchInterval: 8000,
+    staleTime: 0,
   });
 
   const jobs = data?.jobs ?? [];

@@ -31,7 +31,6 @@ function AdminDesignPage() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
   const qc = useQueryClient();
-
   const [name, setName] = useState("My skin");
   const [tokens, setTokens] = useState<SkinTokens>({ ...DEFAULT_TOKENS });
   const [previewing, setPreviewing] = useState(false);
@@ -55,6 +54,7 @@ function AdminDesignPage() {
     queryKey: ["admin-design-skins"],
     queryFn: fetchSkins,
     enabled: !!user,
+    staleTime: 5 * 60_000,
   });
   const skins = data?.skins ?? [];
   const activeSlug = data?.activeSlug ?? "";
@@ -102,7 +102,6 @@ function AdminDesignPage() {
       </div>
     );
   }
-
   const set = (key: string, value: string) => setTokens((t) => ({ ...t, [key]: value }));
 
   return (

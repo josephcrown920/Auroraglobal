@@ -187,6 +187,7 @@ function SpinPage() {
     queryKey: ["aurora-templates-spin"],
     enabled: !!user && heygenOpen,
     queryFn: () => listAuroraTemplatesFn(),
+    staleTime: 5 * 60_000,
   });
   const heygenTpls = (heygenTplQuery.data ?? []) as AuroraTemplateRow[];
   const heygenMut = useMutation({

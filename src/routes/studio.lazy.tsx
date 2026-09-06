@@ -369,6 +369,7 @@ function StudioPage() {
     queryFn: () => profileFn(),
     enabled: !!user,
     refetchInterval: 15_000,
+    staleTime: 30_000,
   });
 
   useAutoReloadPrompt(profile?.credits);

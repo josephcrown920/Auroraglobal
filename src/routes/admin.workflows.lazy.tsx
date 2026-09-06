@@ -67,7 +67,6 @@ function AdminWorkflowsPage() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
   const qc = useQueryClient();
-
   const [editing, setEditing] = useState<GuidedWorkflowRow | "new" | null>(null);
   const [draft, setDraft] = useState("");
 
@@ -84,6 +83,7 @@ function AdminWorkflowsPage() {
     queryKey: ["admin-guided-workflows"],
     queryFn: () => listFn(),
     enabled: !!user,
+    staleTime: 5 * 60_000,
   });
   const workflows = useMemo(() => data?.workflows ?? [], [data]);
 
@@ -186,7 +186,6 @@ function AdminWorkflowsPage() {
       </div>
     );
   }
-
 
   return (
     <main className="min-h-screen bg-background">

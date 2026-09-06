@@ -45,7 +45,7 @@ function MarketplacePage() {
   const { data: templates = [], isLoading } = useQuery({
     queryKey: ["marketplace-templates"],
     queryFn: () => listFn(),
-    staleTime: 60_000,
+    staleTime: 5 * 60_000,
   });
 
   const [search, setSearch] = useState("");

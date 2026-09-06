@@ -37,6 +37,7 @@ function ImagesGrid() {
   const { data: images, isLoading } = useQuery({
     queryKey: ["admin-site-images-page"],
     queryFn:  () => getSiteImagesFn(),
+    staleTime: 5 * 60_000,
   });
 
   const [uploading, setUploading] = useState<Record<string, boolean>>({});

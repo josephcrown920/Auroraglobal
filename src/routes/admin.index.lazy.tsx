@@ -49,6 +49,7 @@ function AdminPage() {
     queryFn: () => overviewFn(),
     enabled: !!user,
     refetchInterval: 30_000,
+    staleTime: 0,
   });
 
   const { data: genHealth } = useQuery({
@@ -56,6 +57,7 @@ function AdminPage() {
     queryFn: () => genHealthFn(),
     enabled: !!user,
     refetchInterval: 60_000,
+    staleTime: 0,
   });
 
   const { data: ghSyncHealth } = useQuery({
@@ -63,6 +65,7 @@ function AdminPage() {
     queryFn: () => ghSyncHealthFn(),
     enabled: !!user,
     refetchInterval: 60_000,
+    staleTime: 0,
   });
 
 

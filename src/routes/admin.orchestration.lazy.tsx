@@ -241,6 +241,7 @@ function OrchestrationDashboard() {
     queryFn: () => healthFn(),
     enabled: !!user,
     refetchInterval: 15_000,
+    staleTime: 0,
   });
 
   const genHealthFn = useServerFn(getGenerationHealth);
@@ -249,6 +250,7 @@ function OrchestrationDashboard() {
     queryFn: () => genHealthFn(),
     enabled: !!user,
     refetchInterval: 60_000,
+    staleTime: 0,
   });
 
   const vastFn = useServerFn(listVastManaged);
@@ -257,6 +259,7 @@ function OrchestrationDashboard() {
     queryFn: () => vastFn(),
     enabled: !!user,
     refetchInterval: 60_000,
+    staleTime: 0,
   });
 
   const creditsFn = useServerFn(providerCredits);

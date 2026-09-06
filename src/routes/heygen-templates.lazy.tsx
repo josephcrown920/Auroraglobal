@@ -533,6 +533,7 @@ function HeyGenTemplatesPage() {
     queryKey: ["aurora-templates", user?.id],
     queryFn: () => listFn(),
     enabled: !!user,
+    staleTime: 5 * 60_000,
   });
 
   function refresh() {
