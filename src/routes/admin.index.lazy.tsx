@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
-import { adminOverview, adminGrantCredits, adminEarnings, adminWithdrawalSummary, adminRecordWithdrawal, adminCheckWithdrawalAmount, adminUpdateWithdrawal, adminDeleteWithdrawal } from "@/lib/admin.functions";
+import { adminOverview, adminGrantCredits, adminListStuckReservations, adminReleaseStuckReservation, adminEarnings, adminWithdrawalSummary, adminRecordWithdrawal, adminCheckWithdrawalAmount, adminUpdateWithdrawal, adminDeleteWithdrawal, type AdminStuckReservation } from "@/lib/admin.functions";
 import { getGenerationHealth, type GenerationHealthRow } from "@/lib/generation-health.functions";
 import { getGitHubSyncHealth, type GitHubSyncHealth } from "@/lib/github-sync-health.functions";
 import { getSiteImages, adminUpdateSiteImage, adminResetSiteImage, type SiteImageRow } from "@/lib/site-images.functions";
@@ -41,6 +41,8 @@ function AdminPage() {
 
   const overviewFn = useServerFn(adminOverview);
   const grantFn = useServerFn(adminGrantCredits);
+  const listStuckReservationsFn = useServerFn(adminListStuckReservations);
+  const releaseStuckReservationFn = useServerFn(adminReleaseStuckReservation);
   const genHealthFn = useServerFn(getGenerationHealth);
   const ghSyncHealthFn = useServerFn(getGitHubSyncHealth);
 
@@ -68,6 +70,14 @@ function AdminPage() {
     staleTime: 0,
   });
 
+  const { data: stuckReservations = [], isLoading: stuckReservationsLoading } = useQuery({
+    queryKey: ["admin-stuck-reservations"],
+    queryFn: () => listStuckReservationsFn(),
+    enabled: !!user,
+    refetchInterval: 60_000,
+    staleTime: 0,
+  });
+
 
   const [tab, setTab] = useState<"gens" | "users" | "payments" | "earnings" | "workers" | "promos" | "features" | "images" | "copy" | "router" | "resources">("gens");
   const [grantUser, setGrantUser] = useState("");
@@ -77,6 +87,23 @@ function AdminPage() {
     mutationFn: async () => grantFn({ data: { userId: grantUser, amount: grantAmount } }),
     onSuccess: () => { toast.success("Aura granted"); qc.invalidateQueries({ queryKey: ["admin-overview"] }); },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Failed"),
+  });
+
+  const releaseReservationMut = useMutation({
+    mutationFn: (reservation: AdminStuckReservation) =>
+      releaseStuckReservationFn({
+        data: {
+          jobId: reservation.job_id,
+          userId: reservation.user_id,
+          expectedAmount: reservation.credits_reserved,
+        },
+      }),
+    onSuccess: () => {
+      toast.success("Reservation reconciled and audit entry recorded");
+      qc.invalidateQueries({ queryKey: ["admin-stuck-reservations"] });
+      qc.invalidateQueries({ queryKey: ["admin-overview"] });
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Release failed"),
   });
 
   if (loading || !user) {
@@ -150,6 +177,23 @@ function AdminPage() {
           scheduler={data?.scheduler ?? null}
           queue={data?.queue ?? null}
           stuckReservations={data?.stuckReservations ?? null}
+        />
+
+        <StuckReservationsPanel
+          reservations={stuckReservations}
+          loading={stuckReservationsLoading}
+          releasingJobId={releaseReservationMut.isPending ? releaseReservationMut.variables?.job_id : undefined}
+          onRelease={(reservation) => {
+            const label = reservation.email ?? reservation.display_name ?? reservation.user_id;
+            const action = reservation.status === "failed" ? "refund" : "commit";
+            if (
+              window.confirm(
+                `Reconcile ${reservation.credits_reserved.toLocaleString()} Aura for ${label}? This will ${action} the terminal ${reservation.status} job and write an admin audit entry.`,
+              )
+            ) {
+              releaseReservationMut.mutate(reservation);
+            }
+          }}
         />
 
         <GenerationHealthBanner rows={genHealth ?? []} />
@@ -785,6 +829,99 @@ function SchedulerBanner({
           ⚠ {stuckCount} job{stuckCount === 1 ? "" : "s"} with an unsettled credit reservation — the
           next scheduler tick will reconcile {stuckCount === 1 ? "it" : "them"} automatically.
         </p>
+      )}
+    </section>
+  );
+}
+
+function StuckReservationsPanel({
+  reservations,
+  loading,
+  releasingJobId,
+  onRelease,
+}: {
+  reservations: AdminStuckReservation[];
+  loading: boolean;
+  releasingJobId?: string;
+  onRelease: (reservation: AdminStuckReservation) => void;
+}) {
+  return (
+    <section className={`rounded-2xl border p-5 space-y-4 ${
+      reservations.length > 0 ? "border-amber-500/40 bg-amber-500/10" : "border-border bg-card/40"
+    }`}>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h2 className="text-sm font-medium uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+            <AlertTriangle className="size-4" /> Stuck Aura reservations
+          </h2>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Terminal jobs holding reserved Aura without an update for more than one hour.
+          </p>
+        </div>
+        <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${
+          reservations.length > 0 ? "bg-amber-500/20 text-amber-400" : "bg-emerald-500/15 text-emerald-400"
+        }`}>
+          {loading ? "Checking…" : reservations.length === 0 ? "Clear" : reservations.length}
+        </span>
+      </div>
+
+      {!loading && reservations.length > 0 && (
+        <div className="overflow-x-auto rounded-xl border border-amber-500/20 bg-background/40">
+          <table className="w-full min-w-[760px] text-sm">
+            <thead>
+              <tr className="border-b border-border text-xs uppercase tracking-wide text-muted-foreground">
+                <th className="px-4 py-3 text-left">User</th>
+                <th className="px-4 py-3 text-right">Reserved Aura</th>
+                <th className="px-4 py-3 text-left">Outcome</th>
+                <th className="px-4 py-3 text-left">Last updated</th>
+                <th className="px-4 py-3 text-right">Action</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border/50">
+              {reservations.map((reservation) => (
+                <tr key={reservation.user_id}>
+                  <td className="px-4 py-3">
+                    <div className="font-medium">{reservation.email ?? reservation.display_name ?? "Unknown user"}</div>
+                    <div className="font-mono text-[11px] text-muted-foreground">{reservation.user_id}</div>
+                    <div className="font-mono text-[11px] text-muted-foreground">Job {reservation.job_id}</div>
+                  </td>
+                  <td className="px-4 py-3 text-right font-semibold tabular-nums text-amber-400">
+                    {reservation.credits_reserved.toLocaleString()}
+                  </td>
+                  <td className="px-4 py-3">
+                    <span className={`rounded-full px-2 py-1 text-xs ${
+                      reservation.status === "failed"
+                        ? "bg-emerald-500/15 text-emerald-400"
+                        : "bg-sky-500/15 text-sky-400"
+                    }`}>
+                      {reservation.status === "failed" ? "Refund" : "Commit"}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-muted-foreground">
+                    <div>{new Date(reservation.updated_at).toLocaleString()}</div>
+                    <div className="text-xs">{heartbeatAge(reservation.updated_at)}</div>
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={!!releasingJobId}
+                      onClick={() => onRelease(reservation)}
+                      className="border-amber-500/40 text-amber-400 hover:bg-amber-500/10"
+                    >
+                      {releasingJobId === reservation.job_id ? (
+                        <Loader2 className="mr-1.5 size-3.5 animate-spin" />
+                      ) : (
+                        <RotateCcw className="mr-1.5 size-3.5" />
+                      )}
+                      Reconcile
+                    </Button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </section>
   );
