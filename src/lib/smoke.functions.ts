@@ -11,10 +11,12 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { orchestrate } from "./orchestrator.server";
 import { refinePlan } from "./agent-loop.server";
 import { lipsyncEngineCost, computeCost } from "./pricing";
+import {
+  preflightImageFixture,
+  TEST_AUDIO_URL,
+  TEST_SELFIE_URL,
+} from "./smoke-fixtures.server";
 
-// Test fixtures (existing CDN assets)
-const TEST_SELFIE_URL = "https://aurora-sparkle-charm.lovable.app/__l5e/assets-v1/24c6484d-42b7-4d6c-8d1d-aeeb71a19d30/josh-yellow-mic.jpg";
-const TEST_AUDIO_URL  = "https://tpzmvbczwahxajujvnrq.supabase.co/storage/v1/object/public/studio/smoke-test/test-audio-8s.mp3";
 // Short public driving video for the motion-transfer smoke step (used only when a motion worker is online).
 const TEST_DRIVING_VIDEO_URL = "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4";
 
@@ -138,6 +140,8 @@ export const runSmokeTest = createServerFn({ method: "POST" })
 
     // Kick off in background — return immediately with run id
     (async () => {
+      await preflightImageFixture(TEST_SELFIE_URL);
+
       let total = 0;
       let imageUrl: string | null = null;
       let videoUrl: string | null = null;

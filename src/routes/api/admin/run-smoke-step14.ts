@@ -1,13 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
+import {
+  preflightImageFixture,
+  TEST_AUDIO_URL,
+  TEST_SELFIE_URL,
+} from "@/lib/smoke-fixtures.server";
 
 const ADMIN_USER_ID = "0f914b89-5532-4e4c-848b-cbbb24fc7a41";
-
-// Same constants as smoke.functions.ts — kept in sync manually.
-const TEST_SELFIE_URL =
-  "https://tpzmvbczwahxajujvnrq.supabase.co/storage/v1/object/public/studio/smoke-test/test-selfie.jpg";
-// 8s audio trimmed from the original — within 15% of the ~8s HeyGen avatar video.
-const TEST_AUDIO_URL =
-  "https://tpzmvbczwahxajujvnrq.supabase.co/storage/v1/object/public/studio/smoke-test/test-audio-8s.mp3";
 
 export const Route = createFileRoute("/api/admin/run-smoke-step14")({
   server: {
@@ -48,6 +46,7 @@ export const Route = createFileRoute("/api/admin/run-smoke-step14")({
             console.log(
               `[smoke-step14] run ${runId} (smoke_run ${smokeRun.id}) started`,
             );
+            await preflightImageFixture(TEST_SELFIE_URL);
 
             // Calls the SAME runSmokeStudioChain function used by runSmokeTest.
             // Exercises: image→video→lipsync via reserveGenerationJob + awaitSmokeJob.
