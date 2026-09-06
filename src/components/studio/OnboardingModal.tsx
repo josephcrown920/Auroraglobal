@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Sparkles, Camera, Wand2, Loader2, Check } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { triggerLifecycleEmail } from "@/lib/emails.functions";
 import { track } from "@/lib/tracking";
 import { claimOnboardingBonus, ONBOARDING_BONUS_AURA } from "@/lib/billing.functions";
 import vibeEditorialPreview from "@/assets/onboarding/vibe-editorial.png";
@@ -102,7 +101,6 @@ export function OnboardingModal({ userId, open, onOpenChange, onApply, onBonusGr
     }
   };
 
-  const sendEmail = useServerFn(triggerLifecycleEmail);
   const claimBonus = useServerFn(claimOnboardingBonus);
   const [finishing, setFinishing] = useState(false);
   const finish = async () => {
@@ -110,10 +108,7 @@ export function OnboardingModal({ userId, open, onOpenChange, onApply, onBonusGr
     setFinishing(true);
     onApply({ selfieUrl, prompt: vibe.prompt, vibeName: vibe.name });
     try { localStorage.setItem(STORAGE_KEY, "1"); } catch { /* ignore */ }
-    void track("onboarding_completed", { vibe: vibe.id });
-    // Fire-and-forget lifecycle emails (deduped server-side)
-    void sendEmail({ data: { template: "signup_welcome" } }).catch(() => {});
-    void sendEmail({ data: { template: "onboarding_done" } }).catch(() => {});
+    void track("onboarding_complete", { vibe: vibe.id });
     onOpenChange(false);
     try {
       const bonus = await claimBonus();

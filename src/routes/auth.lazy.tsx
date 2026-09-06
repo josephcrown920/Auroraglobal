@@ -8,6 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Github, MailCheck, Fingerprint, Loader2, Eye, EyeOff, KeyRound, Mic2, Clapperboard, Sparkles } from "lucide-react";
+import { useServerFn } from "@tanstack/react-start";
+import { triggerLifecycleEmail } from "@/lib/emails.functions";
 
 /** Asked once, on the signup form. Decides which side of the studio opens by
  *  default and how tools are ranked. Stored on profiles.persona. */
@@ -56,6 +58,7 @@ import { useBiometricSupport, useEmbeddedBrowser } from "@/hooks/use-biometric-s
 
 function AuthPage() {
   const navigate = useNavigate();
+  const sendSignupWelcome = useServerFn(triggerLifecycleEmail);
   const { session, loading } = useAuth();
   const search = Route.useSearch();
   const [hydrated, setHydrated] = useState(false);
@@ -253,6 +256,10 @@ function AuthPage() {
         }
         trackSignUp("email");
         if (data.session) {
+          // Send the welcome message immediately for signups that do not
+          // require an email-confirmation round trip. The server-side dedupe
+          // guard makes retries harmless.
+          void sendSignupWelcome({ data: { template: "signup_welcome" } }).catch(() => {});
           toast.success(`Welcome, ${name}!`);
           // After signup, offer to register a passkey
           if (canUsePasskeys) {

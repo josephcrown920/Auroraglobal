@@ -1,4 +1,5 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { firstGenerationDedupeKey, lifecycleDedupeKey, safeEmailImageUrl } from "@/lib/email-lifecycle";
 
 const SITE = "https://auroraperformancestudio.com";
 const STUDIO_URL = `${SITE}/studio`;
@@ -27,29 +28,52 @@ type EmailPayload = {
   template: EmailTemplate | LifecycleTemplate;
   data: Record<string, unknown>;
   userId?: string;
+  dedupeKey?: string;
 };
 
 export async function sendEmail(payload: EmailPayload) {
-  const { to, template, userId } = payload;
+  const { to, template, userId, dedupeKey } = payload;
 
-  const { data: record, error: insertErr } = await supabaseAdmin
-    .from("email_log")
-    .insert({
-      to_email: to,
-      template,
-      status: "queued",
-      user_id: userId ?? null,
-    })
-    .select()
-    .single();
+  let emailId: string;
+  if (dedupeKey && userId) {
+    const adminRpc = supabaseAdmin as unknown as {
+      rpc: (
+        name: string,
+        args: Record<string, unknown>,
+      ) => Promise<{ data: unknown; error: { message: string } | null }>;
+    };
+    const { data: claimedId, error: claimErr } = await adminRpc.rpc("claim_email_delivery", {
+      _user: userId,
+      _to_email: to,
+      _template: template,
+      _dedupe_key: dedupeKey,
+    });
+    if (claimErr) throw new Error(`Failed to claim email delivery: ${claimErr.message}`);
+    if (!claimedId) {
+      return { success: true as const, emailId: null, skipped: true, duplicate: true };
+    }
+    emailId = String(claimedId);
+  } else {
+    const { data: record, error: insertErr } = await supabaseAdmin
+      .from("email_log")
+      .insert({
+        to_email: to,
+        template,
+        status: "queued",
+        user_id: userId ?? null,
+      })
+      .select()
+      .single();
 
-  if (insertErr) throw new Error(`Failed to log email: ${insertErr.message}`);
+    if (insertErr) throw new Error(`Failed to log email: ${insertErr.message}`);
+    emailId = record.id;
+  }
 
   const apiKey = process.env.RESEND_API_KEY;
   const from = process.env.AURORA_FROM_EMAIL || "Aurora Studio <noreply@auroraperformancestudio.com>";
   if (!apiKey) {
-    await supabaseAdmin.from("email_log").update({ status: "skipped" }).eq("id", record.id);
-    return { success: true as const, emailId: record.id, skipped: true };
+    await supabaseAdmin.from("email_log").update({ status: "skipped" }).eq("id", emailId);
+    return { success: true as const, emailId, skipped: true };
   }
 
   const subject = subjectFor(template, payload.data);
@@ -63,17 +87,17 @@ export async function sendEmail(payload: EmailPayload) {
     });
     if (!res.ok) {
       const errText = await res.text();
-      await supabaseAdmin.from("email_log").update({ status: "failed", error: errText.slice(0, 500) }).eq("id", record.id);
-      return { success: false as const, emailId: record.id, error: errText };
+      await supabaseAdmin.from("email_log").update({ status: "failed", error: errText.slice(0, 500) }).eq("id", emailId);
+      return { success: false as const, emailId, error: errText };
     }
-    await supabaseAdmin.from("email_log").update({ status: "sent" }).eq("id", record.id);
+    await supabaseAdmin.from("email_log").update({ status: "sent" }).eq("id", emailId);
   } catch (e) {
     const msg = e instanceof Error ? e.message : "send_failed";
-    await supabaseAdmin.from("email_log").update({ status: "failed", error: msg }).eq("id", record.id);
-    return { success: false as const, emailId: record.id, error: msg };
+    await supabaseAdmin.from("email_log").update({ status: "failed", error: msg }).eq("id", emailId);
+    return { success: false as const, emailId, error: msg };
   }
 
-  return { success: true as const, emailId: record.id };
+  return { success: true as const, emailId };
 }
 
 // ─── Subject lines ─────────────────────────────────────────────────────────────
@@ -222,8 +246,8 @@ function renderTemplate(template: string, data: Record<string, unknown>): string
     case "signup_welcome":
       return shell(
         name,
-        p(`You're in. ${hl("50 free Aura credits")} just landed in your balance — enough for a few portrait shots or your first lip-sync video.`) +
-        p(`Head to your Studio and make your first creation. The first one always hits different.`),
+        p(`${hl("50 Aura")} are waiting in your new account — enough for two portrait shots or one short lip-sync at the standard tier.`) +
+        p("Start with a real selfie, pick a visual direction, and let Aurora turn the blank page into something you can share. You can always try another look after that first render."),
         "Open My Studio",
         STUDIO_URL,
       );
@@ -233,8 +257,8 @@ function renderTemplate(template: string, data: Record<string, unknown>): string
         name,
         p(`Your first Aurora creation just finished. That one matters — it's the beginning of your whole catalog.`) +
         p(`Every artist who blows up started with a first piece. Keep creating and build your library.`) +
-        ((data.resultUrl as string)
-          ? `<div style="text-align:center;margin:24px 0"><img src="${escapeHtml(data.resultUrl as string)}" alt="Your creation" style="max-width:100%;border-radius:10px;border:1px solid rgba(167,139,250,0.2)"></div>`
+        (safeEmailImageUrl(data.resultUrl)
+          ? `<div style="text-align:center;margin:24px 0"><img src="${escapeHtml(safeEmailImageUrl(data.resultUrl) as string)}" alt="Your creation" style="max-width:100%;border-radius:10px;border:1px solid rgba(167,139,250,0.2)"></div>`
           : ""),
         "Make Another",
         STUDIO_URL,
@@ -275,8 +299,8 @@ function renderTemplate(template: string, data: Record<string, unknown>): string
     case "low-credit-nudge":
       return shell(
         name,
-        p(`You've got ${hl(String(Number(data.creditsRemaining ?? 0)))} Aura left. That's enough for another generation or two — but top up now to keep your streak going.`) +
-        p(`The cheapest top-up starts at 150 Aura for a couple of dollars. Don't let a low balance break your momentum.`),
+        p(`You've got ${hl(String(Number(data.creditsRemaining ?? 0)))} Aura left. The next render could use most of it, so this is the right moment to keep your balance moving.`) +
+        p(`The cheapest option is the 1-Day Pass — 150 Aura with a 150 Aura daily limit. Top up from Billing and keep creating without waiting for the next refresh.`),
         "Top Up Aura",
         `${SITE}/billing`,
       );
@@ -379,11 +403,23 @@ export async function sendLifecycleEmail(args: {
   template: LifecycleTemplate;
   vars?: Record<string, unknown>;
 }) {
-  return sendEmail({ to: args.to, template: args.template, data: args.vars ?? {}, userId: args.userId });
+  return sendEmail({
+    to: args.to,
+    template: args.template,
+    data: args.vars ?? {},
+    userId: args.userId,
+    dedupeKey: lifecycleDedupeKey(args.template, args.userId),
+  });
 }
 
 export async function sendWelcomeEmail(userId: string, _displayName: string, email: string) {
-  return sendEmail({ to: email, template: "welcome-5-credits", data: { displayName: _displayName }, userId });
+  return sendEmail({
+    to: email,
+    template: "welcome-5-credits",
+    data: { displayName: _displayName },
+    userId,
+    dedupeKey: `welcome-5-credits:${userId}`,
+  });
 }
 
 export async function sendFirstGenerationEmail(userId: string) {
@@ -393,7 +429,25 @@ export async function sendFirstGenerationEmail(userId: string) {
     .eq("user_id", userId)
     .maybeSingle();
   if (!user?.email) return;
-  return sendEmail({ to: user.email, template: "first_generation_complete", data: { displayName: user.display_name || "Creator" }, userId });
+  const { data: firstGeneration } = await supabaseAdmin
+    .from("generations")
+    .select("result_image_url")
+    .eq("user_id", userId)
+    .eq("status", "succeeded")
+    .order("created_at", { ascending: true })
+    .order("id", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  return sendEmail({
+    to: user.email,
+    template: "first_generation_complete",
+    data: {
+      displayName: user.display_name || "Creator",
+      resultUrl: firstGeneration?.result_image_url ?? null,
+    },
+    userId,
+    dedupeKey: firstGenerationDedupeKey(userId),
+  });
 }
 
 export async function sendDailyTipEmail(userId: string) {
@@ -427,7 +481,7 @@ export async function sendLowCreditNudge(userId: string) {
     .select("email, display_name, credits")
     .eq("user_id", userId)
     .maybeSingle();
-  if (!user?.email || !user.credits || user.credits > 50) return;
+  if (!user?.email || user.credits == null || user.credits > 5) return;
   return sendEmail({
     to: user.email,
     template: "low-credit-nudge",
@@ -506,7 +560,12 @@ export async function sendFirstPurchaseNudgeEmail(userId: string) {
     .eq("user_id", userId)
     .maybeSingle();
   if (!user?.email) return;
-  return sendEmail({ to: user.email, template: "first_purchase_nudge", data: { displayName: user.display_name || "Creator" }, userId });
+  return sendLifecycleEmail({
+    userId,
+    to: user.email,
+    template: "first_purchase_nudge",
+    vars: { displayName: user.display_name || "Creator" },
+  });
 }
 
 export async function sendOnboardingResumeEmail(userId: string) {
@@ -516,7 +575,27 @@ export async function sendOnboardingResumeEmail(userId: string) {
     .eq("user_id", userId)
     .maybeSingle();
   if (!user?.email) return;
-  return sendEmail({ to: user.email, template: "onboarding_resume", data: { displayName: user.display_name || "Creator" }, userId });
+  return sendLifecycleEmail({
+    userId,
+    to: user.email,
+    template: "onboarding_resume",
+    vars: { displayName: user.display_name || "Creator" },
+  });
+}
+
+export async function sendOnboardingDoneEmail(userId: string) {
+  const { data: user } = await supabaseAdmin
+    .from("profiles")
+    .select("email, display_name")
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (!user?.email) return;
+  return sendLifecycleEmail({
+    userId,
+    to: user.email,
+    template: "onboarding_done",
+    vars: { displayName: user.display_name || "Creator" },
+  });
 }
 
 export async function sendGiftRedeemedEmail(userId: string, fromUser: string, creditsRedeemed: number) {

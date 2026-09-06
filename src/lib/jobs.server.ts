@@ -1651,19 +1651,12 @@ export async function processOneJob(
         output_url: mirrorUrl,
         output_kind: classifyComfyOutput(mirrorUrl),
       });
-      // Best-effort: fire first-generation-complete email if this is the
-      // user's first ever succeeded generation. We check AFTER finalize_job
-      // committed, so count=1 means this was the first.
+      // Best-effort: the email helper finds the user's earliest succeeded
+      // generation and claims a one-time delivery atomically. This stays
+      // correct when multiple jobs finalize at the same time.
       void (async () => {
         try {
-          const { count } = await supabaseAdmin
-            .from("generations")
-            .select("id", { count: "exact", head: true })
-            .eq("user_id", job.user_id)
-            .eq("status", "succeeded");
-          if (count === 1) {
-            await sendFirstGenerationEmail(job.user_id);
-          }
+          await sendFirstGenerationEmail(job.user_id);
         } catch (e) {
           console.error("[jobs] first-gen email best-effort failed", e);
         }
