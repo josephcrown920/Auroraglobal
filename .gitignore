@@ -12,6 +12,10 @@ dist
 dist-ssr
 .output
 .build-snapshots
+.cache/
+.pythonlibs/
+.scaffold-backup/
+attached_assets/
 .vinxi
 .tanstack/**
 .nitro
@@ -75,6 +79,11 @@ attached_assets/Motion_transfer_studio*.zip
 attached_assets/*.zip
 notebooks/*.zip
 *.zip
+
+# Dev-only dependencies and store exports inside auxiliary artifacts.
+artifacts/*/node_modules/
+artifacts/*/.expo/
+artifacts/aurora-mobile/store/builds/
 
 # Raw generated media staging area. Generated clips/images land here first,
 # then get copied into their permanent home (e.g. src/assets/kids/,
