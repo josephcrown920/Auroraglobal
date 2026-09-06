@@ -14,6 +14,17 @@ import { useServerFn } from "@tanstack/react-start";
 import { Link } from "@tanstack/react-router";
 import { ExternalLink, Loader2, Send, CheckCircle2, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import { Textarea } from "@/components/ui/textarea";
 import {
   postToTiktok,
   pollTiktokPostStatus,
@@ -41,6 +52,34 @@ const PROCESSING: PostStatus[] = [
   "processing_stabilize",
 ];
 
+type PrivacyLevel = "SELF_ONLY" | "MUTUAL_FOLLOW_FRIENDS" | "PUBLIC_TO_EVERYONE";
+
+const PRIVACY_OPTIONS: Array<{
+  value: PrivacyLevel;
+  emoji: string;
+  label: string;
+  description: string;
+}> = [
+  {
+    value: "SELF_ONLY",
+    emoji: "🔒",
+    label: "Private (just me)",
+    description: "Only you can watch this post.",
+  },
+  {
+    value: "MUTUAL_FOLLOW_FRIENDS",
+    emoji: "👥",
+    label: "Friends only",
+    description: "People you follow who also follow you.",
+  },
+  {
+    value: "PUBLIC_TO_EVERYONE",
+    emoji: "🌍",
+    label: "Everyone",
+    description: "Anyone on TikTok can watch this post.",
+  },
+];
+
 interface Props {
   videoUrl: string;
   generationId?: string;
@@ -65,6 +104,9 @@ export function TiktokPostButton({
   const [postId, setPostId] = useState<string | null>(null);
   const [status, setStatus] = useState<PostStatus>("idle");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [isPostSheetOpen, setIsPostSheetOpen] = useState(false);
+  const [privacyLevel, setPrivacyLevel] = useState<PrivacyLevel>("SELF_ONLY");
+  const [caption, setCaption] = useState(() => title?.slice(0, 150) ?? "");
 
   // On mount, check if there's already a post for this generation.
   useEffect(() => {
@@ -132,6 +174,12 @@ export function TiktokPostButton({
     [pollFn], // eslint-disable-line react-hooks/exhaustive-deps
   );
 
+  function openPostSheet() {
+    setCaption(title?.slice(0, 150) ?? "");
+    setPrivacyLevel("SELF_ONLY");
+    setIsPostSheetOpen(true);
+  }
+
   async function handlePost() {
     if (isConnected === false) return;
     setStatus("posting");
@@ -141,10 +189,11 @@ export function TiktokPostButton({
         data: {
           videoUrl,
           generationId,
-          title: title?.slice(0, 150),
-          privacyLevel: "SELF_ONLY", // default to private so user can review before publishing
+          title: caption.trim() || undefined,
+          privacyLevel,
         },
       });
+      setIsPostSheetOpen(false);
       setPostId(res.postId);
       setStatus("processing_upload");
       poll(res.postId);
@@ -156,11 +205,11 @@ export function TiktokPostButton({
     }
   }
 
-  async function handleRetry() {
+  function handleRetry() {
     setStatus("idle");
     setErrorMsg(null);
     setPostId(null);
-    await handlePost();
+    openPostSheet();
   }
 
   // Not yet loaded — don't render anything yet.
@@ -239,18 +288,99 @@ export function TiktokPostButton({
   }
 
   return (
-    <button
-      type="button"
-      onClick={handlePost}
-      className={
-        compact
-          ? "inline-flex items-center gap-1 rounded-lg border border-[#25F4EE]/30 bg-[#25F4EE]/10 px-2 py-1 text-[10px] font-semibold text-[#25F4EE] hover:bg-[#25F4EE]/20"
-          : "inline-flex items-center gap-1.5 rounded-xl border border-[#25F4EE]/30 bg-[#25F4EE]/10 px-3 py-1.5 text-xs font-semibold text-[#25F4EE] hover:bg-[#25F4EE]/20"
-      }
-    >
-      <Send className="size-3" />
-      Post to TikTok
-    </button>
+    <>
+      <button
+        type="button"
+        onClick={openPostSheet}
+        data-testid="button-open-tiktok-post"
+        className={
+          compact
+            ? "inline-flex items-center gap-1 rounded-lg border border-[#25F4EE]/30 bg-[#25F4EE]/10 px-2 py-1 text-[10px] font-semibold text-[#25F4EE] hover:bg-[#25F4EE]/20"
+            : "inline-flex items-center gap-1.5 rounded-xl border border-[#25F4EE]/30 bg-[#25F4EE]/10 px-3 py-1.5 text-xs font-semibold text-[#25F4EE] hover:bg-[#25F4EE]/20"
+        }
+      >
+        <Send className="size-3" />
+        Post to TikTok
+      </button>
+
+      <Sheet open={isPostSheetOpen} onOpenChange={setIsPostSheetOpen}>
+        <SheetContent
+          side="bottom"
+          className="mx-auto max-h-[90vh] w-full max-w-xl overflow-y-auto rounded-t-3xl border-border bg-background/95 px-4 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-6 backdrop-blur-xl sm:px-6"
+        >
+          <SheetHeader className="pr-8 text-left">
+            <SheetTitle>Post to TikTok</SheetTitle>
+            <SheetDescription>Choose who can watch your video and add a caption before it goes live.</SheetDescription>
+          </SheetHeader>
+
+          <div className="mt-6 space-y-6">
+            <fieldset>
+              <legend className="mb-3 text-sm font-semibold text-foreground">Who can watch this video?</legend>
+              <RadioGroup
+                value={privacyLevel}
+                onValueChange={(value) => setPrivacyLevel(value as PrivacyLevel)}
+                className="gap-2"
+                data-testid="radio-tiktok-privacy"
+              >
+                {PRIVACY_OPTIONS.map((option) => (
+                  <label
+                    key={option.value}
+                    htmlFor={`tiktok-privacy-${option.value}`}
+                    className="flex min-h-16 cursor-pointer items-center gap-3 rounded-2xl border border-border bg-card/70 px-4 py-3 transition-colors hover:bg-accent/60 has-[[data-state=checked]]:border-primary/60 has-[[data-state=checked]]:bg-primary/10"
+                  >
+                    <span aria-hidden="true" className="text-xl">{option.emoji}</span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-sm font-semibold text-foreground">{option.label}</span>
+                      <span className="block text-xs text-muted-foreground">{option.description}</span>
+                    </span>
+                    <RadioGroupItem
+                      id={`tiktok-privacy-${option.value}`}
+                      value={option.value}
+                      data-testid={`radio-tiktok-privacy-${option.value.toLowerCase()}`}
+                    />
+                  </label>
+                ))}
+              </RadioGroup>
+            </fieldset>
+
+            <div className="space-y-2">
+              <div className="flex items-center justify-between gap-4">
+                <label htmlFor="tiktok-caption" className="text-sm font-semibold text-foreground">
+                  Caption
+                </label>
+                <span className="text-xs tabular-nums text-muted-foreground" aria-live="polite">
+                  {caption.length}/150
+                </span>
+              </div>
+              <Textarea
+                id="tiktok-caption"
+                value={caption}
+                onChange={(event) => setCaption(event.target.value)}
+                maxLength={150}
+                rows={3}
+                placeholder="Add a caption…"
+                data-testid="input-tiktok-caption"
+                className="min-h-24 resize-none rounded-2xl"
+              />
+            </div>
+          </div>
+
+          <SheetFooter className="mt-6">
+            <Button
+              type="button"
+              variant="premium"
+              size="xl"
+              onClick={handlePost}
+              data-testid="button-confirm-tiktok-post"
+              className="w-full"
+            >
+              <Send />
+              Post to TikTok
+            </Button>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
+    </>
   );
 }
 
