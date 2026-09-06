@@ -2214,6 +2214,7 @@ export type WorkerRow = {
   max_concurrency: number;
   protocol: string;
   runpod_sync: boolean;
+  capabilities?: string[] | null;
 };
 
 // Robustly pull an output URL out of whatever shape a worker returns: a bare
@@ -2422,17 +2423,21 @@ export async function dispatchComfyui(
   r: GenerateRequest,
   deadline: number,
 ): Promise<unknown> {
-  let workflow = r.comfyWorkflow;
-  let inputs = r.comfyInputs;
+  if (!workerCanServeComfyRequest(w, r)) {
+    throw new Error(`worker ${w.name}: ComfyUI capability does not support this workflow variant`);
+  }
+  const workerRequest = requestForComfyWorker(w, r);
+  let workflow = workerRequest.comfyWorkflow;
+  let inputs = workerRequest.comfyInputs;
   if (!workflow) {
-    const def = buildDefaultComfyWorkflow(r);
+    const def = buildDefaultComfyWorkflow(workerRequest);
     if (!def)
       throw new Error(
         `worker ${w.name}: comfyui protocol requires a workflow (no default graph for kind ${r.kind})`,
       );
     workflow = def.comfyWorkflow;
     // Request-supplied comfyInputs win over the defaults so callers can override.
-    inputs = { ...def.comfyInputs, ...(r.comfyInputs ?? {}) };
+    inputs = { ...def.comfyInputs, ...(workerRequest.comfyInputs ?? {}) };
   }
   const url = await runComfyWorkflow({
     baseUrl: base,
@@ -2504,6 +2509,47 @@ function workerCapability(kind: GenerateKind): string {
   return kind === "audio" ? "tts" : kind;
 }
 
+function comfyVariantForRequest(w: WorkerRow, r: GenerateRequest): string | "legacy" | undefined {
+  if (r.comfyWorkflow || (r.kind !== "image" && r.kind !== "video")) return undefined;
+  const caps = w.capabilities;
+  // Older rows predate variant capabilities. Keep them usable by selecting the
+  // legacy graphs, but never use that compatibility path for Flux edit requests.
+  if (!caps) return undefined;
+  const has = (cap: string) => caps.includes(cap);
+  if (r.kind === "image") {
+    if (r.imageUrls?.[0]) return has("comfy:image:flux2:edit") ? "flux2" : undefined;
+    if (has("comfy:image:flux2:t2i")) return "flux2";
+    return has("comfy:image:legacy:t2i") || has("image") ? "legacy" : undefined;
+  }
+  const requested = String(r.params?.comfyModel ?? r.params?.comfy_model ?? r.model ?? "");
+  const hasVideoVariants = caps.some((cap) => cap.startsWith("comfy:video:"));
+  const wantsWan = /wan(?:[-_. ]?2\.2)?/i.test(requested);
+  const wantsLtx = /ltx(?:[-_. ]?2\.3)?/i.test(requested);
+  const i2v = !!r.imageUrls?.[0];
+  if (wantsWan) return has(`comfy:video:wan:${i2v ? "i2v" : "t2v"}`) ? "wan-2.2" : undefined;
+  if (wantsLtx) return has(`comfy:video:ltx:${i2v ? "i2v" : "t2v"}`) ? "ltx-2.3" : undefined;
+  if (has(`comfy:video:ltx:${i2v ? "i2v" : "t2v"}`)) return "ltx-2.3";
+  if (has(`comfy:video:wan:${i2v ? "i2v" : "t2v"}`)) return "wan-2.2";
+  return has(`comfy:video:legacy:${i2v ? "i2v" : "t2v"}`) ||
+    (!hasVideoVariants && has("video"))
+    ? "legacy"
+    : undefined;
+}
+
+function workerCanServeComfyRequest(w: WorkerRow, r: GenerateRequest): boolean {
+  if (w.protocol !== "comfyui" || r.comfyWorkflow || (r.kind !== "image" && r.kind !== "video")) return true;
+  // Legacy callers/tests and manually-created rows may not expose capabilities;
+  // preserve the historical default graph behavior for those rows.
+  if (!w.capabilities) return true;
+  return comfyVariantForRequest(w, r) !== undefined;
+}
+
+function requestForComfyWorker(w: WorkerRow, r: GenerateRequest): GenerateRequest {
+  const variant = comfyVariantForRequest(w, r);
+  if (!variant || r.comfyWorkflow) return r;
+  return { ...r, params: { ...(r.params ?? {}), comfyModel: variant } };
+}
+
 const gpuWorker: ProviderAdapter = {
   name: "runpod",
   supports: (r) =>
@@ -2533,6 +2579,7 @@ const gpuWorker: ProviderAdapter = {
     const now = Date.now();
     let lastErr: Error | null = null;
     for (const w of workers) {
+      if (!workerCanServeComfyRequest(w as WorkerRow, r)) continue;
       if (w.in_flight >= w.max_concurrency) continue;
       // Lazy heartbeat staleness check: skip workers that haven't been pinged recently.
       if (w.last_heartbeat && now - new Date(w.last_heartbeat).getTime() > STALE_MS) continue;
@@ -2552,16 +2599,17 @@ const gpuWorker: ProviderAdapter = {
         incremented = true;
         const base = normalizeWorkerBase(w.endpoint_url);
         const deadline = started + WORKER_TIMEOUT_MS;
+        const workerRequest = requestForComfyWorker(w as WorkerRow, r);
         const payload =
           w.protocol === "runpod"
-            ? await dispatchRunpod(base, w, r, deadline)
+            ? await dispatchRunpod(base, w, workerRequest, deadline)
             : w.protocol === "comfyui"
-              ? await dispatchComfyui(base, w, r, deadline)
+              ? await dispatchComfyui(base, w, workerRequest, deadline)
               : w.protocol === "hfspace"
-                ? await dispatchHfspace(base, w, r, deadline)
+                ? await dispatchHfspace(base, w, workerRequest, deadline)
                 : w.protocol === "inferencesh"
-                  ? await dispatchInferenceSh(base, w, r, deadline)
-                  : await dispatchCustom(base, w, r, deadline);
+                  ? await dispatchInferenceSh(base, w, workerRequest, deadline)
+                  : await dispatchCustom(base, w, workerRequest, deadline);
         // custom & vast workers may return a relative/non-http url; preserve it.
         const isCustomLike =
           w.protocol !== "runpod" &&

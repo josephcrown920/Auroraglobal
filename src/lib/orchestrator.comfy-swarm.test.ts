@@ -6,8 +6,9 @@ import {
   type WorkerRow,
 } from "./orchestrator.server";
 import {
-  ANIMATEDIFF_T2V_WORKFLOW,
-  SDXL_IMAGE_WORKFLOW,
+  FLUX2_IMAGE_WORKFLOW,
+  LTX23_I2V_WORKFLOW,
+  LTX23_T2V_WORKFLOW,
   SVD_I2V_WORKFLOW,
 } from "./comfy-default-workflows.server";
 
@@ -94,7 +95,7 @@ afterEach(() => {
 });
 
 /** Drive a comfyui dispatch: /prompt → one finished /history poll → /view URL. */
-function runDispatch(req: GenerateRequest) {
+function runDispatch(req: GenerateRequest, workerOverrides: Partial<WorkerRow> = {}) {
   installFakeClock();
   const { calls } = installFetch((url) => {
     if (url.endsWith("/prompt")) return fakeResponse({ json: { prompt_id: "p1" } });
@@ -107,7 +108,7 @@ function runDispatch(req: GenerateRequest) {
       },
     });
   });
-  return { calls, promise: dispatchComfyui(COMFY, makeWorker(), req, Date.now() + 60_000) };
+  return { calls, promise: dispatchComfyui(COMFY, makeWorker(workerOverrides), req, Date.now() + 60_000) };
 }
 
 describe("dispatchComfyui — free-GPU swarm default graphs (Task #85)", () => {
@@ -131,10 +132,10 @@ describe("dispatchComfyui — free-GPU swarm default graphs (Task #85)", () => {
         prompt: Record<string, { class_type: string; inputs: Record<string, unknown> }>;
       }
     ).prompt;
-    expect(Object.keys(submitted)).toEqual(Object.keys(SDXL_IMAGE_WORKFLOW));
-    expect(submitted["1"].class_type).toBe("CheckpointLoaderSimple");
-    expect(submitted["2"].inputs.text).toBe("a red fox");
-    expect(submitted["4"].inputs.width).toBe(1024);
+    expect(Object.keys(submitted)).toEqual(Object.keys(FLUX2_IMAGE_WORKFLOW));
+    expect(submitted["1"].class_type).toBe("UNETLoader");
+    expect(submitted["4"].inputs.text).toBe("a red fox");
+    expect(submitted["8"].inputs.width).toBe(1024);
   });
 
   it("video: image-to-video patches the LoadImageFromUrl node with the input still", async () => {
@@ -150,9 +151,9 @@ describe("dispatchComfyui — free-GPU swarm default graphs (Task #85)", () => {
         prompt: Record<string, { class_type: string; inputs: Record<string, unknown> }>;
       }
     ).prompt;
-    expect(Object.keys(submitted)).toEqual(Object.keys(SVD_I2V_WORKFLOW));
-    expect(submitted["2"].class_type).toBe("LoadImageFromUrl");
-    expect(submitted["2"].inputs.url).toBe("https://cdn.example.com/still.png");
+    expect(Object.keys(submitted)).toEqual(Object.keys(LTX23_I2V_WORKFLOW));
+    expect(submitted["19"].class_type).toBe("LoadImageFromUrl");
+    expect(submitted["19"].inputs.url).toBe("https://cdn.example.com/still.png");
   });
 
   it("video: text-to-video uses the AnimateDiff graph when no input still is given", async () => {
@@ -164,22 +165,36 @@ describe("dispatchComfyui — free-GPU swarm default graphs (Task #85)", () => {
         prompt: Record<string, { class_type: string; inputs: Record<string, unknown> }>;
       }
     ).prompt;
-    expect(Object.keys(submitted)).toEqual(Object.keys(ANIMATEDIFF_T2V_WORKFLOW));
-    expect(submitted["2"].class_type).toBe("ADE_AnimateDiffLoaderGen1");
+    expect(Object.keys(submitted)).toEqual(Object.keys(LTX23_T2V_WORKFLOW));
+    expect(submitted["1"].class_type).toBe("CheckpointLoaderSimple");
     expect(submitted["3"].inputs.text).toBe("a comet streaking");
+  });
+
+  it("video: legacy image-to-video dispatch submits the SVD graph", async () => {
+    const { calls, promise } = runDispatch(
+      { kind: "video", imageUrls: ["https://cdn.example.com/still.png"] },
+      { capabilities: ["video", "comfy:video:legacy:i2v"] },
+    );
+    await promise;
+    const submitted = (
+      calls[0].body as { prompt: Record<string, { class_type: string; inputs: Record<string, unknown> }> }
+    ).prompt;
+    expect(Object.keys(submitted)).toEqual(Object.keys(SVD_I2V_WORKFLOW));
+    expect(submitted["1"].class_type).toBe("ImageOnlyCheckpointLoader");
+    expect(submitted["2"].inputs.url).toBe("https://cdn.example.com/still.png");
   });
 
   it("request-supplied comfyInputs override the defaults", async () => {
     const { calls, promise } = runDispatch({
       kind: "image",
       prompt: "a fox",
-      comfyInputs: { "2.text": "overridden" },
+      comfyInputs: { "4.text": "overridden" },
     });
     await promise;
     const submitted = (
       calls[0].body as { prompt: Record<string, { inputs: Record<string, unknown> }> }
     ).prompt;
-    expect(submitted["2"].inputs.text).toBe("overridden");
+    expect(submitted["4"].inputs.text).toBe("overridden");
   });
 
   it("explicit comfyWorkflow on the request is used verbatim (no default built)", async () => {

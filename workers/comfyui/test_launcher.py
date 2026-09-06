@@ -39,10 +39,15 @@ class ServableCapsTests(unittest.TestCase):
 
     def test_full_16gb_worker_serves_image_and_lipsync(self):
         """16 GB free-tier default caps (image, lipsync) with everything present."""
-        self._touch("models/checkpoints/sd_xl_base_1.0.safetensors")
+        for rel, _, _ in launcher.CAP_MODEL_SETS["image"][0]:
+            self._touch(rel)
         available_classes = set(launcher.CAP_NODE_CLASSES["lipsync"])
+        available_classes.add("LoadImageFromUrl")
         result = launcher.servable_caps(["image", "lipsync"], available_classes)
-        self.assertEqual(sorted(result), ["image", "lipsync"])
+        self.assertEqual(
+            sorted(result),
+            ["comfy:image:flux2:edit", "comfy:image:flux2:t2i", "image", "lipsync"],
+        )
 
     def test_underprovisioned_worker_drops_video_missing_weights(self):
         """No model weights on disk at all -> video (and image) never advertised.
@@ -95,7 +100,50 @@ class ServableCapsTests(unittest.TestCase):
         result = launcher.servable_caps(
             ["image", "video", "lipsync", "motion"], available_classes
         )
-        self.assertEqual(sorted(result), ["image", "lipsync", "motion", "video"])
+        self.assertEqual(
+            sorted(result),
+            [
+                "comfy:image:flux2:edit", "comfy:image:flux2:t2i",
+                "comfy:image:legacy:t2i", "comfy:video:legacy:i2v",
+                "comfy:video:legacy:t2v", "comfy:video:ltx:i2v",
+                "comfy:video:ltx:t2v", "comfy:video:wan:i2v",
+                "comfy:video:wan:t2v", "image", "lipsync", "motion", "video",
+            ],
+        )
+
+    def test_ltx_provision_set_only_advertises_ltx_variants(self):
+        for rel, _, _ in launcher.CAP_MODEL_SETS["video"][0]:
+            self._touch(rel)
+        result = launcher.servable_caps(["video"], set(launcher.CAP_NODE_SETS["video"][0]))
+        self.assertIn("comfy:video:ltx:t2v", result)
+        self.assertIn("comfy:video:ltx:i2v", result)
+        self.assertNotIn("comfy:video:wan:t2v", result)
+        self.assertNotIn("comfy:video:legacy:t2v", result)
+
+    def test_wan_provision_set_only_advertises_wan_variants(self):
+        for rel, _, _ in launcher.CAP_MODEL_SETS["video"][1]:
+            self._touch(rel)
+        result = launcher.servable_caps(["video"], set(launcher.CAP_NODE_SETS["video"][1]))
+        self.assertIn("comfy:video:wan:t2v", result)
+        self.assertIn("comfy:video:wan:i2v", result)
+        self.assertNotIn("comfy:video:ltx:t2v", result)
+        self.assertNotIn("comfy:video:legacy:t2v", result)
+
+    def test_legacy_provision_set_only_advertises_legacy_variants(self):
+        for rel, _, _ in launcher.CAP_MODEL_SETS["video"][2]:
+            self._touch(rel)
+        result = launcher.servable_caps(["video"], set(launcher.CAP_NODE_SETS["video"][2]))
+        self.assertIn("comfy:video:legacy:i2v", result)
+        self.assertNotIn("comfy:video:legacy:t2v", result)
+        self.assertNotIn("comfy:video:ltx:t2v", result)
+        self.assertNotIn("comfy:video:wan:t2v", result)
+
+    def test_animatediff_provision_set_only_advertises_legacy_t2v(self):
+        for rel, _, _ in launcher.CAP_MODEL_SETS["video"][3]:
+            self._touch(rel)
+        result = launcher.servable_caps(["video"], set(launcher.CAP_NODE_SETS["video"][3]))
+        self.assertIn("comfy:video:legacy:t2v", result)
+        self.assertNotIn("comfy:video:legacy:i2v", result)
 
 
 class GraphLauncherContractTests(unittest.TestCase):
@@ -110,14 +158,32 @@ class GraphLauncherContractTests(unittest.TestCase):
     # for the source of truth); kept here as plain literals so this test has no
     # TS/bun dependency and can run standalone in the Python worker toolchain.
     GRAPH_CKPT_NAMES = {
-        "image": {"sd_xl_base_1.0.safetensors"},
-        "video": {"svd_xt_1_1.safetensors", "v1-5-pruned-emaonly.safetensors"},
+        "image": {
+            "flux2_dev_fp8mixed.safetensors", "mistral_3_small_flux2_bf16.safetensors",
+            "full_encoder_small_decoder.safetensors", "sd_xl_base_1.0.safetensors",
+        },
+        "video": {
+            "ltx-2.3-22b-dev-fp8.safetensors", "gemma_3_12B_it_fp4_mixed.safetensors",
+            "wan2.2_t2v_high_noise_14B_fp8_scaled.safetensors",
+            "wan2.2_t2v_low_noise_14B_fp8_scaled.safetensors",
+            "wan2.2_i2v_high_noise_14B_fp8_scaled.safetensors",
+            "wan2.2_i2v_low_noise_14B_fp8_scaled.safetensors",
+            "umt5_xxl_fp8_e4m3fn_scaled.safetensors", "wan_2.1_vae.safetensors",
+            "svd_xt_1_1.safetensors", "v1-5-pruned-emaonly.safetensors",
+        },
     }
     GRAPH_MODEL_NAMES = {
         "video": {"mm_sd_v15_v2.ckpt"},
     }
     GRAPH_NODE_CLASSES = {
-        "video": {"VHS_VideoCombine", "ADE_AnimateDiffLoaderGen1", "LoadImageFromUrl"},
+        "video": {
+            "VHS_VideoCombine", "ADE_AnimateDiffLoaderGen1", "LoadImageFromUrl",
+            "LTXAVTextEncoderLoader", "LTXVAudioVAELoader", "LTXVConditioning",
+            "LTXVEmptyLatentAudio", "LTXVConcatAVLatent", "LTXVSeparateAVLatent",
+            "LTXVAudioVAEDecode", "LTXVPreprocess", "LTXVImgToVideoInplace",
+            "EmptyLTXVLatentVideo",
+            "ResizeImagesByLongerEdge", "WanImageToVideo", "EmptyHunyuanLatentVideo",
+        },
         "lipsync": {
             "LatentSyncSampler",
             "LoadVideoFromUrl",
