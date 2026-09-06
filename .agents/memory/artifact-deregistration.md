@@ -23,3 +23,7 @@ leftover `.scaffold-backup/artifacts/*` from a Lovable→Replit migration), `rm`
 via a plain `outputType="webview"` workflow (e.g. `[[ports]] 8080->80`) needs ZERO
 registered artifacts — the webview at root is the preview; an empty `listArtifacts`
 is fine and does not blank the preview.
+
+After marker removal, verify and terminate any orphaned satellite dev process before
+restarting the root workflow; deregistration removes the managed workflow but may not
+immediately reap a child Vite process that still owns a port.

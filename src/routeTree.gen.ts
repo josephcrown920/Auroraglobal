@@ -15,6 +15,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AccountRouteImport } from './routes/account'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AdsRouteImport } from './routes/ads'
+import { Route as AdultRouteImport } from './routes/adult'
 import { Route as AffiliateRouteImport } from './routes/affiliate'
 import { Route as AgentRouteImport } from './routes/agent'
 import { Route as AuroraAdultRouteImport } from './routes/aurora-adult'
@@ -55,6 +56,7 @@ import { Route as NexusarbRouteImport } from './routes/nexusarb'
 import { Route as OrchestrateRouteImport } from './routes/orchestrate'
 import { Route as PartnersRouteImport } from './routes/partners'
 import { Route as PerformRouteImport } from './routes/perform'
+import { Route as PerformAnywhereRouteImport } from './routes/perform-anywhere'
 import { Route as PhotoEditRouteImport } from './routes/photo-edit'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as PromotionRouteImport } from './routes/promotion'
@@ -203,6 +205,11 @@ const AdsRoute = AdsRouteImport.update({
   path: '/ads',
   getParentRoute: () => rootRouteImport,
 } as any).lazy(() => import('./routes/ads.lazy').then((d) => d.Route))
+const AdultRoute = AdultRouteImport.update({
+  id: '/adult',
+  path: '/adult',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/adult.lazy').then((d) => d.Route))
 const AffiliateRoute = AffiliateRouteImport.update({
   id: '/affiliate',
   path: '/affiliate',
@@ -414,6 +421,13 @@ const PerformRoute = PerformRouteImport.update({
   path: '/perform',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PerformAnywhereRoute = PerformAnywhereRouteImport.update({
+  id: '/perform-anywhere',
+  path: '/perform-anywhere',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() =>
+  import('./routes/perform-anywhere.lazy').then((d) => d.Route),
+)
 const PhotoEditRoute = PhotoEditRouteImport.update({
   id: '/photo-edit',
   path: '/photo-edit',
@@ -1077,6 +1091,7 @@ export interface FileRoutesByFullPath {
   '/account': typeof AccountRoute
   '/admin': typeof AdminRouteWithChildren
   '/ads': typeof AdsRoute
+  '/adult': typeof AdultRoute
   '/affiliate': typeof AffiliateRoute
   '/agent': typeof AgentRoute
   '/aurora-adult': typeof AuroraAdultRoute
@@ -1117,6 +1132,7 @@ export interface FileRoutesByFullPath {
   '/orchestrate': typeof OrchestrateRoute
   '/partners': typeof PartnersRoute
   '/perform': typeof PerformRoute
+  '/perform-anywhere': typeof PerformAnywhereRoute
   '/photo-edit': typeof PhotoEditRoute
   '/privacy': typeof PrivacyRoute
   '/promotion': typeof PromotionRoute
@@ -1246,6 +1262,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/account': typeof AccountRoute
   '/ads': typeof AdsRoute
+  '/adult': typeof AdultRoute
   '/affiliate': typeof AffiliateRoute
   '/agent': typeof AgentRoute
   '/aurora-adult': typeof AuroraAdultRoute
@@ -1286,6 +1303,7 @@ export interface FileRoutesByTo {
   '/orchestrate': typeof OrchestrateRoute
   '/partners': typeof PartnersRoute
   '/perform': typeof PerformRoute
+  '/perform-anywhere': typeof PerformAnywhereRoute
   '/photo-edit': typeof PhotoEditRoute
   '/privacy': typeof PrivacyRoute
   '/promotion': typeof PromotionRoute
@@ -1417,6 +1435,7 @@ export interface FileRoutesById {
   '/account': typeof AccountRoute
   '/admin': typeof AdminRouteWithChildren
   '/ads': typeof AdsRoute
+  '/adult': typeof AdultRoute
   '/affiliate': typeof AffiliateRoute
   '/agent': typeof AgentRoute
   '/aurora-adult': typeof AuroraAdultRoute
@@ -1457,6 +1476,7 @@ export interface FileRoutesById {
   '/orchestrate': typeof OrchestrateRoute
   '/partners': typeof PartnersRoute
   '/perform': typeof PerformRoute
+  '/perform-anywhere': typeof PerformAnywhereRoute
   '/photo-edit': typeof PhotoEditRoute
   '/privacy': typeof PrivacyRoute
   '/promotion': typeof PromotionRoute
@@ -1589,6 +1609,7 @@ export interface FileRouteTypes {
     | '/account'
     | '/admin'
     | '/ads'
+    | '/adult'
     | '/affiliate'
     | '/agent'
     | '/aurora-adult'
@@ -1629,6 +1650,7 @@ export interface FileRouteTypes {
     | '/orchestrate'
     | '/partners'
     | '/perform'
+    | '/perform-anywhere'
     | '/photo-edit'
     | '/privacy'
     | '/promotion'
@@ -1758,6 +1780,7 @@ export interface FileRouteTypes {
     | '/'
     | '/account'
     | '/ads'
+    | '/adult'
     | '/affiliate'
     | '/agent'
     | '/aurora-adult'
@@ -1798,6 +1821,7 @@ export interface FileRouteTypes {
     | '/orchestrate'
     | '/partners'
     | '/perform'
+    | '/perform-anywhere'
     | '/photo-edit'
     | '/privacy'
     | '/promotion'
@@ -1928,6 +1952,7 @@ export interface FileRouteTypes {
     | '/account'
     | '/admin'
     | '/ads'
+    | '/adult'
     | '/affiliate'
     | '/agent'
     | '/aurora-adult'
@@ -1968,6 +1993,7 @@ export interface FileRouteTypes {
     | '/orchestrate'
     | '/partners'
     | '/perform'
+    | '/perform-anywhere'
     | '/photo-edit'
     | '/privacy'
     | '/promotion'
@@ -2099,6 +2125,7 @@ export interface RootRouteChildren {
   AccountRoute: typeof AccountRoute
   AdminRoute: typeof AdminRouteWithChildren
   AdsRoute: typeof AdsRoute
+  AdultRoute: typeof AdultRoute
   AffiliateRoute: typeof AffiliateRoute
   AgentRoute: typeof AgentRoute
   AuroraAdultRoute: typeof AuroraAdultRoute
@@ -2139,6 +2166,7 @@ export interface RootRouteChildren {
   OrchestrateRoute: typeof OrchestrateRoute
   PartnersRoute: typeof PartnersRoute
   PerformRoute: typeof PerformRoute
+  PerformAnywhereRoute: typeof PerformAnywhereRoute
   PhotoEditRoute: typeof PhotoEditRoute
   PrivacyRoute: typeof PrivacyRoute
   PromotionRoute: typeof PromotionRoute
@@ -2271,6 +2299,13 @@ declare module '@tanstack/react-router' {
       path: '/ads'
       fullPath: '/ads'
       preLoaderRoute: typeof AdsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/adult': {
+      id: '/adult'
+      path: '/adult'
+      fullPath: '/adult'
+      preLoaderRoute: typeof AdultRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/affiliate': {
@@ -2558,6 +2593,13 @@ declare module '@tanstack/react-router' {
       path: '/perform'
       fullPath: '/perform'
       preLoaderRoute: typeof PerformRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/perform-anywhere': {
+      id: '/perform-anywhere'
+      path: '/perform-anywhere'
+      fullPath: '/perform-anywhere'
+      preLoaderRoute: typeof PerformAnywhereRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/photo-edit': {
@@ -3509,6 +3551,7 @@ const rootRouteChildren: RootRouteChildren = {
   AccountRoute: AccountRoute,
   AdminRoute: AdminRouteWithChildren,
   AdsRoute: AdsRoute,
+  AdultRoute: AdultRoute,
   AffiliateRoute: AffiliateRoute,
   AgentRoute: AgentRoute,
   AuroraAdultRoute: AuroraAdultRoute,
@@ -3549,6 +3592,7 @@ const rootRouteChildren: RootRouteChildren = {
   OrchestrateRoute: OrchestrateRoute,
   PartnersRoute: PartnersRoute,
   PerformRoute: PerformRoute,
+  PerformAnywhereRoute: PerformAnywhereRoute,
   PhotoEditRoute: PhotoEditRoute,
   PrivacyRoute: PrivacyRoute,
   PromotionRoute: PromotionRoute,

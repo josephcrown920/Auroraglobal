@@ -248,7 +248,7 @@ function AdminPage() {
           {/* Separate app, not a route in this bundle — owner-only, gated on the
               admin role inside the artifact itself, so it needs a plain link. */}
           <a
-            href="/aurora-adult/"
+            href="/adult"
             className="flex items-center gap-2 px-3 py-2 rounded-xl border border-amber-500/40 bg-amber-500/10 hover:border-primary/50 transition-colors text-sm text-muted-foreground hover:text-foreground no-underline"
           >
             <span className="size-1.5 rounded-full bg-amber-400 shrink-0" />

@@ -52,7 +52,7 @@ export const GATEABLE_FEATURES: readonly GateableFeature[] = [
   { key: "kids",             label: "Kids story studio", routes: ["/kids"],              defaultHidden: true, description: "Kids storybook / bedtime reels." },
   { key: "nexusarb",         label: "NexusARB",          routes: ["/nexusarb"],          defaultHidden: true, description: "Arbitrage simulator (separate audience)." },
   { key: "split-reality",    label: "Split Reality",     routes: ["/split-reality"],     defaultHidden: true, description: "Split-screen reality effect tool." },
-  { key: "adult-school",     label: "Adult School",      routes: ["/eromify", "/aurora-adult"], defaultHidden: true, description: "18+ studio entry points (artifact keeps its own passcode gate)." },
+  { key: "adult-school",     label: "Adult School",      routes: ["/eromify", "/adult", "/aurora-adult"], defaultHidden: true, description: "18+ studio entry points (artifact keeps its own passcode gate)." },
   { key: "soul",             label: "Aurora Soul",       routes: ["/soul"],              defaultHidden: true, description: "Train a face LoRA once, then generate identity-locked images/video of that character." },
 ] as const;
 

@@ -81,6 +81,7 @@ describe("route matching", () => {
     expect(featureKeyForRoute("/nexusarb")).toBe("nexusarb");
     expect(featureKeyForRoute("/split-reality")).toBe("split-reality");
     expect(featureKeyForRoute("/eromify")).toBe("adult-school");
+    expect(featureKeyForRoute("/adult")).toBe("adult-school");
     expect(featureKeyForRoute("/aurora-adult")).toBe("adult-school");
     expect(featureKeyForRoute("/aurora-adult/")).toBe("adult-school");
   });

@@ -1,7 +1,7 @@
 /**
  * /eromify — Adult School studio landing (admin-accessible).
  * Full Eromify-brand design: dark pink, eyebrow/display type, ChatWindow UI.
- * Links into the aurora-adult artifact at /aurora-adult/.
+ * Links into the consolidated Adult School route at /adult.
  */
 import { createLazyFileRoute, useNavigate } from "@tanstack/react-router";
 import { FeatureGuard } from "@/components/FeatureVisibilityProvider";
@@ -18,7 +18,7 @@ export const Route = createLazyFileRoute("/eromify")({
   ),
 });
 
-const ADULT_URL = "/aurora-adult/";
+const ADULT_URL = "/adult";
 
 const AVATARS = [
   { name: "Yuki",  niche: "Fashion · Editorial", img: "/sample-photos/model-yuki-1.jpg" },
