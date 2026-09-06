@@ -31,26 +31,15 @@ import {
   getTiktokPostForGeneration,
 } from "@/lib/tiktok-posting.functions";
 import { backoffMs } from "@/lib/poll-backoff";
+import {
+  isTiktokPostProcessing,
+  TIKTOK_TERMINAL_POST_STATUSES,
+  type TiktokPublishStatus,
+} from "@/lib/tiktok-post-status";
 
-type PostStatus =
-  | "idle"
-  | "posting"
-  | "processing_upload"
-  | "processing_download"
-  | "processing_media_edit"
-  | "processing_stabilize"
-  | "publish_complete"
-  | "publish_from_creator_fail"
-  | "failed";
+type PostStatus = "idle" | "posting" | TiktokPublishStatus;
 
-const TERMINAL: PostStatus[] = ["publish_complete", "publish_from_creator_fail", "failed"];
-const PROCESSING: PostStatus[] = [
-  "posting",
-  "processing_upload",
-  "processing_download",
-  "processing_media_edit",
-  "processing_stabilize",
-];
+const TERMINAL = new Set<PostStatus>(TIKTOK_TERMINAL_POST_STATUSES);
 
 type PrivacyLevel = "SELF_ONLY" | "MUTUAL_FOLLOW_FRIENDS" | "PUBLIC_TO_EVERYONE";
 
@@ -156,7 +145,7 @@ export function TiktokPostButton({
           const s = res.status as PostStatus;
           setStatus(s);
           setErrorMsg(res.errorMsg ?? null);
-          if (TERMINAL.includes(s)) {
+          if (TERMINAL.has(s)) {
             if (s === "publish_complete") toast.success("Posted to TikTok ✓");
             else toast.error(`TikTok post failed: ${res.errorMsg ?? "unknown error"}`);
             return;
@@ -266,7 +255,7 @@ export function TiktokPostButton({
     );
   }
 
-  if (PROCESSING.includes(status)) {
+  if (status === "posting" || isTiktokPostProcessing(status)) {
     const label =
       status === "posting"
         ? "Sending…"
@@ -399,7 +388,7 @@ export function useTiktokPostPoller(postId: string | null, onComplete?: (status:
       try {
         const res = await pollFn({ data: { postId } });
         const s = res.status as PostStatus;
-        if (TERMINAL.includes(s)) {
+        if (TERMINAL.has(s)) {
           onComplete?.(s);
           return;
         }

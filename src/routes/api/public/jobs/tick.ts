@@ -55,8 +55,18 @@ export const Route = createFileRoute("/api/public/jobs/tick")({
           } catch (e) {
             spin = { error: safeErrorMessage("jobs/tick:spin", e) };
           }
+          // TikTok publishing is asynchronous. Continue status checks after the
+          // initiating browser closes so posts cannot remain processing forever.
+          let tiktok: import("@/lib/tiktok-posting.server").TiktokPostSweepResult | { error: string };
+          try {
+            const { sweepStaleTiktokPosts } = await import("@/lib/tiktok-posting.server");
+            tiktok = await sweepStaleTiktokPosts();
+          } catch (e) {
+            // Best-effort: a TikTok outage must not stop render queue processing.
+            tiktok = { error: safeErrorMessage("jobs/tick:tiktok", e) };
+          }
           await recordSchedulerHeartbeat(HEARTBEAT_NAME, true);
-          return new Response(JSON.stringify({ ok: true, sweptHighValue, swept, recovered, reconciled, results, spin }), {
+          return new Response(JSON.stringify({ ok: true, sweptHighValue, swept, recovered, reconciled, results, spin, tiktok }), {
             status: 200,
             headers: { "Content-Type": "application/json" },
           });

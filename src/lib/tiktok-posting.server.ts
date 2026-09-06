@@ -13,6 +13,13 @@
  */
 
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import {
+  parseTiktokPublishStatus,
+  TIKTOK_NON_TERMINAL_POST_STATUSES,
+  type TiktokPublishStatus,
+} from "@/lib/tiktok-post-status";
+
+export type { TiktokPublishStatus } from "@/lib/tiktok-post-status";
 
 // tiktok_accounts has extra columns (access_token, refresh_token, oauth_state,
 // oauth_state_at) that are not yet in the generated Supabase types.
@@ -245,6 +252,7 @@ export async function ensureFreshToken(userId: string): Promise<string> {
   // Refresh.
   const res = await fetch(TIKTOK_TOKEN_URL, {
     method: "POST",
+    signal: AbortSignal.timeout(8_000),
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({
       client_key: process.env.TIKTOK_CLIENT_KEY!,
@@ -301,6 +309,7 @@ export async function initiatePost(
 ): Promise<string> {
   const res = await fetch(TIKTOK_POST_URL, {
     method: "POST",
+    signal: AbortSignal.timeout(15_000),
     headers: {
       "Content-Type": "application/json; charset=UTF-8",
       Authorization: `Bearer ${accessToken}`,
@@ -332,16 +341,6 @@ export async function initiatePost(
   return publishId as string;
 }
 
-export type TiktokPublishStatus =
-  | "pending"
-  | "processing_upload"
-  | "processing_download"
-  | "processing_media_edit"
-  | "processing_stabilize"
-  | "publish_from_creator_fail"
-  | "publish_complete"
-  | "failed";
-
 /** Poll the current status of a post by publish_id. */
 export async function fetchPostStatus(
   accessToken: string,
@@ -349,6 +348,7 @@ export async function fetchPostStatus(
 ): Promise<{ status: TiktokPublishStatus; failReason?: string }> {
   const res = await fetch(TIKTOK_STATUS_URL, {
     method: "POST",
+    signal: AbortSignal.timeout(8_000),
     headers: {
       "Content-Type": "application/json; charset=UTF-8",
       Authorization: `Bearer ${accessToken}`,
@@ -360,8 +360,137 @@ export async function fetchPostStatus(
     throw new Error(`TikTok status check failed (${res.status}): ${txt.slice(0, 200)}`);
   }
   const j = await res.json();
-  const raw: string = j?.data?.status ?? "failed";
-  const status = raw.toLowerCase() as TiktokPublishStatus;
+  const status = parseTiktokPublishStatus(j?.data?.status);
   const failReason: string | undefined = j?.data?.fail_reason ?? undefined;
   return { status, failReason };
+}
+
+const STALE_POST_AGE_MS = 15 * 60_000;
+const FAILED_POST_TIMEOUT_MS = 24 * 60 * 60_000;
+const FAILED_POST_TIMEOUT_MESSAGE = "Timed out — check TikTok for status";
+const INITIATION_TIMEOUT_MESSAGE = "TikTok post initiation timed out — retry";
+// The cron caller has a 55-second deadline. Five serial checks with an
+// eight-second request timeout leave headroom for token refreshes and DB work.
+const TIKTOK_SWEEP_BATCH_SIZE = 5;
+
+export interface TiktokPostSweepResult {
+  checked: number;
+  updated: number;
+  initiationFailed: number;
+  timedOut: number;
+  errors: number;
+}
+
+export interface TiktokPostSweepDependencies {
+  admin: typeof supabaseAdmin;
+  getAccessToken: typeof ensureFreshToken;
+  getPostStatus: typeof fetchPostStatus;
+}
+
+/**
+ * Refresh TikTok posts that no longer have a browser polling them.
+ *
+ * The conditional UPDATE is the claim: only one cron/browser caller can move
+ * updated_at past the stale cutoff and make the external API call.
+ */
+export async function sweepStaleTiktokPosts(
+  now = new Date(),
+  dependencies: TiktokPostSweepDependencies = {
+    admin: supabaseAdmin,
+    getAccessToken: ensureFreshToken,
+    getPostStatus: fetchPostStatus,
+  },
+): Promise<TiktokPostSweepResult> {
+  const { admin, getAccessToken, getPostStatus } = dependencies;
+  const staleCutoff = new Date(now.getTime() - STALE_POST_AGE_MS).toISOString();
+  const failedCutoff = new Date(now.getTime() - FAILED_POST_TIMEOUT_MS).toISOString();
+  const result: TiktokPostSweepResult = {
+    checked: 0,
+    updated: 0,
+    initiationFailed: 0,
+    timedOut: 0,
+    errors: 0,
+  };
+
+  // If execution stopped after inserting the row but before persisting a
+  // publish_id, there is no TikTok status endpoint we can call. Fail the stale
+  // row atomically so the existing controlled retry flow becomes available.
+  const { data: initiationRows, error: initiationError } = await admin
+    .from("tiktok_posts")
+    .update({
+      status: "failed",
+      error_msg: INITIATION_TIMEOUT_MESSAGE,
+      updated_at: now.toISOString(),
+    })
+    .in("status", [...TIKTOK_NON_TERMINAL_POST_STATUSES])
+    .is("publish_id", null)
+    .lt("updated_at", staleCutoff)
+    .select("id");
+  if (initiationError) {
+    throw new Error(`Failed to recover stale TikTok post initiations: ${initiationError.message}`);
+  }
+  result.initiationFailed = initiationRows?.length ?? 0;
+
+  const { data: timedOutRows, error: timeoutError } = await admin
+    .from("tiktok_posts")
+    .update({ error_msg: FAILED_POST_TIMEOUT_MESSAGE, updated_at: now.toISOString() })
+    .eq("status", "failed")
+    .lt("updated_at", failedCutoff)
+    // Preserve TikTok's real fail_reason. A missing reason is the ambiguous
+    // failed state that needs the operator-facing timeout explanation.
+    .is("error_msg", null)
+    .select("id");
+  if (timeoutError) throw new Error(`Failed to time out stale TikTok posts: ${timeoutError.message}`);
+  result.timedOut = timedOutRows?.length ?? 0;
+
+  const { data: staleRows, error: staleError } = await admin
+    .from("tiktok_posts")
+    .select("id")
+    .in("status", [...TIKTOK_NON_TERMINAL_POST_STATUSES])
+    .not("publish_id", "is", null)
+    .lt("updated_at", staleCutoff)
+    .order("updated_at", { ascending: true })
+    .limit(TIKTOK_SWEEP_BATCH_SIZE);
+  if (staleError) throw new Error(`Failed to load stale TikTok posts: ${staleError.message}`);
+
+  await Promise.all((staleRows ?? []).map(async (staleRow) => {
+    const { data: claimedRows, error: claimError } = await admin
+      .from("tiktok_posts")
+      .update({ updated_at: now.toISOString() })
+      .eq("id", staleRow.id)
+      .in("status", [...TIKTOK_NON_TERMINAL_POST_STATUSES])
+      .lt("updated_at", staleCutoff)
+      .select("id, user_id, publish_id");
+
+    if (claimError) {
+      result.errors += 1;
+      return;
+    }
+    const claimed = claimedRows?.[0];
+    if (!claimed?.publish_id) return;
+
+    result.checked += 1;
+    try {
+      const accessToken = await getAccessToken(claimed.user_id);
+      const { status, failReason } = await getPostStatus(accessToken, claimed.publish_id);
+      const completedAt = status === "publish_complete" ? now.toISOString() : undefined;
+      const { error: updateError } = await admin
+        .from("tiktok_posts")
+        .update({
+          status,
+          error_msg: failReason ?? null,
+          ...(completedAt ? { posted_at: completedAt } : {}),
+          updated_at: now.toISOString(),
+        })
+        .eq("id", claimed.id);
+      if (updateError) throw new Error(updateError.message);
+      result.updated += 1;
+    } catch {
+      // Leave the post non-terminal. The claim timestamp provides backoff and
+      // the next cron tick after the stale window will retry it.
+      result.errors += 1;
+    }
+  }));
+
+  return result;
 }
