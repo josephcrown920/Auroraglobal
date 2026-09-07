@@ -1,3 +1,4 @@
+import { createFileRoute } from "@tanstack/react-router";
 import React, { Suspense, lazy } from "react";
 
 const Hero = lazy(() => import("@/components/landing/Hero").then((m) => ({ default: m.Hero })));
@@ -16,7 +17,7 @@ const FAQ = lazy(() => import("@/components/landing/FAQ").then((m) => ({ default
 const Newsletter = lazy(() => import("@/components/landing/Newsletter").then((m) => ({ default: m.Newsletter })));
 const Footer = lazy(() => import("@/components/landing/Footer").then((m) => ({ default: m.Footer })));
 
-export default function Index() {
+function LandingShell() {
   return (
     <main>
       <Suspense fallback={null}>
@@ -81,3 +82,7 @@ export default function Index() {
     </main>
   );
 }
+
+export const Route = createFileRoute("/")({
+  component: LandingShell,
+});
