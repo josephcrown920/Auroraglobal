@@ -88,7 +88,7 @@ async function uploadAudioToStudio(
 }
 
 export type TemplateGenerateResult =
-  | { ok: true; generationId: string; url: string; mediaKind?: "image" | "video" }
+  | { ok: true; generationId: string; url: string; mediaKind: "image" | "video" }
   | { ok: false; error: string; insufficient?: boolean };
 
 export type AvatarShotEngine = "seedream" | "gemini" | "kling";
@@ -296,7 +296,7 @@ export async function _generateFromPlatformTemplateCore(
     });
     if (!outcome.ok)
       return { ok: false, error: outcome.error, insufficient: outcome.insufficient };
-    return { ok: true, generationId: outcome.generationId, url: outcome.url };
+    return { ok: true, generationId: outcome.generationId, url: outcome.url, mediaKind: "video" };
   }
 
   // ── Live (KlingAI): text-to-video, no TTS/lipsync needed ─────────────────
@@ -311,7 +311,7 @@ export async function _generateFromPlatformTemplateCore(
     });
     if (!outcome.ok)
       return { ok: false, error: outcome.error, insufficient: outcome.insufficient };
-    return { ok: true, generationId: outcome.generationId, url: outcome.url };
+    return { ok: true, generationId: outcome.generationId, url: outcome.url, mediaKind: "video" };
   }
 
   // ── Photo / video: TTS first, then sign asset URL ────────────────────────
@@ -336,7 +336,7 @@ export async function _generateFromPlatformTemplateCore(
     });
     if (!outcome.ok)
       return { ok: false, error: outcome.error, insufficient: outcome.insufficient };
-    return { ok: true, generationId: outcome.generationId, url: outcome.url };
+    return { ok: true, generationId: outcome.generationId, url: outcome.url, mediaKind: "video" };
   }
 
   // kind === "video"
@@ -353,7 +353,7 @@ export async function _generateFromPlatformTemplateCore(
   });
   if (!outcome.ok)
     return { ok: false, error: outcome.error, insufficient: outcome.insufficient };
-  return { ok: true, generationId: outcome.generationId, url: outcome.url };
+  return { ok: true, generationId: outcome.generationId, url: outcome.url, mediaKind: "video" };
 }
 
 export const generateFromPlatformTemplate = createServerFn({ method: "POST" })

@@ -134,6 +134,51 @@ function shotResultLabel(r: ShotResult): string {
   return r.fallbackFrom ? `${SHOT_ENGINE_LABEL[r.engine]} (fallback)` : SHOT_ENGINE_LABEL[r.engine];
 }
 
+/**
+ * Result cards for Avatar Shots / Live Avatar. Branches on the media kind the
+ * server ACTUALLY served — a KlingAI request that fell back to SeedDream is a
+ * still image, so it must never be poured into a <video> element.
+ */
+function ShotResultsSection({ results }: { results: ShotResult[] }) {
+  if (results.length === 0) return null;
+  return (
+    <section className="space-y-3" aria-label="Generated avatar shots">
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Results</p>
+        <Link to="/gallery" className="inline-flex items-center gap-2 rounded-full bg-emerald-500/10 border border-emerald-500/30 px-3 py-1.5 text-xs font-semibold text-emerald-400 no-underline hover:bg-emerald-500/20 transition-colors">
+          <Check className="size-3.5" /> Saved to Gallery
+        </Link>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        {results.map((r, i) => (
+          <div key={`${r.url}-${i}`} className="rounded-2xl border border-border bg-card/60 overflow-hidden" data-testid={`shot-result-${r.kind}`}>
+            {r.kind === "video" ? (
+              <video src={r.url} controls playsInline preload="metadata" className="w-full aspect-video object-cover bg-black" />
+            ) : (
+              <img src={r.url} alt={`${shotResultLabel(r)} avatar shot ${i + 1}`} className="w-full aspect-square object-cover" loading="lazy" />
+            )}
+            <div className="p-2 flex items-center justify-between gap-2">
+              <span
+                className={cn("text-[10px] font-medium", r.fallbackFrom ? "text-amber-400" : "text-muted-foreground")}
+                title={r.fallbackFrom ? `${SHOT_ENGINE_LABEL[r.fallbackFrom]} was unavailable, so ${SHOT_ENGINE_LABEL[r.engine]} served this shot` : undefined}
+              >
+                {shotResultLabel(r)}
+              </span>
+              <button
+                type="button"
+                onClick={() => void saveAssetToDisk(r.url, `shot-${Date.now()}.${r.kind === "video" ? "mp4" : "jpg"}`)}
+                className="text-xs text-primary flex items-center gap-1"
+              >
+                <Download className="size-3" /> Save
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function MotionStudio() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
@@ -1639,42 +1684,7 @@ function MotionStudio() {
               </Button>
             </section>
 
-            {shotResults.length > 0 && !shotLoading && (
-              <section className="space-y-3">
-                <div className="flex items-center justify-between gap-3">
-                  <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Results</p>
-                  <Link to="/gallery" className="inline-flex items-center gap-2 rounded-full bg-emerald-500/10 border border-emerald-500/30 px-3 py-1.5 text-xs font-semibold text-emerald-400 no-underline hover:bg-emerald-500/20 transition-colors">
-                    <Check className="size-3.5" /> Saved to Gallery
-                  </Link>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  {shotResults.map((r, i) => (
-                    <div key={`${r.url}-${i}`} className="rounded-2xl border border-border bg-card/60 overflow-hidden" data-testid={`shot-result-${r.kind}`}>
-                      {r.kind === "video" ? (
-                        <video src={r.url} controls playsInline preload="metadata" className="w-full aspect-video object-cover bg-black" />
-                      ) : (
-                        <img src={r.url} alt={`${shotResultLabel(r)} avatar shot ${i + 1}`} className="w-full aspect-square object-cover" loading="lazy" />
-                      )}
-                      <div className="p-2 flex items-center justify-between gap-2">
-                        <span
-                          className={cn("text-[10px] font-medium", r.fallbackFrom ? "text-amber-400" : "text-muted-foreground")}
-                          title={r.fallbackFrom ? `${SHOT_ENGINE_LABEL[r.fallbackFrom]} was unavailable, so ${SHOT_ENGINE_LABEL[r.engine]} served this shot` : undefined}
-                        >
-                          {shotResultLabel(r)}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => void saveAssetToDisk(r.url, `shot-${Date.now()}.${r.kind === "video" ? "mp4" : "jpg"}`)}
-                          className="text-xs text-primary flex items-center gap-1"
-                        >
-                          <Download className="size-3" /> Save
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </section>
-            )}
+            {!shotLoading && <ShotResultsSection results={shotResults} />}
 
             {shotResults.length === 0 && !shotLoading && (
               <div className="mx-auto max-w-sm overflow-hidden rounded-2xl border border-primary/20 bg-card/50 text-center">
@@ -1760,13 +1770,7 @@ function MotionStudio() {
               </Button>
             </section>
 
-            {shotResults.filter((r) => r.kind === "video").length > 0 && !shotLoading && (
-              <div>
-                <Link to="/gallery" className="inline-flex items-center gap-2 rounded-full bg-emerald-500/10 border border-emerald-500/30 px-4 py-2.5 text-sm font-semibold text-emerald-400 no-underline hover:bg-emerald-500/20 transition-colors">
-                  <Check className="size-4" /> Ready — View in Gallery
-                </Link>
-              </div>
-            )}
+            {!shotLoading && <ShotResultsSection results={shotResults.filter((r) => r.engine === "kling" || r.fallbackFrom === "kling")} />}
           </div>
         )}
 
