@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { reserveOrchestrateRecord } from "@/lib/generate-core.server";
+import { computeCost } from "@/lib/pricing";
 
 const InputSchema = z.object({
   projectId: z.string().uuid(),
@@ -21,6 +21,16 @@ function pollinationsFrameUrl(prompt: string, aspect: string | undefined): strin
   return `https://image.pollinations.ai/prompt/${encoded}?width=${width}&height=${height}&nologo=true&enhance=false&seed=${seed}`;
 }
 
+async function authenticate(request: Request): Promise<string | null> {
+  const header = request.headers.get("authorization");
+  if (!header?.startsWith("Bearer ")) return null;
+  const token = header.slice(7);
+  if (!token) return null;
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data, error } = await supabaseAdmin.auth.getUser(token);
+  return error || !data.user ? null : data.user.id;
+}
+
 export const Route = createFileRoute("/api/video-agent/render-shot")({
   server: {
     handlers: {
@@ -33,12 +43,10 @@ export const Route = createFileRoute("/api/video-agent/render-shot")({
         },
       }),
       POST: async ({ request }) => {
-        // This route intentionally uses the authenticated server context rather
-        // than trusting a client-supplied user id. The project and scene are
-        // always read from the caller's own Supabase rows.
-        const auth = await requireSupabaseAuth({ request } as never);
-        const userId = (auth as { userId?: string }).userId;
-        if (!userId) return new Response(JSON.stringify({ ok: false, error: "Unauthorized" }), { status: 401, headers: CORS });
+        const userId = await authenticate(request);
+        if (!userId) {
+          return new Response(JSON.stringify({ ok: false, error: "Unauthorized" }), { status: 401, headers: CORS });
+        }
 
         try {
           const input = InputSchema.parse(await request.json());
@@ -61,9 +69,9 @@ export const Route = createFileRoute("/api/video-agent/render-shot")({
           const prompt = String(scene.modelPrompt ?? scene.description ?? "").trim();
           if (!prompt) throw new Error("Scene has no visual prompt");
 
-          // Use the approved storyboard frame when one exists. If the user has
-          // only generated the free previs sketch, it is still a valid visual
-          // starting point; otherwise create the same free sketch automatically.
+          // A saved storyboard frame is preferred. If the user has only made a
+          // free previs sketch, that sketch is still a valid visual input for the
+          // video model. If no frame exists, create the same free sketch on demand.
           const frame = typeof scene.frame === "string" && scene.frame.length > 0
             ? scene.frame
             : pollinationsFrameUrl(prompt, typeof scene.aspectRatio === "string" ? scene.aspectRatio : undefined);
@@ -74,17 +82,22 @@ export const Route = createFileRoute("/api/video-agent/render-shot")({
           const durationRaw = Number(scene.duration ?? 5);
           const duration = Math.max(3, Math.min(10, Number.isFinite(durationRaw) ? Math.round(durationRaw) : 5));
 
+          const cost = computeCost({ features: ["video"], model: input.model, durationSeconds: duration }).total;
           const outcome = await reserveOrchestrateRecord({
             userId,
             kind: "video",
             model: input.model,
-            prompt: [prompt, camera, lighting, "Animate the supplied storyboard image as the shot's visual starting point. Preserve the subject, wardrobe, environment and composition. Natural motion only; no text overlays.", negative]
-              .filter(Boolean)
-              .join(" "),
+            prompt: [
+              prompt,
+              camera,
+              lighting,
+              "Animate the supplied storyboard image as the shot's visual starting point. Preserve the subject, wardrobe, environment and composition. Natural motion only; no text overlays.",
+              negative,
+            ].filter(Boolean).join(" "),
             imageUrls: [frame],
             duration,
             forSubscriber: true,
-            cost: 0,
+            cost,
             reason: "video_agent_storyboard_shot",
           });
 
@@ -98,6 +111,7 @@ export const Route = createFileRoute("/api/video-agent/render-shot")({
             generationId: outcome.generationId,
             provider: outcome.provider,
             frame,
+            cost,
           }), { headers: CORS });
         } catch (error) {
           const message = error instanceof Error ? error.message : String(error);
