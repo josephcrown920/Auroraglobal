@@ -18,7 +18,8 @@ export type ToolDirectoryItem = {
     | "/music-video"
     | "/lipsync"
     | "/canvas"
-    | "/layers";
+    | "/layers"
+    | "/scene-builder";
 };
 
 /** Shared live-tool metadata used by the landing directory and Studio shortcuts. */
@@ -41,6 +42,14 @@ export const TOOL_DIRECTORY: ReadonlyArray<ToolDirectoryItem> = [
   },
   {
     number: "02",
+    name: "Scene Builder",
+    label: "5 References",
+    description: "Selfie + outfit + location + pose + prop → base scene and camera angles",
+    price: `From ${computeCost({ features: ["image"] }).total} Aura`,
+    to: "/scene-builder",
+  },
+  {
+    number: "03",
     name: "Music Video",
     label: "Director",
     description: "Build cinematic music-video shots from your song and references",
@@ -48,7 +57,7 @@ export const TOOL_DIRECTORY: ReadonlyArray<ToolDirectoryItem> = [
     to: "/music-video",
   },
   {
-    number: "03",
+    number: "04",
     name: "Lip Sync",
     label: "Performance",
     description: "Turn vocals and a character reference into synced performance video",
@@ -56,7 +65,7 @@ export const TOOL_DIRECTORY: ReadonlyArray<ToolDirectoryItem> = [
     to: "/lipsync",
   },
   {
-    number: "04",
+    number: "05",
     name: "Aurora Video Agent",
     label: "Director",
     description: "Plan, storyboard, edit, then render",
@@ -64,7 +73,7 @@ export const TOOL_DIRECTORY: ReadonlyArray<ToolDirectoryItem> = [
     to: "/video-agent",
   },
   {
-    number: "05",
+    number: "06",
     name: "Layers",
     label: "Edit",
     description: "Turn any finished image into editable, movable layers",
@@ -72,21 +81,21 @@ export const TOOL_DIRECTORY: ReadonlyArray<ToolDirectoryItem> = [
     to: "/layers",
   },
   {
-    number: "06",
+    number: "07",
     name: "Colors",
     description: "Performance photo generation",
     price: `From ${computeCost({ features: ["image"] }).total} Aura`,
     to: "/colors",
   },
   {
-    number: "07",
+    number: "08",
     name: "TikTok30",
     description: "UGC campaign engine",
     price: `From ${COST_TIKTOK_REMIX_CUT} Aura`,
     to: "/spin",
   },
   {
-    number: "08",
+    number: "09",
     name: "Canvas",
     label: "New",
     description: "Build connected creative workflows",
