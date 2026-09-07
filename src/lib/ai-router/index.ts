@@ -129,6 +129,8 @@ export async function routedGenerate<T>(args: RoutedGenerateArgs<T>): Promise<Ro
           system: args.system,
           messages,
           experimental_output: Output.object({ schema: args.schema }),
+          // e.g. strictJsonSchema:false for OpenAI-compatible json_schema mode.
+          providerOptions: provider.providerOptions,
         });
 
         const latencyMs = Date.now() - t0;

@@ -124,6 +124,15 @@ const MOTION_CAMERA = [
 
 type Mode = "pose" | "transfer" | "reskin" | "avatar-shots" | "live-avatar" | "music-video";
 type ShotEngine = "seedream" | "gemini" | "kling";
+type ShotResult = { url: string; engine: ShotEngine; kind: "image" | "video"; fallbackFrom?: ShotEngine };
+
+const SHOT_ENGINE_LABEL: Record<ShotEngine, string> = { seedream: "SeedDream", gemini: "Gemini Omni", kling: "KlingAI" };
+
+const KLING_FALLBACK_TOAST = "KlingAI unavailable — generated a SeedDream portrait instead";
+
+function shotResultLabel(r: ShotResult): string {
+  return r.fallbackFrom ? `${SHOT_ENGINE_LABEL[r.engine]} (fallback)` : SHOT_ENGINE_LABEL[r.engine];
+}
 
 function MotionStudio() {
   const { user, loading } = useAuth();
@@ -245,7 +254,7 @@ function MotionStudio() {
   // ── Avatar Shots state ────────────────────────────────────────────────────
   const [shotEngine, setShotEngine] = useState<ShotEngine>("seedream");
   const [shotPrompt, setShotPrompt] = useState("");
-  const [shotResults, setShotResults] = useState<Array<{ url: string; engine: ShotEngine; kind: "image" | "video" }>>([]);
+  const [shotResults, setShotResults] = useState<ShotResult[]>([]);
   const [shotLoading, setShotLoading] = useState(false);
 
   // ── Music Video (embedded) state ──────────────────────────────────────────
@@ -1604,11 +1613,14 @@ function MotionStudio() {
                     if (!res.ok) {
                       toast.error(res.error ?? "Generation failed");
                     } else {
+                      // Trust the server's report of what ACTUALLY served the shot — when the
+                      // KlingAI→SeedDream fallback fires the result is a still, not a video.
                       setShotResults((prev) => [
-                        { url: res.url, engine: shotEngine, kind: ((res as { mediaKind?: string }).mediaKind ?? (shotEngine === "kling" ? "video" : "image")) as "video" | "image" },
+                        { url: res.url, engine: res.engine, kind: res.mediaKind, fallbackFrom: res.fallbackFrom },
                         ...prev,
                       ]);
-                      toast.success("Shot ready!");
+                      if (res.fallbackFrom === "kling") toast.info(KLING_FALLBACK_TOAST);
+                      else toast.success("Shot ready!");
                     }
                   } catch {
                     toast.error("Generation failed");
@@ -1628,11 +1640,40 @@ function MotionStudio() {
             </section>
 
             {shotResults.length > 0 && !shotLoading && (
-              <div>
-                <Link to="/gallery" className="inline-flex items-center gap-2 rounded-full bg-emerald-500/10 border border-emerald-500/30 px-4 py-2.5 text-sm font-semibold text-emerald-400 no-underline hover:bg-emerald-500/20 transition-colors">
-                  <Check className="size-4" /> Ready — View in Gallery
-                </Link>
-              </div>
+              <section className="space-y-3">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Results</p>
+                  <Link to="/gallery" className="inline-flex items-center gap-2 rounded-full bg-emerald-500/10 border border-emerald-500/30 px-3 py-1.5 text-xs font-semibold text-emerald-400 no-underline hover:bg-emerald-500/20 transition-colors">
+                    <Check className="size-3.5" /> Saved to Gallery
+                  </Link>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  {shotResults.map((r, i) => (
+                    <div key={`${r.url}-${i}`} className="rounded-2xl border border-border bg-card/60 overflow-hidden" data-testid={`shot-result-${r.kind}`}>
+                      {r.kind === "video" ? (
+                        <video src={r.url} controls playsInline preload="metadata" className="w-full aspect-video object-cover bg-black" />
+                      ) : (
+                        <img src={r.url} alt={`${shotResultLabel(r)} avatar shot ${i + 1}`} className="w-full aspect-square object-cover" loading="lazy" />
+                      )}
+                      <div className="p-2 flex items-center justify-between gap-2">
+                        <span
+                          className={cn("text-[10px] font-medium", r.fallbackFrom ? "text-amber-400" : "text-muted-foreground")}
+                          title={r.fallbackFrom ? `${SHOT_ENGINE_LABEL[r.fallbackFrom]} was unavailable, so ${SHOT_ENGINE_LABEL[r.engine]} served this shot` : undefined}
+                        >
+                          {shotResultLabel(r)}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => void saveAssetToDisk(r.url, `shot-${Date.now()}.${r.kind === "video" ? "mp4" : "jpg"}`)}
+                          className="text-xs text-primary flex items-center gap-1"
+                        >
+                          <Download className="size-3" /> Save
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </section>
             )}
 
             {shotResults.length === 0 && !shotLoading && (
@@ -1695,8 +1736,12 @@ function MotionStudio() {
                     if (!res.ok) {
                       toast.error(res.error ?? "Generation failed");
                     } else {
-                      setShotResults((prev) => [{ url: res.url, engine: "kling", kind: ((res as { mediaKind?: string }).mediaKind ?? "video") as "video" | "image" }, ...prev]);
-                      toast.success("Live avatar ready!");
+                      setShotResults((prev) => [
+                        { url: res.url, engine: res.engine, kind: res.mediaKind, fallbackFrom: res.fallbackFrom },
+                        ...prev,
+                      ]);
+                      if (res.fallbackFrom === "kling") toast.info(KLING_FALLBACK_TOAST);
+                      else toast.success("Live avatar ready!");
                     }
                   } catch {
                     toast.error("Generation failed");

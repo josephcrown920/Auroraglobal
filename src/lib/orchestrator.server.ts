@@ -1456,7 +1456,9 @@ const sync: ProviderAdapter = {
 type TextModelEntry = { adapter: ProviderAdapter["name"]; providerModel: string; cost: number };
 const TEXT_MODELS: Record<string, TextModelEntry> = {
   "pollinations/openai": { adapter: "pollinations", providerModel: "openai", cost: 0 },
-  "groq/llama-3.3-70b": { adapter: "groq", providerModel: "llama-3.3-70b-versatile", cost: 0.001 },
+  // Key kept stable (pinned requests + tests reference it); Groq retired
+  // llama-3.3-70b-versatile in 2026-09, so it now serves Groq's gpt-oss-120b.
+  "groq/llama-3.3-70b": { adapter: "groq", providerModel: "openai/gpt-oss-120b", cost: 0.001 },
   "gemini/gemini-2.0-flash": {
     adapter: "gemini-text",
     providerModel: "gemini-2.0-flash",

@@ -17,6 +17,7 @@
     "production:gate": "npm run lint && npm run typecheck && bun test src/ && bash scripts/check-migrations.sh && node scripts/ci/audit-worker-entry.mjs && npm run build"
   },
   "dependencies": {
+    "@ai-sdk/google": "^3.0.121",
     "@ai-sdk/openai-compatible": "^2.0.48",
     "@ai-sdk/react": "^4.0.61",
     "@cloudflare/vite-plugin": "^1.49.1",
@@ -64,6 +65,7 @@
     "@tanstack/react-query": "^5.83.0",
     "@tanstack/react-router": "^1.170.18",
     "@tanstack/react-start": "^1.168.28",
+    "@tanstack/router-core": "1.171.19",
     "@tanstack/router-plugin": "^1.168.23",
     "@xyflow/react": "^12.10.2",
     "ai": "^6.0.191",

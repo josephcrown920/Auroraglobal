@@ -153,3 +153,5 @@
 - [Watchdog alert claim-then-send pattern](watchdog-alert-claim-pattern.md) — atomic claim before email, generation-fenced restore, tri-state delivery; timestamp-only fences are racy across the alert/recovery pair; new RPCs need REVOKE FROM PUBLIC.
 - [Admin reservation reconciliation](admin-reservation-reconciliation.md) — never release profile-level credits_reserved wholesale; reconcile one terminal job at a time with a settlement CAS and actor audit.
 - [Replit publish file filtering](replit-publish-file-filtering.md) — publishing uses .gitignore rather than the repo's custom .replitignore; large tracked dev uploads must be untracked.
+- [AI router provider quirks](ai-router-provider-quirks.md) — probe every LLM provider live with the REAL schema; OpenAI-compat needs json_schema + strictJsonSchema:false (Anthropic strict-only); Replit Gemini proxy is native-only.
+- [Avatar-shot Kling engine truth](kling-subscription-gate.md) — reservation paths must pass forSubscriber:true + pinnedModelOnly:true for Kling or the orchestrator silently serves another video model under the Kling label/price.

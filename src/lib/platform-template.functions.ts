@@ -91,29 +91,64 @@ export type TemplateGenerateResult =
   | { ok: true; generationId: string; url: string; mediaKind?: "image" | "video" }
   | { ok: false; error: string; insufficient?: boolean };
 
+export type AvatarShotEngine = "seedream" | "gemini" | "kling";
+
+/**
+ * Avatar Shot result. `engine` is the engine that ACTUALLY served the request
+ * (which can differ from the one the user picked when the KlingAI→SeedDream
+ * fallback fires); `fallbackFrom` names the engine that was skipped so the UI
+ * can label the card and tell the user. `mediaKind` is always present so the
+ * client never has to guess image-vs-video from the requested engine.
+ */
+export type AvatarShotResult =
+  | {
+      ok: true;
+      generationId: string;
+      url: string;
+      mediaKind: "image" | "video";
+      engine: AvatarShotEngine;
+      fallbackFrom?: AvatarShotEngine;
+    }
+  | { ok: false; error: string; insufficient?: boolean };
+
+export type AvatarShotDeps = {
+  reserve: typeof reserveOrchestrateRecord;
+  /** Whether KlingAI credentials are configured on this server. */
+  klingConfigured: () => boolean;
+};
+
+const DEFAULT_AVATAR_SHOT_DEPS: AvatarShotDeps = {
+  reserve: reserveOrchestrateRecord,
+  klingConfigured: () => !!process.env.KLING_ACCESS_KEY && !!process.env.KLING_SECRET_KEY,
+};
+
 // ── Avatar Shots — SeedDream / Gemini Omni / KlingAI ─────────────────────────
 
 // Internal canonical dispatch — shared by generateAvatarShot handler AND
 // runSmokeAvatarShotOne so the two can NEVER drift on critical params.
-async function _dispatchAvatarShot({
-  userId,
-  prompt,
-  engine,
-  imageUrl,
-  reason,
-}: {
-  userId: string;
-  prompt: string;
-  engine: "seedream" | "gemini" | "kling";
-  imageUrl?: string;
-  reason: string;
-}): Promise<TemplateGenerateResult> {
+// Exported (underscore-prefixed) so the fallback contract is unit-testable.
+export async function _dispatchAvatarShot(
+  {
+    userId,
+    prompt,
+    engine,
+    imageUrl,
+    reason,
+  }: {
+    userId: string;
+    prompt: string;
+    engine: AvatarShotEngine;
+    imageUrl?: string;
+    reason: string;
+  },
+  deps: AvatarShotDeps = DEFAULT_AVATAR_SHOT_DEPS,
+): Promise<AvatarShotResult> {
   if (engine === "kling") {
     // If Kling credentials are not configured, skip the round-trip and fall back to a
     // SeedDream still image immediately. Only fall back for this configuration gap — an
     // unexpected runtime error from Kling (with keys present) is surfaced, not swallowed.
-    if (!process.env.KLING_ACCESS_KEY || !process.env.KLING_SECRET_KEY) {
-      const fallback = await reserveOrchestrateRecord({
+    if (!deps.klingConfigured()) {
+      const fallback = await deps.reserve({
         userId,
         kind: "image",
         cost: SHOT_IMAGE_COST,
@@ -123,21 +158,35 @@ async function _dispatchAvatarShot({
         imageUrls: imageUrl ? [imageUrl] : undefined,
       });
       if (!fallback.ok) return { ok: false, error: fallback.error, insufficient: fallback.insufficient };
-      return { ok: true, generationId: fallback.generationId, url: fallback.url, mediaKind: "image" };
+      return {
+        ok: true,
+        generationId: fallback.generationId,
+        url: fallback.url,
+        mediaKind: "image",
+        engine: "seedream",
+        fallbackFrom: "kling",
+      };
     }
-    const outcome = await reserveOrchestrateRecord({
+    const outcome = await deps.reserve({
       userId,
       kind: "video",
       cost: SHOT_KLING_COST,
       reason,
       prompt,
       model: LIVE_AVATAR_MODEL,
+      // The Kling adapter is subscriber-gated and this is a paid, credit-reserved
+      // request — without forSubscriber it silently skips. pinnedModelOnly keeps
+      // the orchestrator from quietly serving an unrelated video model under the
+      // "kling" label at Kling's price: if Kling can't serve, the render fails
+      // and the reservation is released.
+      forSubscriber: true,
+      pinnedModelOnly: true,
     });
     if (!outcome.ok) return { ok: false, error: outcome.error, insufficient: outcome.insufficient };
-    return { ok: true, generationId: outcome.generationId, url: outcome.url, mediaKind: "video" };
+    return { ok: true, generationId: outcome.generationId, url: outcome.url, mediaKind: "video", engine: "kling" };
   }
   const model = engine === "gemini" ? SHOT_IMAGE_MODEL_GEMINI : SHOT_IMAGE_MODEL_SEEDREAM;
-  const outcome = await reserveOrchestrateRecord({
+  const outcome = await deps.reserve({
     userId,
     kind: "image",
     cost: SHOT_IMAGE_COST,
@@ -147,7 +196,7 @@ async function _dispatchAvatarShot({
     imageUrls: imageUrl ? [imageUrl] : undefined,
   });
   if (!outcome.ok) return { ok: false, error: outcome.error, insufficient: outcome.insufficient };
-  return { ok: true, generationId: outcome.generationId, url: outcome.url, mediaKind: "image" };
+  return { ok: true, generationId: outcome.generationId, url: outcome.url, mediaKind: "image", engine };
 }
 
 // Smoke helper — called by smoke.functions.ts step 16. Shares the exact same
@@ -165,7 +214,7 @@ export async function runSmokeAvatarShotOne(
   });
   if (!result.ok) throw new Error(result.error ?? "Avatar shot dispatch failed");
   if (!result.url) throw new Error("Avatar shot returned no image URL");
-  return { url: result.url, provider: "seedream" };
+  return { url: result.url, provider: result.engine };
 }
 
 export const generateAvatarShot = createServerFn({ method: "POST" })
@@ -180,7 +229,7 @@ export const generateAvatarShot = createServerFn({ method: "POST" })
       })
       .parse(d),
   )
-  .handler(async ({ context, data }): Promise<TemplateGenerateResult> =>
+  .handler(async ({ context, data }): Promise<AvatarShotResult> =>
     _dispatchAvatarShot({
       userId: context.userId,
       prompt: data.prompt,

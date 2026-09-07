@@ -134,7 +134,7 @@ function AvatarStudioPage() {
   const [shotLoading, setShotLoading] = useState(false);
   const [shotAvatarUrl, setShotAvatarUrl] = useState<string | null>(null);
   const [shotResults, setShotResults] = useState<
-    Array<{ url: string; engine: ShotEngine; kind: "image" | "video" }>
+    Array<{ url: string; engine: ShotEngine; kind: "image" | "video"; fallbackFrom?: ShotEngine }>
   >([]);
 
   // ── personal avatar state ───────────────────────────────────────────────────
@@ -1132,11 +1132,14 @@ function AvatarStudioPage() {
                     if (!res.ok) {
                       toast.error(res.error ?? "Generation failed");
                     } else {
-                      const kind = shotEngine === "kling" ? "video" : "image";
-                      setShotResults((prev) => [{ url: res.url, engine: shotEngine, kind }, ...prev]);
-                      toast.success("Shot ready!");
+                      // Use what the server ACTUALLY served: when KlingAI is unavailable the
+                      // result is a SeedDream still, so label + persist it as an image.
+                      const { engine, mediaKind: kind, fallbackFrom } = res;
+                      setShotResults((prev) => [{ url: res.url, engine, kind, fallbackFrom }, ...prev]);
+                      if (fallbackFrom === "kling") toast.info("KlingAI unavailable — generated a SeedDream portrait instead");
+                      else toast.success("Shot ready!");
                       saveShotFn({
-                        data: { sourceUrl: res.url, engine: shotEngine, kind, prompt: trimmed },
+                        data: { sourceUrl: res.url, engine, kind, prompt: trimmed },
                       })
                         .then(() => { void refetchShots(); })
                         .catch(() => { /* best-effort */ });
@@ -1183,8 +1186,9 @@ function AvatarStudioPage() {
                         />
                       )}
                       <div className="p-1.5 flex items-center justify-between">
-                        <span className="text-[9px] text-muted-foreground capitalize">
+                        <span className={r.fallbackFrom ? "text-[9px] text-amber-400" : "text-[9px] text-muted-foreground"}>
                           {r.engine === "kling" ? "KlingAI" : r.engine === "gemini" ? "Gemini" : "SeedDream"}
+                          {r.fallbackFrom ? " (fallback)" : ""}
                         </span>
                         <button
                           onClick={() => {

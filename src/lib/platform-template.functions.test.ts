@@ -267,3 +267,101 @@ describe("two-phase credit contract: the render phase reserves exactly once", ()
     expect(h.rpcCalls.map((c) => c.name)).toEqual(["reserve_credits"]);
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Avatar Shots: the KlingAI→SeedDream fallback must be REPORTED, not silent.
+//
+// The UI branches image-vs-video and labels the card from `engine`/`mediaKind`/
+// `fallbackFrom`. A regression that reports `engine: "kling"` (or omits
+// mediaKind) for a fallback still would put a JPEG into a <video> player.
+// ─────────────────────────────────────────────────────────────────────────────
+const { _dispatchAvatarShot, SHOT_IMAGE_COST, SHOT_KLING_COST, SHOT_IMAGE_MODEL_SEEDREAM, LIVE_AVATAR_MODEL } =
+  await import("./platform-template.functions");
+type AvatarShotDeps = import("./platform-template.functions").AvatarShotDeps;
+
+function makeShotDeps(klingConfigured: boolean) {
+  const reserveCalls: Array<Parameters<AvatarShotDeps["reserve"]>[0]> = [];
+  const deps: AvatarShotDeps = {
+    klingConfigured: () => klingConfigured,
+    reserve: async (input) => {
+      reserveCalls.push(input);
+      return {
+        ok: true,
+        generationId: `gen_${input.kind}`,
+        url: input.kind === "video" ? "https://cdn.example/live.mp4" : "https://cdn.example/still.jpg",
+      };
+    },
+  };
+  return { deps, reserveCalls };
+}
+
+describe("avatar shots: KlingAI→SeedDream fallback is surfaced in the result", () => {
+  it("kling without credentials → SeedDream image, engine=seedream, fallbackFrom=kling", async () => {
+    const { deps, reserveCalls } = makeShotDeps(false);
+    const res = await _dispatchAvatarShot(
+      { userId: "u1", prompt: "neon portrait", engine: "kling", reason: "avatar_shot_kling" },
+      deps,
+    );
+    expect(res.ok).toBe(true);
+    if (!res.ok) return;
+    expect(res.mediaKind).toBe("image");
+    expect(res.engine).toBe("seedream");
+    expect(res.fallbackFrom).toBe("kling");
+    expect(res.url).toBe("https://cdn.example/still.jpg");
+    // Charged as an image (SeedDream), never at the Kling video rate, and the
+    // reason is suffixed so the ledger shows the fallback fired.
+    expect(reserveCalls).toHaveLength(1);
+    expect(reserveCalls[0].kind).toBe("image");
+    expect(reserveCalls[0].cost).toBe(SHOT_IMAGE_COST);
+    expect(reserveCalls[0].model).toBe(SHOT_IMAGE_MODEL_SEEDREAM);
+    expect(reserveCalls[0].reason).toBe("avatar_shot_kling_seedream_fallback");
+  });
+
+  it("kling with credentials → video, engine=kling, no fallback marker", async () => {
+    const { deps, reserveCalls } = makeShotDeps(true);
+    const res = await _dispatchAvatarShot(
+      { userId: "u1", prompt: "neon portrait", engine: "kling", reason: "avatar_shot_kling" },
+      deps,
+    );
+    expect(res.ok).toBe(true);
+    if (!res.ok) return;
+    expect(res.mediaKind).toBe("video");
+    expect(res.engine).toBe("kling");
+    expect(res.fallbackFrom).toBeUndefined();
+    expect(reserveCalls[0].kind).toBe("video");
+    expect(reserveCalls[0].cost).toBe(SHOT_KLING_COST);
+    expect(reserveCalls[0].model).toBe(LIVE_AVATAR_MODEL);
+    // The Kling adapter is subscriber-gated: without forSubscriber the
+    // orchestrator would skip it and (unpinned) serve some other video model
+    // under the "kling" label at Kling's price. Both flags are load-bearing.
+    expect(reserveCalls[0].forSubscriber).toBe(true);
+    expect(reserveCalls[0].pinnedModelOnly).toBe(true);
+  });
+
+  it("seedream / gemini → image with the requested engine echoed back", async () => {
+    for (const engine of ["seedream", "gemini"] as const) {
+      const { deps } = makeShotDeps(false);
+      const res = await _dispatchAvatarShot(
+        { userId: "u1", prompt: "portrait", engine, reason: "avatar_shot_image" },
+        deps,
+      );
+      expect(res.ok).toBe(true);
+      if (!res.ok) return;
+      expect(res.mediaKind).toBe("image");
+      expect(res.engine).toBe(engine);
+      expect(res.fallbackFrom).toBeUndefined();
+    }
+  });
+
+  it("fallback reservation failure propagates ok:false (no fake success)", async () => {
+    const deps: AvatarShotDeps = {
+      klingConfigured: () => false,
+      reserve: async () => ({ ok: false, error: "Insufficient Aura", insufficient: true }),
+    };
+    const res = await _dispatchAvatarShot(
+      { userId: "u1", prompt: "portrait", engine: "kling", reason: "avatar_shot_kling" },
+      deps,
+    );
+    expect(res).toEqual({ ok: false, error: "Insufficient Aura", insufficient: true });
+  });
+});

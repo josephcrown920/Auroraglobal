@@ -15,3 +15,5 @@ description: Why Kling and Seedance video are subscriber-gated and the three-lay
 **Free mode has TWO additional exclusion paths** that both must reject paid adapters: the `isFreeAdapter` filter AND the inline `assertFreeModeServable` check. Excluding a paid provider from only one still lets it serve in the other.
 
 **Adding a new paid-only video provider:** Remove from `FALLBACK_MODELS.video`, add `forSubscriber !== true` guard to adapter `supports()`, add `forSubscriber: true` to all explicit `orch()` calls.
+
+**Reservation-path corollary (2026-09-07):** `reserveOrchestrateRecord` now forwards `forSubscriber`; any credit-reserved Kling render must set `forSubscriber: true` AND `pinnedModelOnly: true`. Without the first the adapter skips; without the second the unpinned video chain serves an unrelated model that the UI then labels/charges as Kling.
