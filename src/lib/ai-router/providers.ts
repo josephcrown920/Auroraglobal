@@ -4,6 +4,7 @@
 
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
+import { createAnthropic } from "@ai-sdk/anthropic";
 import type { LanguageModel } from "ai";
 
 /** A provider gateway: call it with a model id to get an AI SDK language model. */
@@ -65,23 +66,33 @@ export function buildProviderRegistry(): Map<string, RouterProvider> {
   const add = (p: RouterProvider) => registry.set(p.name, p);
 
   // ── Claude (Anthropic) — Premium Creative Director ─────────────────────────
-  add({
-    name: "claude",
-    displayName: "Claude (Anthropic)",
-    enabled: !!process.env.ANTHROPIC_API_KEY,
-    model: "claude-sonnet-4-5",
-    make: () =>
-      createOpenAICompatible({
-        name: "anthropic",
-        baseURL: "https://api.anthropic.com/v1",
-        headers: { Authorization: `Bearer ${process.env.ANTHROPIC_API_KEY}` },
-        // Anthropic's OpenAI-compat endpoint only accepts
-        // response_format.type = "json_schema"; the adapter's default
-        // json_object fallback is rejected with
-        // "response_format.type: Input should be 'json_schema'".
-        supportsStructuredOutputs: true,
-      }),
-  });
+  // Native Messages API via @ai-sdk/anthropic. Structured output rides on
+  // tool-use, which accepts ANY JSON schema — unlike Anthropic's OpenAI-compat
+  // endpoint (strict-only json_schema, rejects minItems > 1) that could never
+  // serve ChatTurnSchema and made "claude" a phantom first hop. Prefers the
+  // Replit AI Integrations proxy (billed to Replit credits, no user key);
+  // falls back to a direct ANTHROPIC_API_KEY when the proxy isn't provisioned.
+  {
+    const proxied =
+      !!process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY && !!process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL;
+    add({
+      name: "claude",
+      displayName: proxied ? "Claude (Replit)" : "Claude (Anthropic)",
+      enabled: proxied || !!process.env.ANTHROPIC_API_KEY,
+      // Sonnet 4.5 is on the proxy's allow-list AND still accepts temperature
+      // (Sonnet 5 / Opus 4.7+ return 400 for any non-default sampling param).
+      model: "claude-sonnet-4-5",
+      make: () =>
+        createAnthropic(
+          proxied
+            ? {
+                baseURL: process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL,
+                apiKey: process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY,
+              }
+            : { apiKey: process.env.ANTHROPIC_API_KEY },
+        ),
+    });
+  }
 
   // ── OpenAI (Replit AI Integrations proxy) — Always-on reliable fallback ───
   // Billed to Replit credits, no user key needed. Falls back to a direct
