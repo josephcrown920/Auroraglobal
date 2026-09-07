@@ -19,6 +19,9 @@ const ALLOWED_HOST_SUFFIXES = [
   ".amazonaws.com",
   ".fal.media",
   ".fal.ai",
+  ".volces.com",
+  ".bytepluses.com",
+  ".byteimg.com",
   // Self-hosted GPU workers upload results to these public CDNs by default
   // (see `AURORA_UPLOAD=catbox` in the worker notebook).
   "files.catbox.moe",
