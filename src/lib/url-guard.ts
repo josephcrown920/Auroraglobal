@@ -19,6 +19,9 @@ const ALLOWED_HOST_SUFFIXES = [
   ".amazonaws.com",
   ".fal.media",
   ".fal.ai",
+  ".volces.com",
+  ".bytepluses.com",
+  ".byteimg.com",
   // Self-hosted GPU workers upload results to these public CDNs by default
   // (see `AURORA_UPLOAD=catbox` in the worker notebook).
   "files.catbox.moe",
@@ -123,18 +126,6 @@ export async function assertOwnedReferenceImage(raw: string, userId: string): Pr
     .eq("user_id", userId)
     .eq("preview_url", raw)
     .maybeSingle();
-  if (!error && data) return;
-
-  // Also accept result URLs from generations the caller owns — covers both the
-  // persisted studio-bucket URL and the raw-provider fallback stored in
-  // result_image_url when persistResultUrl fails.
-  const { data: genRow, error: genErr } = await supabaseAdmin
-    .from("generations")
-    .select("id")
-    .eq("user_id", userId)
-    .eq("result_image_url", raw)
-    .maybeSingle();
-  if (!genErr && genRow) return;
-
-  throw new Error("You can only use character images you own.");
+  if (error) throw new Error(`Avatar lookup failed: ${error.message}`);
+  if (!data) throw new Error("Reference image is not owned by this account");
 }
