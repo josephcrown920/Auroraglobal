@@ -638,6 +638,12 @@ type VideoAgentScenePayload = {
   description: string;
   duration: number;
   frame?: string | null;
+  plateQuality?: "free" | "premium";
+  plateGenerationId?: string | null;
+  modelPrompt?: string;
+  negativePrompt?: string;
+  camera?: string;
+  lighting?: string;
 };
 
 function videoAgentProjectsTable() {
@@ -699,19 +705,28 @@ async function runVideoAgentRender(job: JobRow, orch: Orchestrate, workerId: str
   for (const scene of scenes) {
     if (!scene.description?.trim()) throw new Error(`video_agent_render scene ${scene.index + 1} is missing a visual description`);
     if (!scene.script?.trim()) throw new Error(`video_agent_render scene ${scene.index + 1} is missing narration`);
-    const still = await orch({
-      kind: "image",
-      model: "google/nano-banana",
-      prompt: scene.description,
-      userId: job.user_id,
-      refId: job.id,
-    });
-    firstFrame ??= still.url;
+    const visualPrompt = scene.modelPrompt?.trim() || scene.description;
+    const stillUrl = scene.frame && scene.plateQuality
+      ? scene.frame
+      : (await orch({
+          kind: "image",
+          model: "google/nano-banana",
+          prompt: visualPrompt,
+          userId: job.user_id,
+          refId: job.id,
+        })).url;
+    firstFrame ??= stillUrl;
     const clip = await orch({
       kind: "video",
       model: "seedance-2.0-fast",
-      prompt: `${scene.description}. Natural motion that supports the narration. No text overlays.`,
-      imageUrls: [still.url],
+      prompt: [
+        visualPrompt,
+        scene.camera ? `Camera: ${scene.camera}.` : "",
+        scene.lighting ? `Lighting: ${scene.lighting}.` : "",
+        "Natural motion that supports the narration. No text overlays.",
+        scene.negativePrompt ? `Avoid: ${scene.negativePrompt}.` : "",
+      ].filter(Boolean).join(" "),
+      imageUrls: [stillUrl],
       duration: Math.max(3, Math.min(10, Math.round(scene.duration))),
       forSubscriber: true,
       userId: job.user_id,

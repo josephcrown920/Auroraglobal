@@ -31,6 +31,18 @@ const SceneSchema = z.object({
   frame: z.string().url().nullable().optional(),
   frameStatus: z.enum(["idle", "loading", "done", "error"]).optional(),
   voiceoverStatus: z.enum(["idle", "loading", "done", "error"]).optional(),
+  purpose: z.enum(["establishing", "context", "character", "reaction", "detail", "insert", "payoff"]).optional(),
+  shotType: z.string().max(80).optional(),
+  lensMm: z.number().min(1).max(1000).optional(),
+  camera: z.string().max(1000).optional(),
+  lighting: z.string().max(1000).optional(),
+  modelPrompt: z.string().max(4000).optional(),
+  negativePrompt: z.string().max(2000).optional(),
+  continuityNote: z.string().max(1500).optional(),
+  aspectRatio: z.enum(["16:9", "9:16", "1:1", "4:3", "2.39:1", "21:9"]).optional(),
+  visualDirection: z.string().max(1000).optional(),
+  plateQuality: z.enum(["free", "premium"]).optional(),
+  plateGenerationId: z.string().max(160).nullable().optional(),
 });
 const SceneListSchema = z.array(SceneSchema);
 type SceneRecord = z.infer<typeof SceneSchema>;
@@ -81,7 +93,10 @@ type ProjectSelectChain = {
 
 type ProjectUpdateChain = {
   eq: (column: string, value: string) => ProjectUpdateChain & {
-    select: (columns: string) => { single: () => SingleResult };
+    select: (columns: string) => {
+      single: () => SingleResult;
+      maybeSingle: () => SingleResult;
+    };
   };
 };
 
@@ -146,6 +161,7 @@ export function mapVideoAgentProject(row: ProjectRow) {
     production: parseProduction(row.production),
     createdAt: new Date(row.created_at).getTime(),
     updatedAt: new Date(row.updated_at).getTime(),
+    version: row.updated_at,
   };
 }
 
@@ -172,7 +188,13 @@ export const createVideoAgentProject = createServerFn({ method: "POST" })
         style: data.style,
         voice: data.voice,
         target_duration: data.targetDuration,
-        scenes: data.scenes,
+        scenes: data.scenes.map((scene) => ({
+          ...scene,
+          frame: null,
+          frameStatus: "idle",
+          plateQuality: undefined,
+          plateGenerationId: null,
+        })),
         status: data.scenes.length ? "editing" : "draft",
         status_message: data.scenes.length ? "Storyboard ready to render" : "Planning storyboard",
       })
@@ -272,6 +294,9 @@ export const updateVideoAgentProject = createServerFn({ method: "POST" })
     title: z.string().min(1).max(160).optional(),
     scenes: SceneListSchema.max(12).optional(),
     production: NbaJoshProductionSchema.optional(),
+    // Opaque, server-issued Postgres timestamptz token. Do not normalize it:
+    // PostgREST may serialize an explicit offset and CAS requires byte fidelity.
+    expectedVersion: z.string().min(1).max(64).optional(),
   }).parse(data))
   .handler(async ({ data, context }) => {
     const current = await fetchOwnedProject(data.id, context.userId);
@@ -285,7 +310,19 @@ export const updateVideoAgentProject = createServerFn({ method: "POST" })
       if (current.status === "queued" || current.status === "processing") {
         throw new Error("The storyboard is locked while a render is in progress");
       }
-      patch.scenes = data.scenes;
+      const currentScenes = parseScenes(current.scenes);
+      // Plate provenance is server-owned. Client edits may change shot metadata,
+      // but cannot inject a frame URL or impersonate a paid generation.
+      patch.scenes = data.scenes.map((scene) => {
+        const previous = currentScenes.find((item) => item.id === scene.id);
+        return {
+          ...scene,
+          frame: previous?.frame ?? null,
+          frameStatus: previous?.frameStatus ?? "idle",
+          plateQuality: previous?.plateQuality,
+          plateGenerationId: previous?.plateGenerationId ?? null,
+        };
+      });
       // Storyboard edits move a draft into the editable state, but never
       // clobber a terminal render status (succeeded/failed keep showing the
       // last render result until a re-render is queued).
@@ -319,12 +356,17 @@ export const updateVideoAgentProject = createServerFn({ method: "POST" })
       }
     }
     if (!Object.keys(patch).length) return mapVideoAgentProject(current);
-    const { data: row, error } = await projectTable()
+    let update = projectTable()
       .update(patch)
       .eq("id", data.id)
-      .eq("user_id", context.userId)
-      .select("*")
-      .single();
+      .eq("user_id", context.userId);
+    if (data.expectedVersion) update = update.eq("updated_at", data.expectedVersion);
+    const { data: row, error } = data.expectedVersion
+      ? await update.select("*").maybeSingle()
+      : await update.select("*").single();
+    if (!row && data.expectedVersion && !error) {
+      throw new Error("This project changed in another request. Reloaded the latest version; please repeat your edit.");
+    }
     if (error || !row) throw new Error(error?.message ?? "Could not update project");
     return mapVideoAgentProject(row);
   });
@@ -687,6 +729,84 @@ const previsStyleHints: Record<z.infer<typeof StyleSchema>, string> = {
   documentary: "natural light, candid, hyper-realistic",
 };
 
+function pollinationsPrevisUrl(prompt: string): string {
+  const encoded = encodeURIComponent(prompt.slice(0, 500));
+  const seed = Math.floor(Math.random() * 999999);
+  return `https://image.pollinations.ai/prompt/${encoded}?width=896&height=504&nologo=true&enhance=false&seed=${seed}`;
+}
+
+async function persistPrevisPlate(args: {
+  projectId: string;
+  userId: string;
+  sceneId: string;
+  url: string;
+  quality: "free" | "premium";
+  generationId: string | null;
+  statusMessage: string;
+}) {
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const current = await fetchOwnedProject(args.projectId, args.userId);
+    const scenes = parseScenes(current.scenes);
+    const scene = scenes.find((item) => item.id === args.sceneId);
+    if (!scene) throw new Error("Scene was removed while the plate was rendering");
+    const nextScenes = scenes.map((item) =>
+      item.id === args.sceneId
+        ? {
+            ...item,
+            frame: args.url,
+            frameStatus: "done" as const,
+            plateQuality: args.quality,
+            plateGenerationId: args.generationId,
+          }
+        : item,
+    );
+    const { data, error } = await projectTable()
+      .update({ scenes: nextScenes, status_message: args.statusMessage })
+      .eq("id", current.id)
+      .eq("user_id", args.userId)
+      .eq("updated_at", current.updated_at)
+      .select("id")
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (data) return;
+  }
+  throw new Error("The plate rendered, but the project changed before it could be saved. Retry to attach the existing render safely.");
+}
+
+/**
+ * Generate a free sketch plate from server-owned project state and persist it
+ * onto the scene. The client supplies only project/scene identifiers; the
+ * visual prompt is never accepted from the request body.
+ */
+export const generateVideoAgentPrevisPlate = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) =>
+    z.object({ id: z.string().uuid(), sceneId: z.string().min(1).max(100) }).parse(data),
+  )
+  .handler(async ({ data, context }) => {
+    const project = await fetchOwnedProject(data.id, context.userId);
+    if (project.status === "queued" || project.status === "processing") {
+      throw new Error("The storyboard is locked while a render is in progress");
+    }
+    const scenes = parseScenes(project.scenes);
+    const scene = scenes.find((item) => item.id === data.sceneId);
+    if (!scene) throw new Error("Scene not found in this project");
+    const prompt = (scene.modelPrompt || scene.description).trim();
+    if (!prompt) throw new Error("Add a model prompt before generating the plate");
+
+    const url = pollinationsPrevisUrl(prompt);
+    await persistPrevisPlate({
+      projectId: project.id,
+      userId: context.userId,
+      sceneId: scene.id,
+      url,
+      quality: "free",
+      generationId: null,
+      statusMessage: `${scene.title} free previs plate ready`,
+    });
+    return { sceneId: scene.id, url, quality: "free" as const, provider: "pollinations", cost: 0 };
+  });
+
 export const upgradeVideoAgentPlate = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: unknown) =>
@@ -703,7 +823,7 @@ export const upgradeVideoAgentPlate = createServerFn({ method: "POST" })
     if (!scene.description.trim()) throw new Error("Add a visual description before upgrading the plate");
 
     const styleHint = previsStyleHints[project.style] ?? previsStyleHints.cinematic;
-    const prompt = `${scene.description}. Style: ${styleHint}. Cinematic keyframe.`;
+    const prompt = `${scene.modelPrompt || scene.description}. Style: ${styleHint}. Cinematic keyframe.`;
 
     const { reserveOrchestrateRecord } = await import("./generate-core.server");
     let outcome;
@@ -715,6 +835,7 @@ export const upgradeVideoAgentPlate = createServerFn({ method: "POST" })
         cost: PREVIS_PLATE_COST,
         reason: "video_agent_previs_plate",
         mode: "preview",
+        idempotencyKey: `previs:${project.id}:${scene.id}:${project.updated_at}`,
       });
     } catch (err) {
       throw new Error(err instanceof Error ? err.message : "Plate upgrade failed");
@@ -726,13 +847,15 @@ export const upgradeVideoAgentPlate = createServerFn({ method: "POST" })
 
     // Persist the upgraded frame onto the scene so it survives reloads and feeds
     // the real render. Only mutate this one scene's frame; leave the rest intact.
-    const nextScenes = scenes.map((s) => (s.id === data.sceneId ? { ...s, frame: outcome!.url, frameStatus: "done" as const } : s));
-    await projectTable()
-      .update({ scenes: nextScenes })
-      .eq("id", project.id)
-      .eq("user_id", context.userId)
-      .select("id")
-      .single();
+    await persistPrevisPlate({
+      projectId: project.id,
+      userId: context.userId,
+      sceneId: scene.id,
+      url: outcome.url,
+      quality: "premium",
+      generationId: outcome.generationId,
+      statusMessage: `${scene.title} premium previs plate ready`,
+    });
 
     return { sceneId: data.sceneId, url: outcome.url, generationId: outcome.generationId, provider: outcome.provider, cost: PREVIS_PLATE_COST };
   });

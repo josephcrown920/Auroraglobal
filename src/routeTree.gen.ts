@@ -58,6 +58,7 @@ import { Route as PartnersRouteImport } from './routes/partners'
 import { Route as PerformRouteImport } from './routes/perform'
 import { Route as PerformAnywhereRouteImport } from './routes/perform-anywhere'
 import { Route as PhotoEditRouteImport } from './routes/photo-edit'
+import { Route as PrevisRouteImport } from './routes/previs'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as PromotionRouteImport } from './routes/promotion'
 import { Route as PuremixRouteImport } from './routes/puremix'
@@ -433,6 +434,11 @@ const PhotoEditRoute = PhotoEditRouteImport.update({
   path: '/photo-edit',
   getParentRoute: () => rootRouteImport,
 } as any).lazy(() => import('./routes/photo-edit.lazy').then((d) => d.Route))
+const PrevisRoute = PrevisRouteImport.update({
+  id: '/previs',
+  path: '/previs',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/previs.lazy').then((d) => d.Route))
 const PrivacyRoute = PrivacyRouteImport.update({
   id: '/privacy',
   path: '/privacy',
@@ -1134,6 +1140,7 @@ export interface FileRoutesByFullPath {
   '/perform': typeof PerformRoute
   '/perform-anywhere': typeof PerformAnywhereRoute
   '/photo-edit': typeof PhotoEditRoute
+  '/previs': typeof PrevisRoute
   '/privacy': typeof PrivacyRoute
   '/promotion': typeof PromotionRoute
   '/puremix': typeof PuremixRoute
@@ -1305,6 +1312,7 @@ export interface FileRoutesByTo {
   '/perform': typeof PerformRoute
   '/perform-anywhere': typeof PerformAnywhereRoute
   '/photo-edit': typeof PhotoEditRoute
+  '/previs': typeof PrevisRoute
   '/privacy': typeof PrivacyRoute
   '/promotion': typeof PromotionRoute
   '/puremix': typeof PuremixRoute
@@ -1478,6 +1486,7 @@ export interface FileRoutesById {
   '/perform': typeof PerformRoute
   '/perform-anywhere': typeof PerformAnywhereRoute
   '/photo-edit': typeof PhotoEditRoute
+  '/previs': typeof PrevisRoute
   '/privacy': typeof PrivacyRoute
   '/promotion': typeof PromotionRoute
   '/puremix': typeof PuremixRoute
@@ -1652,6 +1661,7 @@ export interface FileRouteTypes {
     | '/perform'
     | '/perform-anywhere'
     | '/photo-edit'
+    | '/previs'
     | '/privacy'
     | '/promotion'
     | '/puremix'
@@ -1823,6 +1833,7 @@ export interface FileRouteTypes {
     | '/perform'
     | '/perform-anywhere'
     | '/photo-edit'
+    | '/previs'
     | '/privacy'
     | '/promotion'
     | '/puremix'
@@ -1995,6 +2006,7 @@ export interface FileRouteTypes {
     | '/perform'
     | '/perform-anywhere'
     | '/photo-edit'
+    | '/previs'
     | '/privacy'
     | '/promotion'
     | '/puremix'
@@ -2168,6 +2180,7 @@ export interface RootRouteChildren {
   PerformRoute: typeof PerformRoute
   PerformAnywhereRoute: typeof PerformAnywhereRoute
   PhotoEditRoute: typeof PhotoEditRoute
+  PrevisRoute: typeof PrevisRoute
   PrivacyRoute: typeof PrivacyRoute
   PromotionRoute: typeof PromotionRoute
   PuremixRoute: typeof PuremixRoute
@@ -2607,6 +2620,13 @@ declare module '@tanstack/react-router' {
       path: '/photo-edit'
       fullPath: '/photo-edit'
       preLoaderRoute: typeof PhotoEditRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/previs': {
+      id: '/previs'
+      path: '/previs'
+      fullPath: '/previs'
+      preLoaderRoute: typeof PrevisRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/privacy': {
@@ -3594,6 +3614,7 @@ const rootRouteChildren: RootRouteChildren = {
   PerformRoute: PerformRoute,
   PerformAnywhereRoute: PerformAnywhereRoute,
   PhotoEditRoute: PhotoEditRoute,
+  PrevisRoute: PrevisRoute,
   PrivacyRoute: PrivacyRoute,
   PromotionRoute: PromotionRoute,
   PuremixRoute: PuremixRoute,

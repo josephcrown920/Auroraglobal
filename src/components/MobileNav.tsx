@@ -72,6 +72,7 @@ const CORE_FEATURES: Feature[] = [
 // ── Studio — image & scene tools ──────────────────────────────────────────
 const STUDIO_FEATURES: Feature[] = [
   { to: "/studio",          label: "Image & Video Studio",  icon: Sparkles, previewImg: "/nav-previews/studio.jpg" },
+  { to: "/previs",          label: "Previs Workspace",      icon: Clapperboard, previewImg: "/nav-previews/music-video.jpg", badge: "New" },
   { to: "/likeness",        label: "Locked Likeness Shoot", icon: Camera,   previewImg: "/nav-previews/avatar.jpg",        badge: "New" },
   { to: "/scene-builder",   label: "Scene Builder",         icon: Layers,   previewImg: "/nav-previews/scene-builder.jpg" },
   { to: "/agent",           label: "Video Agent",           icon: Film,     badge: "New" },

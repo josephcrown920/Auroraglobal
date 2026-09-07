@@ -606,6 +606,13 @@ function HeyGenPanel() {
           <p className="mt-2 text-[13px] font-medium text-ink-dim">
             Write what the presenter says, or describe your idea and hit Enhance. Aurora picks the avatar, voice, and layout — HeyGen renders the video.
           </p>
+          <Link
+            to="/previs"
+            className="mt-4 inline-flex items-center gap-2 rounded-sm border border-prime/40 bg-prime/5 px-3 py-2 text-[11px] font-bold uppercase tracking-widest text-prime no-underline transition-colors hover:bg-prime/10"
+          >
+            <Clapperboard className="size-3.5" />
+            Open Previs Workspace
+          </Link>
         </header>
 
         {/* Full-session export — everything (prompt, plan, shots, video) in one zip */}
