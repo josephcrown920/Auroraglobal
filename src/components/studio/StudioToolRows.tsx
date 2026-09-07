@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import {
   ArrowUpRight,
+  Camera,
   Clapperboard,
   Flame,
   Layers3,
@@ -108,6 +109,21 @@ const studioToolRows: StudioToolRow[] = [
       alt: "Performance Studio motion transfer preview",
       icon: Wand2,
       accent: ACCENTS.violet,
+    };
+  })(),
+  (() => {
+    const tool = TOOL_DIRECTORY.find((item) => item.name === "Scene Builder")!;
+    return {
+      key: "scene-builder",
+      name: tool.name,
+      description: tool.description,
+      to: tool.to,
+      price: tool.price,
+      badge: "5 References",
+      image: "/nav-previews/music-video.jpg",
+      alt: "Scene Builder five-reference cinematic setup preview",
+      icon: Camera,
+      accent: ACCENTS.amber,
     };
   })(),
   (() => {
