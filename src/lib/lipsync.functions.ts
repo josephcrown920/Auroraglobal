@@ -10,7 +10,10 @@ export const startLipsync = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => z.object({
     videoUrl: z.string().url(),
     audioUrl: z.string().url(),
-    engine: z.enum(["sync-v2", "wav2lip", "latentsync", "xai-ugc", "heygen-photo"]).default("sync-v2"),
+    // Default to the registered GPU worker path. fal.ai is not required for
+    // the standard lip-sync flow; LatentSync is self-hosted and free of hosted
+    // API balance requirements.
+    engine: z.enum(["sync-v2", "wav2lip", "latentsync", "xai-ugc", "heygen-photo"]).default("latentsync"),
     imageUrl: z.string().url().optional(),
   }).parse(d))
   .handler(async ({ data, context }) => {
