@@ -6,16 +6,56 @@ import {
   buildCloseupPrompt,
   COLORS_SHOW_COST_PER_SHOT,
 } from "@/lib/colors-show.templates";
+import { assertOwnedReferenceImage } from "@/lib/url-guard";
 
 const MODEL = "google/gemini-3.1-flash-image-preview";
+export const COLORS_SHOW_ALLOWED_MODELS = [
+  MODEL,
+  "google/nano-banana-pro",
+  "google/nano-banana",
+] as const;
+export const COLORS_SHOW_ALLOWED_PROVIDERS = ["gemini", "replicate"] as const;
 
 const ColorsShowShotSchema = z.object({
   selfieUrl: z.string().url(),
   colorName: z.string().min(1).max(100),
   outfit: z.string().min(3).max(300),
   shotType: z.enum(["wide", "closeup"]),
-  colorRefUrl: z.string().url().optional(),
+  wideRefUrl: z.string().url(),
+  closeupRefUrl: z.string().url(),
+  outfitRefUrl: z.string().url().optional(),
+  location: z.string().max(500).optional(),
 });
+type ColorsShowShotInput = z.infer<typeof ColorsShowShotSchema>;
+
+export async function assertColorsShowReferencesOwned(
+  data: ColorsShowShotInput,
+  userId: string,
+  assertOwned: typeof assertOwnedReferenceImage = assertOwnedReferenceImage,
+): Promise<void> {
+  await Promise.all([
+    data.selfieUrl,
+    data.wideRefUrl,
+    data.closeupRefUrl,
+    ...(data.outfitRefUrl ? [data.outfitRefUrl] : []),
+  ].map((url) => assertOwned(url, userId)));
+}
+
+export function buildColorsShowRenderInput(data: ColorsShowShotInput) {
+  const label = data.shotType === "wide" ? "Wide Shot" : "Close-Up";
+  const prompt = data.shotType === "wide"
+    ? buildWidePrompt(data.colorName, data.outfit, data.location)
+    : buildCloseupPrompt(data.colorName, data.outfit, data.location);
+  const compositionRef = data.shotType === "wide" ? data.wideRefUrl : data.closeupRefUrl;
+  return {
+    prompt: `[Colors Show / ${label}]\n\n${prompt}`,
+    model: MODEL,
+    editStrict: true as const,
+    allowedModels: [...COLORS_SHOW_ALLOWED_MODELS],
+    allowedProviders: [...COLORS_SHOW_ALLOWED_PROVIDERS],
+    imageUrls: [data.selfieUrl, ...(data.outfitRefUrl ? [data.outfitRefUrl] : []), compositionRef],
+  };
+}
 
 export type ColorsShowShotOutcome =
   | { ok: true; url: string; generationId: string }
@@ -28,20 +68,13 @@ export const generateColorsShowShot = createServerFn({ method: "POST" })
     const { userId, supabase } = context;
     const { reserveOrchestrateRecord } = await import("@/lib/generate-core.server");
 
-    const label = data.shotType === "wide" ? "Wide Shot" : "Close-Up";
-    const prompt =
-      data.shotType === "wide"
-        ? buildWidePrompt(data.colorName, data.outfit)
-        : buildCloseupPrompt(data.colorName, data.outfit);
+    await assertColorsShowReferencesOwned(data, userId);
+    const dispatch = buildColorsShowRenderInput(data);
 
     const result = await reserveOrchestrateRecord({
       userId,
       kind: "image",
-      prompt: `[Colors Show / ${label}]\n\n${prompt}`,
-      model: MODEL,
-      imageUrls: data.colorRefUrl
-        ? [data.selfieUrl, data.colorRefUrl]
-        : [data.selfieUrl],
+      ...dispatch,
       cost: COLORS_SHOW_COST_PER_SHOT,
       reason: "colors_show",
     });

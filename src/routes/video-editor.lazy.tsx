@@ -38,6 +38,7 @@ import {
   type ChatMessage,
   type StudioClip,
   type EditorMutation,
+  type SoundtrackSettings,
 } from "@/lib/video-editor.functions";
 
 // ─── Client-safe style / music manifests (mirror autocut.server.ts) ──────────
@@ -66,6 +67,14 @@ const SUGGESTED_COMMANDS = [
   "Swap clips 1 and 2",
 ];
 
+const DEFAULT_SOUNDTRACK: SoundtrackSettings = {
+  offsetSec: 0,
+  trimStartSec: 0,
+  trimEndSec: 0,
+  volume: 1,
+  mode: "mix",
+};
+
 // ─── Route ───────────────────────────────────────────────────────────────────
 
 export const Route = createLazyFileRoute("/video-editor")({ component: VideoEditorPage });
@@ -86,6 +95,8 @@ function VideoEditorPage() {
   const [style, setStyle]             = useState<StyleId>("hype");
   const [musicTrackId, setMusicTrackId] = useState<string | null>(null);
   const [previewClipId, setPreviewClipId] = useState<string | null>(null);
+  const [sourceAudioUrl, setSourceAudioUrl] = useState<string | null>(null);
+  const [soundtrack, setSoundtrack] = useState<SoundtrackSettings>(DEFAULT_SOUNDTRACK);
 
   // ── Chat ───────────────────────────────────────────────────────────────────
   const [messages, setMessages]       = useState<ChatMessage[]>([]);
@@ -133,6 +144,8 @@ function VideoEditorPage() {
           setMessages(s.chatHistory);
           setStyle((s.style as StyleId) ?? "hype");
           setMusicTrackId(s.musicTrackId);
+          setSourceAudioUrl(s.sourceAudioUrl);
+           setSoundtrack(s.soundtrack);
           if (s.resultUrl) setExportResult(s.resultUrl);
           setSessionReady(true);
           if (s.clipList.length > 0) setActiveTab("timeline");
@@ -161,11 +174,11 @@ function VideoEditorPage() {
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     saveTimerRef.current = setTimeout(() => {
       saveSessionFn({
-        data: { sessionId, clipList: clips, chatHistory: messages, style, musicTrackId },
+        data: { sessionId, clipList: clips, chatHistory: messages, style, musicTrackId, soundtrack },
       }).catch(console.error);
     }, 2000);
     return () => { if (saveTimerRef.current) clearTimeout(saveTimerRef.current); };
-  }, [clips, messages, style, musicTrackId, sessionId, sessionReady]);
+  }, [clips, messages, style, musicTrackId, soundtrack, sessionId, sessionReady, saveSessionFn]);
 
   // ── Scroll chat to bottom ──────────────────────────────────────────────────
   useEffect(() => {
@@ -288,7 +301,7 @@ function VideoEditorPage() {
     setExportResult(null);
     try {
       const { resultUrl } = await exportFn({
-        data: { sessionId, clipList: clips, style, musicTrackId },
+        data: { sessionId, clipList: clips, style, musicTrackId, soundtrack },
       });
       setExportResult(resultUrl);
       toast.success("Export complete — your video is ready!");
@@ -340,6 +353,19 @@ function VideoEditorPage() {
           Export
         </Button>
       </header>
+
+      {sourceAudioUrl && (
+        <div className="relative z-10 border-b border-primary/20 bg-primary/5 px-5 py-3">
+          <div className="mx-auto flex max-w-5xl flex-wrap items-center gap-3">
+            <Music2 className="size-4 shrink-0 text-primary" />
+            <div className="min-w-48 flex-1">
+              <p className="text-xs font-semibold">Performance reference audio</p>
+              <p className="text-[10px] text-muted-foreground">This user-owned track will be aligned and mixed into the exported video.</p>
+            </div>
+            <audio src={sourceAudioUrl} controls preload="metadata" className="h-8 max-w-full" />
+          </div>
+        </div>
+      )}
 
       {/* ── Tab bar ─────────────────────────────────────────────────────────── */}
       <div className="relative z-10 flex shrink-0 border-b border-border bg-background/60 backdrop-blur">
@@ -537,10 +563,73 @@ function VideoEditorPage() {
               </div>
             </section>
 
+            {sourceAudioUrl && (
+              <section className="rounded-xl border border-primary/30 bg-card p-4">
+                <div className="mb-3 flex items-center gap-2">
+                  <Music2 className="size-4 text-primary" />
+                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Performance soundtrack</p>
+                </div>
+                <div className="mb-4 grid grid-cols-2 gap-2">
+                  {(["mix", "replace"] as const).map((mode) => (
+                    <button
+                      key={mode}
+                      type="button"
+                      onClick={() => setSoundtrack((current) => ({ ...current, mode }))}
+                      className={cn(
+                        "rounded-lg border px-3 py-2 text-xs font-semibold capitalize transition",
+                        soundtrack.mode === mode
+                          ? "border-primary/60 bg-primary/10 text-primary"
+                          : "border-border text-muted-foreground",
+                      )}
+                    >
+                      {mode === "mix" ? "Mix with clip audio" : "Replace clip audio"}
+                    </button>
+                  ))}
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <SoundtrackNumber
+                    label="Start offset (sec)"
+                    value={soundtrack.offsetSec}
+                    max={120}
+                    onChange={(offsetSec) => setSoundtrack((current) => ({ ...current, offsetSec }))}
+                  />
+                  <SoundtrackNumber
+                    label="Volume"
+                    value={soundtrack.volume}
+                    max={2}
+                    step={0.05}
+                    onChange={(volume) => setSoundtrack((current) => ({ ...current, volume }))}
+                  />
+                  <SoundtrackNumber
+                    label="Trim start (sec)"
+                    value={soundtrack.trimStartSec}
+                    max={3600}
+                    onChange={(trimStartSec) => setSoundtrack((current) => ({ ...current, trimStartSec }))}
+                  />
+                  <SoundtrackNumber
+                    label="Trim end (sec)"
+                    value={soundtrack.trimEndSec}
+                    max={3600}
+                    onChange={(trimEndSec) => setSoundtrack((current) => ({ ...current, trimEndSec }))}
+                  />
+                </div>
+                <p className="mt-3 text-[11px] leading-relaxed text-muted-foreground">
+                  Offset delays the track on the video timeline. Trim values remove time from the beginning or end of the song.
+                </p>
+              </section>
+            )}
+
             {/* Export result */}
             {exportResult && (
               <div className="rounded-xl border border-emerald-500/40 bg-emerald-500/10 p-4">
                 <p className="mb-2 text-sm font-semibold text-emerald-400">Export ready!</p>
+                <video
+                  src={exportResult}
+                  controls
+                  playsInline
+                  preload="metadata"
+                  className="mb-3 aspect-video w-full rounded-lg bg-black object-contain"
+                />
                 <a
                   href={exportResult}
                   target="_blank"
@@ -766,5 +855,37 @@ function ClipCard({ clip, idx, total, isPreview, onSelect, onMoveUp, onMoveDown,
         />
       )}
     </div>
+  );
+}
+
+function SoundtrackNumber({
+  label,
+  value,
+  max,
+  step = 0.1,
+  onChange,
+}: {
+  label: string;
+  value: number;
+  max: number;
+  step?: number;
+  onChange: (value: number) => void;
+}) {
+  return (
+    <label className="flex flex-col gap-1 text-[11px] font-medium text-muted-foreground">
+      {label}
+      <input
+        type="number"
+        min={0}
+        max={max}
+        step={step}
+        value={value}
+        onChange={(event) => {
+          const next = Number(event.target.value);
+          if (Number.isFinite(next)) onChange(Math.max(0, Math.min(max, next)));
+        }}
+        className="rounded-lg border border-border bg-background px-2.5 py-2 text-sm text-foreground outline-none focus:border-primary/60"
+      />
+    </label>
   );
 }

@@ -138,7 +138,9 @@ describe("Aurora chat router integration", () => {
     expect(result.provider).toBe("grok");
     expect(result.fallbackCount).toBe(1);
     expect(ChatResultSchema.parse(result.output).reply).toBe("The fallback director is ready.");
-    expect(generated).toHaveBeenCalledTimes(3);
+    // Non-transient model/provider failures skip immediately rather than
+    // wasting a second call before trying the fallback.
+    expect(generated).toHaveBeenCalledTimes(2);
   });
 
   it("runs the real chat server-function core with authenticated context, router classification, and persistence", async () => {
@@ -207,6 +209,6 @@ describe("Aurora chat router integration", () => {
     const result = await chatWithAuroraAgentCore(context, { message: "Where do I begin?" });
 
     expect(result.reply).toBe("The fallback director is ready.");
-    expect(generated).toHaveBeenCalledTimes(3);
+    expect(generated).toHaveBeenCalledTimes(2);
   });
 });

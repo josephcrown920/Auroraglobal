@@ -4,6 +4,8 @@ import { MessageCircle, X, Send, Loader2, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { auroraChat } from "@/lib/chatbot.functions";
 import { useAuth } from "@/hooks/use-auth";
+import { useNavigate } from "@tanstack/react-router";
+import { authNextSearch } from "@/lib/auth-return-path";
 import { track } from "@/lib/tracking";
 
 type Msg = { role: "user" | "assistant"; content: string };
@@ -67,6 +69,7 @@ function pickNextTip(): string {
 
 export function AuroraChatbot() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const chat = useServerFn(auroraChat);
   const firstName =
     (user?.user_metadata?.display_name as string | undefined)?.split(" ")[0] ||
@@ -77,6 +80,7 @@ export function AuroraChatbot() {
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [servingModel, setServingModel] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const tipTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -160,18 +164,35 @@ export function AuroraChatbot() {
     e?.preventDefault();
     const text = input.trim();
     if (!text || loading) return;
+    if (!user) {
+      toast.error("Sign in to chat with Aurora Prime", {
+        action: {
+          label: "Sign in",
+          onClick: () => void navigate({ to: "/auth", search: authNextSearch() }),
+        },
+      });
+      return;
+    }
     const next: Msg[] = [...messages, { role: "user", content: text }];
     setMessages(next);
     setInput("");
     setLoading(true);
     void track("chatbot_message_sent", { length: text.length });
     try {
-      const { reply } = await chat({ data: { firstName, messages: next } });
+      const { reply, provider, model } = await chat({ data: { firstName, messages: next } });
+      if (!reply.trim() || /^\s*\{\s*"error"\s*:/i.test(reply)) {
+        throw new Error("Aurora Prime could not complete that reply. Please try again.");
+      }
+      setServingModel(model ? `${provider} · ${model}` : provider);
       setMessages((m) => [...m, { role: "assistant", content: reply }]);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Something went wrong";
-      setMessages((m) => [...m, { role: "assistant", content: `⚠ ${msg}` }]);
-      toast.error(msg);
+      const unauthorized = /unauthori[sz]ed|sign.?in|auth/i.test(msg);
+      toast.error(unauthorized ? "Your session expired. Sign in again to continue." : msg, {
+        ...(unauthorized
+          ? { action: { label: "Sign in", onClick: () => void navigate({ to: "/auth", search: authNextSearch() }) } }
+          : {}),
+      });
     } finally {
       setLoading(false);
     }
@@ -202,7 +223,8 @@ export function AuroraChatbot() {
             <div className="flex-1">
               <div className="text-sm font-semibold text-white">Aurora Prime</div>
               <div className="text-[11px] text-emerald-300 flex items-center gap-1.5">
-                <span className="size-1.5 rounded-full bg-emerald-400" /> Online · replies instantly
+                <span className="size-1.5 rounded-full bg-emerald-400" />
+                {servingModel ? `Serving ${servingModel}` : "Online · automatic model fallback"}
               </div>
             </div>
             <button

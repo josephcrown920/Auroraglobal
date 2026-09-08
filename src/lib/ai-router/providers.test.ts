@@ -9,6 +9,8 @@ const ENV_KEYS = [
   "AI_INTEGRATIONS_GEMINI_BASE_URL",
   "AI_INTEGRATIONS_OPENAI_API_KEY",
   "AI_INTEGRATIONS_OPENAI_BASE_URL",
+  "AI_INTEGRATIONS_OPENROUTER_API_KEY",
+  "AI_INTEGRATIONS_OPENROUTER_BASE_URL",
   "OPENAI_API_KEY",
   "XAI_API_KEY",
   "OPENROUTER_API_KEY",
@@ -69,6 +71,15 @@ describe("ai-router provider registry", () => {
     // Native Gemini gateway (the proxy has no OpenAI-compat /chat/completions).
     const model = gemini!.make()("gemini-2.5-flash") as { provider?: string };
     expect(String(model.provider)).toContain("google");
+  });
+
+  it("enables OpenRouter models from the Replit proxy without a direct key", () => {
+    process.env.AI_INTEGRATIONS_OPENROUTER_API_KEY = "proxy-key";
+    process.env.AI_INTEGRATIONS_OPENROUTER_BASE_URL = "https://proxy.example/v1";
+    const registry = buildProviderRegistry();
+    expect(registry.get("qwen")?.enabled).toBe(true);
+    expect(registry.get("deepseek")?.enabled).toBe(true);
+    expect(registry.get("qwen")?.model).toBe("qwen/qwen3-235b-a22b");
   });
 
   it("does NOT enable Gemini from a proxy key without its base URL", () => {

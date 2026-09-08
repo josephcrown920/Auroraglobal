@@ -14,7 +14,7 @@ IDENTITY LOCK: preserve the subject's exact face, skin tone, hairstyle, facial h
 
 OUTFIT: {outfit}
 
-SCENE LOCK — reproduce this studio exactly: {color} Cyclorama Studio — seamless curved cyc wall and floor in {color} with no visible seams. Single vintage silver studio microphone hanging on a thin cable from center-top descending to chest height. Warm {color}-tinted softbox key from camera-right, soft {color} rim light from behind. Faint floor reflection of the subject's silhouette. No furniture.
+SCENE LOCK — reproduce this studio exactly: {color} Cyclorama Studio — monochrome seamless curved cyc wall and floor in {color} with no visible seams, staged on a wide open performance platform. Single vintage silver studio microphone hanging on a thin cable from center-top descending to chest height. Warm {color}-tinted softbox key from camera-right, soft {color} rim light from behind. Faint floor reflection of the subject's silhouette. No furniture.
 
 CAMERA & FRAMING: Full-body performance shot, head to toe, subject centered, vertical 9:16 portrait, 50mm at eye level, gentle depth of field.
 
@@ -28,18 +28,30 @@ IDENTITY LOCK: preserve the subject's exact face, skin tone, hairstyle, facial h
 
 OUTFIT: {outfit} — only the neckline and collar are visible at the bottom of frame.
 
-SCENE LOCK — reproduce this studio exactly: {color} Cyclorama Studio — {color} seamless backdrop filling the frame behind the subject. Warm {color}-tinted softbox key from camera-right, soft fill from camera-left. The hanging vintage silver microphone is softly blurred in the upper background.
+SCENE LOCK — reproduce this studio exactly: the same wide open performance platform in the {color} Cyclorama Studio — monochrome {color} seamless backdrop and floor filling the frame behind the subject. Warm {color}-tinted softbox key from camera-right, soft fill from camera-left. The exact same hanging vintage silver microphone is softly blurred in the upper background.
 
 CAMERA & FRAMING: Intimate beauty close-up, framed from upper chest to crown, face fills the frame, background softly bokeh'd, 85mm portrait lens at f/1.8. Crisp catch-lights in the eyes.
 
 ${REALISM_SUFFIX}`;
 
-export function buildWidePrompt(color: string, outfit: string): string {
-  return WIDE_SHOT_TEMPLATE.replace(/{color}/g, color).replace(/{outfit}/g, outfit);
+export function buildWidePrompt(color: string, outfit: string, location?: string): string {
+  const base = WIDE_SHOT_TEMPLATE.replace(/{color}/g, color).replace(/{outfit}/g, outfit);
+  return location?.trim()
+    ? base.replace(
+        /SCENE LOCK[\s\S]*?No furniture\./,
+        `SCENE LOCK — reproduce this custom performance location consistently in every angle: ${location.trim()}. Keep one vintage silver microphone hanging from a thin cable at chest height.`,
+      )
+    : base;
 }
 
-export function buildCloseupPrompt(color: string, outfit: string): string {
-  return CLOSEUP_SHOT_TEMPLATE.replace(/{color}/g, color).replace(/{outfit}/g, outfit);
+export function buildCloseupPrompt(color: string, outfit: string, location?: string): string {
+  const base = CLOSEUP_SHOT_TEMPLATE.replace(/{color}/g, color).replace(/{outfit}/g, outfit);
+  return location?.trim()
+    ? base.replace(
+        /SCENE LOCK[\s\S]*?background\./,
+        `SCENE LOCK — use the exact same custom location as the wide plate: ${location.trim()}. The same hanging vintage silver microphone is softly blurred in the upper background.`,
+      )
+    : base;
 }
 
 export const COLORS_SHOW_STEPS = [

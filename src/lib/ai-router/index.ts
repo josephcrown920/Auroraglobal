@@ -14,6 +14,14 @@ import { countHealthyForCategory, isHealthy, recordOutcome } from "./health";
 import { logRouterDecision } from "./logger";
 import type { RequestCategory } from "./categories";
 
+const PROVIDER_TIMEOUT_MS = 15_000;
+const ROUTER_TIMEOUT_MS = 45_000;
+
+function retryableProviderError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return /\b(408|409|429|500|502|503|504)\b|timed?\s*out|timeout|ECONNRESET|fetch failed/i.test(message);
+}
+
 export type { RequestCategory } from "./categories";
 export { classifyRequest } from "./classifier";
 export { getHealthSnapshot } from "./health";
@@ -25,6 +33,8 @@ export type RoutedResult<T> = {
   output: T;
   /** Provider that delivered the result. */
   provider: string;
+  /** Exact serving model id selected by the router (safe to disclose in UI). */
+  model: string | null;
   /** Category the request was classified as. */
   category: RequestCategory;
   /** How many providers were tried before success. */
@@ -96,6 +106,7 @@ export async function routedGenerate<T>(args: RoutedGenerateArgs<T>): Promise<Ro
       return {
         output: args.degradedOutput,
         provider: "none",
+        model: null,
         category,
         fallbackCount: 0,
         latencyMs,
@@ -117,6 +128,7 @@ export async function routedGenerate<T>(args: RoutedGenerateArgs<T>): Promise<Ro
   let fallbackCount = 0;
 
   for (const provider of candidates) {
+    if (Date.now() - t0 >= ROUTER_TIMEOUT_MS) break;
     // Retry-once: attempt the provider up to 2 times before moving to the next.
     for (let attempt = 1; attempt <= 2; attempt++) {
       const callStart = Date.now();
@@ -131,6 +143,10 @@ export async function routedGenerate<T>(args: RoutedGenerateArgs<T>): Promise<Ro
           experimental_output: Output.object({ schema: args.schema }),
           // e.g. strictJsonSchema:false for OpenAI-compatible json_schema mode.
           providerOptions: provider.providerOptions,
+          maxRetries: 0,
+          abortSignal: AbortSignal.timeout(
+            Math.max(1, Math.min(PROVIDER_TIMEOUT_MS, ROUTER_TIMEOUT_MS - (Date.now() - t0))),
+          ),
         });
 
         const latencyMs = Date.now() - t0;
@@ -151,6 +167,7 @@ export async function routedGenerate<T>(args: RoutedGenerateArgs<T>): Promise<Ro
         return {
           output: experimental_output as T,
           provider: provider.name,
+          model: provider.model,
           category,
           fallbackCount,
           latencyMs,
@@ -160,13 +177,19 @@ export async function routedGenerate<T>(args: RoutedGenerateArgs<T>): Promise<Ro
         const msg = err instanceof Error ? err.message : String(err);
         console.warn(`[ai-router] ${provider.name} attempt ${attempt} failed: ${msg}`);
 
-        if (attempt === 2) {
+        const shouldRetry =
+          attempt === 1 &&
+          retryableProviderError(err) &&
+          Date.now() - t0 < ROUTER_TIMEOUT_MS;
+        if (!shouldRetry) {
           // Both attempts failed — record health hit and move to next provider.
           recordOutcome(provider.name, callLatency, false);
           lastErr = err;
           fallbackCount++;
+          break;
         }
-        // If attempt 1 failed, loop immediately to attempt 2 (retry-once).
+        // Only transient failures get one retry. Invalid/retired model slugs,
+        // schema incompatibilities, auth and credit errors fall through now.
       }
     }
   }

@@ -132,6 +132,14 @@ export type GenerateRequest = {
    */
   pinnedModelOnly?: boolean;
   /**
+   * Optional server-owned compatibility fence for transparent fallback.
+   * Candidate model keys and adapter names outside these sets are never tried.
+   * This is narrower than pinnedModelOnly: callers may permit a reviewed,
+   * capability-equivalent fallback set without opening the global pool.
+   */
+  allowedModels?: string[];
+  allowedProviders?: string[];
+  /**
    * Caption segments for `caption_burn` requests. Each entry is a timed text
    * cue: the GPU worker renders them over the video via FFmpeg `drawtext`.
    */
@@ -3323,8 +3331,14 @@ export function getCandidateModels(req: GenerateRequest): string[] {
   const cap = Math.max(1, FALLBACK_CAP[req.kind] ?? 2);
   // Strict edits (photo editor): drop every candidate that cannot edit the
   // source photo — failing is better than charging for an unrelated image.
-  const pool = req.editStrict ? ordered.filter((m) => EDIT_CAPABLE_IMAGE_MODELS.has(m)) : ordered;
+  const allowedModels = req.allowedModels?.length ? new Set(req.allowedModels) : null;
+  const compatible = allowedModels ? ordered.filter((model) => allowedModels.has(model)) : ordered;
+  const pool = req.editStrict ? compatible.filter((m) => EDIT_CAPABLE_IMAGE_MODELS.has(m)) : compatible;
   return Array.from(new Set(pool)).slice(0, cap);
+}
+
+export function isProviderAllowed(req: GenerateRequest, providerName: string): boolean {
+  return !req.allowedProviders?.length || req.allowedProviders.includes(providerName);
 }
 
 // Request-level problems that every provider/model would hit identically — abort
@@ -3437,6 +3451,7 @@ export async function orchestrate(rawReq: GenerateRequest): Promise<GenerateResu
   for (const modelKey of candidates) {
     const r: GenerateRequest = { ...req, model: modelKey };
     let adapters = PRIORITY[r.kind].filter((a) => a.supports(r) && healthyAtStart.has(a.name));
+    adapters = adapters.filter((adapter) => isProviderAllowed(req, adapter.name));
     // Self-hosted requests run ONLY on the GPU worker pool — never a hosted API.
     if (req.selfHostedOnly) adapters = adapters.filter((a) => a === gpuWorker);
     // Free GPU only mode: drop every paid adapter so it is never reached. Only the
