@@ -53,8 +53,23 @@ const NON_STRICT_SCHEMA = (providerName: string): RouterProvider["providerOption
 // retired ALL of its :free Qwen/DeepSeek variants) — when the router reports
 // "model does not exist" / "not a valid model ID", re-verify here first.
 
+function openRouterConfig(): { enabled: boolean; baseURL: string; apiKey: string } {
+  const proxied =
+    !!process.env.AI_INTEGRATIONS_OPENROUTER_API_KEY &&
+    !!process.env.AI_INTEGRATIONS_OPENROUTER_BASE_URL;
+  return {
+    enabled: proxied || !!process.env.OPENROUTER_API_KEY,
+    baseURL: proxied
+      ? process.env.AI_INTEGRATIONS_OPENROUTER_BASE_URL!
+      : "https://openrouter.ai/api/v1",
+    apiKey: proxied
+      ? process.env.AI_INTEGRATIONS_OPENROUTER_API_KEY!
+      : process.env.OPENROUTER_API_KEY ?? "",
+  };
+}
+
 const OPENROUTER_HEADERS = () => ({
-  Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
+  Authorization: `Bearer ${openRouterConfig().apiKey}`,
   "HTTP-Referer": "https://aurora.app",
   "X-Title": "Aurora AI",
 });
@@ -166,13 +181,13 @@ export function buildProviderRegistry(): Map<string, RouterProvider> {
   add({
     name: "qwen",
     displayName: "Qwen (OpenRouter)",
-    enabled: !!process.env.OPENROUTER_API_KEY,
-    model: "qwen/qwen3-235b-a22b-2507",
+    enabled: openRouterConfig().enabled,
+    model: "qwen/qwen3-235b-a22b",
     providerOptions: NON_STRICT_SCHEMA("openrouter-qwen"),
     make: () =>
       createOpenAICompatible({
         name: "openrouter-qwen",
-        baseURL: "https://openrouter.ai/api/v1",
+        baseURL: openRouterConfig().baseURL,
         headers: OPENROUTER_HEADERS(),
         supportsStructuredOutputs: true,
       }),
@@ -182,13 +197,13 @@ export function buildProviderRegistry(): Map<string, RouterProvider> {
   add({
     name: "qwen-coder",
     displayName: "Qwen Coder (OpenRouter)",
-    enabled: !!process.env.OPENROUTER_API_KEY,
+    enabled: openRouterConfig().enabled,
     model: "qwen/qwen3-coder-30b-a3b-instruct",
     providerOptions: NON_STRICT_SCHEMA("openrouter-qwen-coder"),
     make: () =>
       createOpenAICompatible({
         name: "openrouter-qwen-coder",
-        baseURL: "https://openrouter.ai/api/v1",
+        baseURL: openRouterConfig().baseURL,
         headers: OPENROUTER_HEADERS(),
         supportsStructuredOutputs: true,
       }),
@@ -198,13 +213,13 @@ export function buildProviderRegistry(): Map<string, RouterProvider> {
   add({
     name: "deepseek",
     displayName: "DeepSeek (OpenRouter)",
-    enabled: !!process.env.OPENROUTER_API_KEY,
+    enabled: openRouterConfig().enabled,
     model: "deepseek/deepseek-v3.2",
     providerOptions: NON_STRICT_SCHEMA("openrouter-deepseek"),
     make: () =>
       createOpenAICompatible({
         name: "openrouter-deepseek",
-        baseURL: "https://openrouter.ai/api/v1",
+        baseURL: openRouterConfig().baseURL,
         headers: OPENROUTER_HEADERS(),
         supportsStructuredOutputs: true,
       }),
@@ -214,13 +229,13 @@ export function buildProviderRegistry(): Map<string, RouterProvider> {
   add({
     name: "deepseek-coder",
     displayName: "DeepSeek Coder (OpenRouter)",
-    enabled: !!process.env.OPENROUTER_API_KEY,
+    enabled: openRouterConfig().enabled,
     model: "deepseek/deepseek-v4-flash",
     providerOptions: NON_STRICT_SCHEMA("openrouter-deepseek-coder"),
     make: () =>
       createOpenAICompatible({
         name: "openrouter-deepseek-coder",
-        baseURL: "https://openrouter.ai/api/v1",
+        baseURL: openRouterConfig().baseURL,
         headers: OPENROUTER_HEADERS(),
         supportsStructuredOutputs: true,
       }),

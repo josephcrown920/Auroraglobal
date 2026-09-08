@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { routedGenerate } from "@/lib/ai-router";
 
 const SYSTEM_PROMPT = `You are an expert AI art director and prompt writer for Aurora Studio, a cinematic AI image-to-video generation platform used by musicians, creators, and brands.
 
@@ -21,38 +22,15 @@ export const expandTemplatePrompt = createServerFn()
     }),
   )
   .handler(async ({ data }) => {
-    const apiKey = process.env.ANTHROPIC_API_KEY;
-    if (!apiKey) throw new Error("Prompt optimizer unavailable");
-
     const userMessage = data.templateTitle
       ? `Template context: "${data.templateTitle}"\nUser's brief: "${data.userText}"\n\nExpand into a detailed generation prompt:`
       : `User's brief: "${data.userText}"\n\nExpand into a detailed generation prompt:`;
 
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
-        "content-type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "claude-3-5-haiku-20241022",
-        max_tokens: 250,
-        system: SYSTEM_PROMPT,
-        messages: [{ role: "user", content: userMessage }],
-      }),
-      signal: AbortSignal.timeout(30_000),
+    const { output } = await routedGenerate({
+      system: SYSTEM_PROMPT,
+      prompt: userMessage,
+      schema: z.object({ expanded: z.string().min(1).max(3000) }),
+      category: "IMAGE_PROMPTS",
     });
-
-    if (!res.ok) {
-      const text = await res.text();
-      throw new Error(`Anthropic error ${res.status}: ${text.slice(0, 120)}`);
-    }
-
-    const json = (await res.json()) as {
-      content: Array<{ type: string; text?: string }>;
-    };
-    const expanded =
-      json.content.find((c) => c.type === "text")?.text?.trim() ?? data.userText;
-    return { expanded };
+    return { expanded: output.expanded.trim() };
   });

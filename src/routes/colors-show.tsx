@@ -2,6 +2,10 @@ import { createFileRoute } from "@tanstack/react-router";
 import { CANONICAL_ORIGIN } from "@/lib/seo";
 
 export const Route = createFileRoute("/colors-show")({
+  validateSearch: (search: Record<string, unknown>): { mode?: "anywhere"; flow?: "build_scene" | "luxury_interior" } => ({
+    mode: search.mode === "anywhere" ? "anywhere" : undefined,
+    flow: search.flow === "build_scene" || search.flow === "luxury_interior" ? search.flow : undefined,
+  }),
   head: () => ({
     meta: [
       { title: "Colors Show Creator — Aurora" },

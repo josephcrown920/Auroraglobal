@@ -33,6 +33,7 @@ import { ShotCard } from "@/components/previs/ShotCard";
 import { SequenceBar } from "@/components/previs/SequenceBar";
 import { ProjectRestoreCard } from "@/components/previs/ProjectRestoreCard";
 import { HandoffPanel } from "@/components/previs/HandoffPanel";
+import { MultishotStudio } from "@/components/previs/MultishotStudio";
 
 export const Route = createLazyFileRoute("/previs")({ component: PrevisWorkspace });
 
@@ -138,6 +139,7 @@ function PrevisWorkspace() {
 
   // Restore area
   const [restoring, setRestoring]   = useState<string | null>(null);
+  const [workspaceMode, setWorkspaceMode] = useState<"multishot" | "classic">("multishot");
 
   // Projects list
   const projectsQuery = useQuery({
@@ -518,6 +520,25 @@ function PrevisWorkspace() {
     );
   }
 
+  if (user && workspaceMode === "multishot") {
+    return (
+      <div className="previs-shell aurora-route-enter">
+        <PrevisHeader
+          onNewProject={() => undefined}
+          exporting={false}
+          hasProject={false}
+        />
+        <div className="mx-auto flex max-w-7xl gap-2 px-4 pt-4 md:px-8">
+          <button type="button" className="previs-analyze-btn">Multishot</button>
+          <button type="button" className="previs-plate-action-btn" onClick={() => setWorkspaceMode("classic")}>
+            Classic previs
+          </button>
+        </div>
+        <MultishotStudio userId={user.id} />
+      </div>
+    );
+  }
+
   // ── Shots (from project or plan) ──────────────────────────────────────
 
   const activeShots: VideoShot[] = project
@@ -538,6 +559,12 @@ function PrevisWorkspace() {
         exporting={exporting}
         hasProject={!!project}
       />
+      <div className="mx-auto flex max-w-7xl gap-2 px-4 pt-4 md:px-8">
+        <button type="button" className="previs-plate-action-btn" onClick={() => setWorkspaceMode("multishot")}>
+          Multishot
+        </button>
+        <button type="button" className="previs-analyze-btn">Classic previs</button>
+      </div>
 
       <div className="previs-layout">
         {/* ── Left: main workspace ── */}

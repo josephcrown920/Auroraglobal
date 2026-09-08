@@ -170,6 +170,7 @@ import { Route as ApiPublicPaymentsSweepStuckRouteImport } from './routes/api/pu
 import { Route as ApiPublicProAccessReconcileRouteImport } from './routes/api/public/pro-access/reconcile'
 import { Route as ApiPublicPromotionSyncRouteImport } from './routes/api/public/promotion/sync'
 import { Route as ApiPublicTiktokCallbackRouteImport } from './routes/api/public/tiktok/callback'
+import { Route as ApiPublicVastAutoscaleRouteImport } from './routes/api/public/vast/autoscale'
 import { Route as ApiPublicVastExpireRouteImport } from './routes/api/public/vast/expire'
 import { Route as ApiPublicWorkersHealthRouteImport } from './routes/api/public/workers/health'
 import { Route as ApiPublicWorkersProgressRouteImport } from './routes/api/public/workers/progress'
@@ -1042,6 +1043,11 @@ const ApiPublicTiktokCallbackRoute = ApiPublicTiktokCallbackRouteImport.update({
   path: '/api/public/tiktok/callback',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicVastAutoscaleRoute = ApiPublicVastAutoscaleRouteImport.update({
+  id: '/api/public/vast/autoscale',
+  path: '/api/public/vast/autoscale',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicVastExpireRoute = ApiPublicVastExpireRouteImport.update({
   id: '/api/public/vast/expire',
   path: '/api/public/vast/expire',
@@ -1255,6 +1261,7 @@ export interface FileRoutesByFullPath {
   '/api/public/pro-access/reconcile': typeof ApiPublicProAccessReconcileRoute
   '/api/public/promotion/sync': typeof ApiPublicPromotionSyncRoute
   '/api/public/tiktok/callback': typeof ApiPublicTiktokCallbackRoute
+  '/api/public/vast/autoscale': typeof ApiPublicVastAutoscaleRoute
   '/api/public/vast/expire': typeof ApiPublicVastExpireRoute
   '/api/public/workers/health': typeof ApiPublicWorkersHealthRoute
   '/api/public/workers/progress': typeof ApiPublicWorkersProgressRoute
@@ -1427,6 +1434,7 @@ export interface FileRoutesByTo {
   '/api/public/pro-access/reconcile': typeof ApiPublicProAccessReconcileRoute
   '/api/public/promotion/sync': typeof ApiPublicPromotionSyncRoute
   '/api/public/tiktok/callback': typeof ApiPublicTiktokCallbackRoute
+  '/api/public/vast/autoscale': typeof ApiPublicVastAutoscaleRoute
   '/api/public/vast/expire': typeof ApiPublicVastExpireRoute
   '/api/public/workers/health': typeof ApiPublicWorkersHealthRoute
   '/api/public/workers/progress': typeof ApiPublicWorkersProgressRoute
@@ -1601,6 +1609,7 @@ export interface FileRoutesById {
   '/api/public/pro-access/reconcile': typeof ApiPublicProAccessReconcileRoute
   '/api/public/promotion/sync': typeof ApiPublicPromotionSyncRoute
   '/api/public/tiktok/callback': typeof ApiPublicTiktokCallbackRoute
+  '/api/public/vast/autoscale': typeof ApiPublicVastAutoscaleRoute
   '/api/public/vast/expire': typeof ApiPublicVastExpireRoute
   '/api/public/workers/health': typeof ApiPublicWorkersHealthRoute
   '/api/public/workers/progress': typeof ApiPublicWorkersProgressRoute
@@ -1776,6 +1785,7 @@ export interface FileRouteTypes {
     | '/api/public/pro-access/reconcile'
     | '/api/public/promotion/sync'
     | '/api/public/tiktok/callback'
+    | '/api/public/vast/autoscale'
     | '/api/public/vast/expire'
     | '/api/public/workers/health'
     | '/api/public/workers/progress'
@@ -1948,6 +1958,7 @@ export interface FileRouteTypes {
     | '/api/public/pro-access/reconcile'
     | '/api/public/promotion/sync'
     | '/api/public/tiktok/callback'
+    | '/api/public/vast/autoscale'
     | '/api/public/vast/expire'
     | '/api/public/workers/health'
     | '/api/public/workers/progress'
@@ -2121,6 +2132,7 @@ export interface FileRouteTypes {
     | '/api/public/pro-access/reconcile'
     | '/api/public/promotion/sync'
     | '/api/public/tiktok/callback'
+    | '/api/public/vast/autoscale'
     | '/api/public/vast/expire'
     | '/api/public/workers/health'
     | '/api/public/workers/progress'
@@ -2274,6 +2286,7 @@ export interface RootRouteChildren {
   ApiPublicProAccessReconcileRoute: typeof ApiPublicProAccessReconcileRoute
   ApiPublicPromotionSyncRoute: typeof ApiPublicPromotionSyncRoute
   ApiPublicTiktokCallbackRoute: typeof ApiPublicTiktokCallbackRoute
+  ApiPublicVastAutoscaleRoute: typeof ApiPublicVastAutoscaleRoute
   ApiPublicVastExpireRoute: typeof ApiPublicVastExpireRoute
   ApiPublicWorkersHealthRoute: typeof ApiPublicWorkersHealthRoute
   ApiPublicWorkersProgressRoute: typeof ApiPublicWorkersProgressRoute
@@ -3420,6 +3433,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicTiktokCallbackRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/vast/autoscale': {
+      id: '/api/public/vast/autoscale'
+      path: '/api/public/vast/autoscale'
+      fullPath: '/api/public/vast/autoscale'
+      preLoaderRoute: typeof ApiPublicVastAutoscaleRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/vast/expire': {
       id: '/api/public/vast/expire'
       path: '/api/public/vast/expire'
@@ -3708,6 +3728,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicProAccessReconcileRoute: ApiPublicProAccessReconcileRoute,
   ApiPublicPromotionSyncRoute: ApiPublicPromotionSyncRoute,
   ApiPublicTiktokCallbackRoute: ApiPublicTiktokCallbackRoute,
+  ApiPublicVastAutoscaleRoute: ApiPublicVastAutoscaleRoute,
   ApiPublicVastExpireRoute: ApiPublicVastExpireRoute,
   ApiPublicWorkersHealthRoute: ApiPublicWorkersHealthRoute,
   ApiPublicWorkersProgressRoute: ApiPublicWorkersProgressRoute,
