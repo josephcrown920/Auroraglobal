@@ -169,11 +169,15 @@ export function buildProviderRegistry(): Map<string, RouterProvider> {
     displayName: "Grok (xAI)",
     enabled: !!process.env.XAI_API_KEY,
     model: "grok-3-mini",
+    providerOptions: NON_STRICT_SCHEMA("xai"),
     make: () =>
       createOpenAICompatible({
         name: "xai",
         baseURL: "https://api.x.ai/v1",
         headers: { Authorization: `Bearer ${process.env.XAI_API_KEY}` },
+        // xAI rejects the adapter's json_object fallback with
+        // "response_format.type: Input should be 'json_schema'".
+        supportsStructuredOutputs: true,
       }),
   });
 
@@ -262,6 +266,9 @@ export function buildProviderRegistry(): Map<string, RouterProvider> {
         }),
     });
   } else {
+    // HuggingFace's router can select different downstream inference
+    // providers with different response_format support. Do not advertise
+    // json_schema universally here unless that route is pinned and verified.
     add({
       name: "llama",
       displayName: "Llama (HuggingFace)",

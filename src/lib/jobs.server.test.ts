@@ -51,6 +51,7 @@ let jobsReadMode: "failed" | "stuck" = "failed";
 // How many times the (dependency-injected) orchestrate was invoked — lets a test
 // assert a job failed a preflight BEFORE reaching any paid generation stage.
 let orchCalls = 0;
+let orchRequests: unknown[] = [];
 let orchestrateImpl: (req: unknown) => Promise<{
   url: string;
   provider: string;
@@ -206,8 +207,10 @@ const {
 const deps = {
   orchestrate: ((req: unknown) => {
     orchCalls++;
+    orchRequests.push(req);
     return orchestrateImpl(req);
   }) as never,
+  getUserTier: async () => "pro" as const,
 };
 const processOneJob = (workerId: string) => rawProcessOneJob(workerId, deps);
 const processBatch = (workerId: string, limit?: number) => rawProcessBatch(workerId, limit, deps);
@@ -242,6 +245,7 @@ beforeEach(() => {
   jobsReadMode = "failed";
   gpuWorkers = [];
   orchCalls = 0;
+  orchRequests = [];
   calls.rpc.length = 0;
   calls.updates.length = 0;
   calls.inserts.length = 0;
@@ -659,6 +663,139 @@ describe("video_agent_render jobs", () => {
     targetDuration: 30,
     scenes: validScenes,
   };
+
+  async function nativePayload() {
+    const nativeScenes = validScenes.map((scene) => ({
+      ...scene,
+      frame: "https://storage.example.com/users/u1/frame.png",
+      plateQuality: "premium" as const,
+    }));
+    const baseFilmPlan = {
+      schemaVersion: 1 as const,
+      brief: { title: "Signal", logline: "A courier follows a signal.", format: "16:9" as const, assumptions: [] },
+      script: "A courier follows a signal.",
+      continuity: { identityAnchor: "same courier", wardrobe: "", environment: "", cameraRules: "", colorRules: "" },
+      continuityLedger: {
+        identity: ["same courier"], wardrobe: [], props: [], location: [], time: [],
+        lighting: [], screen_direction: [], audio: [],
+      },
+      renderPlan: {
+        rendererModel: "byteplus/seedance-2.5" as const,
+        aspectRatio: "16:9" as const,
+        resolution: "720p" as const,
+        fps: 24 as const,
+        generateAudio: true,
+        watermark: false,
+        seed: 42,
+      },
+      planner: {
+        planner: "film-planner",
+        provider: "byteplus",
+        model: "verified-planner",
+        provenanceTrust: "server-verified" as const,
+      },
+      adoptedAt: new Date().toISOString(),
+      renderApproval: null,
+    };
+    const { filmRenderFingerprintAsync } = await import("./video-agent-projects.functions");
+    const fingerprint = await filmRenderFingerprintAsync(nativeScenes, baseFilmPlan);
+    const filmPlan = {
+      ...baseFilmPlan,
+      renderApproval: { approved: true as const, fingerprint, approvedAt: new Date().toISOString() },
+    };
+    return {
+      ...basePayload,
+      scenes: nativeScenes,
+      filmPlan,
+      rendererModel: filmPlan.renderPlan.rendererModel,
+      renderParams: { generate_audio: true, watermark: false, seed: 42 },
+      approvalFingerprint: fingerprint,
+    };
+  }
+
+  it("dispatches the exact approved native model and parameters without fallback", async () => {
+    const prevHf = process.env.HF_TOKEN;
+    const prevNative = process.env.FILM_STUDIO_NATIVE_RENDER_ENABLED;
+    process.env.HF_TOKEN = "test-token";
+    process.env.FILM_STUDIO_NATIVE_RENDER_ENABLED = "true";
+    try {
+      orchestrateImpl = async () => {
+        throw new Error("provider unavailable");
+      };
+      claimQueue = [job({
+        kind: "video_agent_render",
+        attempts: PERSISTENT_RETRY_MAX_ATTEMPTS,
+        credits_reserved: 20,
+        payload: await nativePayload(),
+      })];
+      await processOneJob("w1");
+      expect(orchRequests[0]).toMatchObject({
+        kind: "video",
+        model: "byteplus/seedance-2.5",
+        duration: 5,
+        resolution: "720p",
+        aspectRatio: "16:9",
+        pinnedModelOnly: true,
+        forSubscriber: true,
+        params: { generate_audio: true, watermark: false, seed: 42 },
+      });
+    } finally {
+      if (prevHf === undefined) delete process.env.HF_TOKEN;
+      else process.env.HF_TOKEN = prevHf;
+      if (prevNative === undefined) delete process.env.FILM_STUDIO_NATIVE_RENDER_ENABLED;
+      else process.env.FILM_STUDIO_NATIVE_RENDER_ENABLED = prevNative;
+    }
+  });
+
+  it("rejects native dispatch for a non-Pro user before any paid generation", async () => {
+    const prevHf = process.env.HF_TOKEN;
+    const prevNative = process.env.FILM_STUDIO_NATIVE_RENDER_ENABLED;
+    process.env.HF_TOKEN = "test-token";
+    process.env.FILM_STUDIO_NATIVE_RENDER_ENABLED = "true";
+    try {
+      claimQueue = [job({
+        kind: "video_agent_render",
+        attempts: PERSISTENT_RETRY_MAX_ATTEMPTS,
+        credits_reserved: 20,
+        payload: await nativePayload(),
+      })];
+      const result = await rawProcessOneJob("w1", {
+        ...deps,
+        getUserTier: async () => "free",
+      });
+      expect(result.status).toBe("failed");
+      expect(orchCalls).toBe(0);
+    } finally {
+      if (prevHf === undefined) delete process.env.HF_TOKEN;
+      else process.env.HF_TOKEN = prevHf;
+      if (prevNative === undefined) delete process.env.FILM_STUDIO_NATIVE_RENDER_ENABLED;
+      else process.env.FILM_STUDIO_NATIVE_RENDER_ENABLED = prevNative;
+    }
+  });
+
+  it("rejects manually injected native jobs while the readiness gate is off", async () => {
+    const prevHf = process.env.HF_TOKEN;
+    const prevNative = process.env.FILM_STUDIO_NATIVE_RENDER_ENABLED;
+    process.env.HF_TOKEN = "test-token";
+    delete process.env.FILM_STUDIO_NATIVE_RENDER_ENABLED;
+    try {
+      claimQueue = [job({
+        kind: "video_agent_render",
+        attempts: PERSISTENT_RETRY_MAX_ATTEMPTS,
+        credits_reserved: 20,
+        payload: await nativePayload(),
+      })];
+      const result = await processOneJob("w1");
+      expect(result.status).toBe("failed");
+      expect(orchCalls).toBe(0);
+      expect(result.error).toMatch(/disabled pending production readiness/i);
+    } finally {
+      if (prevHf === undefined) delete process.env.HF_TOKEN;
+      else process.env.HF_TOKEN = prevHf;
+      if (prevNative === undefined) delete process.env.FILM_STUDIO_NATIVE_RENDER_ENABLED;
+      else process.env.FILM_STUDIO_NATIVE_RENDER_ENABLED = prevNative;
+    }
+  });
 
   it("fails terminally and refunds when no TTS backend is configured, before any paid stage", async () => {
     const prevHf = process.env.HF_TOKEN;

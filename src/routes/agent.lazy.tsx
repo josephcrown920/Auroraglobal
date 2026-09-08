@@ -24,6 +24,7 @@ import { VIDEO_AGENT_HELPER_TEXT } from "@/lib/video-agent-prompt";
 import { HEYGEN_STYLES, type VideoPlan, type VideoShot } from "@/lib/video-agent-skills";
 import { UgcBatchStudio } from "@/components/prime/UgcBatchStudio";
 import { HeyGenStyleTiles } from "@/components/prime/HeyGenStyleTiles";
+import { FilmStudioPlan } from "@/components/video-agent/FilmStudioPlan";
 import auroraLogo from "@/assets/aurora-logo.png.asset.json";
 import {
   Send,
@@ -54,7 +55,6 @@ import {
   PenLine,
   Shapes,
   Volume2,
-  Eye,
   Palette,
   Move3d,
   Focus,
@@ -79,7 +79,6 @@ import {
   Repeat,
   TrendingUp,
   Play,
-  Pause,
   Square,
   RotateCcw,
   CheckCircle2,
@@ -249,20 +248,12 @@ const STORYBOARD_SHOTS = [
 
 // ── Autonomous agent run types ────────────────────────────────────────────
 
-type AgentStatus = "idle" | "running" | "paused" | "done" | "stopped";
+type AgentStatus = "idle" | "running" | "succeeded" | "failed" | "stopped";
 type StepStatus  = "pending" | "active" | "done";
 type AgentStep   = { key: string; label: string; detail: string; status: StepStatus; startedAt?: number; endedAt?: number };
 
 const AGENT_STEPS_TEMPLATE: Omit<AgentStep, "status">[] = [
-  { key: "brief",      label: "Brief",            detail: "Locking concept, references, avatar, props" },
-  { key: "directions", label: "Directions",        detail: "Drafting 4 story directions & aesthetics" },
-  { key: "script",     label: "Script",            detail: "Industry-format script + dialogue polish" },
-  { key: "shotlist",   label: "Shot List",         detail: "10–14 shots · lens · movement · duration" },
-  { key: "scenes",     label: "Scenes / Storyboard",detail: "Storyboard frames + blocking" },
-  { key: "voiceover",  label: "Voiceover",         detail: "VO script, cast, delivery notes" },
-  { key: "visuals",    label: "Visuals",            detail: "Seedance / Veo / Sora prompt cards" },
-  { key: "render",     label: "Render",             detail: "16:9 · 9:16 · 1:1 platform cuts" },
-  { key: "review",     label: "Review",             detail: "QC pass + next-actions checklist" },
+  { key: "director-response", label: "Director response", detail: "Waiting for the current Aurora chat request" },
 ];
 
 const makeSteps = (): AgentStep[] =>
@@ -272,124 +263,6 @@ const makeSteps = (): AgentStep[] =>
 // HeyGen Video Agent panel — /agent tab "HeyGen"
 // Prompt → Enhance (LLM script polish) → Generate (HeyGen v2 avatar video)
 // ══════════════════════════════════════════════════════════════════════════
-
-// ── Cinematic Plan shot card ──────────────────────────────────────────────
-function ShotCard({ shot, index }: { shot: VideoShot; index: number }) {
-  const [expanded, setExpanded] = useState(false);
-  const [plate, setPlate] = useState<string | null>(null);
-  const [plateStatus, setPlateStatus] = useState<"idle" | "loading" | "error">("idle");
-
-  // Previs Pro (free tier): turn this shot's engineered prompt into a visible
-  // plate via the open-access Pollinations keyframe engine — $0, no account
-  // needed. Premium plates live in the session-backed storyboard editor.
-  const renderPlate = async () => {
-    if (plateStatus === "loading" || !shot.prompt?.trim()) return;
-    setPlateStatus("loading");
-    try {
-      const res = await fetch("/api/video-agent/generate-frame", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt: shot.prompt }),
-      });
-      if (!res.ok) throw new Error(`Previs failed (${res.status})`);
-      const { url } = (await res.json()) as { url: string };
-      setPlate(url);
-      setPlateStatus("idle");
-    } catch {
-      setPlateStatus("error");
-    }
-  };
-
-  const purposeColor: Record<string, string> = {
-    establishing: "text-sky-400",
-    context: "text-blue-400",
-    character: "text-violet-400",
-    reaction: "text-fuchsia-400",
-    detail: "text-amber-400",
-    insert: "text-orange-400",
-    payoff: "text-emerald-400",
-  };
-  return (
-    <div className="rounded-sm border border-line bg-panel/40">
-      <button
-        onClick={() => setExpanded((v) => !v)}
-        className="flex w-full items-start gap-3 px-4 py-3 text-left"
-      >
-        <span className="mt-0.5 shrink-0 text-[13px] font-bold text-ink-dim">
-          {shot.id ?? `S${index + 1}`}
-        </span>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <span className={`text-xs font-bold uppercase tracking-widest ${purposeColor[shot.purpose] ?? "text-ink-dim"}`}>
-              {shot.purpose}
-            </span>
-            <span className="text-xs text-ink-dim/60">{shot.shot_type}</span>
-            {shot.duration_s && (
-              <span className="ml-auto text-xs text-ink-dim/40">{shot.duration_s}s</span>
-            )}
-          </div>
-          <p className="mt-1 line-clamp-2 text-[12px] font-medium leading-snug text-ink">
-            {shot.action}
-          </p>
-        </div>
-        <ChevronDown
-          className={`mt-1 size-3.5 shrink-0 text-ink-dim transition-transform ${expanded ? "rotate-180" : ""}`}
-        />
-      </button>
-      {expanded && (
-        <div className="border-t border-line/50 px-4 pb-4 pt-3 space-y-3">
-          {/* Previs Pro — free preview plate */}
-          <div>
-            <div className="mb-1 flex items-center justify-between">
-              <p className="text-xs uppercase tracking-widest text-ink-dim/60">Previs Plate</p>
-              <button
-                onClick={() => void renderPlate()}
-                disabled={plateStatus === "loading" || !shot.prompt?.trim()}
-                className="flex items-center gap-1.5 rounded-sm border border-prime/40 bg-prime/5 px-2 py-1 text-xs font-bold uppercase tracking-widest text-prime transition-colors hover:bg-prime/10 disabled:opacity-40"
-              >
-                {plateStatus === "loading" ? (
-                  <><Loader2 className="size-3 animate-spin" /> Rendering…</>
-                ) : (
-                  <><Eye className="size-3" /> {plate ? "Re-render" : "Previsualize"} · Free</>
-                )}
-              </button>
-            </div>
-            {plate ? (
-              <img src={plate} alt={shot.action} className="w-full rounded-sm border border-line/50 bg-black object-cover" />
-            ) : plateStatus === "error" ? (
-              <p className="rounded-sm border border-rec/30 bg-rec/5 px-3 py-2 text-xs text-rec">Previs failed — try again.</p>
-            ) : (
-              <p className="rounded-sm border border-line/40 px-3 py-2 text-xs text-ink-dim/50">
-                Render a free preview plate from this shot's prompt.
-              </p>
-            )}
-          </div>
-          {shot.lighting && (
-            <div>
-              <p className="text-xs uppercase tracking-widest text-ink-dim/60 mb-1">Lighting</p>
-              <p className="text-sm text-ink-dim leading-relaxed">{shot.lighting}</p>
-            </div>
-          )}
-          {shot.camera && (
-            <div>
-              <p className="text-xs uppercase tracking-widest text-ink-dim/60 mb-1">Camera</p>
-              <p className="text-sm text-ink-dim leading-relaxed">{shot.camera}{shot.lens_mm ? ` · ${shot.lens_mm}mm` : ""}</p>
-            </div>
-          )}
-          <div>
-            <p className="text-xs uppercase tracking-widest text-ink-dim/60 mb-1">Model Prompt</p>
-            <p className="text-sm text-ink leading-relaxed rounded-sm bg-panel-2/60 px-3 py-2">
-              {shot.prompt}
-            </p>
-          </div>
-          {shot.chain_from && (
-            <p className="text-xs text-ink-dim/40">chain from → {shot.chain_from}</p>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
 
 function HeyGenPanel() {
   const enhanceFn   = useServerFn(enhanceVideoAgentPrompt);
@@ -796,98 +669,7 @@ function HeyGenPanel() {
               </div>
             </div>
 
-            {plan && plan.brief && (
-              <div className="space-y-4">
-                {/* Brief card */}
-                <div className="rounded-sm border border-prime/30 bg-prime/5 p-4 space-y-3">
-                  <div className="flex items-start justify-between gap-4">
-                    <div>
-                      <p className="text-xs uppercase tracking-widest text-prime/70 mb-1">
-                        {plan.brief.motion_language} · {plan.brief.format}
-                      </p>
-                      <h3 className="text-lg font-black uppercase text-ink">{plan.brief.title}</h3>
-                      <p className="mt-1 text-[12px] font-medium italic text-ink-dim">{plan.brief.logline}</p>
-                    </div>
-                    <div className="flex shrink-0 gap-1">
-                      {plan.brief.palette.slice(0, 5).map((p) => (
-                        <span
-                          key={p.hex}
-                          title={p.role}
-                          className="size-5 rounded-full border border-white/10"
-                          style={{ backgroundColor: p.hex }}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {plan.brief.references.map((r) => (
-                      <span key={r} className="rounded-sm border border-line px-2 py-0.5 text-xs text-ink-dim">
-                        {r}
-                      </span>
-                    ))}
-                  </div>
-                  {plan.brief.assumptions && plan.brief.assumptions.length > 0 && (
-                    <div>
-                      <p className="text-xs uppercase tracking-widest text-ink-dim/50 mb-1">Assumptions</p>
-                      <ul className="space-y-0.5">
-                        {plan.brief.assumptions.map((a, i) => (
-                          <li key={i} className="text-[13px] text-ink-dim/70 italic">· {a}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                </div>
-
-                {/* Direction */}
-                {plan.direction && (
-                  <div className="grid grid-cols-2 gap-2">
-                    {[
-                      { label: "Lens", value: plan.direction.lens },
-                      { label: "Film Stock", value: plan.direction.film_stock },
-                      { label: "Camera", value: plan.direction.camera_movement },
-                      { label: "Pacing", value: plan.direction.pacing },
-                      { label: "Lighting", value: plan.direction.lighting },
-                      { label: "Sound", value: plan.direction.sound_register },
-                    ].map(({ label, value }) => (
-                      <div key={label} className="rounded-sm border border-line/50 bg-panel/30 px-3 py-2">
-                        <p className="text-xs uppercase tracking-widest text-ink-dim/50 mb-0.5">{label}</p>
-                        <p className="text-sm font-medium text-ink leading-snug">{value}</p>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {/* Shots */}
-                {plan.shots && plan.shots.length > 0 && (
-                  <div className="space-y-2">
-                    <p className="text-xs uppercase tracking-widest text-ink-dim/60">
-                      {plan.shots.length} Shots
-                    </p>
-                    {plan.shots.map((shot, i) => (
-                      <ShotCard key={shot.id ?? i} shot={shot} index={i} />
-                    ))}
-                  </div>
-                )}
-
-                {/* Suggestions */}
-                {plan.suggestions && plan.suggestions.length > 0 && (
-                  <div className="rounded-sm border border-line/40 px-4 py-3 space-y-1.5">
-                    <p className="text-xs uppercase tracking-widest text-ink-dim/50 mb-2">Director's Notes</p>
-                    {plan.suggestions.map((s, i) => (
-                      <p key={i} className="text-sm text-ink-dim leading-relaxed">→ {s}</p>
-                    ))}
-                  </div>
-                )}
-
-                {/* Render plan */}
-                {plan.render_plan && (
-                  <div className="flex items-center gap-2 text-[13px] text-ink-dim/50">
-                    <Film className="size-3" />
-                    <span>Suggested: {plan.render_plan.model} · {plan.render_plan.resolution} · {plan.render_plan.fps}fps</span>
-                  </div>
-                )}
-              </div>
-            )}
+            {plan && plan.brief && <FilmStudioPlan plan={plan} idea={prompt.trim()} onPlanChange={setPlan} />}
           </>
         )}
       </div>
@@ -952,14 +734,24 @@ function AgentPage() {
   // Autonomous agent run state
   const [agentStatus,  setAgentStatus]  = useState<AgentStatus>("idle");
   const [agentSteps,   setAgentSteps]   = useState<AgentStep[]>(makeSteps);
-  const [agentIndex,   setAgentIndex]   = useState(0);
   const [agentTitle,   setAgentTitle]   = useState("");
-  const agentTimer     = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const agentStatusRef = useRef<AgentStatus>("idle");
-  agentStatusRef.current = agentStatus;
+  const agentRunId = useRef(0);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef  = useRef<HTMLTextAreaElement>(null);
+  const authUserIdRef = useRef(user?.id);
+  authUserIdRef.current = user?.id;
+  const chatRequestIdRef = useRef(0);
+
+  useEffect(() => {
+    chatRequestIdRef.current++;
+    agentRunId.current++;
+    setMessages([]);
+    setIsLoading(false);
+    setAgentStatus("idle");
+    setAgentSteps(makeSteps());
+    setAgentTitle("");
+  }, [user?.id]);
 
   // Persist director memory to localStorage
   useEffect(() => {
@@ -970,7 +762,7 @@ function AgentPage() {
 
   // ── Load chat history from Supabase ──────────────────────────────────────
   const historyQ = useQuery({
-    queryKey: ["agent-chat-history"],
+    queryKey: ["agent-chat-history", user?.id],
     queryFn: () => listFn({}),
     enabled: !!user,
     staleTime: 30_000,
@@ -998,14 +790,14 @@ function AgentPage() {
   }, [messages, isLoading]);
 
   // ── Send message ──────────────────────────────────────────────────────────
-  const sendMessage = async (text: string) => {
+  const sendMessage = async (text: string): Promise<boolean> => {
     const trimmed = text.trim();
-    if (!trimmed || isLoading) return;
+    if (!trimmed || isLoading) return false;
     if (!user) {
       toast.error("Sign in to chat with the agent", {
         action: { label: "Sign in", onClick: () => void navigate({ to: "/auth", search: authNextSearch() }) },
       });
-      return;
+      return false;
     }
 
 
@@ -1014,6 +806,8 @@ function AgentPage() {
     const fullMsg = `${ctx}\n\n${trimmed}`;
 
     const userMsg: ChatMsg = { id: genId(), role: "user", content: trimmed };
+    const requestUserId = user.id;
+    const requestId = ++chatRequestIdRef.current;
     setMessages((prev) => [...prev, userMsg]);
     setInput("");
     setIsLoading(true);
@@ -1026,6 +820,7 @@ function AgentPage() {
           memory: directorMemory,
         },
       });
+      if (authUserIdRef.current !== requestUserId) return false;
       setMessages((prev) => [
         ...prev,
         {
@@ -1035,12 +830,17 @@ function AgentPage() {
           skillMeta: result.skillInvoked,
         },
       ]);
+      return true;
     } catch (err) {
+      if (authUserIdRef.current !== requestUserId || chatRequestIdRef.current !== requestId) return false;
       toast.error(err instanceof Error ? err.message : "Something went wrong. Try again.");
       setMessages((prev) => prev.filter((m) => m.id !== userMsg.id));
+      return false;
     } finally {
-      setIsLoading(false);
-      setTimeout(() => inputRef.current?.focus(), 50);
+      if (chatRequestIdRef.current === requestId && authUserIdRef.current === requestUserId) {
+        setIsLoading(false);
+        setTimeout(() => inputRef.current?.focus(), 50);
+      }
     }
   };
 
@@ -1053,7 +853,7 @@ function AgentPage() {
     if (!confirm("Clear conversation? Your brand memory is kept.")) return;
     await clearFn({});
     setMessages([]);
-    qc.invalidateQueries({ queryKey: ["agent-chat-history"] });
+    qc.invalidateQueries({ queryKey: ["agent-chat-history", user?.id] });
   };
 
   // ── Tab click ─────────────────────────────────────────────────────────────
@@ -1070,63 +870,40 @@ function AgentPage() {
   };
 
   // ── Autonomous agent run ──────────────────────────────────────────────────
-  const clearAgentTimer = () => {
-    if (agentTimer.current) { clearTimeout(agentTimer.current); agentTimer.current = null; }
-  };
-
-  const advanceAgent = (fromIndex: number) => {
-    if (agentStatusRef.current !== "running") return;
-    setAgentIndex(fromIndex);
-    setAgentSteps((prev) =>
-      prev.map((s, i) => {
-        if (i < fromIndex) return { ...s, status: "done",   endedAt: s.endedAt ?? Date.now() };
-        if (i === fromIndex) return { ...s, status: "active", startedAt: s.startedAt ?? Date.now() };
-        return { ...s, status: "pending" };
-      }),
-    );
-    if (fromIndex >= AGENT_STEPS_TEMPLATE.length) {
-      setAgentSteps((prev) => prev.map((s) => ({ ...s, status: "done", endedAt: s.endedAt ?? Date.now() })));
-      setAgentStatus("done");
-      return;
-    }
-    const delay = 2200 + Math.random() * 1600;
-    agentTimer.current = setTimeout(() => advanceAgent(fromIndex + 1), delay);
-  };
-
   const startAgent = (title: string, prompt: string, tab: typeof activeTab = "Timeline") => {
-    clearAgentTimer();
+    const runId = ++agentRunId.current;
     setAgentTitle(title);
     setAgentSteps(makeSteps());
-    setAgentIndex(0);
     setAgentStatus("running");
     setActiveTab(tab);
-    void sendMessage(prompt);
-    setTimeout(() => advanceAgent(0), 30);
+    void sendMessage(prompt).then((succeeded) => {
+      if (agentRunId.current !== runId) return;
+      setAgentStatus(succeeded ? "succeeded" : "failed");
+      if (succeeded) {
+        const endedAt = Date.now();
+        setAgentSteps((prev) => prev.map((step) => ({ ...step, status: "done", endedAt })));
+      }
+    });
   };
 
-  const pauseAgent  = () => { if (agentStatus === "running") { clearAgentTimer(); setAgentStatus("paused"); } };
-  const resumeAgent = () => { if (agentStatus === "paused")  { setAgentStatus("running"); setTimeout(() => advanceAgent(agentIndex), 30); } };
   const stopAgent   = () => {
-    clearAgentTimer();
+    agentRunId.current++;
     setAgentStatus("stopped");
-    setAgentSteps((prev) => prev.map((s, i) => i < agentIndex ? { ...s, status: "done" } : { ...s, status: "pending" }));
+    setAgentSteps(makeSteps());
   };
   const resetAgent  = () => {
-    clearAgentTimer();
+    agentRunId.current++;
     setAgentStatus("idle");
     setAgentSteps(makeSteps());
-    setAgentIndex(0);
     setAgentTitle("");
   };
 
   const renderAll = () =>
     startAgent(
-      "Full render · package deliverable",
-      "Render All: package the current project — final logline, script, shot list, storyboards, Seedance/Veo/Sora prompts for hero shots, VO, captions, music brief, and 16:9 / 9:16 / 1:1 cuts. Ship the full deliverable.",
+      "Prepare production plan",
+      "Prepare a production plan for the current project: final logline, script, shot list, storyboard guidance, generation prompts, VO, captions, music brief, and proposed 16:9 / 9:16 / 1:1 cuts. Do not claim that media has been rendered.",
       "Timeline",
     );
-
-  useEffect(() => () => clearAgentTimer(), []);
 
   // ── Quick prompts ─────────────────────────────────────────────────────────
   const QUICK_PROMPTS = [
@@ -1309,7 +1086,7 @@ function AgentPage() {
             onClick={renderAll}
             className="flex items-center gap-1.5 rounded-md bg-rec px-4 py-1.5 text-xs font-bold uppercase text-white transition-colors hover:bg-rec-glow"
           >
-            <Rocket className="size-3" /> Render All
+            <Rocket className="size-3" /> Prepare production plan
           </button>
         </div>
 
@@ -1318,10 +1095,7 @@ function AgentPage() {
           status={agentStatus}
           title={agentTitle}
           steps={agentSteps}
-          activeIndex={agentIndex}
           onRun={() => startAgent("Autonomous director run", "AGENT MODE: run the full autonomous director loop end-to-end on the current project. Ship the complete production package now.", "Timeline")}
-          onPause={pauseAgent}
-          onResume={resumeAgent}
           onStop={stopAgent}
           onReset={resetAgent}
         />
@@ -1661,21 +1435,19 @@ function SidebarItem({ icon: Icon, label, onClick, accent }: { icon: LucideIcon;
 }
 
 function AgentDashboard({
-  status, title, steps, activeIndex, onRun, onPause, onResume, onStop, onReset,
+  status, title, steps, onRun, onStop, onReset,
 }: {
-  status: AgentStatus; title: string; steps: AgentStep[]; activeIndex: number;
-  onRun: () => void; onPause: () => void; onResume: () => void; onStop: () => void; onReset: () => void;
+  status: AgentStatus; title: string; steps: AgentStep[];
+  onRun: () => void; onStop: () => void; onReset: () => void;
 }) {
   const done = steps.filter((s) => s.status === "done").length;
   const pct  = Math.round((done / steps.length) * 100);
   const badge =
     status === "running" ? { label: "Running", color: "text-rec",        dot: "bg-rec rec-pulse" } :
-    status === "paused"  ? { label: "Paused",  color: "text-amber-400",  dot: "bg-amber-400"     } :
-    status === "done"    ? { label: "Done",    color: "text-prime-glow", dot: "bg-prime-glow"    } :
+    status === "succeeded" ? { label: "Succeeded", color: "text-prime-glow", dot: "bg-prime-glow" } :
+    status === "failed" ? { label: "Failed", color: "text-rec", dot: "bg-rec" } :
     status === "stopped" ? { label: "Stopped", color: "text-ink-dim",    dot: "bg-ink-dim"       } :
                            { label: "Idle",    color: "text-ink-dim",    dot: "bg-ink-dim/50"    };
-  const current = steps[activeIndex];
-
   return (
     <div className="relative flex flex-wrap items-center gap-3 border-b border-line bg-panel/60 px-5 py-2 backdrop-blur-sm" style={{ zIndex: 8 }}>
       <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.2em] text-ink">
@@ -1685,20 +1457,16 @@ function AgentDashboard({
       <div className="min-w-0 flex-1">
         <div className="truncate text-[13px] font-bold uppercase tracking-[0.15em] text-ink-dim">
           {title || "No active run — press Run to launch"}
-          {current && status === "running" && (
-            <> · <span className="text-ink">Step {activeIndex + 1}/{steps.length} · {current.label}</span></>
-          )}
+          {status === "running" && <> · <span className="text-ink">Waiting for agent response</span></>}
         </div>
         <div className="mt-1 h-0.5 w-full overflow-hidden rounded-full bg-panel-2">
           <div className="h-full rounded-full bg-gradient-to-r from-prime via-prime-glow to-rec transition-[width] duration-500" style={{ width: `${pct}%` }} />
         </div>
       </div>
       <div className="flex items-center gap-1">
-        {status !== "running" && status !== "paused" && <DashBtn onClick={onRun}    tone="rec"   title="Run"><Play  className="size-3" /> Run</DashBtn>}
-        {status === "running"  && <DashBtn onClick={onPause}  tone="amber" title="Pause"><Pause  className="size-3" /> Pause</DashBtn>}
-        {status === "paused"   && <DashBtn onClick={onResume} tone="prime" title="Resume"><Play  className="size-3" /> Resume</DashBtn>}
-        {(status === "running" || status === "paused") && <DashBtn onClick={onStop} tone="line" title="Stop"><Square className="size-3" /> Stop</DashBtn>}
-        {(status === "done"    || status === "stopped") && <DashBtn onClick={onReset} tone="line" title="Reset"><RotateCcw className="size-3" /> Reset</DashBtn>}
+        {status !== "running" && <DashBtn onClick={onRun} tone="rec" title="Run"><Play className="size-3" /> Run</DashBtn>}
+        {status === "running" && <DashBtn onClick={onStop} tone="line" title="Ignore response"><Square className="size-3" /> Ignore response</DashBtn>}
+        {(status === "succeeded" || status === "failed" || status === "stopped") && <DashBtn onClick={onReset} tone="line" title="Reset"><RotateCcw className="size-3" /> Reset</DashBtn>}
       </div>
     </div>
   );
@@ -1746,7 +1514,7 @@ function ProgressTimeline({ steps, status, title }: { steps: AgentStep[]; status
         <div className="text-[13px] font-bold uppercase tracking-[0.25em] text-prime">Agent stream · {title || "no active run"}</div>
         <span className={
           "text-xs uppercase tracking-widest " +
-          (status === "running" ? "text-rec" : status === "paused" ? "text-amber-400" : status === "done" ? "text-prime-glow" : "text-ink-dim")
+          (status === "running" ? "text-rec" : status === "succeeded" ? "text-prime-glow" : status === "failed" ? "text-rec" : "text-ink-dim")
         }>{status}</span>
       </div>
       <ol className="relative divide-y divide-line/70">

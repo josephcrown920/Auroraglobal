@@ -12,6 +12,8 @@
 // 404 slug can be corrected with a secret change, never a code change. When
 // unset, the current published defaults are used.
 
+import { buildBytePlusVideoBody, type BytePlusVideoInput } from "./byteplus-video-contract";
+
 const DEFAULT_BASE = "https://ark.ap-southeast.bytepluses.com/api/v3";
 
 /** The direct ByteDance key, if configured. `BYTEPLUS_API_KEY` or `ARK_API_KEY`. */
@@ -69,13 +71,15 @@ export async function bytePlusImage(opts: {
   prompt: string;
   imageUrls?: string[];
   size?: string;
+  watermark?: boolean;
 }): Promise<string> {
   const body: Record<string, unknown> = {
     model: opts.model,
     prompt: opts.prompt,
     response_format: "url",
     size: opts.size ?? "2048x2048",
-    watermark: false,
+    watermark: opts.watermark ?? false,
+    stream: false,
   };
   if (opts.imageUrls?.length) {
     body.image = opts.imageUrls.length === 1 ? opts.imageUrls[0] : opts.imageUrls;
@@ -105,37 +109,19 @@ export async function bytePlusImage(opts: {
 // POST /contents/generations/tasks → { id }; then GET .../tasks/{id} until the
 // status is a terminal one. Generation knobs (resolution, duration) ride on the
 // text prompt as `--flag value` tokens, per the ModelArk content-task contract.
-type BytePlusVideoOpts = {
-  model: string;
-  prompt?: string;
-  imageUrls?: string[];
-  duration?: number;
-  resolution?: "480p" | "720p" | "1080p" | "2160p";
-  /** Aspect ratio forwarded as a --aspect_ratio flag (e.g. "16:9", "9:16", "1:1"). */
-  aspectRatio?: string;
+type BytePlusVideoOpts = BytePlusVideoInput & {
   timeoutMs?: number;
   pollIntervalMs?: number;
 };
 
 export async function bytePlusVideo(opts: BytePlusVideoOpts): Promise<string> {
   const base = bytePlusBaseUrl();
-  const flags: string[] = [];
-  if (opts.resolution) flags.push(`--resolution ${opts.resolution}`);
-  if (opts.duration)
-    flags.push(`--duration ${Math.max(3, Math.min(12, Math.round(opts.duration)))}`);
-  if (opts.aspectRatio) flags.push(`--aspect_ratio ${opts.aspectRatio}`);
-  const text = `${opts.prompt ?? ""} ${flags.join(" ")}`.trim();
-
-  const content: Array<Record<string, unknown>> = [];
-  if (text) content.push({ type: "text", text });
-  if (opts.imageUrls?.[0]) {
-    content.push({ type: "image_url", image_url: { url: opts.imageUrls[0] } });
-  }
+  const body = buildBytePlusVideoBody(opts);
 
   const create = await fetch(`${base}/contents/generations/tasks`, {
     method: "POST",
     headers: authHeaders(),
-    body: JSON.stringify({ model: opts.model, content }),
+    body: JSON.stringify(body),
     signal: AbortSignal.timeout(45_000),
   });
   if (!create.ok) {

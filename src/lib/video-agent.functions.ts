@@ -2,11 +2,10 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { routedGenerate } from "./ai-router";
+import { planCinematicVideo } from "./video-planner";
 import { sanitizeVideoAgentScript, videoAgentWordTarget } from "./video-agent-prompt";
 import { computeCost } from "./pricing";
 import {
-  CINEMATIC_SYSTEM_PROMPT,
-  CINEMATIC_ANALYSIS_PROMPT,
   VideoPlanSchema,
   getHeyGenStyle,
   type VideoPlan,
@@ -117,13 +116,11 @@ export const analyzeCinematicBrief = createServerFn({ method: "POST" })
   )
   .handler(async ({ context, data }): Promise<VideoPlan> => {
     assertCinematicRateLimit(context.userId);
-    const formatHint = data.format ? ` Preferred format: ${data.format}.` : "";
-    const { output } = await routedGenerate({
-      system: CINEMATIC_SYSTEM_PROMPT + "\n\n" + CINEMATIC_ANALYSIS_PROMPT,
-      prompt: `User request: ${data.userIdea}${formatHint}\n\nAnalyze this into a complete video plan with brief, direction, and 4–6 shots. Return only valid JSON matching the VideoPlan schema.`,
-      schema: VideoPlanSchema,
-      category: "VIDEO_DIRECTION",
-    });
+    const output = await planCinematicVideo({
+      mode: "full",
+      userIdea: data.userIdea,
+      ...(data.format ? { format: data.format } : {}),
+    }, context.userId);
     if (output.needs_clarification) {
       throw new Error(output.question ?? "Idea is too vague — add a subject or clear intent");
     }
@@ -131,6 +128,35 @@ export const analyzeCinematicBrief = createServerFn({ method: "POST" })
       throw new Error("Plan incomplete — try a more specific idea");
     }
     return output as VideoPlan;
+  });
+
+export const reviseCinematicPlan = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => {
+    // Revisions accept a prior structured plan, but cap its serialized size
+    // before parsing to prevent this free LLM endpoint becoming a body sink.
+    if (JSON.stringify(d).length > 50_000) throw new Error("Revision payload is too large");
+    return z
+      .object({
+        revisionRequest: z.string().min(3).max(1500),
+        previousPlan: VideoPlanSchema,
+      })
+      .parse(d);
+  })
+  .handler(async ({ context, data }): Promise<VideoPlan> => {
+    assertCinematicRateLimit(context.userId);
+    const output = await planCinematicVideo({
+      mode: "revision",
+      revisionRequest: data.revisionRequest,
+      previousPlan: data.previousPlan,
+    }, context.userId);
+    if (output.needs_clarification) {
+      throw new Error(output.question ?? "Revision needs clarification");
+    }
+    if (!output.brief || !output.shots?.length) {
+      throw new Error("Revised plan incomplete — try a more specific revision");
+    }
+    return output;
   });
 
 // ─── HeyGen Video Agent — generate a full talking-head video from a prompt ───

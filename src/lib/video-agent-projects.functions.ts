@@ -3,6 +3,9 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { computeCost } from "./pricing";
+import { getUserTier } from "./cost-guardrails.server";
+import { VideoPlanSchema, type VideoPlan, type VideoShot } from "./video-agent-skills";
+import { verifyPlanReceipt } from "./video-plan-receipt.server";
 import {
   NBA_JOSH_DURATION_SECONDS,
   NBA_JOSH_STILL_MODEL,
@@ -27,7 +30,7 @@ const SceneSchema = z.object({
   title: z.string().min(1).max(160),
   script: z.string().min(1).max(2400),
   description: z.string().min(1).max(3000),
-  duration: z.number().min(3).max(15),
+  duration: z.number().min(2).max(15),
   frame: z.string().url().nullable().optional(),
   frameStatus: z.enum(["idle", "loading", "done", "error"]).optional(),
   voiceoverStatus: z.enum(["idle", "loading", "done", "error"]).optional(),
@@ -39,7 +42,7 @@ const SceneSchema = z.object({
   modelPrompt: z.string().max(4000).optional(),
   negativePrompt: z.string().max(2000).optional(),
   continuityNote: z.string().max(1500).optional(),
-  aspectRatio: z.enum(["16:9", "9:16", "1:1", "4:3", "2.39:1", "21:9"]).optional(),
+  aspectRatio: z.enum(["16:9", "9:16", "1:1", "4:3", "3:4", "2.39:1", "21:9"]).optional(),
   visualDirection: z.string().max(1000).optional(),
   plateQuality: z.enum(["free", "premium"]).optional(),
   plateGenerationId: z.string().max(160).nullable().optional(),
@@ -76,12 +79,187 @@ type ProjectRow = {
   updated_at: string;
 };
 
+const FilmPlannerMetadataSchema = z.object({
+  planner: z.string().min(1).max(120),
+  provider: z.string().min(1).max(120),
+  model: z.string().min(1).max(200),
+  modelKey: z.string().min(1).max(240).optional(),
+  plannerVersion: z.string().min(1).max(80).optional(),
+  generatedAt: z.string().datetime().optional(),
+  fallbackCount: z.number().int().nonnegative().optional(),
+  latencyMs: z.number().int().nonnegative().optional(),
+  planningMode: z.enum(["full", "revision"]).optional(),
+  provenanceTrust: z.enum(["client-supplied", "server-verified"]),
+});
+
+const FilmContinuityLedgerSchema = z.object({
+  identity: z.array(z.string().max(2000)).max(40),
+  wardrobe: z.array(z.string().max(2000)).max(40),
+  props: z.array(z.string().max(2000)).max(40),
+  location: z.array(z.string().max(2000)).max(40),
+  time: z.array(z.string().max(2000)).max(40),
+  lighting: z.array(z.string().max(2000)).max(40),
+  screen_direction: z.array(z.string().max(2000)).max(40),
+  audio: z.array(z.string().max(2000)).max(40),
+});
+
+export const FilmPlanSchema = z.object({
+  schemaVersion: z.literal(1),
+  brief: z.object({
+    title: z.string().min(1).max(160),
+    logline: z.string().min(1).max(1000),
+    genre: z.string().max(120).optional(),
+    mood: z.string().max(500).optional(),
+    format: z.enum(["16:9", "9:16", "1:1", "4:3", "3:4", "2.39:1", "21:9"]),
+    motionLanguage: z.string().max(160).optional(),
+    assumptions: z.array(z.string().max(500)).max(20).default([]),
+  }),
+  script: z.string().max(50_000).default(""),
+  continuity: z.object({
+    identityAnchor: z.string().max(2000).default(""),
+    wardrobe: z.string().max(2000).default(""),
+    environment: z.string().max(2000).default(""),
+    cameraRules: z.string().max(2000).default(""),
+    colorRules: z.string().max(2000).default(""),
+  }),
+  continuityLedger: FilmContinuityLedgerSchema,
+  renderPlan: z.object({
+    rendererModel: z.literal("byteplus/seedance-2.5"),
+    aspectRatio: z.enum(["16:9", "9:16", "1:1", "4:3", "3:4", "21:9"]),
+    resolution: z.enum(["480p", "720p"]),
+    fps: z.union([z.literal(24), z.literal(25), z.literal(30), z.literal(48), z.literal(60)]),
+    generateAudio: z.boolean().default(true),
+    watermark: z.boolean().default(false),
+    seed: z.number().int().min(0).max(2147483647).optional(),
+  }),
+  planner: FilmPlannerMetadataSchema,
+  adoptedAt: z.string().datetime(),
+  renderApproval: z.object({
+    approved: z.literal(true),
+    fingerprint: z.string().length(64),
+    approvedAt: z.string().datetime(),
+  }).nullable().default(null),
+});
+
+export type FilmPlanRecord = z.infer<typeof FilmPlanSchema>;
+
+const FilmRenderChoicesSchema = FilmPlanSchema.shape.renderPlan;
+export const FilmPlanAdoptionInputSchema = z.object({
+  prompt: z.string().min(10).max(4000),
+  originalPlan: VideoPlanSchema,
+  renderSettings: FilmRenderChoicesSchema,
+}).strict();
+
+function verifiedPlanScript(plan: VideoPlan): string {
+  if (!plan.screenplay) return "";
+  return [
+    plan.screenplay.synopsis,
+    ...plan.screenplay.beats.map((beat) => [
+      `${beat.timing} · ${beat.visual}`,
+      beat.action,
+      beat.dialogue ? `Dialogue: ${beat.dialogue}` : "",
+      beat.voiceover ? `Voice-over: ${beat.voiceover}` : "",
+      beat.audio ? `Audio: ${beat.audio}` : "",
+    ].filter(Boolean).join("\n")),
+  ].join("\n\n");
+}
+
+function verifiedShotScript(plan: VideoPlan, shot: VideoShot): string {
+  const beat = plan.screenplay?.beats.find((item) => item.id === shot.screenplay_beat_id);
+  if (!beat) return shot.action;
+  return [
+    beat.action,
+    beat.dialogue ? `Dialogue: ${beat.dialogue}` : "",
+    beat.voiceover ? `Voice-over: ${beat.voiceover}` : "",
+    beat.audio ? `Audio: ${beat.audio}` : "",
+  ].filter(Boolean).join("\n").slice(0, 2400);
+}
+
+export function deriveVerifiedFilmStudioPayload(
+  plan: VideoPlan,
+  renderSettings: z.infer<typeof FilmRenderChoicesSchema>,
+  adoptedAt: string,
+): { scenes: SceneRecord[]; filmPlan: FilmPlanRecord } {
+  const brief = plan.brief;
+  const shots = plan.shots;
+  const ledger = plan.continuity_ledger;
+  const provenance = plan.provenance;
+  if (!brief || !shots?.length || !ledger || !provenance?.provider || !provenance.model) {
+    throw new Error("Verified Film Planner output is missing required production fields");
+  }
+  if (plan.stages && Object.values(plan.stages).some((stage) => stage.status === "blocked")) {
+    throw new Error("Verified Film Planner output contains a blocked production stage");
+  }
+  const continuity: FilmPlanRecord["continuity"] = {
+    identityAnchor: ledger.identity.join("\n") || brief.identity_anchor || "",
+    wardrobe: ledger.wardrobe.join("\n"),
+    environment: [...ledger.location, ...ledger.time, ...ledger.props].join("\n"),
+    cameraRules: [...ledger.screen_direction, plan.direction?.camera_movement ?? ""].filter(Boolean).join("\n"),
+    colorRules: [...ledger.lighting, brief.mood].filter(Boolean).join("\n"),
+  };
+  const scenes = SceneListSchema.parse(shots.map((shot, index) => ({
+    id: shot.id || `shot-${index + 1}`,
+    index,
+    title: `${shot.purpose.charAt(0).toUpperCase()}${shot.purpose.slice(1)} · ${shot.shot_type}`,
+    script: verifiedShotScript(plan, shot),
+    description: shot.prompt,
+    duration: shot.duration_s,
+    frame: null,
+    frameStatus: "idle" as const,
+    purpose: shot.purpose,
+    shotType: shot.shot_type,
+    lensMm: shot.lens_mm,
+    camera: shot.camera,
+    lighting: shot.lighting,
+    modelPrompt: shot.prompt,
+    negativePrompt: shot.negative_prompt,
+    continuityNote: shot.chain_from,
+    aspectRatio: renderSettings.aspectRatio,
+  })));
+  return {
+    scenes,
+    filmPlan: FilmPlanSchema.parse({
+      schemaVersion: 1,
+      brief: {
+        title: brief.title,
+        logline: brief.logline,
+        genre: brief.genre,
+        mood: brief.mood,
+        format: brief.format,
+        motionLanguage: brief.motion_language,
+        assumptions: brief.assumptions ?? [],
+      },
+      script: verifiedPlanScript(plan),
+      continuity,
+      continuityLedger: ledger,
+      renderPlan: renderSettings,
+      planner: {
+        planner: "film-planner",
+        provider: provenance.provider,
+        model: provenance.model,
+        plannerVersion: provenance.schema_version,
+        generatedAt: provenance.generated_at,
+        fallbackCount: provenance.fallback_count,
+        latencyMs: provenance.latency_ms,
+        planningMode: provenance.planning_mode,
+        provenanceTrust: "server-verified",
+      },
+      adoptedAt,
+      renderApproval: null,
+    }),
+  };
+}
+
 export const VIDEO_AGENT_RENDER_COST = computeCost({
   features: ["video", "audio"],
   model: "seedance-2.0-fast",
   durationSeconds: 5,
 }).total;
 
+// The native model is registered, but the durable video_agent_render worker
+// still pins legacy Seedance and asserts subscriber mode. Keep Film Studio paid
+// dispatch fail-closed until that worker consumes the approved native contract
+// and performs its normal entitlement check.
 type SingleResult = Promise<{ data: ProjectRow | null; error: { message: string } | null }>;
 type ListResult = Promise<{ data: ProjectRow[] | null; error: { message: string } | null }>;
 
@@ -140,6 +318,30 @@ function parseProduction(value: unknown): NbaJoshProduction | null {
   return parsed.success ? refreshNbaJoshQuotes(parsed.data) : null;
 }
 
+function parseFilmPlan(value: unknown): FilmPlanRecord | null {
+  if (!value) return null;
+  const parsed = FilmPlanSchema.safeParse(value);
+  return parsed.success ? parsed.data : null;
+}
+
+export async function filmRenderFingerprintAsync(scenes: SceneRecord[], plan: FilmPlanRecord): Promise<string> {
+  const canonical = JSON.stringify({
+    scenes: scenes.map((scene) => ({
+      id: scene.id, index: scene.index, script: scene.script,
+      description: scene.description, duration: scene.duration,
+      frame: scene.frame ?? null, plateGenerationId: scene.plateGenerationId ?? null,
+      modelPrompt: scene.modelPrompt ?? null,
+      negativePrompt: scene.negativePrompt ?? null,
+      continuityNote: scene.continuityNote ?? null,
+    })),
+    continuity: plan.continuity,
+    continuityLedger: plan.continuityLedger,
+    renderPlan: plan.renderPlan,
+  });
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(canonical));
+  return Array.from(new Uint8Array(digest)).map((byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
 export type VideoAgentProjectDto = ReturnType<typeof mapVideoAgentProject>;
 
 export function mapVideoAgentProject(row: ProjectRow) {
@@ -159,6 +361,7 @@ export function mapVideoAgentProject(row: ProjectRow) {
     thumbnailUrl: row.thumbnail_url,
     error: row.error,
     production: parseProduction(row.production),
+    filmPlan: parseFilmPlan(row.production),
     createdAt: new Date(row.created_at).getTime(),
     updatedAt: new Date(row.updated_at).getTime(),
     version: row.updated_at,
@@ -201,6 +404,115 @@ export const createVideoAgentProject = createServerFn({ method: "POST" })
       .select("*")
       .single();
     if (error || !row) throw new Error(error?.message ?? "Could not create project");
+    return mapVideoAgentProject(row);
+  });
+
+export const adoptFilmStudioPlan = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) => FilmPlanAdoptionInputSchema.parse(data))
+  .handler(async ({ data, context }) => {
+    const receipt = verifyPlanReceipt(data.originalPlan, data.originalPlan.receipt, context.userId);
+    if (!receipt.valid) {
+      throw new Error(`Film Planner receipt verification failed: ${receipt.reason}`);
+    }
+    const { scenes, filmPlan } = deriveVerifiedFilmStudioPayload(
+      data.originalPlan,
+      data.renderSettings,
+      new Date().toISOString(),
+    );
+    const { data: row, error } = await projectTable()
+      .insert({
+        user_id: context.userId,
+        prompt: data.prompt,
+        title: filmPlan.brief.title,
+        style: "cinematic",
+        voice: "narrator-warm",
+        target_duration: Math.max(15, Math.min(120, Math.round(
+          scenes.reduce((sum, scene) => sum + scene.duration, 0),
+        ))),
+        scenes: scenes.map((scene) => ({
+          ...scene,
+          frame: null,
+          frameStatus: "idle",
+          plateQuality: undefined,
+          plateGenerationId: null,
+        })),
+        production: filmPlan,
+        status: "editing",
+        status_message: "Film plan adopted — review continuity and approve the render boundary",
+      })
+      .select("*")
+      .single();
+    if (error || !row) throw new Error(error?.message ?? "Could not adopt film plan");
+    return mapVideoAgentProject(row);
+  });
+
+export const updateFilmStudioContinuity = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) => z.object({
+    id: z.string().uuid(),
+    expectedVersion: z.string().min(1).max(64),
+    continuity: FilmPlanSchema.shape.continuity,
+  }).parse(data))
+  .handler(async ({ data, context }) => {
+    const current = await fetchOwnedProject(data.id, context.userId);
+    if (current.status === "queued" || current.status === "processing") {
+      throw new Error("Continuity is locked while a render is in progress");
+    }
+    const filmPlan = parseFilmPlan(current.production);
+    if (!filmPlan) throw new Error("This project does not contain an adopted film plan");
+    const next = { ...filmPlan, continuity: data.continuity, renderApproval: null };
+    const { data: row, error } = await projectTable()
+      .update({
+        production: next,
+        status_message: "Continuity changed — render approval must be renewed",
+      })
+      .eq("id", data.id)
+      .eq("user_id", context.userId)
+      .eq("updated_at", data.expectedVersion)
+      .select("*")
+      .maybeSingle();
+    if (!row && !error) throw new Error("This project changed elsewhere. Reload before saving continuity.");
+    if (error || !row) throw new Error(error?.message ?? "Could not save continuity");
+    return mapVideoAgentProject(row);
+  });
+
+export const approveFilmStudioRender = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) => z.object({
+    id: z.string().uuid(),
+    expectedVersion: z.string().min(1).max(64),
+  }).parse(data))
+  .handler(async ({ data, context }) => {
+    const current = await fetchOwnedProject(data.id, context.userId);
+    if (current.status === "queued" || current.status === "processing") {
+      throw new Error("A render is already in progress");
+    }
+    const plan = parseFilmPlan(current.production);
+    if (!plan) throw new Error("This project does not contain an adopted film plan");
+    const scenes = SceneListSchema.min(1).max(12).parse(current.scenes);
+    const shortScene = scenes.find((scene) => !Number.isInteger(scene.duration) || scene.duration < 4);
+    if (shortScene) {
+      throw new Error(`${shortScene.title} is ${shortScene.duration}s. Seedance 2.5 requires every shot to be an integer from 4–15 seconds.`);
+    }
+    const fingerprint = await filmRenderFingerprintAsync(scenes, plan);
+    const next: FilmPlanRecord = {
+      ...plan,
+      renderApproval: {
+        approved: true,
+        fingerprint,
+        approvedAt: new Date().toISOString(),
+      },
+    };
+    const { data: row, error } = await projectTable()
+      .update({ production: next, status_message: "Render plan approved — ready to render" })
+      .eq("id", data.id)
+      .eq("user_id", context.userId)
+      .eq("updated_at", data.expectedVersion)
+      .select("*")
+      .maybeSingle();
+    if (!row && !error) throw new Error("This project changed elsewhere. Review the latest plan before approving.");
+    if (error || !row) throw new Error(error?.message ?? "Could not approve render plan");
     return mapVideoAgentProject(row);
   });
 
@@ -331,6 +643,11 @@ export const updateVideoAgentProject = createServerFn({ method: "POST" })
         patch.status_message = data.scenes.length
           ? "Storyboard ready to render"
           : "Planning storyboard";
+      }
+      const filmPlan = parseFilmPlan(current.production);
+      if (filmPlan) {
+        patch.production = { ...filmPlan, renderApproval: null };
+        patch.status_message = "Storyboard changed — render approval must be renewed";
       }
     }
     if (data.production !== undefined) {
@@ -905,8 +1222,34 @@ export const enqueueVideoAgentRender = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const project = await fetchOwnedProject(data.id, context.userId);
     const scenes = SceneListSchema.min(1).max(12).parse(project.scenes);
+    const filmPlan = parseFilmPlan(project.production);
+    let renderCost = VIDEO_AGENT_RENDER_COST;
+    if (filmPlan) {
+      const shortScene = scenes.find((scene) => !Number.isInteger(scene.duration) || scene.duration < 4);
+      if (shortScene) {
+        throw new Error(`${shortScene.title} is ${shortScene.duration}s. Seedance 2.5 requires every shot to be an integer from 4–15 seconds.`);
+      }
+      const fingerprint = await filmRenderFingerprintAsync(scenes, filmPlan);
+      if (!filmPlan.renderApproval?.approved || filmPlan.renderApproval.fingerprint !== fingerprint) {
+        throw new Error("Approve the current film plan before starting a paid render");
+      }
+      if (process.env.FILM_STUDIO_NATIVE_RENDER_ENABLED !== "true") {
+        throw new Error(
+          "Film Studio native rendering is prepared but disabled until scoped video_agent_projects write grants are deployed. No Aura was reserved.",
+        );
+      }
+      if (await getUserTier(context.userId) !== "pro") {
+        throw new Error("An active Pro subscription is required for Seedance 2.5 Film Studio renders");
+      }
+      renderCost = computeCost({
+        features: ["video", "audio"],
+        model: filmPlan.renderPlan.rendererModel,
+        resolution: filmPlan.renderPlan.resolution,
+        durationSeconds: scenes.reduce((sum, scene) => sum + scene.duration, 0),
+      }).total;
+    }
     if (project.job_id && ["queued", "processing"].includes(project.status)) {
-      return { jobId: project.job_id, generationId: project.generation_id, cost: VIDEO_AGENT_RENDER_COST };
+      return { jobId: project.job_id, generationId: project.generation_id, cost: renderCost };
     }
 
     // Idempotency: if a previous enqueue reserved + created the job but the
@@ -956,9 +1299,10 @@ export const enqueueVideoAgentRender = createServerFn({ method: "POST" })
         })
         .eq("id", project.id)
         .eq("user_id", context.userId)
+        .eq("updated_at", project.updated_at)
         .select("id")
         .single();
-      return { jobId: existing.id, generationId: existing.generation_id, cost: VIDEO_AGENT_RENDER_COST };
+      return { jobId: existing.id, generationId: existing.generation_id, cost: renderCost };
     }
 
     const payload = {
@@ -970,6 +1314,16 @@ export const enqueueVideoAgentRender = createServerFn({ method: "POST" })
       voice: project.voice,
       targetDuration: project.target_duration,
       scenes,
+      ...(filmPlan ? {
+        rendererModel: filmPlan.renderPlan.rendererModel,
+        renderParams: {
+          generate_audio: filmPlan.renderPlan.generateAudio,
+          watermark: filmPlan.renderPlan.watermark,
+          ...(filmPlan.renderPlan.seed === undefined ? {} : { seed: filmPlan.renderPlan.seed }),
+        },
+        approvalFingerprint: filmPlan.renderApproval?.fingerprint,
+        filmPlan,
+      } : {}),
     };
     const client = supabaseAdmin as unknown as {
       rpc: (name: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: { message: string } | null }>;
@@ -978,7 +1332,7 @@ export const enqueueVideoAgentRender = createServerFn({ method: "POST" })
       _user: context.userId,
       _kind: "video",
       _prompt: project.prompt,
-      _amount: VIDEO_AGENT_RENDER_COST,
+      _amount: renderCost,
       _payload: payload,
     });
     if (error) {
@@ -997,6 +1351,7 @@ export const enqueueVideoAgentRender = createServerFn({ method: "POST" })
       })
       .eq("id", project.id)
       .eq("user_id", context.userId)
+      .eq("updated_at", project.updated_at)
       .select("*")
       .single();
     if (updateError) {
@@ -1008,5 +1363,5 @@ export const enqueueVideoAgentRender = createServerFn({ method: "POST" })
         `[video-agent] job ${row.job_id} enqueued but project ${project.id} status update failed: ${updateError.message}`,
       );
     }
-    return { jobId: row.job_id, generationId: row.generation_id, cost: VIDEO_AGENT_RENDER_COST };
+    return { jobId: row.job_id, generationId: row.generation_id, cost: renderCost };
   });

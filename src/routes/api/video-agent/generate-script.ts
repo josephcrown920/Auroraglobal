@@ -15,6 +15,15 @@ const ScriptSchema = z.object({
   scenes: z.array(SceneSchema).min(1),
 });
 
+type GenerateScriptInput = {
+  prompt: string;
+  style: string;
+  voice: string;
+  targetDuration: number;
+};
+
+type GenerateScript = typeof routedGenerate;
+
 const SYSTEM_PROMPT = `You are a professional video scriptwriter and creative director for Aurora, a premium AI content studio.
 Given a user's video topic and parameters, generate a complete video production plan.
 
@@ -41,38 +50,46 @@ Rules:
 - Make the content professional, engaging, and high-quality
 - Return ONLY the JSON object`;
 
-export const Route = createFileRoute("/api/video-agent/generate-script")({
-  server: {
-    handlers: {
-      POST: async ({ request }) => {
-        const body = (await request.json()) as {
-          prompt: string;
-          style: string;
-          voice: string;
-          targetDuration: number;
-        };
-
-        const { prompt, style, targetDuration } = body;
-
-        if (!prompt || typeof prompt !== "string") {
-          return new Response("Missing prompt", { status: 400 });
-        }
-
-        const sceneCount = Math.max(4, Math.round(targetDuration / 15));
-        const userMessage = `Video topic: ${prompt}
+/**
+ * Exact LLM boundary used by the storyboard processing page. Keeping this core
+ * dependency-injectable lets regression tests prove the route uses the shared
+ * router instead of pinning a provider/model or constructing response_format.
+ */
+export async function generateVideoAgentScriptCore(
+  { prompt, style, targetDuration }: GenerateScriptInput,
+  generate: GenerateScript = routedGenerate,
+) {
+  const sceneCount = Math.max(4, Math.round(targetDuration / 15));
+  const userMessage = `Video topic: ${prompt}
 Visual style: ${style}
 Target duration: ${targetDuration} seconds
 Number of scenes: ${sceneCount}
 
 Generate a complete professional video script with cinematic scene descriptions.`;
 
+  const { output } = await generate({
+    system: SYSTEM_PROMPT,
+    prompt: userMessage,
+    schema: ScriptSchema,
+    category: "SCRIPT_WRITING",
+  });
+  return output;
+}
+
+export const Route = createFileRoute("/api/video-agent/generate-script")({
+  server: {
+    handlers: {
+      POST: async ({ request }) => {
+        const body = (await request.json()) as GenerateScriptInput;
+
+        const { prompt } = body;
+
+        if (!prompt || typeof prompt !== "string") {
+          return new Response("Missing prompt", { status: 400 });
+        }
+
         try {
-          const { output } = await routedGenerate({
-            system: SYSTEM_PROMPT,
-            prompt: userMessage,
-            schema: ScriptSchema,
-            category: "SCRIPT_WRITING",
-          });
+          const output = await generateVideoAgentScriptCore(body);
 
           return new Response(JSON.stringify(output), {
             headers: { "Content-Type": "application/json" },

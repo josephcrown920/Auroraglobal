@@ -36,7 +36,12 @@ import {
   type KidsLengthId,
 } from "./kids-story.server";
 import { getMusicTrack, signedAutocutUrl } from "./autocut.server";
-import { assertDurationCap } from "./cost-guardrails.server";
+import { assertDurationCap, getUserTier } from "./cost-guardrails.server";
+import {
+  FilmPlanSchema,
+  filmRenderFingerprintAsync,
+  type FilmPlanRecord,
+} from "./video-agent-projects.functions";
 import { persistResultUrl, resultMediaTypeForKind } from "./result-store.server";
 import {
   buildProductDemoScript,
@@ -78,8 +83,11 @@ async function mirrorComfyRun(
 // `mock.module("./orchestrator.server")`. Bun's module mocks are process-global
 // and would leak a stubbed orchestrate into the real orchestrator tests.
 type Orchestrate = typeof orchestrate;
-type JobDeps = { orchestrate: Orchestrate };
-const defaultDeps: JobDeps = { orchestrate };
+type JobDeps = {
+  orchestrate: Orchestrate;
+  getUserTier?: typeof getUserTier;
+};
+const defaultDeps: JobDeps = { orchestrate, getUserTier };
 
 // Result envelope for every job runner. Single-media runners populate `url`;
 // the campaign runner additionally sets both `imageUrl` and `videoUrl` so the
@@ -646,12 +654,22 @@ type VideoAgentScenePayload = {
   lighting?: string;
 };
 
+type VideoAgentWorkerPatch = Partial<{
+  status: "processing" | "succeeded" | "failed";
+  status_message: string;
+  error: string | null;
+  thumbnail_url: string | null;
+  export_url: string | null;
+}>;
+
 function videoAgentProjectsTable() {
   return supabaseAdmin as unknown as {
     from: (table: "video_agent_projects") => {
       update: (patch: Record<string, unknown>) => {
         eq: (column: string, value: string) => {
-          eq: (column: string, value: string) => Promise<{ error: { message: string } | null }>;
+          eq: (column: string, value: string) => {
+            eq: (column: string, value: string) => Promise<{ error: { message: string } | null }>;
+          };
         };
       };
     };
@@ -661,14 +679,16 @@ function videoAgentProjectsTable() {
 async function updateVideoAgentProject(
   projectId: string | undefined,
   userId: string,
-  patch: Record<string, unknown>,
+  patch: VideoAgentWorkerPatch,
+  jobId: string,
 ): Promise<void> {
   if (!projectId) return;
   const { error } = await videoAgentProjectsTable()
     .from("video_agent_projects")
     .update(patch)
     .eq("id", projectId)
-    .eq("user_id", userId);
+    .eq("user_id", userId)
+    .eq("job_id", jobId);
   if (error) throw new Error(`Video Agent project update failed: ${error.message}`);
 }
 
@@ -679,13 +699,22 @@ async function updateVideoAgentProject(
  * backend or assembler is a terminal error, so the shared queue refunds instead
  * of claiming a silent or partial video succeeded.
  */
-async function runVideoAgentRender(job: JobRow, orch: Orchestrate, workerId: string): Promise<JobOutput> {
+async function runVideoAgentRender(
+  job: JobRow,
+  orch: Orchestrate,
+  workerId: string,
+  lookupUserTier: typeof getUserTier,
+): Promise<JobOutput> {
   const p = job.payload as {
     projectId?: string;
     prompt?: string;
     style?: string;
     targetDuration?: number;
     scenes?: VideoAgentScenePayload[];
+    rendererModel?: string;
+    renderParams?: Record<string, unknown>;
+    approvalFingerprint?: string;
+    filmPlan?: unknown;
   };
   const scenes = p.scenes ?? [];
   if (!p.projectId) throw new Error("video_agent_render requires projectId");
@@ -693,12 +722,33 @@ async function runVideoAgentRender(job: JobRow, orch: Orchestrate, workerId: str
   if (!process.env.HF_TOKEN) {
     throw new Error("Text-to-speech narration is required for Video Agent renders, but no HF_TOKEN is configured");
   }
+  let nativePlan: FilmPlanRecord | null = null;
+  if (p.filmPlan !== undefined) {
+    if (process.env.FILM_STUDIO_NATIVE_RENDER_ENABLED !== "true") {
+      throw new Error("Film Studio native rendering is disabled pending production readiness verification");
+    }
+    nativePlan = FilmPlanSchema.parse(p.filmPlan);
+    if (nativePlan.renderPlan.rendererModel !== p.rendererModel) {
+      throw new Error("Film Studio renderer does not match the approved native contract");
+    }
+    const expected = await filmRenderFingerprintAsync(scenes, nativePlan);
+    if (
+      !nativePlan.renderApproval?.approved ||
+      nativePlan.renderApproval.fingerprint !== expected ||
+      p.approvalFingerprint !== expected
+    ) {
+      throw new Error("Film Studio approval fingerprint is stale or invalid");
+    }
+    if (await lookupUserTier(job.user_id) !== "pro") {
+      throw new Error("An active Pro subscription is required for Seedance 2.5 Film Studio renders");
+    }
+  }
 
   await updateVideoAgentProject(p.projectId, job.user_id, {
     status: "processing",
     status_message: "Creating scene clips…",
     error: null,
-  });
+  }, job.id);
 
   const clipUrls: string[] = [];
   let firstFrame: string | null = null;
@@ -716,9 +766,26 @@ async function runVideoAgentRender(job: JobRow, orch: Orchestrate, workerId: str
           refId: job.id,
         })).url;
     firstFrame ??= stillUrl;
+    const nativeRequest = nativePlan ? {
+      model: nativePlan.renderPlan.rendererModel,
+      duration: scene.duration,
+      resolution: nativePlan.renderPlan.resolution,
+      aspectRatio: nativePlan.renderPlan.aspectRatio,
+      params: {
+        generate_audio: nativePlan.renderPlan.generateAudio,
+        watermark: nativePlan.renderPlan.watermark,
+        ...(nativePlan.renderPlan.seed === undefined ? {} : { seed: nativePlan.renderPlan.seed }),
+      },
+      pinnedModelOnly: true,
+      forSubscriber: true,
+    } as const : {
+      model: "seedance-2.0-fast",
+      duration: Math.max(3, Math.min(10, Math.round(scene.duration))),
+      forSubscriber: true,
+    } as const;
     const clip = await orch({
       kind: "video",
-      model: "seedance-2.0-fast",
+      ...nativeRequest,
       prompt: [
         visualPrompt,
         scene.camera ? `Camera: ${scene.camera}.` : "",
@@ -727,8 +794,6 @@ async function runVideoAgentRender(job: JobRow, orch: Orchestrate, workerId: str
         scene.negativePrompt ? `Avoid: ${scene.negativePrompt}.` : "",
       ].filter(Boolean).join(" "),
       imageUrls: [stillUrl],
-      duration: Math.max(3, Math.min(10, Math.round(scene.duration))),
-      forSubscriber: true,
       userId: job.user_id,
       refId: job.id,
     });
@@ -736,7 +801,7 @@ async function runVideoAgentRender(job: JobRow, orch: Orchestrate, workerId: str
     await updateVideoAgentProject(p.projectId, job.user_id, {
       status_message: `Rendered scene ${clipUrls.length} of ${scenes.length}…`,
       thumbnail_url: firstFrame,
-    });
+    }, job.id);
     // Heartbeat with the REAL lock owner — touchJobLock is fenced on
     // locked_by=workerId, so any other value silently no-ops and the stale
     // sweep would reclaim a long render mid-flight.
@@ -748,7 +813,7 @@ async function runVideoAgentRender(job: JobRow, orch: Orchestrate, workerId: str
   // project has a durable narration audit; provider clips currently supply the
   // playable track in the assembled MP4. If a narration request fails, the
   // job is failed/refunded rather than silently shipping a claimed voice-over.
-  await updateVideoAgentProject(p.projectId, job.user_id, { status_message: "Synthesizing narration…" });
+  await updateVideoAgentProject(p.projectId, job.user_id, { status_message: "Synthesizing narration…" }, job.id);
   for (let index = 0; index < scenes.length; index++) {
     const tts = await hfTextToSpeech(KIDS_TTS_MODEL, scenes[index].script);
     await uploadBytesToStudio(
@@ -758,7 +823,7 @@ async function runVideoAgentRender(job: JobRow, orch: Orchestrate, workerId: str
     );
   }
 
-  await updateVideoAgentProject(p.projectId, job.user_id, { status_message: "Assembling your final MP4…" });
+  await updateVideoAgentProject(p.projectId, job.user_id, { status_message: "Assembling your final MP4…" }, job.id);
   const bytes = await runLocalFfmpegAssemble({
     clips: clipUrls,
     style: p.style === "cinematic" ? "cinematic" : "hype",
@@ -1556,7 +1621,7 @@ export async function processOneJob(
     } else if (job.kind === "autocut") {
       out = await runAutocut(job, orch, workerId);
     } else if (job.kind === "video_agent_render") {
-      out = await runVideoAgentRender(job, orch, workerId);
+      out = await runVideoAgentRender(job, orch, workerId, deps.getUserTier ?? getUserTier);
     } else {
       out = await runMediaJob(job, orch, workerId);
     }
@@ -1686,6 +1751,7 @@ export async function processOneJob(
             export_url: persistedUrl,
             error: null,
           },
+          job.id,
         );
       }
     }
@@ -1764,6 +1830,7 @@ export async function processOneJob(
           status_message: "Render could not be completed — your Aura was released",
           error: failError,
         },
+        job.id,
       );
     }
     if (won) {

@@ -22,6 +22,50 @@ function retryableProviderError(error: unknown): boolean {
   return /\b(408|409|429|500|502|503|504)\b|timed?\s*out|timeout|ECONNRESET|fetch failed/i.test(message);
 }
 
+function safeProviderError(error: unknown): string {
+  const seen = new Set<unknown>();
+  const issues: string[] = [];
+  let current: unknown = error;
+  for (let depth = 0; depth < 6 && current && !seen.has(current); depth++) {
+    seen.add(current);
+    if (typeof current !== "object") break;
+    const record = current as Record<string, unknown>;
+    if (Array.isArray(record.issues)) {
+      for (const issue of record.issues.slice(0, 8)) {
+        if (!issue || typeof issue !== "object") continue;
+        const item = issue as { path?: unknown; code?: unknown };
+        const path = Array.isArray(item.path) ? item.path.join(".") : "root";
+        const code = typeof item.code === "string" ? item.code : "invalid";
+        issues.push(`${path || "root"}:${code}`);
+      }
+    }
+    current = record.cause ?? record.error;
+  }
+  if (issues.length) return `schema_validation(${issues.join(",")})`;
+
+  const record = error && typeof error === "object" ? (error as Record<string, unknown>) : {};
+  const message = error instanceof Error ? error.message : String(error);
+  const status =
+    typeof record.statusCode === "number"
+      ? record.statusCode
+      : typeof record.status === "number"
+        ? record.status
+        : message.match(/\b(400|401|402|403|404|408|409|422|429|500|502|503|504)\b/)?.[1];
+  const kind =
+    /schema|object generated|validation|zod/i.test(message)
+      ? "schema_validation"
+      : /timed?\s*out|timeout|abort/i.test(message)
+        ? "timeout"
+        : /model.*(exist|valid)|not.*model/i.test(message)
+          ? "model_id"
+          : /401|403|auth|unauthor/i.test(message)
+            ? "authentication"
+            : /429|rate/i.test(message)
+              ? "rate_limit"
+              : "provider_error";
+  return status ? `${kind}(http_${status})` : kind;
+}
+
 export type { RequestCategory } from "./categories";
 export { classifyRequest } from "./classifier";
 export { getHealthSnapshot } from "./health";
@@ -57,6 +101,19 @@ export type RoutedGenerateArgs<T> = {
   estimatedCost?: number;
   /** Schema-shaped response to return when every enabled provider is circuit-broken. */
   degradedOutput?: T;
+  /**
+   * Internal routing preference for a specialized workload. Names are provider
+   * registry keys. Remaining category fallbacks are retained in their normal
+   * order, so this changes preference without pinning a request.
+   */
+  preferredProviders?: string[];
+  /** Internal bounded overrides for unusually large structured server outputs. */
+  providerTimeoutMs?: number;
+  routerTimeoutMs?: number;
+  maxAttemptsPerProvider?: 1 | 2;
+  maxOutputTokens?: number;
+  /** Additional server validation that runs inside each fallback attempt. */
+  validateOutput?: (output: T) => T;
 };
 
 /**
@@ -65,12 +122,28 @@ export type RoutedGenerateArgs<T> = {
  */
 export async function routedGenerate<T>(args: RoutedGenerateArgs<T>): Promise<RoutedResult<T>> {
   const t0 = Date.now();
+  const providerTimeoutMs = Math.max(
+    1_000,
+    Math.min(60_000, Math.trunc(args.providerTimeoutMs ?? PROVIDER_TIMEOUT_MS)),
+  );
+  const routerTimeoutMs = Math.max(
+    providerTimeoutMs,
+    Math.min(120_000, Math.trunc(args.routerTimeoutMs ?? ROUTER_TIMEOUT_MS)),
+  );
+  const maxAttemptsPerProvider = args.maxAttemptsPerProvider ?? 2;
+  const maxOutputTokens =
+    args.maxOutputTokens === undefined
+      ? undefined
+      : Math.max(256, Math.min(12_000, Math.trunc(args.maxOutputTokens)));
 
   // 1. Classify (or use caller-provided category).
   const category: RequestCategory = args.category ?? classifyRequest(args.prompt);
 
   // 2. Build the ordered provider list for this category.
-  const chain = CATEGORY_CHAINS[category] ?? CATEGORY_CHAINS.GENERAL_CHAT;
+  const categoryChain = CATEGORY_CHAINS[category] ?? CATEGORY_CHAINS.GENERAL_CHAT;
+  const chain = [
+    ...new Set([...(args.preferredProviders ?? []), ...categoryChain]),
+  ];
   const registry = getProviderRegistry();
 
   // 3. Filter to enabled + healthy providers.
@@ -128,9 +201,9 @@ export async function routedGenerate<T>(args: RoutedGenerateArgs<T>): Promise<Ro
   let fallbackCount = 0;
 
   for (const provider of candidates) {
-    if (Date.now() - t0 >= ROUTER_TIMEOUT_MS) break;
+    if (Date.now() - t0 >= routerTimeoutMs) break;
     // Retry-once: attempt the provider up to 2 times before moving to the next.
-    for (let attempt = 1; attempt <= 2; attempt++) {
+    for (let attempt = 1; attempt <= maxAttemptsPerProvider; attempt++) {
       const callStart = Date.now();
       try {
         const gateway = provider.make();
@@ -143,12 +216,16 @@ export async function routedGenerate<T>(args: RoutedGenerateArgs<T>): Promise<Ro
           experimental_output: Output.object({ schema: args.schema }),
           // e.g. strictJsonSchema:false for OpenAI-compatible json_schema mode.
           providerOptions: provider.providerOptions,
+          maxOutputTokens,
           maxRetries: 0,
           abortSignal: AbortSignal.timeout(
-            Math.max(1, Math.min(PROVIDER_TIMEOUT_MS, ROUTER_TIMEOUT_MS - (Date.now() - t0))),
+            Math.max(1, Math.min(providerTimeoutMs, routerTimeoutMs - (Date.now() - t0))),
           ),
         });
 
+        const output = args.validateOutput
+          ? args.validateOutput(experimental_output as T)
+          : (experimental_output as T);
         const latencyMs = Date.now() - t0;
         const callLatency = Date.now() - callStart;
         recordOutcome(provider.name, callLatency, true);
@@ -165,7 +242,7 @@ export async function routedGenerate<T>(args: RoutedGenerateArgs<T>): Promise<Ro
         });
 
         return {
-          output: experimental_output as T,
+          output,
           provider: provider.name,
           model: provider.model,
           category,
@@ -174,13 +251,14 @@ export async function routedGenerate<T>(args: RoutedGenerateArgs<T>): Promise<Ro
         };
       } catch (err) {
         const callLatency = Date.now() - callStart;
-        const msg = err instanceof Error ? err.message : String(err);
-        console.warn(`[ai-router] ${provider.name} attempt ${attempt} failed: ${msg}`);
+        console.warn(
+          `[ai-router] ${provider.name} attempt ${attempt} failed: ${safeProviderError(err)}`,
+        );
 
         const shouldRetry =
-          attempt === 1 &&
+          attempt < maxAttemptsPerProvider &&
           retryableProviderError(err) &&
-          Date.now() - t0 < ROUTER_TIMEOUT_MS;
+          Date.now() - t0 < routerTimeoutMs;
         if (!shouldRetry) {
           // Both attempts failed — record health hit and move to next provider.
           recordOutcome(provider.name, callLatency, false);
@@ -196,7 +274,7 @@ export async function routedGenerate<T>(args: RoutedGenerateArgs<T>): Promise<Ro
 
   // All providers exhausted — log failure and throw.
   const latencyMs = Date.now() - t0;
-  const reason = lastErr instanceof Error ? lastErr.message : "All providers failed";
+  const reason = lastErr ? safeProviderError(lastErr) : "all_providers_failed";
   void logRouterDecision({
     category,
     provider_used: "none",

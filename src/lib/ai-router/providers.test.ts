@@ -92,19 +92,33 @@ describe("ai-router provider registry", () => {
   it("forwards strictJsonSchema:false to every OpenAI-compatible json_schema provider", () => {
     process.env.AI_INTEGRATIONS_OPENAI_API_KEY = "proxy-key";
     process.env.AI_INTEGRATIONS_OPENAI_BASE_URL = "https://proxy.example/v1";
+    process.env.XAI_API_KEY = "x";
     process.env.OPENROUTER_API_KEY = "x";
     process.env.GROQ_API_KEY = "x";
     const reg = buildProviderRegistry();
     // Strict json_schema rejects ChatTurnSchema (optional props, unions,
-    // missing additionalProperties:false) on OpenAI and Groq — these must
-    // all opt out or the chain burns a hop on every rich-schema request.
-    for (const name of ["openai", "qwen", "qwen-coder", "deepseek", "deepseek-coder", "llama"]) {
+    // missing additionalProperties:false) on OpenAI-compatible gateways —
+    // these must all opt out or the chain burns a hop on every rich-schema request.
+    for (const name of ["openai", "grok", "qwen", "qwen-coder", "deepseek", "deepseek-coder", "llama"]) {
       const p = reg.get(name)!;
       const opts = Object.values(p.providerOptions ?? {});
       expect(opts.length, `${name} has no providerOptions`).toBe(1);
       expect(opts[0]?.strictJsonSchema, `${name} does not disable strict json_schema`).toBe(false);
+      const model = p.make()(p.model) as unknown as { supportsStructuredOutputs?: boolean };
+      expect(model.supportsStructuredOutputs, `${name} does not request json_schema`).toBe(true);
     }
     // Anthropic's OpenAI-compat endpoint REQUIRES strict:true — never override it.
     expect(reg.get("claude")?.providerOptions).toBeUndefined();
+  });
+
+  it("does not claim universal json_schema support for the unpinned HuggingFace router", () => {
+    process.env.HF_TOKEN = "x";
+    const huggingface = buildProviderRegistry().get("llama")!;
+    const model = huggingface.make()(huggingface.model) as unknown as {
+      supportsStructuredOutputs?: boolean;
+    };
+    expect(huggingface.displayName).toBe("Llama (HuggingFace)");
+    expect(huggingface.providerOptions).toBeUndefined();
+    expect(model.supportsStructuredOutputs).toBe(false);
   });
 });

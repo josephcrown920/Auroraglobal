@@ -9,6 +9,12 @@
 
 import { z } from "zod";
 
+const PlanText = z.string().min(1).max(4_000);
+const PlanShortText = z.string().min(1).max(500);
+const PlanOptionalText = z.string().max(4_000);
+const PlanOptionalShortText = z.string().max(500);
+const PlanId = z.string().min(1).max(100);
+
 // ────────────────────────────────────────────────────────────────────────────
 // 1. Cinematic Video Agent — system + analysis + shot prompts
 //    Source: cinematic-video-agent-skills/prompts/
@@ -24,7 +30,8 @@ What you always do:
 3. Choose one motion language: Cinematic Minimal, Kinetic Energy, Luxury/Editorial, Documentary Realism, Music Video Maximal, Retro/Analog, or Product Ad Clean. Everything follows from this choice.
 4. Set direction: lens, film stock/look, lighting, camera movement, pacing, sound register.
 5. Build a shot list of 4–8 shots, each with purpose, shot type, lens, action verb, lighting, and a fully-engineered model prompt. Vary shot type. Preserve identity anchors word-for-word across shots featuring the same subject.
-6. Return the plan as JSON, then a short human summary.
+6. Build in explicit stages: brief, script, continuity, shots, then render plan.
+7. Return only the plan as JSON.
 
 Prompt engineering order for every shot:
 [SHOT TYPE], [SUBJECT + identity anchors], [ACTION verb], [LOCATION + time of day], [LENS + camera movement], [LIGHTING], [FILM/LOOK], [PALETTE], [MOOD], [TECHNICAL].
@@ -33,9 +40,11 @@ Use real cinematographic vocabulary — dolly, push-in, orbit, whip pan, practic
 
 Include a negative prompt on every shot: warped faces, extra fingers, plastic skin, text overlays, watermark, jump cuts, morphing background.
 
-When a subject recurs, reuse the same 6–10 word subject description on every shot verbatim.`;
+When a subject recurs, reuse the same 6–10 word subject description on every shot verbatim.
 
-export const CINEMATIC_ANALYSIS_PROMPT = `Read the user's request and output a JSON video plan matching the VideoPlan schema. Produce ALL fields: brief, direction, AND shots (4–8 shots).
+Story fidelity is mandatory. Do not silently rewrite, sanitize, or replace the user's story, characters, ending, product claims, or constraints. Preserve them in the screenplay and surface feasibility, ambiguity, safety, or continuity concerns in warnings[].`;
+
+export const CINEMATIC_ANALYSIS_PROMPT = `Read the user's request and output a JSON video plan matching the VideoPlan schema. Produce ALL planning stages: brief, screenplay, continuity_ledger, direction, shots (4–8), render_plan, and stages.
 
 Rules:
 - Extract, do not invent. If the user didn't specify a location, era, or palette, propose one and flag it in assumptions[].
@@ -53,6 +62,11 @@ Rules:
 - Shot duration_s: 3–8 seconds per shot.
 - negative_prompt on every shot: "warped face, extra fingers, plastic skin, text overlays, watermark, jump cut, morphing background".
 - chain_from: shot id of the previous shot if identity continuity requires start-frame chaining; else null.
+- screenplay.beats: cover the complete requested story in order. Keep dialogue and voiceover verbatim when the user supplies exact wording.
+- continuity_ledger: record concrete anchors under identity, wardrobe, props, location, time, lighting, screen_direction, and audio. Use [] when a category has no anchor.
+- warnings[]: report assumptions, contradictions, feasibility issues, and unresolved continuity risks. Never fix them by silently changing the story.
+- stages: report the completion/review state of brief, script, continuity, shots, and render_plan.
+- Do not produce provenance. Provider/model provenance is attached by the server.
 
 If the user's message lacks BOTH a subject AND a clear intent, return: {"needs_clarification": true, "question": "..."}.
 
@@ -219,7 +233,7 @@ export const VideoPaletteEntrySchema = z.object({
 });
 
 export const VideoShotSchema = z.object({
-  id: z.string(),
+  id: PlanId,
   purpose: z.enum(["establishing", "context", "character", "reaction", "detail", "insert", "payoff"]),
   shot_type: z.enum([
     "EXTREME WIDE",
@@ -234,29 +248,107 @@ export const VideoShotSchema = z.object({
     "POV",
   ]),
   duration_s: z.number().min(2).max(12),
-  lens_mm: z.number().optional(),
-  camera: z.string().optional(),
-  action: z.string(),
-  lighting: z.string().optional(),
-  prompt: z.string(),
-  negative_prompt: z.string(),
-  starting_frame_hint: z.string().nullable().optional(),
-  chain_from: z.string().nullable().optional(),
+  lens_mm: z.number().min(1).max(1_000).optional(),
+  camera: PlanOptionalShortText.optional(),
+  action: PlanText,
+  lighting: PlanOptionalShortText.optional(),
+  prompt: PlanText,
+  negative_prompt: PlanText,
+  starting_frame_hint: PlanOptionalShortText.nullable().optional(),
+  chain_from: PlanId.nullable().optional(),
+  screenplay_beat_id: PlanId.optional(),
+  continuity_refs: z
+    .object({
+      identity: z.array(PlanShortText).max(16).optional(),
+      wardrobe: z.array(PlanShortText).max(16).optional(),
+      props: z.array(PlanShortText).max(16).optional(),
+      location: z.array(PlanShortText).max(16).optional(),
+      time: z.array(PlanShortText).max(16).optional(),
+      lighting: z.array(PlanShortText).max(16).optional(),
+      screen_direction: z.array(PlanShortText).max(16).optional(),
+      audio: z.array(PlanShortText).max(16).optional(),
+    })
+    .optional(),
+});
+
+export const ContinuityLedgerSchema = z.object({
+  identity: z.array(PlanShortText).max(32),
+  wardrobe: z.array(PlanShortText).max(32),
+  props: z.array(PlanShortText).max(32),
+  location: z.array(PlanShortText).max(32),
+  time: z.array(PlanShortText).max(32),
+  lighting: z.array(PlanShortText).max(32),
+  screen_direction: z.array(PlanShortText).max(32),
+  audio: z.array(PlanShortText).max(32),
+});
+
+export const ScreenplaySchema = z.object({
+  synopsis: PlanText,
+  beats: z
+    .array(
+      z.object({
+        id: PlanId,
+        timing: PlanShortText,
+        visual: PlanText,
+        action: PlanText,
+        dialogue: PlanOptionalText.optional(),
+        voiceover: PlanOptionalText.optional(),
+        audio: PlanOptionalText.optional(),
+      }),
+    )
+    .min(1)
+    .max(16),
+});
+
+export const PlanningStageSchema = z.object({
+  status: z.enum(["complete", "needs-review", "blocked"]),
+  summary: PlanShortText,
+});
+
+export const PlanningStagesSchema = z.object({
+  brief: PlanningStageSchema,
+  script: PlanningStageSchema,
+  continuity: PlanningStageSchema,
+  shots: PlanningStageSchema,
+  render_plan: PlanningStageSchema,
+});
+
+export const PlanWarningSchema = z.object({
+  code: z.enum(["assumption", "ambiguity", "continuity", "feasibility", "safety", "constraint"]),
+  message: PlanShortText,
+  related_shot_ids: z.array(PlanId).max(8).optional(),
+});
+
+export const PlanProvenanceSchema = z.object({
+  provider: PlanShortText,
+  model: PlanShortText.nullable(),
+  category: z.literal("VIDEO_DIRECTION"),
+  fallback_count: z.number().int().nonnegative(),
+  latency_ms: z.number().int().nonnegative(),
+  planning_mode: z.enum(["full", "revision"]),
+  schema_version: z.literal("2"),
+  generated_at: z.string().datetime(),
+});
+
+export const PlanReceiptSchema = z.object({
+  version: z.literal("1"),
+  expires_at: z.string().datetime(),
+  signature: z.string().regex(/^[A-Za-z0-9_-]{43}$/),
 });
 
 export const VideoPlanSchema = z.object({
   needs_clarification: z.boolean().optional(),
-  question: z.string().optional(),
+  question: PlanOptionalText.optional(),
   brief: z
     .object({
-      title: z.string(),
-      logline: z.string(),
-      genre: z.string(),
-      mood: z.string(),
-      era: z.string().optional(),
-      identity_anchor: z.string().optional(),
+      title: PlanShortText,
+      logline: PlanShortText,
+      genre: PlanShortText,
+      mood: PlanShortText,
+      era: PlanOptionalShortText.optional(),
+      identity_anchor: PlanOptionalShortText.optional(),
       palette: z.array(VideoPaletteEntrySchema).min(3).max(5),
-      references: z.array(z.string()).min(2).max(4),
+      references: z.array(PlanShortText).min(2).max(4),
       motion_language: z.enum([
         "Cinematic Minimal",
         "Kinetic Energy",
@@ -266,32 +358,193 @@ export const VideoPlanSchema = z.object({
         "Retro/Analog",
         "Product Ad Clean",
       ]),
-      format: z.enum(["16:9", "9:16", "1:1", "4:3", "2.39:1", "21:9"]),
-      assumptions: z.array(z.string()).optional(),
+      format: z.enum(["16:9", "9:16", "1:1", "4:3", "3:4", "2.39:1", "21:9"]),
+      assumptions: z.array(PlanShortText).max(16).optional(),
     })
     .optional(),
   direction: z
     .object({
-      lens: z.string(),
-      film_stock: z.string(),
-      lighting: z.string(),
-      camera_movement: z.string(),
+      lens: PlanShortText,
+      film_stock: PlanShortText,
+      lighting: PlanShortText,
+      camera_movement: PlanShortText,
       pacing: z.enum(["meditative", "measured", "punchy", "trailer-fast"]),
-      sound_register: z.string(),
+      sound_register: PlanShortText,
     })
     .optional(),
+  screenplay: ScreenplaySchema.optional(),
+  continuity_ledger: ContinuityLedgerSchema.optional(),
   shots: z.array(VideoShotSchema).min(1).max(8).optional(),
   render_plan: z
     .object({
-      model: z.string(),
-      aspect_ratio: z.string(),
+      model: PlanShortText,
+      aspect_ratio: PlanShortText,
       resolution: z.enum(["720p", "1080p", "1440p", "4k"]),
       fps: z.union([z.literal(24), z.literal(25), z.literal(30), z.literal(48), z.literal(60)]),
     })
     .optional(),
-  suggestions: z.array(z.string()).optional(),
+  suggestions: z.array(PlanShortText).max(16).optional(),
+  warnings: z.array(PlanWarningSchema).max(64).optional(),
+  stages: PlanningStagesSchema.optional(),
+  provenance: PlanProvenanceSchema.optional(),
+  receipt: PlanReceiptSchema.optional(),
+});
+
+const PlannerRenderPlanSchema = z.object({
+  model: PlanShortText,
+  aspect_ratio: PlanShortText,
+  resolution: z.literal("720p"),
+  fps: z.union([z.literal(24), z.literal(25), z.literal(30), z.literal(48), z.literal(60)]),
+});
+
+/**
+ * New planner output is strict even though persisted legacy VideoPlan fields
+ * remain optional. A model may either ask one bounded clarification question,
+ * or deliver every stage required by the current server contract.
+ */
+export const PlannerVideoPlanSchema = VideoPlanSchema.omit({ provenance: true, receipt: true })
+  .extend({
+    needs_clarification: z.boolean().optional(),
+    question: PlanText.optional(),
+    shots: z.array(VideoShotSchema.extend({ duration_s: z.number().min(4).max(8) })).min(1).max(8).optional(),
+    render_plan: PlannerRenderPlanSchema.optional(),
+  })
+  .superRefine((plan, ctx) => {
+    if (plan.needs_clarification === true) {
+      if (!plan.question) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["question"], message: "Clarification question is required" });
+      }
+      return;
+    }
+    for (const field of [
+      "brief",
+      "direction",
+      "screenplay",
+      "continuity_ledger",
+      "shots",
+      "render_plan",
+      "warnings",
+      "stages",
+    ] as const) {
+      if (plan[field] === undefined) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: [field],
+          message: `Complete planner output requires ${field}`,
+        });
+      }
+    }
+  });
+
+// Provider-facing schema avoids regexes, refinements, and deep enum unions that
+// several compatible APIs reject at request time. PlannerVideoPlanSchema still
+// runs inside every router attempt and is the authoritative acceptance schema.
+const RouterText = z.string();
+const RouterStringArray = z.array(RouterText);
+export const PlannerRouterSchema = z.object({
+  needs_clarification: z.boolean().optional(),
+  question: RouterText.optional(),
+  brief: z
+    .object({
+      title: RouterText,
+      logline: RouterText,
+      genre: RouterText,
+      mood: RouterText,
+      era: RouterText.optional(),
+      identity_anchor: RouterText.optional(),
+      palette: z.array(z.object({ hex: RouterText, role: RouterText })),
+      references: RouterStringArray,
+      motion_language: RouterText,
+      format: RouterText,
+      assumptions: RouterStringArray.optional(),
+    })
+    .optional(),
+  direction: z
+    .object({
+      lens: RouterText,
+      film_stock: RouterText,
+      lighting: RouterText,
+      camera_movement: RouterText,
+      pacing: RouterText,
+      sound_register: RouterText,
+    })
+    .optional(),
+  screenplay: z
+    .object({
+      synopsis: RouterText,
+      beats: z.array(
+        z.object({
+          id: RouterText,
+          timing: RouterText,
+          visual: RouterText,
+          action: RouterText,
+          dialogue: RouterText.optional(),
+          voiceover: RouterText.optional(),
+          audio: RouterText.optional(),
+        }),
+      ),
+    })
+    .optional(),
+  continuity_ledger: z
+    .object({
+      identity: RouterStringArray,
+      wardrobe: RouterStringArray,
+      props: RouterStringArray,
+      location: RouterStringArray,
+      time: RouterStringArray,
+      lighting: RouterStringArray,
+      screen_direction: RouterStringArray,
+      audio: RouterStringArray,
+    })
+    .optional(),
+  shots: z
+    .array(
+      z.object({
+        id: RouterText,
+        purpose: RouterText,
+        shot_type: RouterText,
+        duration_s: z.number(),
+        lens_mm: z.number().optional(),
+        camera: RouterText.optional(),
+        action: RouterText,
+        lighting: RouterText.optional(),
+        prompt: RouterText,
+        negative_prompt: RouterText,
+        starting_frame_hint: RouterText.nullable().optional(),
+        chain_from: RouterText.nullable().optional(),
+        screenplay_beat_id: RouterText.optional(),
+      }),
+    )
+    .optional(),
+  render_plan: z
+    .object({
+      model: RouterText,
+      aspect_ratio: RouterText,
+      resolution: RouterText,
+      fps: z.number(),
+    })
+    .optional(),
+  warnings: z
+    .array(
+      z.object({
+        code: RouterText,
+        message: RouterText,
+        related_shot_ids: RouterStringArray.optional(),
+      }),
+    )
+    .optional(),
+  stages: z
+    .object({
+      brief: z.object({ status: RouterText, summary: RouterText }),
+      script: z.object({ status: RouterText, summary: RouterText }),
+      continuity: z.object({ status: RouterText, summary: RouterText }),
+      shots: z.object({ status: RouterText, summary: RouterText }),
+      render_plan: z.object({ status: RouterText, summary: RouterText }),
+    })
+    .optional(),
 });
 
 export type VideoPaletteEntry = z.infer<typeof VideoPaletteEntrySchema>;
 export type VideoShot = z.infer<typeof VideoShotSchema>;
+export type PlanReceipt = z.infer<typeof PlanReceiptSchema>;
 export type VideoPlan = z.infer<typeof VideoPlanSchema>;
