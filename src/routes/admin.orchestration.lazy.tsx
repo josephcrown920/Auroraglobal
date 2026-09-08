@@ -2,10 +2,10 @@ import { authNextSearch } from "@/lib/auth-return-path";
 import { createLazyFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { orchestrationHealth, providerCredits } from "@/lib/orchestration.functions";
-import { listVastManaged } from "@/lib/vast.functions";
+import { getMotionAutoscaleStatus, listVastManaged, setMotionAutoscaleEnabled } from "@/lib/vast.functions";
 import { getGenerationHealth, type GenerationHealthRow } from "@/lib/generation-health.functions";
 import type { ProviderCreditRow } from "@/lib/orchestration.functions";
 import {
@@ -230,6 +230,7 @@ function GenHealthCard({ r }: { r: GenerationHealthRow }) {
 function OrchestrationDashboard() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     if (!loading && !user) navigate({ to: "/auth", search: authNextSearch() });
@@ -260,6 +261,20 @@ function OrchestrationDashboard() {
     enabled: !!user,
     refetchInterval: 60_000,
     staleTime: 0,
+  });
+
+  const motionAutoscaleFn = useServerFn(getMotionAutoscaleStatus);
+  const { data: motionAutoscale } = useQuery({
+    queryKey: ["motion-autoscale"],
+    queryFn: () => motionAutoscaleFn(),
+    enabled: !!user,
+    refetchInterval: 30_000,
+    staleTime: 0,
+  });
+  const setMotionAutoscaleFn = useServerFn(setMotionAutoscaleEnabled);
+  const autoscalePolicy = useMutation({
+    mutationFn: (enabled: boolean) => setMotionAutoscaleFn({ data: { enabled } }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["motion-autoscale"] }),
   });
 
   const creditsFn = useServerFn(providerCredits);
@@ -643,6 +658,73 @@ function OrchestrationDashboard() {
               <div className="px-5 py-2.5 border-t border-border text-[13px] text-muted-foreground">
                 Standalone HTTP-out inference layer (Colab · RunPod · HF Spaces · Vast.ai · ComfyUI).
               </div>
+            </div>
+
+            {/* Aurora-managed Vast instances */}
+            <div className="rounded-xl border border-border bg-card/40 overflow-hidden">
+              <div className="px-5 py-3 border-b border-border flex items-center justify-between gap-3">
+                <div>
+                  <span className="text-sm font-semibold">Motion autoscaling</span>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    RunPod scale-to-zero first · one managed Vast fallback max
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  disabled={autoscalePolicy.isPending}
+                  onClick={() => {
+                    const enable = !motionAutoscale?.enabled;
+                    if (enable && !window.confirm("Enable motion autoscaling? Aurora may rent one managed Vast fallback at up to $0.35/hr for a maximum of one hour when no healthy registered RunPod motion worker is available.")) return;
+                    autoscalePolicy.mutate(enable);
+                  }}
+                  className="rounded-md border border-border px-2.5 py-1.5 text-xs font-medium hover:bg-muted disabled:opacity-50"
+                >
+                  {autoscalePolicy.isPending ? "Saving…" : motionAutoscale?.enabled ? "Disable" : "Enable"}
+                </button>
+              </div>
+              <div className="grid gap-3 p-5 text-xs sm:grid-cols-2 lg:grid-cols-4">
+                <div>
+                  <div className="text-muted-foreground">Policy</div>
+                  <div className={motionAutoscale?.enabled ? "mt-1 text-emerald-400" : "mt-1 text-amber-400"}>
+                    {motionAutoscale?.enabled ? "Enabled" : "Disabled"}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-muted-foreground">Motion backlog</div>
+                  <div className="mt-1">{motionAutoscale ? `${motionAutoscale.backlog.queued} queued · ${motionAutoscale.backlog.processing} processing` : "Loading…"}</div>
+                </div>
+                <div>
+                  <div className="text-muted-foreground">RunPod readiness</div>
+                  <div className="mt-1">
+                    {!motionAutoscale?.runpod?.configured ? "Not configured" : motionAutoscale.runpod.endpointReady ? "Healthy and registered" : motionAutoscale.runpod.registered ? "Registered, health check pending" : "Awaiting registration"}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-muted-foreground">Current capacity</div>
+                  <div className="mt-1">
+                    {motionAutoscale?.worker
+                      ? `${motionAutoscale.worker.name} · ${motionAutoscale.worker.spareConcurrency} spare`
+                      : motionAutoscale?.vast
+                        ? `${motionAutoscale.vast.state} · ${motionAutoscale.vast.gpuName ?? "Vast worker"}`
+                        : "No eligible worker"}
+                  </div>
+                </div>
+              </div>
+              {motionAutoscale?.cooldown.active && (
+                <div className="px-5 py-2.5 border-t border-amber-500/20 bg-amber-500/5 text-xs text-amber-300">
+                  Cooldown until {new Date(motionAutoscale.cooldown.until ?? "").toLocaleTimeString()}: {motionAutoscale.cooldown.reason ?? "A previous provider attempt failed"}
+                </div>
+              )}
+              {!motionAutoscale?.cooldown.active && motionAutoscale?.cooldown.reason && (
+                <div className="px-5 py-2.5 border-t border-amber-500/20 bg-amber-500/5 text-xs text-amber-300">
+                  {motionAutoscale.cooldown.reason}
+                </div>
+              )}
+              {motionAutoscale?.lastDecision.action && (
+                <div className="px-5 py-2.5 border-t border-border text-xs text-muted-foreground">
+                  Last decision: {motionAutoscale.lastDecision.action}{motionAutoscale.lastDecision.provider ? ` · ${motionAutoscale.lastDecision.provider}` : ""}{motionAutoscale.lastDecision.reason ? ` · ${motionAutoscale.lastDecision.reason}` : ""}
+                </div>
+              )}
             </div>
 
             {/* Aurora-managed Vast instances */}

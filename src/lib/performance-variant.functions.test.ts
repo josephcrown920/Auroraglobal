@@ -3,9 +3,9 @@ import {
   PerformanceVariantPayloadSchema,
   validateVariantRequirements,
   validateVariantStructure,
-  variantInputFingerprint,
   type PerformanceVariantPayload,
 } from "./performance-variant.functions";
+import { performanceVariantInputFingerprint as variantInputFingerprint } from "./motion-preview-fingerprint.server";
 
 const studio = (name: string) => `https://example.supabase.co/storage/v1/object/sign/studio/user/performance/${name}.jpg?token=one`;
 

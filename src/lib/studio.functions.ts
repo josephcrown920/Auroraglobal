@@ -1,7 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
-import { createHash, randomInt } from "node:crypto";
 import { orchestrate, hasActiveWorkerForKind, assertFreeModeServable } from "./orchestrator.server";
 import { buildLatentSyncRequest } from "./lipsync-workflows.server";
 import { fetchToBytes } from "./replicate.server";
@@ -809,7 +808,7 @@ function canonicalMotionMedia(raw: string): string {
 export function motionParamsWithEffectiveSeed(
   params: z.infer<typeof MotionParamsSchema>,
   previewSeed?: number | null,
-  generatedSeed = randomInt(0, 2_147_483_647),
+  generatedSeed = Math.floor(Math.random() * 2_147_483_647),
 ): NonNullable<z.infer<typeof MotionParamsSchema>> {
   return { ...(params ?? {}), seed: params?.seed ?? previewSeed ?? generatedSeed };
 }
@@ -823,32 +822,6 @@ async function previewMotionSeed(userId: string, previewId: string | null | unde
     .eq("mode", "preview")
     .maybeSingle();
   return typeof data?.motion_seed === "number" ? data.motion_seed : null;
-}
-
-export function motionInputFingerprint(input: z.infer<typeof MotionTransferSchema>): string {
-  const params = input.params ?? {};
-  const canonical = JSON.stringify({
-    sourceGenerationId: input.sourceGenerationId ?? null,
-    workflowMode: input.workflowMode ?? null,
-    workflowAngle: input.workflowAngle ?? null,
-    variantWorkflowKind: input.variantWorkflowKind ?? null,
-    variantMode: input.variantMode ?? null,
-    variantPresetId: input.variantPresetId ?? null,
-    imageUrl: canonicalMotionMedia(input.imageUrl),
-    drivingVideoUrl: canonicalMotionMedia(input.drivingVideoUrl),
-    prompt: input.prompt ?? "",
-    params: {
-      motionType: params.motionType ?? "faithful",
-      cameraMovement: params.cameraMovement ?? "static",
-      fps: params.fps ?? 16,
-      frames: params.frames ?? 72,
-      steps: params.steps ?? 25,
-      cfg: params.cfg ?? 2,
-      seed: params.seed ?? null,
-      preserveFace: params.preserveFace ?? true,
-    },
-  });
-  return createHash("sha256").update(canonical).digest("hex");
 }
 
 // Atomic credit reservation + generations row + job row, via the shared RPC.
@@ -960,6 +933,7 @@ export const generateMimicMotion = createServerFn({ method: "POST" })
       data.params,
       await previewMotionSeed(userId, data.confirmPreviewId),
     );
+    const { motionInputFingerprint } = await import("./motion-preview-fingerprint.server");
     const fingerprint = motionInputFingerprint({ ...data, params: effectiveParams });
     const gated = await gateMotionEnqueue(userId, data.confirmPreviewId, effectiveParams, fingerprint);
 
@@ -1009,6 +983,7 @@ export async function _enqueuePerformanceReskin(
     data.params,
     await previewMotionSeed(userId, data.confirmPreviewId),
   );
+  const { performanceReskinFingerprint } = await import("./motion-preview-fingerprint.server");
   const fingerprint = performanceReskinFingerprint({ ...data, params: effectiveParams });
   const gated = await gateMotionEnqueue(userId, data.confirmPreviewId, effectiveParams, fingerprint);
 
@@ -1033,28 +1008,6 @@ export async function _enqueuePerformanceReskin(
   if (gated.previewPass) await markGenerationPreview(out.generationId, fingerprint, effectiveParams.seed);
   await trackServer("performance_reskin_enqueued", userId, { jobId: out.jobId });
   return { ...out, preview: gated.previewPass };
-}
-
-export function performanceReskinFingerprint(data: z.infer<typeof PerformanceReskinSchema>): string {
-  const params = data.params ?? {};
-  return createHash("sha256").update(JSON.stringify({
-    performanceVideoUrl: canonicalMotionMedia(data.performanceVideoUrl),
-    avatarImageUrl: canonicalMotionMedia(data.avatarImageUrl),
-    audioUrl: data.audioUrl ? canonicalMotionMedia(data.audioUrl) : null,
-    outfit: data.outfit ?? "",
-    location: data.location ?? "",
-    prompt: data.prompt ?? "",
-    params: {
-      motionType: params.motionType ?? "faithful",
-      cameraMovement: params.cameraMovement ?? "static",
-      fps: params.fps ?? 16,
-      frames: params.frames ?? 72,
-      steps: params.steps ?? 25,
-      cfg: params.cfg ?? 2,
-      seed: params.seed ?? null,
-      preserveFace: params.preserveFace ?? true,
-    },
-  })).digest("hex");
 }
 
 export const generatePerformanceReskin = createServerFn({ method: "POST" })

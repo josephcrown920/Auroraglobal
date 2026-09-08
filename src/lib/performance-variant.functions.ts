@@ -1,4 +1,3 @@
-import { createHash } from "node:crypto";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
@@ -72,14 +71,6 @@ export function validateVariantStructure(payload: PerformanceVariantPayload): vo
       throw new Error("Motion requires its approved plate and matching performance video");
     }
   }
-}
-
-export function variantInputFingerprint(payload: PerformanceVariantPayload): string {
-  return createHash("sha256").update(JSON.stringify({
-    kind: payload.kind,
-    references: Object.keys(payload.references).sort().map((key) => [key, payload.references[key] ? objectPath(payload.references[key]!) : null]),
-    settings: Object.keys(payload.settings).sort().map((key) => [key, payload.settings[key]]),
-  })).digest("hex");
 }
 
 async function validateOwned(payload: PerformanceVariantPayload, userId: string): Promise<void> {
@@ -175,7 +166,8 @@ export const savePerformanceVariant = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => z.object({ expectedRevision: z.number().int().min(0), payload: PerformanceVariantPayloadSchema }).parse(input))
   .handler(async ({ data, context }) => {
     await validateOwned(data.payload, context.userId);
-    const fingerprint = variantInputFingerprint(data.payload);
+    const { performanceVariantInputFingerprint } = await import("./motion-preview-fingerprint.server");
+    const fingerprint = performanceVariantInputFingerprint(data.payload);
     const { data: previous } = await db.from("performance_variant_drafts").select("payload, revision")
       .eq("user_id", context.userId).eq("mode", data.payload.mode).eq("workflow_kind", data.payload.kind).maybeSingle();
     if (previous && previous.revision !== data.expectedRevision) {

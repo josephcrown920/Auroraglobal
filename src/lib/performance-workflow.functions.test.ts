@@ -4,7 +4,8 @@ import {
   validatePerformanceWorkflowStructure,
 } from "./performance-workflow.functions";
 import { emptyPerformanceWorkflow } from "./performance-workflow";
-import { motionInputFingerprint, motionParamsWithEffectiveSeed, performanceReskinFingerprint } from "./studio.functions";
+import { motionParamsWithEffectiveSeed } from "./studio.functions";
+import { motionInputFingerprint, performanceReskinFingerprint } from "./motion-preview-fingerprint.server";
 import { buildMimicMotionRequest } from "./motion-workflows.server";
 
 const image = "https://project.supabase.co/storage/v1/object/sign/studio/user/uploads/image.jpg";
