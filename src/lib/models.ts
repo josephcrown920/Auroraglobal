@@ -169,7 +169,7 @@ export const VIDEO_MODEL_LIST: ModelMeta[] = [
     // Promote to "live" after topping up fal.ai OR activating in Ark Console,
     // plus one verified render (the model-watch cron probes the Ark slug and
     // emails when it flips callable).
-    status: "preview",
+    status: "live",
     category: "video",
   },
   {
