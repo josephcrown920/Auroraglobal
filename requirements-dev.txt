@@ -1,0 +1,4 @@
+# Minimal dev requirements for running tests locally
+
+# Keep this file minimal; add real dependencies as needed
+pytest
