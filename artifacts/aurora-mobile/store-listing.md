@@ -1,4 +1,4 @@
-# Aurora Studio — Play Store Listing
+# Aurora Performance Studio — Play Store Listing
 
 ## App Details
 
@@ -17,7 +17,7 @@ AI-powered creative studio for generating stunning performance photos & videos.
 
 ## Full Description (4000 chars max)
 
-**Aurora Studio** brings professional AI-powered creative tools to your fingertips. Designed for performers, musicians, content creators, and artists, Aurora transforms your photos into stunning performance shots, cinematic music video stills, and viral UGC content — all in seconds.
+**Aurora Performance Studio** brings professional AI-powered creative tools to your fingertips. Designed for performers, musicians, content creators, and artists, Aurora transforms your photos into stunning performance shots, cinematic music video stills, and viral UGC content — all in seconds.
 
 ### What You Can Create
 
@@ -76,7 +76,7 @@ Capture screenshots at 1080×1920 (portrait) showing:
 1024×500 px banner:
 - Dark background (#0b0b14)
 - Aurora logo (violet lightning bolt) on left
-- App name "Aurora Studio" in bold white text
+- App name "Aurora Performance Studio" in bold white text
 - Tagline: "AI Creative Studio for Artists"
 - Purple gradient accent on right showing a sample generation
 
@@ -151,7 +151,7 @@ Whether you're a musician releasing your next single, an influencer building you
 
 ### What's New (Version 1.0)
 
-First release! Introducing Aurora Studio for iOS — performance shots, lip-sync video, music video stills, and UGC ad creation powered by AI. Upload a selfie and generate in under 60 seconds.
+First release! Introducing Aurora Performance Studio for iOS — performance shots, lip-sync video, music video stills, and UGC ad creation powered by AI. Upload a selfie and generate in under 60 seconds.
 
 ---
 

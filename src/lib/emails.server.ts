@@ -70,7 +70,7 @@ export async function sendEmail(payload: EmailPayload) {
   }
 
   const apiKey = process.env.RESEND_API_KEY;
-  const from = process.env.AURORA_FROM_EMAIL || "Aurora Studio <noreply@auroraperformancestudio.com>";
+  const from = process.env.AURORA_FROM_EMAIL || "Aurora Performance Studio <noreply@auroraperformancestudio.com>";
   if (!apiKey) {
     await supabaseAdmin.from("email_log").update({ status: "skipped" }).eq("id", emailId);
     return { success: true as const, emailId, skipped: true };
@@ -144,7 +144,7 @@ function subjectFor(template: string, data: Record<string, unknown>): string {
     case "onboarding_resume":
       return "Finish your first creation — bonus Aura inside";
     default:
-      return "Aurora Studio";
+      return "Aurora Performance Studio";
   }
 }
 
@@ -154,7 +154,7 @@ function shell(name: string, body: string, ctaLabel: string, ctaUrl: string): st
   const safeName = escapeHtml(name);
   return `<!doctype html>
 <html lang="en">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Aurora Studio</title></head>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Aurora Performance Studio</title></head>
 <body style="margin:0;padding:0;background:#080a12;font-family:system-ui,-apple-system,'Segoe UI',Helvetica,Arial,sans-serif">
 <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="background:#080a12">
 <tr><td align="center" style="padding:48px 16px">
@@ -162,7 +162,7 @@ function shell(name: string, body: string, ctaLabel: string, ctaUrl: string): st
 
   <tr><td style="padding-bottom:28px;text-align:center">
     <a href="${SITE}" style="text-decoration:none">
-      <span style="font-size:24px;font-weight:800;letter-spacing:-0.5px;color:#a78bfa">Aurora</span><span style="font-size:24px;font-weight:300;color:#6b7280"> Studio</span>
+      <span style="font-size:24px;font-weight:800;letter-spacing:-0.5px;color:#a78bfa">Aurora</span><span style="font-size:24px;font-weight:300;color:#6b7280"> Performance Studio</span>
     </a>
   </td></tr>
 
@@ -391,7 +391,7 @@ function renderTemplate(template: string, data: Record<string, unknown>): string
       );
 
     default:
-      return shell(name, p("Update from Aurora Studio."), "Open Aurora", SITE);
+      return shell(name, p("Update from Aurora Performance Studio."), "Open Aurora", SITE);
   }
 }
 

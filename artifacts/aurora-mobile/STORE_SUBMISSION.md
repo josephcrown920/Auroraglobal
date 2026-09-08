@@ -1,13 +1,13 @@
-# Aurora Studio — Store Submission Pack
+# Aurora Performance Studio — Store Submission Pack
 
 ## Store listing copy
 
-**App name:** Aurora Studio  
+**App name:** Aurora Performance Studio  
 **Subtitle / short description:** Direct cinematic AI visuals from your phone
 
 **Description**
 
-Aurora Studio is the creative workspace for artists who want to direct their visual identity from their phone.
+Aurora Performance Studio is the creative workspace for artists who want to direct their visual identity from their phone.
 
 Start with a photo, clip, or idea. Stage a performance, build a cinematic image, change the world around a video, and keep every finished piece in one gallery. Aurora gives you focused creative controls for scenes, references, motion, and style—without a complicated desktop workflow.
 
@@ -15,7 +15,7 @@ Create for your next music release, campaign, portfolio, or social post. Your di
 
 **Keywords**
 
-AI video, AI image generator, performance video, creative studio, music video, creator tools, cinematic, Aurora Studio
+AI video, AI image generator, performance video, creative studio, music video, creator tools, cinematic, Aurora Performance Studio
 
 **Privacy policy:** https://auroraperformancestudio.com/privacy  
 **Support:** https://auroraperformancestudio.com
@@ -53,7 +53,7 @@ bash scripts/eas-preflight.sh
 
 The production profile in `eas.json` produces an Android App Bundle (`.aab`) with `versionCode` 2. Upload that AAB manually in Google Play Console:
 
-1. Create or open the Aurora Studio app record.
+1. Create or open the Aurora Performance Studio app record.
 2. Go to **Testing → Internal testing** and create a release.
 3. Upload the production `.aab`, add testers, and roll out to internal testing.
 4. Test the install from the Google Play internal-test invite before moving to closed or production testing.

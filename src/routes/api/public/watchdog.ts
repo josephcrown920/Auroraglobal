@@ -670,7 +670,7 @@ async function sendOperatorAlert(opts: { subject: string; body: string }): Promi
 <tr><td align="center" style="padding:40px 16px">
 <table width="100%" cellpadding="0" cellspacing="0" style="max-width:520px">
   <tr><td style="padding-bottom:24px;text-align:center">
-    <span style="font-size:22px;font-weight:800;color:#a78bfa">Aurora</span><span style="font-size:22px;font-weight:300;color:#6b7280"> Studio</span>
+    <span style="font-size:22px;font-weight:800;color:#a78bfa">Aurora</span><span style="font-size:22px;font-weight:300;color:#6b7280"> Performance Studio</span>
   </td></tr>
   <tr><td style="background:#0f1123;border:1px solid rgba(167,139,250,0.18);border-radius:14px;padding:32px 28px">
     ${opts.body}

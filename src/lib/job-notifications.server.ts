@@ -101,7 +101,7 @@ export async function sendJobStatusEmail(input: JobStatusEmailInput): Promise<vo
 
     const apiKey = process.env.RESEND_API_KEY;
     const from =
-      process.env.AURORA_FROM_EMAIL || "Aurora Studio <noreply@auroraperformancestudio.com>";
+      process.env.AURORA_FROM_EMAIL || "Aurora Performance Studio <noreply@auroraperformancestudio.com>";
     if (!apiKey) {
       if (logId) await supabaseAdmin.from("email_log").update({ status: "skipped" }).eq("id", logId);
       return;

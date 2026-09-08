@@ -33,7 +33,7 @@ export const Route = createFileRoute("/api/public/workers/health")({
               if (!apiKey) throw new Error("RESEND_API_KEY not set");
               const from =
                 process.env.AURORA_FROM_EMAIL ||
-                "Aurora Studio <noreply@auroraperformancestudio.com>";
+                "Aurora Performance Studio <noreply@auroraperformancestudio.com>";
               const workerList = autoPaused
                 .map((w) => `• ${w.name} (${w.endpoint_url}): ${w.error ?? "no response"}`)
                 .join("\n");

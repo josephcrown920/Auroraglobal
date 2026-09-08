@@ -1,9 +1,9 @@
 {
   "expo": {
-    "name": "Aurora Studio",
+    "name": "Aurora Performance Studio",
     "slug": "aurora-performance-studio",
     "version": "1.0.0",
-    "description": "Create cinematic AI performance images and videos from your own photos, clips, and creative direction. Aurora Studio helps artists stage scenes, direct camera movement, and share studio-quality work from one mobile workspace.",
+    "description": "Create cinematic AI performance images and videos from your own photos, clips, and creative direction. Aurora Performance Studio helps artists stage scenes, direct camera movement, and share studio-quality work from one mobile workspace.",
     "keywords": [
       "AI video",
       "AI image generator",
@@ -12,7 +12,7 @@
       "music video",
       "creator tools",
       "cinematic",
-      "Aurora Studio"
+      "Aurora Performance Studio"
     ],
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -72,8 +72,8 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "Allow Aurora Studio to access your photos to use as reference images for AI generation.",
-          "cameraPermission": "Allow Aurora Studio to use your camera to capture photos for AI generation."
+          "photosPermission": "Allow Aurora Performance Studio to access your photos to use as reference images for AI generation.",
+          "cameraPermission": "Allow Aurora Performance Studio to use your camera to capture photos for AI generation."
         }
       ],
       "expo-video"
