@@ -1195,7 +1195,14 @@ export type Database = {
           created_at: string
           id: string
           music_track_id: string | null
+          result_path: string | null
           result_url: string | null
+          soundtrack_mode: string
+          soundtrack_offset_sec: number
+          soundtrack_trim_end_sec: number
+          soundtrack_trim_start_sec: number
+          soundtrack_volume: number
+          source_audio_path: string | null
           status: string
           style: string
           title: string
@@ -1208,7 +1215,14 @@ export type Database = {
           created_at?: string
           id?: string
           music_track_id?: string | null
+          result_path?: string | null
           result_url?: string | null
+          soundtrack_mode?: string
+          soundtrack_offset_sec?: number
+          soundtrack_trim_end_sec?: number
+          soundtrack_trim_start_sec?: number
+          soundtrack_volume?: number
+          source_audio_path?: string | null
           status?: string
           style?: string
           title?: string
@@ -1221,7 +1235,14 @@ export type Database = {
           created_at?: string
           id?: string
           music_track_id?: string | null
+          result_path?: string | null
           result_url?: string | null
+          soundtrack_mode?: string
+          soundtrack_offset_sec?: number
+          soundtrack_trim_end_sec?: number
+          soundtrack_trim_start_sec?: number
+          soundtrack_volume?: number
+          source_audio_path?: string | null
           status?: string
           style?: string
           title?: string
@@ -1385,7 +1406,9 @@ export type Database = {
           kind: string
           mode: string
           model: string | null
+          motion_seed: number | null
           motion_video_url: string | null
+          preview_fingerprint: string | null
           prompt: string
           result_image_url: string | null
           result_text: string | null
@@ -1413,7 +1436,9 @@ export type Database = {
           kind?: string
           mode?: string
           model?: string | null
+          motion_seed?: number | null
           motion_video_url?: string | null
+          preview_fingerprint?: string | null
           prompt: string
           result_image_url?: string | null
           result_text?: string | null
@@ -1441,7 +1466,9 @@ export type Database = {
           kind?: string
           mode?: string
           model?: string | null
+          motion_seed?: number | null
           motion_video_url?: string | null
+          preview_fingerprint?: string | null
           prompt?: string
           result_image_url?: string | null
           result_text?: string | null
@@ -2091,6 +2118,206 @@ export type Database = {
         }
         Relationships: []
       }
+      multishot_projects: {
+        Row: {
+          aspect_ratio: string
+          audio_reference_url: string | null
+          created_at: string
+          id: string
+          identity_anchor: string
+          reference_urls: Json
+          revision: number
+          strict_google_only: boolean
+          style: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          aspect_ratio?: string
+          audio_reference_url?: string | null
+          created_at?: string
+          id?: string
+          identity_anchor?: string
+          reference_urls?: Json
+          revision?: number
+          strict_google_only?: boolean
+          style?: string
+          title?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          aspect_ratio?: string
+          audio_reference_url?: string | null
+          created_at?: string
+          id?: string
+          identity_anchor?: string
+          reference_urls?: Json
+          revision?: number
+          strict_google_only?: boolean
+          style?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      multishot_shots: {
+        Row: {
+          approval_digest: string | null
+          approved_at: string | null
+          created_at: string
+          engine: string
+          fallback_used: boolean
+          final_error: string | null
+          final_lease_until: string | null
+          final_operation_token: string | null
+          final_status: string
+          id: string
+          input_digest: string | null
+          position: number
+          preview_error: string | null
+          preview_generation_id: string | null
+          preview_lease_until: string | null
+          preview_operation_token: string | null
+          preview_status: string
+          preview_url: string | null
+          project_id: string
+          promoted_generation_id: string | null
+          promoted_model: string | null
+          promoted_url: string | null
+          prompt: string
+          requested_model: string | null
+          revision: number
+          selected: boolean
+          serving_model: string | null
+          temporal_approval_digest: string | null
+          temporal_approved_at: string | null
+          temporal_error: string | null
+          temporal_generation_id: string | null
+          temporal_input_digest: string | null
+          temporal_lease_until: string | null
+          temporal_operation_token: string | null
+          temporal_serving_model: string | null
+          temporal_status: string
+          temporal_url: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          approval_digest?: string | null
+          approved_at?: string | null
+          created_at?: string
+          engine: string
+          fallback_used?: boolean
+          final_error?: string | null
+          final_lease_until?: string | null
+          final_operation_token?: string | null
+          final_status?: string
+          id?: string
+          input_digest?: string | null
+          position: number
+          preview_error?: string | null
+          preview_generation_id?: string | null
+          preview_lease_until?: string | null
+          preview_operation_token?: string | null
+          preview_status?: string
+          preview_url?: string | null
+          project_id: string
+          promoted_generation_id?: string | null
+          promoted_model?: string | null
+          promoted_url?: string | null
+          prompt: string
+          requested_model?: string | null
+          revision?: number
+          selected?: boolean
+          serving_model?: string | null
+          temporal_approval_digest?: string | null
+          temporal_approved_at?: string | null
+          temporal_error?: string | null
+          temporal_generation_id?: string | null
+          temporal_input_digest?: string | null
+          temporal_lease_until?: string | null
+          temporal_operation_token?: string | null
+          temporal_serving_model?: string | null
+          temporal_status?: string
+          temporal_url?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          approval_digest?: string | null
+          approved_at?: string | null
+          created_at?: string
+          engine?: string
+          fallback_used?: boolean
+          final_error?: string | null
+          final_lease_until?: string | null
+          final_operation_token?: string | null
+          final_status?: string
+          id?: string
+          input_digest?: string | null
+          position?: number
+          preview_error?: string | null
+          preview_generation_id?: string | null
+          preview_lease_until?: string | null
+          preview_operation_token?: string | null
+          preview_status?: string
+          preview_url?: string | null
+          project_id?: string
+          promoted_generation_id?: string | null
+          promoted_model?: string | null
+          promoted_url?: string | null
+          prompt?: string
+          requested_model?: string | null
+          revision?: number
+          selected?: boolean
+          serving_model?: string | null
+          temporal_approval_digest?: string | null
+          temporal_approved_at?: string | null
+          temporal_error?: string | null
+          temporal_generation_id?: string | null
+          temporal_input_digest?: string | null
+          temporal_lease_until?: string | null
+          temporal_operation_token?: string | null
+          temporal_serving_model?: string | null
+          temporal_status?: string
+          temporal_url?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "multishot_shots_preview_generation_id_fkey"
+            columns: ["preview_generation_id"]
+            isOneToOne: false
+            referencedRelation: "generations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "multishot_shots_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "multishot_projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "multishot_shots_promoted_generation_id_fkey"
+            columns: ["promoted_generation_id"]
+            isOneToOne: false
+            referencedRelation: "generations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "multishot_shots_temporal_generation_id_fkey"
+            columns: ["temporal_generation_id"]
+            isOneToOne: false
+            referencedRelation: "generations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       owner_withdrawals: {
         Row: {
           amount_minor: number
@@ -2198,6 +2425,60 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      performance_variant_drafts: {
+        Row: {
+          created_at: string
+          mode: string
+          payload: Json
+          revision: number
+          updated_at: string
+          user_id: string
+          workflow_kind: string
+        }
+        Insert: {
+          created_at?: string
+          mode: string
+          payload: Json
+          revision?: number
+          updated_at?: string
+          user_id: string
+          workflow_kind: string
+        }
+        Update: {
+          created_at?: string
+          mode?: string
+          payload?: Json
+          revision?: number
+          updated_at?: string
+          user_id?: string
+          workflow_kind?: string
+        }
+        Relationships: []
+      }
+      performance_workflow_drafts: {
+        Row: {
+          created_at: string
+          mode: string
+          payload: Json
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          mode: string
+          payload: Json
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          mode?: string
+          payload?: Json
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       posts: {
         Row: {
@@ -3536,6 +3817,7 @@ export type Database = {
           generation_id: string | null
           id: string
           job_id: string | null
+          production: Json | null
           prompt: string
           scenes: Json
           status: string
@@ -3555,6 +3837,7 @@ export type Database = {
           generation_id?: string | null
           id?: string
           job_id?: string | null
+          production?: Json | null
           prompt: string
           scenes?: Json
           status?: string
@@ -3574,6 +3857,7 @@ export type Database = {
           generation_id?: string | null
           id?: string
           job_id?: string | null
+          production?: Json | null
           prompt?: string
           scenes?: Json
           status?: string
@@ -3893,6 +4177,19 @@ export type Database = {
         Args: { _expires_at: string; _sub_code: string; _user: string }
         Returns: undefined
       }
+      claim_multishot_operation: {
+        Args: {
+          _expected_revision: number
+          _expected_status: string
+          _expected_token: string
+          _kind: string
+          _lease_seconds?: number
+          _new_token: string
+          _shot_id: string
+          _user_id: string
+        }
+        Returns: boolean
+      }
       claim_next_job: {
         Args: { _worker: string }
         Returns: {
@@ -4005,6 +4302,18 @@ export type Database = {
         Args: {
           _amount: number
           _kind: string
+          _payload: Json
+          _prompt: string
+          _user: string
+        }
+        Returns: {
+          generation_id: string
+          job_id: string
+        }[]
+      }
+      create_motion_generation_and_reserve: {
+        Args: {
+          _amount: number
           _payload: Json
           _prompt: string
           _user: string

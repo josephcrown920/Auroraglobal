@@ -156,3 +156,4 @@
 - [AI router provider quirks](ai-router-provider-quirks.md) — probe every LLM provider live with the REAL schema; OpenAI-compat needs json_schema + strictJsonSchema:false (Anthropic strict-only); Replit Gemini proxy is native-only.
 - [Avatar-shot Kling engine truth](kling-subscription-gate.md) — reservation paths must pass forSubscriber:true + pinnedModelOnly:true for Kling or the orchestrator silently serves another video model under the Kling label/price.
 - [Hybrid agent fallback policy](hybrid-agent-fallback-policy.md) — automatic compatible fallback applies to brains and renderers; disclose the serving engine, retain Seedream/Seedance, protect preview approvals.
+- [Video Agent action claims](video-agent-action-claims.md) — paid NBA Josh mutations need a project-row CAS claim before dispatch, and stored results must retain the actual serving engine.

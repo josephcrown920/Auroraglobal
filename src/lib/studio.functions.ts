@@ -763,7 +763,7 @@ async function gateMotionEnqueue(
   fingerprint?: string,
 ): Promise<{ previewPass: boolean; params: z.infer<typeof MotionParamsSchema> }> {
   if (confirmPreviewId && fingerprint) {
-    const { data: preview } = await (supabaseAdmin as any)
+    const { data: preview } = await supabaseAdmin
       .from("generations")
       .select("id")
       .eq("id", confirmPreviewId)
@@ -789,7 +789,7 @@ async function gateMotionEnqueue(
 
 /** Mark a freshly reserved generation as a preview so its id validates as a ticket. */
 async function markGenerationPreview(generationId: string, fingerprint?: string, motionSeed?: number): Promise<void> {
-  await (supabaseAdmin as any)
+  await supabaseAdmin
     .from("generations")
     .update({
       mode: "preview",
@@ -815,7 +815,7 @@ export function motionParamsWithEffectiveSeed(
 
 async function previewMotionSeed(userId: string, previewId: string | null | undefined): Promise<number | null> {
   if (!previewId) return null;
-  const { data } = await (supabaseAdmin as any).from("generations")
+  const { data } = await supabaseAdmin.from("generations")
     .select("motion_seed")
     .eq("id", previewId)
     .eq("user_id", userId)
@@ -823,6 +823,18 @@ async function previewMotionSeed(userId: string, previewId: string | null | unde
     .maybeSingle();
   return typeof data?.motion_seed === "number" ? data.motion_seed : null;
 }
+
+type MotionWorkflowPayload = {
+  approvalProvenance?: {
+    wideGenerationId?: unknown;
+    closeupGenerationId?: unknown;
+    base?: unknown;
+    angles?: Record<string, unknown>;
+  };
+  assetPaths?: Record<string, unknown>;
+  angleVideoOverridePaths?: Record<string, unknown>;
+  phoneVideoUrlPath?: unknown;
+};
 
 // Atomic credit reservation + generations row + job row, via the shared RPC.
 async function reserveGenerationJob(
@@ -881,18 +893,18 @@ export const generateMimicMotion = createServerFn({ method: "POST" })
       }
     }
     if (data.workflowMode && data.workflowAngle) {
-      const { data: workflow } = await (supabaseAdmin as any)
+      const { data: workflow } = await supabaseAdmin
         .from("performance_workflow_drafts")
         .select("payload")
         .eq("user_id", userId)
         .eq("mode", data.workflowMode)
         .maybeSingle();
-      const payload = workflow?.payload as Record<string, any> | undefined;
-      const provenance = payload?.approvalProvenance as Record<string, unknown> | undefined;
+      const payload = workflow?.payload as unknown as MotionWorkflowPayload | undefined;
+      const provenance = payload?.approvalProvenance;
       const expected = data.workflowAngle === "wide"
         ? provenance?.wideGenerationId
         : provenance?.closeupGenerationId;
-      const paths = payload?.assetPaths as Record<string, unknown> | undefined;
+      const paths = payload?.assetPaths;
       if (
         expected !== data.sourceGenerationId ||
         typeof paths?.wideReferenceUrl !== "string" ||
@@ -902,14 +914,14 @@ export const generateMimicMotion = createServerFn({ method: "POST" })
       }
     }
     if (data.variantWorkflowKind && data.variantMode && data.variantPresetId) {
-      const { data: workflow } = await (supabaseAdmin as any)
+      const { data: workflow } = await supabaseAdmin
         .from("performance_variant_drafts")
         .select("payload")
         .eq("user_id", userId)
         .eq("mode", data.variantMode)
         .eq("workflow_kind", data.variantWorkflowKind)
         .maybeSingle();
-      const payload = workflow?.payload as Record<string, any> | undefined;
+      const payload = workflow?.payload as unknown as MotionWorkflowPayload | undefined;
       const approved = data.variantPresetId === "base"
         ? payload?.approvalProvenance?.base
         : payload?.approvalProvenance?.angles?.[data.variantPresetId];

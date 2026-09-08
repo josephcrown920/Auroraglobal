@@ -46,7 +46,7 @@ function managed(over: Partial<ManagedInstanceRow> = {}): ManagedInstanceRow {
 function setup(over: Partial<{
   state: Partial<MotionAutoscaleState>;
   jobs: Array<{ status: string }>;
-  workers: any[];
+  workers: Array<Record<string, unknown>>;
   vastRows: ManagedInstanceRow[];
   claim: boolean;
   runpod: { endpointId?: string; apiKey?: string };

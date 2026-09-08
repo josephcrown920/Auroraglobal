@@ -45,6 +45,10 @@ const SaveSchema = z.object({
 
 type WorkflowPayload = z.infer<typeof PerformanceWorkflowPayloadSchema>;
 type LooseDb = {
+  // This table is deployed in older environments without the optional
+  // revision column, so keep the compatibility adapter until its migration
+  // is applied everywhere.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   from: (table: string) => any;
 };
 const db = supabaseAdmin as unknown as LooseDb;
@@ -179,7 +183,7 @@ async function validateClip(
     .maybeSingle();
   if (jobError || !job) throw new Error("Motion job provenance could not be verified");
   if (clip.previewId) {
-    const { data: preview } = await db
+    const { data: preview } = await supabaseAdmin
       .from("generations")
       .select("id")
       .eq("id", clip.previewId)
@@ -247,7 +251,7 @@ export const savePerformanceWorkflowDraft = createServerFn({ method: "POST" })
         .insert({
           user_id: context.userId,
           mode: data.payload.mode,
-          payload: storedPayload,
+          payload: storedPayload as unknown,
           revision: 1,
           updated_at: new Date().toISOString(),
         })
@@ -260,7 +264,7 @@ export const savePerformanceWorkflowDraft = createServerFn({ method: "POST" })
       const { data: updated, error } = await db
         .from("performance_workflow_drafts")
         .update({
-          payload: storedPayload,
+          payload: storedPayload as unknown,
           revision: nextRevision,
           updated_at: new Date().toISOString(),
         })
@@ -318,7 +322,7 @@ export const createPerformanceEditHandoff = createServerFn({ method: "POST" })
       trimStartSec: 0,
       trimEndSec: 0,
     };
-    const { data: session, error: sessionError } = await db
+    const { data: session, error: sessionError } = await supabaseAdmin
       .from("edit_sessions")
       .insert({
         user_id: context.userId,

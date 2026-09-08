@@ -5,8 +5,8 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { assertOwnedReferenceImage, assertOwnStudioUpload } from "@/lib/url-guard";
 import { computeCost } from "@/lib/pricing";
 import { LUXURY_INTERIOR_PRESETS, REANGLE_PRESETS, requiredReferenceIds } from "./performance-variant-workflows";
+import type { Json } from "@/integrations/supabase/types";
 
-const db = supabaseAdmin as any;
 const Kind = z.enum(["build_scene", "luxury_interior"]);
 const Mode = z.enum(["colors", "anywhere"]);
 const Plate = z.object({
@@ -93,7 +93,7 @@ async function validateOwned(payload: PerformanceVariantPayload, userId: string)
   for (const motion of payload.motions) {
     const [{ data: generation }, { data: job }] = await Promise.all([
       supabaseAdmin.from("generations").select("id, kind").eq("id", motion.generationId).eq("user_id", userId).maybeSingle(),
-      db.from("jobs").select("id, generation_id").eq("id", motion.jobId).eq("user_id", userId).maybeSingle(),
+      supabaseAdmin.from("jobs").select("id, generation_id").eq("id", motion.jobId).eq("user_id", userId).maybeSingle(),
     ]);
     if (!generation || generation.kind !== "motion" || job?.generation_id !== motion.generationId) {
       throw new Error("Motion generation/job provenance is invalid");
@@ -102,19 +102,22 @@ async function validateOwned(payload: PerformanceVariantPayload, userId: string)
 }
 
 function storagePayload(payload: PerformanceVariantPayload, fingerprint: string) {
-  const stored: Record<string, any> = structuredClone(payload);
-  stored.referencePaths = {};
+  const stored: Record<string, unknown> = structuredClone(payload) as unknown as Record<string, unknown>;
+  const references = stored.references as Record<string, string | null>;
+  const referencePaths: Record<string, string> = {};
+  stored.referencePaths = referencePaths;
   for (const [key, url] of Object.entries(payload.references)) {
-    if (url) stored.referencePaths[key] = objectPath(url);
-    stored.references[key] = null;
+    if (url) referencePaths[key] = objectPath(url);
+    references[key] = null;
   }
   for (const key of ["phoneVideoUrl", "audioUrl"] as const) {
     if (payload[key]) stored[`${key}Path`] = objectPath(payload[key]!);
     stored[key] = null;
   }
-  stored.angleVideoOverridePaths = {};
+  const angleVideoOverridePaths: Record<string, string> = {};
+  stored.angleVideoOverridePaths = angleVideoOverridePaths;
   for (const [key, url] of Object.entries(payload.angleVideoOverrides)) {
-    stored.angleVideoOverridePaths[key] = objectPath(url);
+    angleVideoOverridePaths[key] = objectPath(url);
   }
   stored.angleVideoOverrides = {};
   stored.inputFingerprint = fingerprint;
@@ -125,29 +128,45 @@ function storagePayload(payload: PerformanceVariantPayload, fingerprint: string)
   return stored;
 }
 
-async function clientPayload(raw: Record<string, any>, userId: string): Promise<PerformanceVariantPayload> {
-  const value = structuredClone(raw);
+async function clientPayload(raw: Record<string, unknown>, userId: string): Promise<PerformanceVariantPayload> {
+  const value = structuredClone(raw) as Record<string, unknown>;
+  value.references = { ...value.references as Record<string, string | null> };
+  const referencePaths = value.referencePaths && typeof value.referencePaths === "object"
+    ? value.referencePaths as Record<string, unknown>
+    : {};
+  const angleVideoOverridePaths = value.angleVideoOverridePaths && typeof value.angleVideoOverridePaths === "object"
+    ? value.angleVideoOverridePaths as Record<string, unknown>
+    : {};
   const sign = async (path: unknown) => {
     if (typeof path !== "string") return null;
     const { data, error } = await supabaseAdmin.storage.from("studio").createSignedUrl(path, 60 * 60 * 24);
     if (error || !data?.signedUrl) throw new Error("Could not restore workflow media");
     return data.signedUrl;
   };
-  for (const [key, path] of Object.entries(raw.referencePaths ?? {})) value.references[key] = await sign(path);
-  value.phoneVideoUrl = await sign(raw.phoneVideoUrlPath);
-  value.audioUrl = await sign(raw.audioUrlPath);
+  for (const [key, path] of Object.entries(referencePaths)) {
+    (value.references as Record<string, string | null>)[key] = await sign(path);
+  }
+  value.phoneVideoUrl = await sign(value.phoneVideoUrlPath);
+  value.audioUrl = await sign(value.audioUrlPath);
   value.angleVideoOverrides = {};
-  for (const [key, path] of Object.entries(raw.angleVideoOverridePaths ?? {})) value.angleVideoOverrides[key] = await sign(path);
-  await Promise.all(([raw.base, ...((raw.angles ?? []) as Array<Record<string, any>>)]).map(async (plate, index) => {
-    if (!plate || typeof plate !== "object" || !plate.generationId) return;
+  for (const [key, path] of Object.entries(angleVideoOverridePaths)) {
+    (value.angleVideoOverrides as Record<string, string>)[key] = (await sign(path)) ?? "";
+  }
+  const rawAngles = Array.isArray(value.angles) ? value.angles : [];
+  await Promise.all(([value.base, ...rawAngles]).map(async (plate, index) => {
+    if (!plate || typeof plate !== "object") return;
+    const plateRecord = plate as Record<string, unknown>;
+    const generationId = plateRecord.generationId;
+    if (typeof generationId !== "string") return;
     const { data } = await supabaseAdmin.from("generations").select("result_image_url")
-      .eq("id", plate.generationId).eq("user_id", userId).maybeSingle();
+      .eq("id", generationId).eq("user_id", userId).maybeSingle();
     if (!data?.result_image_url) throw new Error("Could not restore generated plate");
     let url = data.result_image_url;
     try { url = (await sign(objectPath(url))) ?? url; } catch { /* owned provider URL remains canonical */ }
-    if (index === 0) value.base = { ...plate, url };
-    else value.angles[index - 1] = { ...plate, url };
+    if (index === 0) value.base = { ...plateRecord, url };
+    else rawAngles[index - 1] = { ...plateRecord, url };
   }));
+  value.angles = rawAngles;
   return PerformanceVariantPayloadSchema.parse(value);
 }
 
@@ -155,10 +174,10 @@ export const loadPerformanceVariant = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => z.object({ mode: Mode, kind: Kind }).parse(input))
   .handler(async ({ data, context }) => {
-    const { data: row, error } = await db.from("performance_variant_drafts")
+    const { data: row, error } = await supabaseAdmin.from("performance_variant_drafts")
       .select("payload, revision").eq("user_id", context.userId).eq("mode", data.mode).eq("workflow_kind", data.kind).maybeSingle();
     if (error) throw new Error(error.message);
-    return row ? { payload: await clientPayload(row.payload, context.userId), revision: row.revision as number } : { payload: null, revision: 0 };
+    return row ? { payload: await clientPayload(row.payload as unknown as Record<string, unknown>, context.userId), revision: row.revision as number } : { payload: null, revision: 0 };
   });
 
 export const savePerformanceVariant = createServerFn({ method: "POST" })
@@ -168,12 +187,13 @@ export const savePerformanceVariant = createServerFn({ method: "POST" })
     await validateOwned(data.payload, context.userId);
     const { performanceVariantInputFingerprint } = await import("./motion-preview-fingerprint.server");
     const fingerprint = performanceVariantInputFingerprint(data.payload);
-    const { data: previous } = await db.from("performance_variant_drafts").select("payload, revision")
+    const { data: previous } = await supabaseAdmin.from("performance_variant_drafts").select("payload, revision")
       .eq("user_id", context.userId).eq("mode", data.payload.mode).eq("workflow_kind", data.payload.kind).maybeSingle();
     if (previous && previous.revision !== data.expectedRevision) {
-      return { ok: false as const, revision: previous.revision as number, payload: await clientPayload(previous.payload, context.userId) };
+      return { ok: false as const, revision: previous.revision as number, payload: await clientPayload(previous.payload as unknown as Record<string, unknown>, context.userId) };
     }
-    let canonical = previous?.payload?.inputFingerprint && previous.payload.inputFingerprint !== fingerprint
+    const previousPayload = previous?.payload as unknown as Record<string, unknown> | null;
+    let canonical = previousPayload?.inputFingerprint && previousPayload.inputFingerprint !== fingerprint
       ? { ...data.payload, base: null, angles: [], motions: [] }
       : data.payload;
     canonical = {
@@ -184,9 +204,9 @@ export const savePerformanceVariant = createServerFn({ method: "POST" })
     const stored = storagePayload(canonical, fingerprint);
     const next = data.expectedRevision + 1;
     const query = previous
-      ? db.from("performance_variant_drafts").update({ payload: stored, revision: next, updated_at: new Date().toISOString() })
+      ? supabaseAdmin.from("performance_variant_drafts").update({ payload: stored as unknown as Json, revision: next, updated_at: new Date().toISOString() })
         .eq("user_id", context.userId).eq("mode", canonical.mode).eq("workflow_kind", canonical.kind).eq("revision", data.expectedRevision)
-      : db.from("performance_variant_drafts").insert({ user_id: context.userId, mode: canonical.mode, workflow_kind: canonical.kind, payload: stored, revision: 1 });
+      : supabaseAdmin.from("performance_variant_drafts").insert({ user_id: context.userId, mode: canonical.mode, workflow_kind: canonical.kind, payload: stored as unknown as Json, revision: 1 });
     const { error } = await query;
     if (error) throw new Error(error.message);
     return { ok: true as const, revision: next, payload: canonical };
@@ -204,9 +224,10 @@ export const generatePerformanceVariantPlate = createServerFn({ method: "POST" }
     if (data.presetId && !preset) throw new Error("Unknown re-angle");
     if (data.presetId && !data.payload.selectedAngles.includes(data.presetId)) throw new Error("Select this variant before generating it");
     if (data.presetId) {
-      const { data: saved } = await db.from("performance_variant_drafts").select("payload")
+      const { data: saved } = await supabaseAdmin.from("performance_variant_drafts").select("payload")
         .eq("user_id", context.userId).eq("mode", data.payload.mode).eq("workflow_kind", data.payload.kind).maybeSingle();
-      if (saved?.payload?.approvalProvenance?.base !== data.payload.base?.generationId) {
+      const savedPayload = saved?.payload as unknown as { approvalProvenance?: { base?: unknown } } | null;
+      if (savedPayload?.approvalProvenance?.base !== data.payload.base?.generationId) {
         throw new Error("The approved base must be saved before generating continuity variants");
       }
     }

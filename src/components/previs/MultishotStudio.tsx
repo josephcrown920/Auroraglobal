@@ -357,6 +357,11 @@ export function MultishotStudio({ userId }: { userId: string }) {
             <div className="relative aspect-video bg-black/30">
               {shot.previewUrl ? <img src={shot.previewUrl} alt={`Shot ${shot.position + 1} preview`} className="size-full object-cover" /> :
                 <div className="flex size-full items-center justify-center text-ink-dim">{shot.previewStatus === "processing" ? <Loader2 className="size-7 animate-spin text-prime" /> : <Film className="size-7" />}</div>}
+              {shot.previewStatus === "processing" && shot.previewUrl && (
+                <div className="absolute inset-0 flex items-center justify-center bg-black/65 text-xs text-white">
+                  <span className="flex items-center gap-2"><Loader2 className="size-4 animate-spin text-prime" /> Refreshing preview</span>
+                </div>
+              )}
               <span className="absolute left-3 top-3 rounded-md bg-black/70 px-2 py-1 text-[10px] text-white">SHOT {shot.position + 1}</span>
             </div>
             <div className="space-y-3 p-4">
@@ -377,13 +382,13 @@ export function MultishotStudio({ userId }: { userId: string }) {
                 <button className="previs-plate-action-btn" disabled={busy === shot.id || (shot.previewStatus === "processing" && Boolean(shot.previewLeaseUntil) && Date.parse(shot.previewLeaseUntil!) > Date.now())} onClick={() => void mutateShot(shot.id, () => retryFn({ data: { projectId: active.id, shotId: shot.id } }), "Preview ready")}>
                   <RefreshCw className="size-3" /> Retry only this shot
                 </button>
-                {shot.previewGenerationId && !shot.approved && <button className="previs-plate-action-btn previs-plate-action-btn--premium" disabled={busy === shot.id} onClick={() => void mutateShot(shot.id, () => approveFn({ data: { projectId: active.id, shotId: shot.id, previewGenerationId: shot.previewGenerationId! } }), "Exact preview approved")}>
+                {shot.previewGenerationId && shot.previewStatus === "succeeded" && !shot.approved && <button className="previs-plate-action-btn previs-plate-action-btn--premium" disabled={busy === shot.id} onClick={() => void mutateShot(shot.id, () => approveFn({ data: { projectId: active.id, shotId: shot.id, previewGenerationId: shot.previewGenerationId! } }), "Exact preview approved")}>
                   <ShieldCheck className="size-3" /> Approve exact preview
                 </button>}
                 {shot.approved && <span className="flex items-center gap-1 text-xs text-emerald-400"><Check className="size-3" /> Cryptographically bound approval</span>}
               </div>
-              {shot.previewGenerationId && <label className="flex items-center gap-2 text-xs text-ink-dim">
-                <input type="checkbox" checked={shot.selected} onChange={(event) => void mutateShot(shot.id, () => updateFn({ data: { projectId: active.id, shotId: shot.id, selected: event.target.checked, expectedVersion: shot.version } }), event.target.checked ? "Preview selected" : "Preview unselected")} />
+              {shot.previewGenerationId && shot.previewStatus === "succeeded" && <label className="flex items-center gap-2 text-xs text-ink-dim">
+                <input type="checkbox" checked={shot.selected} disabled={!shot.approved || busy === shot.id} onChange={(event) => void mutateShot(shot.id, () => updateFn({ data: { projectId: active.id, shotId: shot.id, selected: event.target.checked, expectedVersion: shot.version } }), event.target.checked ? "Preview selected" : "Preview unselected")} />
                 Select this approved preview for promotion
               </label>}
               {shot.selected && shot.approved && !shot.temporalUrl && motionCapability?.implemented !== false && <button className="previs-analyze-btn w-full" disabled={busy === shot.id || motionCapability?.access !== "validated_on_render"} onClick={() => void mutateShot(shot.id, () => promoteFn({ data: { projectId: active.id, shotId: shot.id } }), "480p temporal preview ready")}>

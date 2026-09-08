@@ -1,7 +1,12 @@
 // Production Supabase wiring for the pure motion autoscaler controller.
 
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { createMotionAutoscaler, type MotionAutoscaleRepo, type MotionAutoscaleState } from "./motion-autoscaler.server";
+import {
+  createMotionAutoscaler,
+  type MotionAutoscaleRepo,
+  type MotionAutoscaleState,
+  type MotionAutoscaleWorker,
+} from "./motion-autoscaler.server";
 import { liveVastLifecycle } from "./vast-lifecycle-live.server";
 import type { ManagedInstanceRow } from "./vast-lifecycle.server";
 
@@ -21,6 +26,9 @@ const SCHEMA_PENDING_STATE: MotionAutoscaleState = {
 };
 
 type LooseDb = {
+  // The autoscaler intentionally queries a migration-gated table that is not
+  // present in every generated client schema.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   from(table: string): any;
   rpc(name: string, params?: Record<string, unknown>): Promise<{ data: unknown; error: { message: string } | null }>;
 };
@@ -34,7 +42,14 @@ function required<T>(data: T | null, error: { message: string } | null, operatio
 
 export const liveMotionAutoscaleRepo: MotionAutoscaleRepo = {
   async getState() {
-    const { data, error } = await db.from(STATE_TABLE).select("*").eq("singleton", true).maybeSingle();
+    const query = db.from(STATE_TABLE) as {
+      select(columns: string): {
+        eq(column: string, value: unknown): {
+          maybeSingle(): Promise<{ data: MotionAutoscaleState | null; error: { message: string } | null }>;
+        };
+      };
+    };
+    const { data, error } = await query.select("*").eq("singleton", true).maybeSingle();
     // Development and deployments can receive application code before the
     // companion migration. Capacity must fail closed—not throw from cron or
     // accidentally become enabled—until the singleton policy row exists.
@@ -75,7 +90,7 @@ export const liveMotionAutoscaleRepo: MotionAutoscaleRepo = {
       .contains("capabilities", ["motion"])
       .limit(50);
     if (error) throw new Error(`motion autoscale workers: ${error.message}`);
-    return (data ?? []) as any;
+    return (data ?? []).filter((worker) => typeof worker.endpoint_url === "string") as unknown as MotionAutoscaleWorker[];
   },
   async listManagedVast() {
     const { data, error } = await db

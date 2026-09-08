@@ -429,9 +429,30 @@ async function persistProduction(
     .update({ production, status: "editing", status_message: statusMessage })
     .eq("id", projectId)
     .eq("user_id", userId)
+    .eq("status", "processing")
     .select("id")
     .single();
   if (error) throw new Error(error.message);
+}
+
+/**
+ * Claim the project row before any NBA Josh mutation or paid provider call.
+ * The UI lock is only advisory; this CAS prevents two browser tabs from
+ * spending on the same outfit concurrently.
+ */
+async function claimNbaJoshAction(row: ProjectRow, userId: string, action: string): Promise<void> {
+  if (row.status !== "editing" && row.status !== "draft") {
+    throw new Error("Another Video Agent action is already in progress. Refresh and try again.");
+  }
+  const { data, error } = await projectTable()
+    .update({ status: "processing", status_message: action })
+    .eq("id", row.id)
+    .eq("user_id", userId)
+    .eq("status", row.status)
+    .select("id")
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!data) throw new Error("Another Video Agent action is already in progress. Refresh and try again.");
 }
 
 export const quoteNbaJoshProduction = createServerFn({ method: "POST" })
@@ -467,6 +488,7 @@ export const approveNbaJoshStill = createServerFn({ method: "POST" })
     if (!production.identityRefs.some((ref) => ref.approved)) {
       throw new Error("Approve at least one identity reference before generating");
     }
+    await claimNbaJoshAction(row, context.userId, `${outfit.name} still approval in progress`);
     const next: NbaJoshProduction = {
       ...production,
       outfits: production.outfits.map((item) => item.id === outfit.id ? {
@@ -494,13 +516,14 @@ export const generateNbaJoshStills = createServerFn({ method: "POST" })
     }
     const imageUrls = await assertOwnedGenerationAssets(production, outfit, context.userId);
     const { reserveOrchestrateRecord } = await import("./generate-core.server");
+    await claimNbaJoshAction(row, context.userId, `Generating ${outfit.name} Seedream stills`);
     const working: NbaJoshProduction = {
       ...production,
       outfits: production.outfits.map((item) => item.id === outfit.id ? { ...item, stillStatus: "processing", stillError: undefined } : item),
     };
     await persistProduction(row.id, context.userId, working, `Generating ${outfit.name} Seedream stills`);
 
-    const outputs: Array<{ url: string; generationId: string }> = [];
+    const outputs: Array<{ url: string; generationId: string; servingModel: string }> = [];
     const failures: string[] = [];
     for (let index = 0; index < outfit.variationCount; index++) {
       try {
@@ -517,7 +540,11 @@ export const generateNbaJoshStills = createServerFn({ method: "POST" })
           idempotencyKey: `${row.id}:still:${outfit.id}:${data.planHash}:${index}`,
         });
         if (!result.ok) throw new Error(result.error);
-        outputs.push({ url: result.url, generationId: result.generationId });
+        outputs.push({
+          url: result.url,
+          generationId: result.generationId,
+          servingModel: `${result.provider} · ${result.endpoint}`,
+        });
       } catch (error) {
         failures.push(error instanceof Error ? error.message : String(error));
       }
@@ -531,12 +558,18 @@ export const generateNbaJoshStills = createServerFn({ method: "POST" })
         videoStatus: succeeded ? "awaiting_motion_approval" : "idle",
         stillUrls: outputs.map((output) => output.url),
         stillGenerationIds: outputs.map((output) => output.generationId),
+        stillServingModels: outputs.map((output) => output.servingModel),
         stillError: failures.length ? failures.join("; ").slice(0, 1000) : undefined,
       } : item),
     };
     await persistProduction(row.id, context.userId, next, succeeded ? `${outfit.name} stills ready for selection` : `${outfit.name} still generation failed`);
     if (!succeeded) throw new Error(failures[0] ?? "Still generation failed");
-    return { stillUrls: outputs.map((output) => output.url), generationIds: outputs.map((output) => output.generationId), failedVariations: failures.length };
+    return {
+      stillUrls: outputs.map((output) => output.url),
+      generationIds: outputs.map((output) => output.generationId),
+      servingModels: outputs.map((output) => output.servingModel),
+      failedVariations: failures.length,
+    };
   });
 
 export const selectNbaJoshStill = createServerFn({ method: "POST" })
@@ -547,6 +580,7 @@ export const selectNbaJoshStill = createServerFn({ method: "POST" })
     assertCurrentPlanHash(production, data.planHash);
     const outfit = findNbaJoshOutfit(production, data.outfitId);
     if (!outfit.stillUrls.includes(data.stillUrl)) throw new Error("That still is not part of this outfit");
+    await claimNbaJoshAction(row, context.userId, `${outfit.name} still selection in progress`);
     const next: NbaJoshProduction = {
       ...production,
       outfits: production.outfits.map((item) => item.id === outfit.id ? {
@@ -570,6 +604,7 @@ export const approveNbaJoshMotion = createServerFn({ method: "POST" })
     if (outfit.selectedStillUrl !== data.stillUrl || !outfit.stillUrls.includes(data.stillUrl)) {
       throw new Error("Select a generated still before approving motion");
     }
+    await claimNbaJoshAction(row, context.userId, `${outfit.name} motion approval in progress`);
     const next: NbaJoshProduction = {
       ...production,
       outfits: production.outfits.map((item) => item.id === outfit.id ? {
@@ -597,6 +632,7 @@ export const generateNbaJoshMotionPreview = createServerFn({ method: "POST" })
     }
     if (!outfit.selectedStillUrl) throw new Error("Select a still before requesting a motion preview");
     const { reserveOrchestrateRecord } = await import("./generate-core.server");
+    await claimNbaJoshAction(row, context.userId, `Generating ${outfit.name} Seedance preview`);
     const working: NbaJoshProduction = {
       ...production,
       outfits: production.outfits.map((item) => item.id === outfit.id ? { ...item, videoStatus: "preview_queued", videoError: undefined } : item),
@@ -626,6 +662,7 @@ export const generateNbaJoshMotionPreview = createServerFn({ method: "POST" })
           videoStatus: "preview_succeeded",
           videoUrl: result.url,
           videoGenerationId: result.generationId,
+          videoServingModel: `${result.provider} · ${result.endpoint}`,
         } : item),
       };
       await persistProduction(row.id, context.userId, next, `${outfit.name} preview ready for review`);
@@ -659,6 +696,7 @@ export const generateNbaJoshVideo = createServerFn({ method: "POST" })
       throw new Error("Approve the selected still's motion plan before rendering");
     }
     const { reserveOrchestrateRecord } = await import("./generate-core.server");
+    await claimNbaJoshAction(row, context.userId, `Generating ${outfit.name} Layer A`);
     const working: NbaJoshProduction = {
       ...production,
       outfits: production.outfits.map((item) => item.id === outfit.id ? { ...item, videoStatus: "processing", videoError: undefined } : item),
@@ -691,6 +729,7 @@ export const generateNbaJoshVideo = createServerFn({ method: "POST" })
           videoStatus: "succeeded",
           videoUrl: result.url,
           videoGenerationId: result.generationId,
+          videoServingModel: `${result.provider} · ${result.endpoint}`,
         } : item),
       };
       await persistProduction(row.id, context.userId, next, `${outfit.name} Layer A ready — package with Layer B`);
