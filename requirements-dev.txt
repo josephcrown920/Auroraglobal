@@ -1,4 +1,4 @@
-# Minimal dev requirements for running tests locally
+# Minimal dev requirements for running tests and adapters locally
 
-# Keep this file minimal; add real dependencies as needed
 pytest
+requests
