@@ -195,7 +195,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     let result: LocalAuthentication.LocalAuthenticationResult;
     try {
       result = await LocalAuthentication.authenticateAsync({
-        promptMessage: "Unlock Aurora Studio",
+        promptMessage: "Unlock Aurora Performance Studio",
         cancelLabel: "Use password",
         disableDeviceFallback: false,
       });

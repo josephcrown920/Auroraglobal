@@ -167,6 +167,7 @@ export const VIDEO_MODEL_TIERS: Record<string, ModelTier> = {
   // pool. BytePlus-direct is cheaper (~$0.69–$1.16) but still Ark-locked;
   // if fal is ever dropped in favour of BytePlus-only, retune this to ultra.
   "seedance-2.5": "max",
+  "byteplus/seedance-2.5": "max",
   "xai/grok-imagine-video-1.5": "standard", // ~$0.24 (8s @ $0.03/s)
   "heygen/video-agent": "ultra", // $1.50 — needs the ultra pool ($2.26) to clear the retry buffer
   "heygen/template": "ultra", // $1.50 — Aurora Template render, same HeyGen credit burn as video-agent

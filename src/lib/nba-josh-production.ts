@@ -87,7 +87,9 @@ export const NbaJoshOutfitSchema = z.object({
   selectedStillUrl: z.string().url().optional(),
   videoUrl: z.string().url().optional(),
   stillGenerationIds: z.array(z.string().uuid()).max(NBA_JOSH_VARIATION_LIMIT),
+  stillServingModels: z.array(z.string().max(300)).max(NBA_JOSH_VARIATION_LIMIT).default([]),
   videoGenerationId: z.string().uuid().optional(),
+  videoServingModel: z.string().max(300).optional(),
   stillError: z.string().max(1000).optional(),
   videoError: z.string().max(1000).optional(),
   approvals: z.object({
@@ -246,6 +248,7 @@ function outfit(
     videoStatus: "idle",
     stillUrls: [],
     stillGenerationIds: [],
+    stillServingModels: [],
     approvals: {
       still: { approved: false },
       motion: { approved: false },
@@ -339,7 +342,7 @@ function stableValue(value: unknown): unknown {
   if (value && typeof value === "object") {
     return Object.fromEntries(
       Object.entries(value as Record<string, unknown>)
-        .filter(([key]) => !["approvals", "quote", "stillStatus", "videoStatus", "stillUrls", "stillGenerationIds", "selectedStillUrl", "videoUrl", "videoGenerationId", "stillError", "videoError"].includes(key))
+        .filter(([key]) => !["approvals", "quote", "stillStatus", "videoStatus", "stillUrls", "stillGenerationIds", "stillServingModels", "selectedStillUrl", "videoUrl", "videoGenerationId", "videoServingModel", "stillError", "videoError"].includes(key))
         .sort(([a], [b]) => a.localeCompare(b))
         .map(([key, child]) => [key, stableValue(child)]),
     );
@@ -404,7 +407,9 @@ export function resetNbaJoshOutfit(outfit: NbaJoshOutfit): NbaJoshOutfit {
     selectedStillUrl: undefined,
     videoUrl: undefined,
     stillGenerationIds: [],
+    stillServingModels: [],
     videoGenerationId: undefined,
+    videoServingModel: undefined,
     stillError: undefined,
     videoError: undefined,
     approvals: { still: { approved: false }, motion: { approved: false } },

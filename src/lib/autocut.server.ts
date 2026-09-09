@@ -317,6 +317,18 @@ export type LocalAssembleParams = {
    * "1:1" (square). Unsupported values throw explicitly so the job fails
    * visibly rather than silently outputting the wrong shape. */
   aspect?: string | null;
+  /** Keep each input clip at its native duration. Used by scripted UGC scenes:
+   * their timing is intentional and must never be cut down to AutoCut's
+   * stylistic 0.5–8 second bounds. */
+  preserveClipDuration?: boolean;
+  /** When preserving scripted scenes, normalize each one to this exact length
+   * (padding a short provider render with its final frame). */
+  targetClipDurationSec?: number;
+  /** Per-scene authored durations. Takes precedence over the single target and
+   * is used by Film Studio to preserve an approved shot timeline exactly. */
+  targetClipDurationsSec?: number[];
+  /** Output frame rate. Defaults to the assembler's historical 24 fps. */
+  fps?: number;
 };
 
 /** Sequentially crossfades `scenes` (each pre-normalized to the same canvas/fps)
@@ -372,6 +384,19 @@ export async function runLocalFfmpegAssemble(params: LocalAssembleParams): Promi
       throw new Error("assemble: every clip must be an http(s) url");
     }
   }
+  if (
+    params.targetClipDurationsSec &&
+    (
+      params.targetClipDurationsSec.length !== clips.length ||
+      params.targetClipDurationsSec.some((duration) => !Number.isFinite(duration) || duration <= 0)
+    )
+  ) {
+    throw new Error("assemble: target clip durations must contain one positive duration per clip");
+  }
+  const outputFps = params.fps ?? ASSEMBLE_FPS;
+  if (!Number.isInteger(outputFps) || outputFps < 1 || outputFps > 60) {
+    throw new Error("assemble: fps must be an integer from 1 to 60");
+  }
 
   const cutRule = getStyleCutRule(params.style);
   // Resolve output canvas — throws explicitly for unsupported ratios so the
@@ -385,14 +410,19 @@ export async function runLocalFfmpegAssemble(params: LocalAssembleParams): Promi
       const clipIn = join(dir, `clip${i}.mp4`);
       await downloadToFile(clips[i], clipIn);
       const probedDur = await ffprobeDurationSec(clipIn);
-      // Trim per the style's cut-point rule: longer clips are cut down to the
-      // style's max, shorter clips are freeze-extended up to its min.
-      const dur = Math.max(cutRule.minClipSec, Math.min(probedDur ?? cutRule.maxClipSec, cutRule.maxClipSec));
+      // AutoCut may trim clips to match its pacing rules. Scripted Content Line
+      // scenes opt out: each one carries a different slice of the authored
+      // narration, so trimming would lose spoken copy.
+      const dur = params.preserveClipDuration
+        ? params.targetClipDurationsSec?.[i] ??
+          params.targetClipDurationSec ??
+          Math.min(probedDur ?? cutRule.maxClipSec, params.maxDurationSec ?? 60)
+        : Math.max(cutRule.minClipSec, Math.min(probedDur ?? cutRule.maxClipSec, cutRule.maxClipSec));
       const withAudio = await hasAudioStream(clipIn);
       const sceneOut = join(dir, `scene${i}_${randomUUID().slice(0, 8)}.mp4`);
       const vf =
         `scale=${canvasW}:${canvasH}:force_original_aspect_ratio=decrease,` +
-        `pad=${canvasW}:${canvasH}:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=${ASSEMBLE_FPS},` +
+        `pad=${canvasW}:${canvasH}:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=${outputFps},` +
         `tpad=stop_mode=clone:stop_duration=${dur.toFixed(3)},format=yuv420p`;
 
       const args = ["-y", "-i", clipIn];

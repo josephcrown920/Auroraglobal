@@ -16,6 +16,7 @@ import {
   TEST_AUDIO_URL,
   TEST_SELFIE_URL,
 } from "./smoke-fixtures.server";
+import { runMotionSmokeStep } from "./motion-smoke.server";
 
 // Short public driving video for the motion-transfer smoke step (used only when a motion worker is online).
 const TEST_DRIVING_VIDEO_URL = "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4";
@@ -668,32 +669,12 @@ export const runSmokeTest = createServerFn({ method: "POST" })
       //     job via orchestrate() with kind:"motion", a reference image, and a short
       //     driving video. Skipped when no GPU worker with the "motion" capability is
       //     online (same guard used by the Motion Studio UI itself).
-      const r20: StepResult = await (async (): Promise<StepResult> => {
-        const { hasActiveWorkerForKind } = await import("./orchestrator.server");
-        if (!(await hasActiveWorkerForKind("motion"))) {
-          return {
-            status: "skip",
-            latency_ms: 0,
-            cost_usd: 0,
-            error: "No motion GPU worker online — skipping Perform Anywhere smoke step",
-          };
-        }
-        return runStep(async () => {
-          const { MIMIC_MOTION_MODEL } = await import("./motion-workflows.server");
-          const out = await orchestrate({
-            kind: "motion",
-            prompt: "smoke test: motion transfer — drive reference image with short clip",
-            imageUrls: [TEST_SELFIE_URL],
-            videoUrl: TEST_DRIVING_VIDEO_URL,
-            model: MIMIC_MOTION_MODEL,
-            params: { motionType: "faithful", cameraMovement: "static" },
-            userId: context.userId,
-            refId: run.id,
-          });
-          if (!out.url) throw new Error("Motion transfer returned no video URL");
-          return { url: out.url, cost: out.costUsd ?? computeCost({ features: ["motion"] }).total, raw: { provider: out.provider } };
-        });
-      })();
+      const r20: StepResult = await runMotionSmokeStep(
+        context.userId,
+        run.id,
+        TEST_SELFIE_URL,
+        TEST_DRIVING_VIDEO_URL,
+      );
       await writeCheck(run.id, 20, STEPS[19], r20);
       total += r20.cost_usd;
 

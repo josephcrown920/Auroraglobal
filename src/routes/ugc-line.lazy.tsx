@@ -1,6 +1,6 @@
 import { createLazyFileRoute } from "@tanstack/react-router";
 import { FeatureGuard } from "@/components/FeatureVisibilityProvider";
-import { useState, useRef, useCallback } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
@@ -27,12 +27,40 @@ import {
   User,
   Package,
   ChevronRight,
+  Film,
+  Play,
+  RotateCcw,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { SiteFooter } from "@/components/SiteFooter";
 import { PageHeroBanner } from "@/components/visual/PageHeroBanner";
 import { OutputGallery } from "@/components/visual/OutputGallery";
 import { DEMO_ASSETS, UGC_ANGLE_THUMBNAILS } from "@/lib/demo-assets";
+import { UGC_AVATARS, type UgcAvatar } from "@/lib/ugc-avatars";
+import { generateUGCAd, getGenerationStatus } from "@/lib/ugc-generation.functions";
+import { supabase } from "@/integrations/supabase/client";
+import { handleGenerationError } from "@/lib/error-toasts";
+
+type RenderState =
+  | { status: "idle" }
+  | { status: "rendering"; generationId?: string }
+  | { status: "done"; generationId: string; videoUrl: string }
+  | { status: "failed"; error: string };
+
+type RenderedClip = {
+  briefId: string;
+  generationId: string;
+  videoUrl: string;
+  hook: string;
+  onScreenText: string;
+};
+
+type PendingRender = Omit<RenderedClip, "videoUrl">;
+
+type StoredRenderHistory = {
+  clips: RenderedClip[];
+  pending: PendingRender[];
+};
 
 // Artist-only mode: this feature is hidden from regular users by default.
 // Admins always pass; regular users are redirected to /studio unless the
@@ -75,7 +103,75 @@ const LENGTHS = [
 ];
 
 // ─── Ticket card ─────────────────────────────────────────────────────────────
-function TicketCard({ brief, index }: { brief: UgcBrief & { id: number }; index: number }) {
+function CaptionedVideo({
+  videoUrl,
+  hook,
+  className,
+}: {
+  videoUrl: string;
+  hook: string;
+  className?: string;
+}) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [paused, setPaused] = useState(false);
+
+  useEffect(() => {
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+    if (!reduceMotion.matches) return;
+    videoRef.current?.pause();
+    setPaused(true);
+  }, []);
+
+  const togglePlayback = () => {
+    const video = videoRef.current;
+    if (!video) return;
+    if (video.paused) {
+      void video.play();
+      setPaused(false);
+    } else {
+      video.pause();
+      setPaused(true);
+    }
+  };
+
+  return (
+    <div className={cn("relative overflow-hidden rounded-xl bg-black", className)}>
+      <video
+        ref={videoRef}
+        src={videoUrl}
+        aria-label={`Rendered UGC clip: ${hook}`}
+        autoPlay
+        muted
+        loop
+        playsInline
+        preload="metadata"
+        className="h-full w-full object-cover"
+      />
+      <button
+        type="button"
+        onClick={togglePlayback}
+        className="absolute right-3 top-3 z-10 rounded-full border border-white/20 bg-black/65 px-3 py-1.5 text-[11px] font-semibold text-white backdrop-blur focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+        aria-label={paused ? "Play rendered clip" : "Pause rendered clip"}
+      >
+        {paused ? "Play" : "Pause"}
+      </button>
+    </div>
+  );
+}
+
+type ContentBrief = UgcBrief & { id: string; durationSeconds: 15 | 30 | 45 };
+
+function TicketCard({
+  brief,
+  index,
+  renderState,
+  onRender,
+}: {
+  brief: ContentBrief;
+  index: number;
+  renderState: RenderState;
+  onRender: (brief: ContentBrief) => void;
+}) {
   const [copied, setCopied] = useState<"script" | "json" | null>(null);
   const thumbnail = UGC_ANGLE_THUMBNAILS[brief.angle] ?? DEMO_ASSETS.ugcLine.hero;
 
@@ -88,7 +184,14 @@ function TicketCard({ brief, index }: { brief: UgcBrief & { id: number }; index:
   const arcPos = brief.arc_position?.split(" ")[0] ?? "";
 
   return (
-    <div className="bg-white/[0.03] border border-white/10 rounded-xl overflow-hidden">
+    <div className="overflow-hidden rounded-xl border border-white/10 bg-white/[0.03]">
+      {renderState.status === "done" && (
+        <CaptionedVideo
+          videoUrl={renderState.videoUrl}
+          hook={brief.hook}
+          className="mx-4 mt-4 aspect-[9/16] max-h-[560px]"
+        />
+      )}
       <div className="flex">
         {/* Stub */}
         <div className="w-14 shrink-0 bg-white/[0.02] border-r border-dashed border-white/10 flex flex-col items-center py-4 gap-2">
@@ -135,7 +238,22 @@ function TicketCard({ brief, index }: { brief: UgcBrief & { id: number }; index:
             ))}
           </div>
 
-          <div className="flex gap-2 mt-3">
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => onRender(brief)}
+              disabled={renderState.status === "rendering"}
+              className="h-8 min-w-28 text-[11px]"
+            >
+              {renderState.status === "rendering" ? (
+                <><Loader2 className="size-3.5 animate-spin" /> Rendering…</>
+              ) : renderState.status === "done" ? (
+                <><RotateCcw className="size-3.5" /> Render again</>
+              ) : (
+                <><Film className="size-3.5" /> Render Video</>
+              )}
+            </Button>
             <button
               onClick={() => copy("script")}
               className="flex items-center gap-1.5 text-[11px] text-white/40 hover:text-white/70 bg-white/5 hover:bg-white/8 border border-white/10 px-2.5 py-1.5 rounded transition-colors"
@@ -151,6 +269,16 @@ function TicketCard({ brief, index }: { brief: UgcBrief & { id: number }; index:
               copy JSON
             </button>
           </div>
+          {renderState.status === "failed" && (
+            <p role="alert" className="mt-2 text-[11px] text-red-400">
+              Render failed: {renderState.error}
+            </p>
+          )}
+          {renderState.status === "done" && (
+            <p className="mt-2 flex items-center gap-1.5 text-[11px] text-emerald-400">
+              <Check className="size-3" /> Rendered and added to the gallery
+            </p>
+          )}
         </div>
       </div>
     </div>
@@ -186,7 +314,7 @@ function VarCard({ prompt, imageBase64, error }: { prompt: string; imageBase64: 
 
 // ─── Main page ────────────────────────────────────────────────────────────────
 function ContentLine() {
-  const { session } = useAuth();
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<"scripts" | "variations">("scripts");
 
   // ── Scripts state ──
@@ -196,8 +324,15 @@ function ContentLine() {
   const [selectedAngles, setSelectedAngles] = useState<Set<string>>(new Set(["testimonial", "before/after", "myth-bust"]));
   const [length, setLength] = useState<"15s" | "30s" | "45s">("30s");
   const [count, setCount] = useState(6);
-  const [briefs, setBriefs] = useState<(UgcBrief & { id: number })[]>([]);
-  const counterRef = useRef(0);
+  const [briefs, setBriefs] = useState<ContentBrief[]>([]);
+  const [avatarId, setAvatarId] = useState<string>(UGC_AVATARS[0].id);
+  const [renderStates, setRenderStates] = useState<Record<string, RenderState>>({});
+  const [renderedClips, setRenderedClips] = useState<RenderedClip[]>([]);
+  const [pendingRenders, setPendingRenders] = useState<PendingRender[]>([]);
+  const [hydratedStorageKey, setHydratedStorageKey] = useState<string | null>(null);
+  const avatarRefCache = useRef<Record<string, string>>({});
+  const activePollsRef = useRef(new Set<string>());
+  const activeUserIdRef = useRef<string | null>(user?.id ?? null);
 
   // ── Variations state ──
   const [inputType, setInputType] = useState<"person" | "product">("person");
@@ -213,6 +348,217 @@ function ContentLine() {
   const generateScriptFn = useServerFn(generateUgcScriptArc);
   const generatePromptsFn = useServerFn(generateSceneVariationPrompts);
   const generateImagesFn = useServerFn(generateSceneImagesFromRef);
+  const generateAdFn = useServerFn(generateUGCAd);
+  const generationStatusFn = useServerFn(getGenerationStatus);
+  const selectedAvatar = UGC_AVATARS.find((avatar) => avatar.id === avatarId) ?? UGC_AVATARS[0];
+  const renderedStorageKey = user ? `aurora:ugc-line:rendered:${user.id}` : null;
+
+  useEffect(() => {
+    activeUserIdRef.current = user?.id ?? null;
+    setRenderStates({});
+    avatarRefCache.current = {};
+    activePollsRef.current.clear();
+    return () => {
+      activeUserIdRef.current = null;
+    };
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (!renderedStorageKey) {
+      setRenderedClips([]);
+      setPendingRenders([]);
+      setHydratedStorageKey(null);
+      return;
+    }
+    try {
+      const saved = JSON.parse(localStorage.getItem(renderedStorageKey) ?? "{}") as StoredRenderHistory | RenderedClip[];
+      if (Array.isArray(saved)) {
+        setRenderedClips(saved);
+        setPendingRenders([]);
+      } else {
+        setRenderedClips(Array.isArray(saved.clips) ? saved.clips : []);
+        setPendingRenders(
+          Array.isArray(saved.pending)
+            ? saved.pending.map((pending) => ({ ...pending, briefId: String(pending.briefId) }))
+            : [],
+        );
+      }
+    } catch {
+      setRenderedClips([]);
+      setPendingRenders([]);
+    }
+    setHydratedStorageKey(renderedStorageKey);
+  }, [renderedStorageKey]);
+
+  useEffect(() => {
+    if (!renderedStorageKey || hydratedStorageKey !== renderedStorageKey) return;
+    const history: StoredRenderHistory = {
+      clips: renderedClips.slice(0, 40),
+      pending: pendingRenders,
+    };
+    localStorage.setItem(renderedStorageKey, JSON.stringify(history));
+  }, [hydratedStorageKey, pendingRenders, renderedClips, renderedStorageKey]);
+
+  const resolveAvatarRef = useCallback(async (avatar: UgcAvatar): Promise<string> => {
+    if (!user) throw new Error("Please sign in first.");
+    const ownerUserId = user.id;
+    const cacheKey = `${ownerUserId}:${avatar.id}`;
+    const cached = avatarRefCache.current[cacheKey];
+    if (cached) return cached;
+    const ext = (avatar.img.split("?")[0].split(".").pop() || "jpg").toLowerCase();
+    const path = `${ownerUserId}/ugc/avatar-${avatar.id}.${ext}`;
+    const publicUrl = supabase.storage.from("studio").getPublicUrl(path).data.publicUrl;
+    const alreadyStaged = await new Promise<boolean>((resolve) => {
+      const probe = new Image();
+      probe.onload = () => resolve(true);
+      probe.onerror = () => resolve(false);
+      probe.src = publicUrl;
+    });
+    if (!alreadyStaged) {
+      const response = await fetch(avatar.img);
+      if (!response.ok) throw new Error("Avatar image could not be loaded.");
+      const blob = await response.blob();
+      const { error } = await supabase.storage.from("studio").upload(path, blob, {
+        contentType: blob.type || "image/jpeg",
+        upsert: true,
+      });
+      if (error) throw new Error(`Avatar staging failed: ${error.message}`);
+    }
+    if (activeUserIdRef.current !== ownerUserId) {
+      throw new Error("Account changed before avatar staging finished.");
+    }
+    avatarRefCache.current[cacheKey] = publicUrl;
+    return publicUrl;
+  }, [user]);
+
+  const pollRender = useCallback(async (pending: PendingRender, ownerUserId: string) => {
+    if (activePollsRef.current.has(pending.generationId)) return;
+    activePollsRef.current.add(pending.generationId);
+    try {
+      for (let attempt = 0; ; attempt++) {
+        // Long 30/45s jobs contain multiple talking-video scenes. Keep polling
+        // their persisted generation with a gentle capped backoff rather than
+        // stranding the card in "Rendering" after an arbitrary time limit.
+        const delay = attempt < 75 ? 5_000 : Math.min(30_000, 5_000 * (1 + Math.floor((attempt - 75) / 10)));
+        await new Promise((resolve) => setTimeout(resolve, delay));
+        if (activeUserIdRef.current !== ownerUserId) return;
+        let result: Awaited<ReturnType<typeof generationStatusFn>>;
+        try {
+          result = await generationStatusFn({ data: { generationId: pending.generationId } });
+        } catch {
+          // A transport failure says nothing about the paid worker's status.
+          // Keep its persisted ID and retry; only confirmed terminal results
+          // may remove it or offer another render.
+          continue;
+        }
+        if (activeUserIdRef.current !== ownerUserId) return;
+        if (result.status === "succeeded") {
+          if (!result.videoUrl) throw new Error("Render finished but produced no video.");
+          const clip: RenderedClip = {
+            ...pending,
+            videoUrl: result.videoUrl,
+          };
+          setRenderStates((current) => ({
+            ...current,
+            [pending.briefId]: { status: "done", generationId: pending.generationId, videoUrl: result.videoUrl! },
+          }));
+          setPendingRenders((current) => current.filter((item) => item.generationId !== pending.generationId));
+          setRenderedClips((current) => [clip, ...current.filter((item) => item.generationId !== pending.generationId)]);
+          toast.success("Viral UGC clip rendered.");
+          return;
+        }
+        if (result.status === "failed") throw new Error(result.error || "Video render failed.");
+      }
+    } catch (error) {
+      if (activeUserIdRef.current !== ownerUserId) return;
+      const message = error instanceof Error ? error.message : "Video render failed.";
+      setPendingRenders((current) => current.filter((item) => item.generationId !== pending.generationId));
+      setRenderStates((current) => ({ ...current, [pending.briefId]: { status: "failed", error: message } }));
+      handleGenerationError(error);
+    } finally {
+      activePollsRef.current.delete(pending.generationId);
+    }
+  }, [generationStatusFn]);
+
+  useEffect(() => {
+    if (!user || hydratedStorageKey !== renderedStorageKey) return;
+    for (const pending of pendingRenders) {
+      setRenderStates((current) => ({
+        ...current,
+        [pending.briefId]: { status: "rendering", generationId: pending.generationId },
+      }));
+      void pollRender(pending, user.id);
+    }
+  }, [hydratedStorageKey, pendingRenders, pollRender, renderedStorageKey, user]);
+
+  const renderBrief = useCallback(async (brief: ContentBrief) => {
+    const ownerUserId = user?.id ?? null;
+    if (!ownerUserId) {
+      const error = new Error("Please sign in first.");
+      setRenderStates((current) => ({ ...current, [brief.id]: { status: "failed", error: error.message } }));
+      handleGenerationError(error);
+      return;
+    }
+    setRenderStates((current) => ({ ...current, [brief.id]: { status: "rendering" } }));
+    try {
+      const avatarRef = await resolveAvatarRef(selectedAvatar);
+      if (activeUserIdRef.current !== ownerUserId) return;
+      const promptContext = [
+        `Hook: ${brief.hook}`,
+        brief.cta ? `CTA: ${brief.cta}` : "",
+      ].filter(Boolean).join("\n").slice(0, 1000);
+      const { generationId } = await generateAdFn({
+        data: {
+          avatarImageUrl: avatarRef,
+          avatarName: selectedAvatar.name,
+          vibe: selectedAvatar.vibe,
+          presetHint: brief.scene_direction.slice(0, 600),
+          presetName: `${brief.angle} — Content Line`,
+          productPrompt: promptContext,
+          scriptOverride: brief.script,
+          captionText: brief.on_screen_text,
+          aspect: "9:16",
+          duration: brief.durationSeconds,
+        },
+      });
+      if (activeUserIdRef.current !== ownerUserId) return;
+      const pending: PendingRender = {
+        briefId: brief.id,
+        generationId,
+        hook: brief.hook,
+        onScreenText: brief.on_screen_text,
+      };
+      setPendingRenders((current) => [pending, ...current.filter((item) => item.briefId !== brief.id)]);
+      setRenderStates((current) => ({
+        ...current,
+        [brief.id]: { status: "rendering", generationId },
+      }));
+      void pollRender(pending, ownerUserId);
+    } catch (error) {
+      if (activeUserIdRef.current !== ownerUserId) return;
+      const message = error instanceof Error ? error.message : "Video render failed.";
+      setRenderStates((current) => ({ ...current, [brief.id]: { status: "failed", error: message } }));
+      handleGenerationError(error);
+    }
+  }, [generateAdFn, pollRender, resolveAvatarRef, selectedAvatar, user]);
+
+  const downloadClip = useCallback(async (clip: RenderedClip) => {
+    try {
+      const response = await fetch(clip.videoUrl);
+      if (!response.ok) throw new Error(`Download failed (${response.status})`);
+      const blob = await response.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = objectUrl;
+      anchor.download = `content-line-${clip.generationId}.mp4`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(objectUrl);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not download this clip.");
+    }
+  }, []);
 
   // ── Script generation ──
   const scriptMut = useMutation({
@@ -232,7 +578,8 @@ function ContentLine() {
       return newBriefs;
     },
     onSuccess: (newBriefs) => {
-      const withIds = newBriefs.map((b) => ({ ...b, id: ++counterRef.current }));
+      const durationSeconds = Number.parseInt(length, 10) as ContentBrief["durationSeconds"];
+      const withIds = newBriefs.map((brief) => ({ ...brief, id: crypto.randomUUID(), durationSeconds }));
       setBriefs((prev) => [...prev, ...withIds]);
       toast.success(`${newBriefs.length} briefs added to queue`);
     },
@@ -483,6 +830,32 @@ function ContentLine() {
 
             {/* Queue panel */}
             <div>
+              <section aria-labelledby="content-line-avatar-heading" className="mb-5 rounded-xl border border-white/10 bg-white/[0.03] p-4">
+                <div className="mb-3">
+                  <h2 id="content-line-avatar-heading" className="text-sm font-semibold text-white">Creator for this session</h2>
+                  <p className="mt-0.5 text-[11px] text-white/40">Choose once, then render any brief immediately.</p>
+                </div>
+                <div className="flex gap-2 overflow-x-auto pb-1">
+                  {UGC_AVATARS.map((avatar) => {
+                    const active = avatar.id === selectedAvatar.id;
+                    return (
+                      <button
+                        type="button"
+                        key={avatar.id}
+                        onClick={() => setAvatarId(avatar.id)}
+                        aria-pressed={active}
+                        className={cn(
+                          "relative size-16 shrink-0 overflow-hidden rounded-xl border-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
+                          active ? "border-primary" : "border-white/10 hover:border-white/30",
+                        )}
+                      >
+                        <img src={avatar.img} alt={avatar.name} className="size-full object-cover" />
+                        <span className="absolute inset-x-0 bottom-0 bg-black/70 py-1 text-[9px] font-semibold text-white">{avatar.name}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </section>
               <div className="flex items-center justify-between mb-4">
                 <div>
                   <h2 className="text-base font-semibold text-white">Batch queue</h2>
@@ -519,12 +892,53 @@ function ContentLine() {
               ) : (
                 <div className="space-y-3">
                   {briefs.map((brief, i) => (
-                    <TicketCard key={brief.id} brief={brief} index={i} />
+                    <TicketCard
+                      key={brief.id}
+                      brief={brief}
+                      index={i}
+                      renderState={renderStates[brief.id] ?? { status: "idle" }}
+                      onRender={renderBrief}
+                    />
                   ))}
                 </div>
               )}
             </div>
           </div>
+        )}
+
+        {activeTab === "scripts" && renderedClips.length > 0 && (
+          <section aria-labelledby="rendered-clips-heading" className="mt-12 border-t border-white/10 pt-8">
+            <div className="mb-5 flex items-end justify-between gap-4">
+              <div>
+                <p className="text-[10px] uppercase tracking-widest text-primary">Rendered</p>
+                <h2 id="rendered-clips-heading" className="mt-1 text-xl font-semibold text-white">Rendered Clips</h2>
+                <p className="mt-1 text-sm text-white/40">Finished UGC videos stay here when you return.</p>
+              </div>
+              <span className="rounded-full border border-white/10 px-3 py-1 text-[11px] text-white/40">
+                {renderedClips.length} clip{renderedClips.length === 1 ? "" : "s"}
+              </span>
+            </div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {renderedClips.map((clip) => (
+                <article key={clip.generationId} className="overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03]">
+                  <CaptionedVideo
+                    videoUrl={clip.videoUrl}
+                    hook={clip.hook}
+                    className="aspect-[9/16]"
+                  />
+                  <div className="p-4">
+                    <div className="flex items-start gap-2">
+                      <Play className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden />
+                      <h3 className="text-sm font-semibold leading-snug text-white">{clip.hook}</h3>
+                    </div>
+                    <Button type="button" variant="outline" size="sm" className="mt-4 w-full" onClick={() => downloadClip(clip)}>
+                      <Download className="size-3.5" /> Download video
+                    </Button>
+                  </div>
+                </article>
+              ))}
+            </div>
+          </section>
         )}
 
         {/* ── VARIATIONS TAB ── */}

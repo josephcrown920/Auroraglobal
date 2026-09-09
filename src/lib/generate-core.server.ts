@@ -86,6 +86,9 @@ export type RenderInput = {
   /** Pinned-only model routing — see GenerateRequest.pinnedModelOnly. A failed
    *  pinned render must fail (and refund), never fall back to another model. */
   pinnedModelOnly?: boolean;
+  /** Server-owned compatibility fences for explicit/transparent fallback flows. */
+  allowedModels?: string[];
+  allowedProviders?: string[];
   /** Subscriber-gated adapters (Kling, Seedance) skip unless this is true — see
    *  GenerateRequest.forSubscriber. Set ONLY on paid, credit-reserved paths. */
   forSubscriber?: boolean;
@@ -307,6 +310,8 @@ async function performRender(input: RenderInput, d: RenderDeps): Promise<RenderO
       model: input.model,
       editStrict: input.editStrict,
       pinnedModelOnly: input.pinnedModelOnly,
+      allowedModels: input.allowedModels,
+      allowedProviders: input.allowedProviders,
       forSubscriber: input.forSubscriber,
       params: input.params,
       comfyWorkflow: input.comfyWorkflow,

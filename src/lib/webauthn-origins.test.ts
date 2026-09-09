@@ -22,7 +22,7 @@ afterEach(() => {
 describe("getRP", () => {
   it("defaults to the production domain", () => {
     expect(getRP()).toEqual({
-      rpName: "Aurora Studio",
+      rpName: "Aurora Performance Studio",
       rpID: "auroraperformancestudio.com",
       origin: "https://auroraperformancestudio.com",
     });

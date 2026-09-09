@@ -56,13 +56,13 @@ args = "supabase-types"
 name = "Start application"
 author = "agent"
 
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "\"$(available-pid2-node-paths | head -1)\" node_modules/vite/bin/vite.js dev --host 0.0.0.0 --port 8080"
-waitForPort = 8080
-
 [workflows.workflow.metadata]
 outputType = "webview"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "\"$(available-pid2-node-paths | head -1)\" node_modules/vite/bin/vite.js dev --host 0.0.0.0 --port 8080 --strictPort"
+waitForPort = 8080
 
 [[workflows.workflow]]
 name = "mcp-tests"

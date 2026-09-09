@@ -1,5 +1,6 @@
 import { createLazyFileRoute, Link } from "@tanstack/react-router";
 import { ArrowRight, Check, Crown, Sparkles, Upload, Zap } from "lucide-react";
+import { WorkflowSelectorVisual } from "@/components/performance/WorkflowVisualGuide";
 
 const MODELS = ["Seedance 5.9", "Kling", "Gemini Omni", "Grok Imagine"];
 
@@ -12,7 +13,7 @@ function PerformAnywhere() {
     <main className="min-h-screen overflow-x-hidden bg-[#0b0a17] text-white">
       <header className="sticky top-0 z-30 flex items-center justify-between border-b border-white/10 bg-[#0b0a17]/85 px-5 py-3 backdrop-blur-xl">
         <Link to="/" className="flex items-center gap-2 text-sm font-bold text-white no-underline"><span className="flex size-8 items-center justify-center rounded-lg bg-gradient-to-br from-fuchsia-500 to-violet-600"><Sparkles size={14} /></span>Aurora</Link>
-        <div className="flex gap-2"><Link to="/scene-builder" className="hidden rounded-full border border-white/15 px-4 py-2 text-xs font-semibold text-white/60 no-underline hover:text-white sm:inline-flex">Scene Builder</Link><Link to="/motion" className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-fuchsia-500 to-violet-600 px-4 py-2 text-xs font-bold text-white no-underline"><Upload size={13} /> Upload your clip</Link></div>
+        <div className="flex gap-2"><Link to="/scene-builder" className="hidden rounded-full border border-white/15 px-4 py-2 text-xs font-semibold text-white/60 no-underline hover:text-white sm:inline-flex">Scene Builder</Link><Link to="/colors-show" search={{ mode: "anywhere" }} className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-fuchsia-500 to-violet-600 px-4 py-2 text-xs font-bold text-white no-underline"><Upload size={13} /> Start guided performance</Link></div>
       </header>
       <section className="relative overflow-hidden px-5 pb-16 pt-16 text-center sm:pt-24">
         <img src="/hero/hero-perform-anywhere.png" alt="" className="pointer-events-none absolute right-[-8%] top-0 h-full max-h-[760px] w-auto opacity-20 [mask-image:linear-gradient(to_bottom,black,transparent)]" />
@@ -22,7 +23,7 @@ function PerformAnywhere() {
           <h1 className="mt-5 text-5xl font-black leading-[1.02] tracking-[-0.05em] sm:text-7xl">Film yourself anywhere.<br /><span className="bg-gradient-to-r from-fuchsia-300 via-fuchsia-400 to-violet-400 bg-clip-text text-transparent">Aurora builds the world.</span></h1>
           <p className="mx-auto mt-6 max-w-2xl text-base leading-relaxed text-white/55 sm:text-lg">Motion Control reads your real movement from a 30-second phone clip and transfers it into an AI-generated cinematic scene — style, energy, identity.</p>
           <div className="mt-6 flex flex-wrap justify-center gap-2">{MODELS.map((model) => <span key={model} className="rounded-full border border-fuchsia-400/25 bg-fuchsia-400/10 px-3 py-1.5 text-[10px] font-bold text-fuchsia-200">● {model}</span>)}</div>
-          <div className="mt-8 flex flex-wrap justify-center gap-3"><Link to="/motion" className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-fuchsia-500 to-violet-600 px-6 py-3.5 text-sm font-bold text-white no-underline shadow-[0_0_35px_rgba(168,85,247,0.3)]"><Upload size={17} /> Upload your performance clip</Link><Link to="/scene-builder" className="inline-flex items-center gap-2 rounded-full border border-white/15 px-5 py-3.5 text-sm font-semibold text-white/70 no-underline hover:text-white"><Sparkles size={16} /> Open Scene Builder</Link></div>
+          <div className="mt-8 flex flex-wrap justify-center gap-3"><Link to="/colors-show" search={{ mode: "anywhere" }} className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-fuchsia-500 to-violet-600 px-6 py-3.5 text-sm font-bold text-white no-underline shadow-[0_0_35px_rgba(168,85,247,0.3)]"><Upload size={17} /> Two-angle performance</Link><Link to="/colors-show" search={{ mode: "anywhere", flow: "build_scene" }} className="inline-flex items-center rounded-full border border-white/15 px-5 py-3.5 text-sm font-semibold text-white/70 no-underline hover:text-white">Build a Scene</Link><Link to="/colors-show" search={{ mode: "anywhere", flow: "luxury_interior" }} className="inline-flex items-center rounded-full border border-white/15 px-5 py-3.5 text-sm font-semibold text-white/70 no-underline hover:text-white">Luxury Interior</Link><Link to="/motion" className="inline-flex items-center gap-2 rounded-full border border-white/15 px-5 py-3.5 text-sm font-semibold text-white/70 no-underline hover:text-white"><Sparkles size={16} /> Open Motion Control</Link></div>
           <p className="mt-3 text-xs text-white/35">30-second phone recording · any room · starts at 5 Aura</p>
         </div>
       </section>
@@ -31,6 +32,23 @@ function PerformAnywhere() {
           <DemoCard src="/josh/generated2/perform-phone-clip.webp" label="What you provide" title="Phone performance" body="Your real movement is the source." />
           <div className="flex flex-col items-center gap-2 text-fuchsia-300"><div className="flex size-12 items-center justify-center rounded-full border border-fuchsia-400/50 bg-fuchsia-400/15"><Zap size={21} /></div><span className="text-[9px] uppercase tracking-[0.2em] text-white/40">Motion<br />Control</span></div>
           <DemoCard src="/josh/generated2/viral-10-performance.webp" label="Rendered output" title="Cinematic result" body="Identity and energy preserved in the new world." highlighted />
+        </div>
+      </section>
+      <section className="mx-auto max-w-5xl px-5 pb-20">
+        <div className="mx-auto mb-8 max-w-xl text-center"><p className="text-[11px] font-bold uppercase tracking-[0.22em] text-fuchsia-300">Guided workflows</p><h2 className="mt-3 text-3xl font-black tracking-tight sm:text-4xl">Pick a directed scene to build</h2><p className="mt-3 text-sm text-white/45">Reference examples cropped from real walkthroughs — not Aurora-generated output.</p></div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Link to="/colors-show" search={{ mode: "anywhere", flow: "build_scene" }} className="group rounded-2xl border border-white/10 bg-white/[0.03] p-3 no-underline transition-colors hover:border-fuchsia-400/40">
+            <WorkflowSelectorVisual kind="build_scene" />
+            <h3 className="mt-1 text-base font-bold text-white">Build a Scene</h3>
+            <p className="mt-1 text-sm text-white/45">5 role references lock identity, then generate 3–5 fresh camera angles from one approved base scene.</p>
+            <span className="mt-3 inline-flex items-center gap-1 text-xs font-bold text-fuchsia-300">Start building <ArrowRight size={12} /></span>
+          </Link>
+          <Link to="/colors-show" search={{ mode: "anywhere", flow: "luxury_interior" }} className="group rounded-2xl border border-white/10 bg-white/[0.03] p-3 no-underline transition-colors hover:border-fuchsia-400/40">
+            <WorkflowSelectorVisual kind="luxury_interior" />
+            <h3 className="mt-1 text-base font-bold text-white">Luxury Interior</h3>
+            <p className="mt-1 text-sm text-white/45">3 references place a faithful seated performance inside the vehicle while preserving your face and outfit.</p>
+            <span className="mt-3 inline-flex items-center gap-1 text-xs font-bold text-fuchsia-300">Open workflow <ArrowRight size={12} /></span>
+          </Link>
         </div>
       </section>
       <section className="mx-auto max-w-6xl px-5 pb-20">

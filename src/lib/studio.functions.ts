@@ -6,7 +6,7 @@ import { buildLatentSyncRequest } from "./lipsync-workflows.server";
 import { fetchToBytes } from "./replicate.server";
 import { compressImageBytes } from "./compress.server";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { assertTrustedUrl, assertOwnedReferenceImage } from "./url-guard";
+import { assertTrustedUrl, assertOwnedReferenceImage, assertOwnStudioUpload } from "./url-guard";
 import { buildMimicMotionRequest, MOTION_TYPES, CAMERA_MOVEMENTS } from "./motion-workflows.server";
 import { computeCost, TEMPLATE_VIDEO_PRESET_FEE } from "./pricing";
 // Client-safe manifest (no *.server imports) — used to derive the video preset
@@ -229,12 +229,26 @@ const CAMERA_HINTS: Record<string, string> = {
 };
 
 
+type EnqueueVideoDeps = {
+  assertOwned: (url: string, userId: string) => Promise<void>;
+};
+
 // Internal canonical dispatch — shared by the generateVideoFromImage handler
 // AND runSmokeStudioChain so the two can NEVER drift on gating or payload shape.
-async function _enqueueVideoFromImage(
+// The reference-image ownership guard lives HERE (same contract as
+// _enqueuePerformanceShot): the start frame and optional end frame must be the
+// caller's own upload/result/avatar, checked before any gate, row or charge —
+// otherwise a crafted request could animate another user's private studio
+// object (the orchestrator signs studio refs with service-role access).
+// Exported for unit tests only.
+export async function _enqueueVideoFromImage(
   userId: string,
   data: z.infer<typeof VideoSchema>,
+  deps: EnqueueVideoDeps = { assertOwned: assertOwnedReferenceImage },
 ): Promise<{ jobId: string; generationId: string; preview: boolean }> {
+  await deps.assertOwned(data.imageUrl, userId);
+  if (data.endFrameUrl) await deps.assertOwned(data.endFrameUrl, userId);
+
   const cameraHint = data.cameraMovement ? CAMERA_HINTS[data.cameraMovement] : null;
   const fullPrompt = cameraHint ? `${data.prompt}. Camera: ${cameraHint}.` : data.prompt;
 
@@ -717,11 +731,23 @@ const MotionParamsSchema = z
 const MotionTransferSchema = z.object({
   imageUrl: z.string().url(),
   drivingVideoUrl: z.string().url(),
+  sourceGenerationId: z.string().uuid().optional(),
+  workflowMode: z.enum(["colors", "anywhere"]).optional(),
+  workflowAngle: z.enum(["wide", "closeup"]).optional(),
+  variantWorkflowKind: z.enum(["build_scene", "luxury_interior"]).optional(),
+  variantMode: z.enum(["colors", "anywhere"]).optional(),
+  variantPresetId: z.string().max(100).optional(),
   prompt: z.string().max(2000).optional(),
   params: MotionParamsSchema,
   /** Preview-confirm gate: a succeeded preview's id unlocks the full render. */
   confirmPreviewId: z.string().uuid().optional().nullable(),
-});
+}).refine(
+  (value) => (!!value.workflowMode === !!value.workflowAngle),
+  "Workflow mode and angle must be supplied together",
+).refine(
+  (value) => [value.variantWorkflowKind, value.variantMode, value.variantPresetId].filter(Boolean).length % 3 === 0,
+  "Variant workflow kind, mode and preset must be supplied together",
+);
 
 export const PerformanceReskinSchema = z.object({
   performanceVideoUrl: z.string().url(),
@@ -748,7 +774,22 @@ async function gateMotionEnqueue(
   userId: string,
   confirmPreviewId: string | null | undefined,
   params: z.infer<typeof MotionParamsSchema>,
+  fingerprint?: string,
 ): Promise<{ previewPass: boolean; params: z.infer<typeof MotionParamsSchema> }> {
+  if (confirmPreviewId && fingerprint) {
+    const { data: preview } = await supabaseAdmin
+      .from("generations")
+      .select("id")
+      .eq("id", confirmPreviewId)
+      .eq("user_id", userId)
+      .eq("mode", "preview")
+      .eq("preview_fingerprint", fingerprint)
+      .in("status", ["succeeded", "complete"])
+      .not("result_video_url", "is", null)
+      .maybeSingle();
+    if (!preview) throw new Error("Preview does not match these exact motion inputs or has not completed successfully");
+    return { previewPass: false, params };
+  }
   const gate = await resolvePreviewGate({ userId, confirmPreviewId: confirmPreviewId ?? undefined });
   if (gate.confirmed) return { previewPass: false, params };
   return {
@@ -761,12 +802,53 @@ async function gateMotionEnqueue(
 }
 
 /** Mark a freshly reserved generation as a preview so its id validates as a ticket. */
-async function markGenerationPreview(generationId: string): Promise<void> {
+async function markGenerationPreview(generationId: string, fingerprint?: string, motionSeed?: number): Promise<void> {
   await supabaseAdmin
     .from("generations")
-    .update({ mode: "preview" } as never)
+    .update({
+      mode: "preview",
+      ...(fingerprint ? { preview_fingerprint: fingerprint } : {}),
+      ...(typeof motionSeed === "number" ? { motion_seed: motionSeed } : {}),
+    })
     .eq("id", generationId);
 }
+
+function canonicalMotionMedia(raw: string): string {
+  const url = new URL(raw);
+  const storage = url.pathname.match(/\/storage\/v1\/object\/(?:sign|public)\/studio\/(.+)$/);
+  return storage ? `studio:${decodeURIComponent(storage[1])}` : `${url.origin}${url.pathname}`;
+}
+
+export function motionParamsWithEffectiveSeed(
+  params: z.infer<typeof MotionParamsSchema>,
+  previewSeed?: number | null,
+  generatedSeed = Math.floor(Math.random() * 2_147_483_647),
+): NonNullable<z.infer<typeof MotionParamsSchema>> {
+  return { ...(params ?? {}), seed: params?.seed ?? previewSeed ?? generatedSeed };
+}
+
+async function previewMotionSeed(userId: string, previewId: string | null | undefined): Promise<number | null> {
+  if (!previewId) return null;
+  const { data } = await supabaseAdmin.from("generations")
+    .select("motion_seed")
+    .eq("id", previewId)
+    .eq("user_id", userId)
+    .eq("mode", "preview")
+    .maybeSingle();
+  return typeof data?.motion_seed === "number" ? data.motion_seed : null;
+}
+
+type MotionWorkflowPayload = {
+  approvalProvenance?: {
+    wideGenerationId?: unknown;
+    closeupGenerationId?: unknown;
+    base?: unknown;
+    angles?: Record<string, unknown>;
+  };
+  assetPaths?: Record<string, unknown>;
+  angleVideoOverridePaths?: Record<string, unknown>;
+  phoneVideoUrlPath?: unknown;
+};
 
 // Atomic credit reservation + generations row + job row, via the shared RPC.
 async function reserveGenerationJob(
@@ -779,16 +861,26 @@ async function reserveGenerationJob(
   const client = supabaseAdmin as unknown as {
     rpc: (n: string, a: Record<string, unknown>) => Promise<{ data: unknown; error: { message: string } | null }>;
   };
-  const { data, error } = await client.rpc("create_generation_and_reserve", {
-    _user: userId,
-    _kind: kind,
-    _prompt: prompt,
-    _amount: amount,
-    _payload: payload,
-  });
+  const { data, error } = kind === "motion"
+    ? await client.rpc("create_motion_generation_and_reserve", {
+        _user: userId,
+        _prompt: prompt,
+        _amount: amount,
+        _payload: payload,
+      })
+    : await client.rpc("create_generation_and_reserve", {
+        _user: userId,
+        _kind: kind,
+        _prompt: prompt,
+        _amount: amount,
+        _payload: payload,
+      });
   if (error) {
     if (/insufficient_credits/i.test(error.message)) {
       throw new Error("Not enough Aura. Buy more from the Aura panel.");
+    }
+    if (/motion_enqueue_limit/i.test(error.message)) {
+      throw new Error("Two motion angles are already rendering. Wait for one to finish before retrying.");
     }
     throw new Error(error.message);
   }
@@ -802,7 +894,60 @@ export const generateMimicMotion = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { userId } = context;
     await assertOwnedReferenceImage(data.imageUrl, userId);
-    assertTrustedUrl(data.drivingVideoUrl);
+    assertOwnStudioUpload(data.drivingVideoUrl, userId);
+    if (data.sourceGenerationId) {
+      const { data: source } = await supabaseAdmin
+        .from("generations")
+        .select("id, result_image_url")
+        .eq("id", data.sourceGenerationId)
+        .eq("user_id", userId)
+        .maybeSingle();
+      if (!source || !source.result_image_url || canonicalMotionMedia(source.result_image_url) !== canonicalMotionMedia(data.imageUrl)) {
+        throw new Error("Source plate does not match its owned generation");
+      }
+    }
+    if (data.workflowMode && data.workflowAngle) {
+      const { data: workflow } = await supabaseAdmin
+        .from("performance_workflow_drafts")
+        .select("payload")
+        .eq("user_id", userId)
+        .eq("mode", data.workflowMode)
+        .maybeSingle();
+      const payload = workflow?.payload as unknown as MotionWorkflowPayload | undefined;
+      const provenance = payload?.approvalProvenance;
+      const expected = data.workflowAngle === "wide"
+        ? provenance?.wideGenerationId
+        : provenance?.closeupGenerationId;
+      const paths = payload?.assetPaths;
+      if (
+        expected !== data.sourceGenerationId ||
+        typeof paths?.wideReferenceUrl !== "string" ||
+        typeof paths?.closeupReferenceUrl !== "string"
+      ) {
+        throw new Error("Approve this plate in the saved workflow with both composition references before motion transfer");
+      }
+    }
+    if (data.variantWorkflowKind && data.variantMode && data.variantPresetId) {
+      const { data: workflow } = await supabaseAdmin
+        .from("performance_variant_drafts")
+        .select("payload")
+        .eq("user_id", userId)
+        .eq("mode", data.variantMode)
+        .eq("workflow_kind", data.variantWorkflowKind)
+        .maybeSingle();
+      const payload = workflow?.payload as unknown as MotionWorkflowPayload | undefined;
+      const approved = data.variantPresetId === "base"
+        ? payload?.approvalProvenance?.base
+        : payload?.approvalProvenance?.angles?.[data.variantPresetId];
+      const drivingPath = canonicalMotionMedia(data.drivingVideoUrl).replace(/^studio:/, "");
+      const expectedPath = payload?.angleVideoOverridePaths?.[data.variantPresetId] ?? payload?.phoneVideoUrlPath;
+      if (
+        approved !== data.sourceGenerationId ||
+        drivingPath !== expectedPath
+      ) {
+        throw new Error("Motion input does not match the saved approved variant and performance recording");
+      }
+    }
 
     if (!(await hasActiveWorkerForKind("motion"))) {
       throw new Error(NO_MOTION_BACKEND_MSG);
@@ -810,7 +955,13 @@ export const generateMimicMotion = createServerFn({ method: "POST" })
 
     // Preview-confirm gate: unconfirmed runs get a capped frame budget and
     // preview pricing; the preview's id is the ticket for the full render.
-    const gated = await gateMotionEnqueue(userId, data.confirmPreviewId, data.params);
+    const effectiveParams = motionParamsWithEffectiveSeed(
+      data.params,
+      await previewMotionSeed(userId, data.confirmPreviewId),
+    );
+    const { motionInputFingerprint } = await import("./motion-preview-fingerprint.server");
+    const fingerprint = motionInputFingerprint({ ...data, params: effectiveParams });
+    const gated = await gateMotionEnqueue(userId, data.confirmPreviewId, effectiveParams, fingerprint);
 
     const req = buildMimicMotionRequest({
       imageUrl: data.imageUrl,
@@ -829,7 +980,7 @@ export const generateMimicMotion = createServerFn({ method: "POST" })
         ...(gated.previewPass ? { previewOnly: true } : {}),
       },
     );
-    if (gated.previewPass) await markGenerationPreview(out.generationId);
+    if (gated.previewPass) await markGenerationPreview(out.generationId, fingerprint, effectiveParams.seed);
     await trackServer("motion_transfer_enqueued", userId, { jobId: out.jobId });
     return { ...out, preview: gated.previewPass };
   });
@@ -844,9 +995,9 @@ export async function _enqueuePerformanceReskin(
   userId: string,
   data: z.infer<typeof PerformanceReskinSchema>,
 ): Promise<{ jobId: string; generationId: string; preview: boolean }> {
-  assertTrustedUrl(data.performanceVideoUrl);
+  assertOwnStudioUpload(data.performanceVideoUrl, userId);
   await assertOwnedReferenceImage(data.avatarImageUrl, userId);
-  if (data.audioUrl) assertTrustedUrl(data.audioUrl);
+  if (data.audioUrl) assertOwnStudioUpload(data.audioUrl, userId);
 
   if (!(await hasActiveWorkerForKind("motion"))) {
     throw new Error(NO_MOTION_BACKEND_MSG);
@@ -854,7 +1005,13 @@ export async function _enqueuePerformanceReskin(
 
   // Preview-confirm gate: unconfirmed runs get a capped frame budget and
   // preview pricing; the preview's id is the ticket for the full render.
-  const gated = await gateMotionEnqueue(userId, data.confirmPreviewId, data.params);
+  const effectiveParams = motionParamsWithEffectiveSeed(
+    data.params,
+    await previewMotionSeed(userId, data.confirmPreviewId),
+  );
+  const { performanceReskinFingerprint } = await import("./motion-preview-fingerprint.server");
+  const fingerprint = performanceReskinFingerprint({ ...data, params: effectiveParams });
+  const gated = await gateMotionEnqueue(userId, data.confirmPreviewId, effectiveParams, fingerprint);
 
   const payload = {
     performanceVideoUrl: data.performanceVideoUrl,
@@ -874,7 +1031,7 @@ export async function _enqueuePerformanceReskin(
     gated.previewPass ? Math.max(1, Math.ceil(fullCost * 0.5)) : fullCost,
     payload as Record<string, unknown>,
   );
-  if (gated.previewPass) await markGenerationPreview(out.generationId);
+  if (gated.previewPass) await markGenerationPreview(out.generationId, fingerprint, effectiveParams.seed);
   await trackServer("performance_reskin_enqueued", userId, { jobId: out.jobId });
   return { ...out, preview: gated.previewPass };
 }

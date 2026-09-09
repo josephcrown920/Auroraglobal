@@ -1,8 +1,8 @@
 // Versioned legal documents. Bump the version when content changes — it
 // invalidates prior acceptances for that document.
-export const LEGAL_VERSION = "2026-06-10";
+export const LEGAL_VERSION = "2026-09-09";
 export const COMPANY = {
-  name: "Aurora Studio",
+  name: "Aurora Performance Studio",
   product: "Aurora",
   email: "support@auroraperformancestudio.com",
   jurisdiction: "United States",
@@ -20,12 +20,12 @@ export const LEGAL: Record<LegalDoc["slug"], LegalDoc> = {
     slug: "terms",
     title: "Terms of Service",
     summary:
-      "These terms govern your use of Aurora Studio. By creating an account or generating content you agree to them.",
+      "These terms govern your use of Aurora Performance Studio. By creating an account or generating content you agree to them.",
     sections: [
       {
         heading: "1. The service",
         body: [
-          "Aurora Studio is an AI creative studio that turns reference photos and prompts into stylised photos and short videos.",
+          "Aurora Performance Studio is an AI creative studio that turns reference photos and prompts into stylised photos and short videos.",
           "We orchestrate third-party AI providers (Google Gemini, Replicate, Hugging Face, Sync.so, Inference.net, HeyGen and others). Their outputs may vary and are not guaranteed to be accurate, safe, or fit for any particular purpose.",
         ],
       },

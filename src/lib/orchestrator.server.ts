@@ -18,6 +18,7 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { isFreeGpuOnlyMode } from "./app-settings.server";
 import { replicateRun, pickReplicateUrl, getReplicateKey, replicateProgressPct } from "./replicate.server";
 import { bytePlusImage, bytePlusVideo, getBytePlusKey } from "./byteplus.server";
+import { NATIVE_SEEDANCE_25, SEEDANCE_25_MODEL_ID, requiresNativeSeedance, type BytePlusImageRole } from "./byteplus-video-contract";
 import { syncLipsync } from "./sync.server";
 import { isTrustedUrl } from "./url-guard";
 import { normalizeWorkerBase } from "./gpu-worker-health";
@@ -131,6 +132,14 @@ export type GenerateRequest = {
    * can't serve it.
    */
   pinnedModelOnly?: boolean;
+  /**
+   * Optional server-owned compatibility fence for transparent fallback.
+   * Candidate model keys and adapter names outside these sets are never tried.
+   * This is narrower than pinnedModelOnly: callers may permit a reviewed,
+   * capability-equivalent fallback set without opening the global pool.
+   */
+  allowedModels?: string[];
+  allowedProviders?: string[];
   /**
    * Caption segments for `caption_burn` requests. Each entry is a timed text
    * cue: the GPU worker renders them over the video via FFmpeg `drawtext`.
@@ -1242,10 +1251,15 @@ const REPLICATE_MAP: Record<string, ReplicateEntry> = {
       return {
         video: r.videoUrl,
         srt,
-        font_size: 24,
+        // Viral UGC caption treatment: one large white line, heavy black
+        // outline, and a lower-third anchor. This is the sole visual caption
+        // layer for exported Content Line clips (the UI does not duplicate it).
+        font_size: 42,
         font_color: "white",
         border: true,
         border_color: "black",
+        border_width: 3,
+        position: "bottom",
       };
     },
   },
@@ -1299,6 +1313,7 @@ const replicate: ProviderAdapter = {
 // Replicate/fal (explicit fallback, never a silent one).
 type BytePlusEntry = { modelId: string; kind: "image" | "video" };
 const BYTEPLUS_DEFAULTS: Record<string, BytePlusEntry> = {
+  [NATIVE_SEEDANCE_25]: { modelId: SEEDANCE_25_MODEL_ID, kind: "video" },
   "fal-ai/seedream-4": { modelId: "seedream-4-0-250828", kind: "image" },
   // Confirmed live on the ModelArk catalog (2026-07-05): seedream-4-5-251128
   // is the real Seedream 4.5 checkpoint — it used to alias seedream-4-0
@@ -1387,18 +1402,18 @@ const byteplus: ProviderAdapter = {
     // Motion (animate-still i2v) rides the video mapping: a Seedance video
     // checkpoint serves a kind-"motion" request as image+prompt i2v. Pinned-
     // only by construction — BYTEPLUS_MAP gates on the explicit model key and
-    // no seedance key appears in FALLBACK_MODELS.motion. Driving-video motion
-    // TRANSFER is refused (!videoUrl): Seedance cannot consume a driving video,
-    // and silently discarding it would be a semantic downgrade — those requests
-    // stay on the self-hosted MimicMotion path.
-    if (r.kind === "motion") return !r.videoUrl && m.kind === "video";
+    // no seedance key appears in FALLBACK_MODELS.motion. Only the documented
+    // 2.5 checkpoint accepts driving-video references; older checkpoints refuse
+    // them instead of discarding motion input.
+    if (r.kind === "motion") return (!r.videoUrl || m.modelId === SEEDANCE_25_MODEL_ID) && m.kind === "video";
     return m.kind === r.kind;
   },
   // Bill the same provider cost as the Replicate route for the model so margins
   // and logs stay consistent; direct is typically cheaper, so this is a safe
   // upper bound.
   estimateCost: (r) =>
-    (r.model && REPLICATE_MAP[r.model]?.cost) || (r.kind === "video" ? 0.3 : 0.03),
+    (r.model === NATIVE_SEEDANCE_25 || r.model === "seedance-2.5") ? 1.16 :
+      (r.model && REPLICATE_MAP[r.model]?.cost) || (r.kind === "video" ? 0.3 : 0.03),
   async run(r) {
     const m = r.model ? BYTEPLUS_MAP[r.model] : null;
     if (!m) throw new Error(`No BytePlus mapping for model: ${r.model}`);
@@ -1424,9 +1439,17 @@ const byteplus: ProviderAdapter = {
       model: m.modelId,
       prompt: r.prompt,
       imageUrls: r.imageUrls,
+      videoUrl: r.videoUrl,
+      audioUrl: r.audioUrl,
       duration: r.duration,
       resolution: r.resolution,
       aspectRatio: r.aspectRatio,
+      // Runtime validation lives in buildBytePlusVideoBody; invalid controls
+      // must fail explicitly, not disappear from a previously approved request.
+      generateAudio: r.params?.generate_audio as boolean | undefined,
+      watermark: r.params?.watermark as boolean | undefined,
+      seed: r.params?.seed as number | undefined,
+      imageRoles: r.params?.imageRoles as BytePlusImageRole[] | undefined,
     });
     return { url, endpoint: `byteplus:${m.modelId}` };
   },
@@ -3092,6 +3115,7 @@ export const MODEL_REGISTRY: Record<string, ModelEntry> = (() => {
     // t2v token rate ($10.70/M ≈ $1.16 per 720p·5s) — the conservative end;
     // with-video-input runs are cheaper (~$0.69).
     "seedance-2.5": { provider: "byteplus", kind: "video", cost: 1.16 },
+    [NATIVE_SEEDANCE_25]: { provider: "byteplus", kind: "video", cost: 1.16 },
     // Seedream 5.0 — same ByteDance-only caveat as seedance-3.0.
     "fal-ai/seedream-5": { provider: "byteplus", kind: "image", cost: 0.06 },
     // ElevenLabs TTS (sentinel — adapter ignores the model key, picks voice via params)
@@ -3312,6 +3336,11 @@ export const EDIT_CAPABLE_IMAGE_MODELS: ReadonlySet<string> = new Set([
 ]);
 
 export function getCandidateModels(req: GenerateRequest): string[] {
+  // Native multimodal references and controls have no verified equivalent in
+  // the generic fallback chain. Do not substitute a model that drops them.
+  if (requiresNativeSeedance(req)) {
+    return req.model && (!req.allowedModels?.length || req.allowedModels.includes(req.model)) ? [req.model] : [];
+  }
   // Self-hosted requests pin to the single requested model — no cross-model
   // fallback (the worker pool serves the kind, not a specific hosted model).
   if (req.selfHostedOnly) return req.model ? [req.model] : [];
@@ -3323,8 +3352,15 @@ export function getCandidateModels(req: GenerateRequest): string[] {
   const cap = Math.max(1, FALLBACK_CAP[req.kind] ?? 2);
   // Strict edits (photo editor): drop every candidate that cannot edit the
   // source photo — failing is better than charging for an unrelated image.
-  const pool = req.editStrict ? ordered.filter((m) => EDIT_CAPABLE_IMAGE_MODELS.has(m)) : ordered;
+  const allowedModels = req.allowedModels?.length ? new Set(req.allowedModels) : null;
+  const compatible = allowedModels ? ordered.filter((model) => allowedModels.has(model)) : ordered;
+  const pool = req.editStrict ? compatible.filter((m) => EDIT_CAPABLE_IMAGE_MODELS.has(m)) : compatible;
   return Array.from(new Set(pool)).slice(0, cap);
+}
+
+export function isProviderAllowed(req: GenerateRequest, providerName: string): boolean {
+  if (requiresNativeSeedance(req) && providerName !== "byteplus") return false;
+  return !req.allowedProviders?.length || req.allowedProviders.includes(providerName);
 }
 
 // Request-level problems that every provider/model would hit identically — abort
@@ -3437,6 +3473,7 @@ export async function orchestrate(rawReq: GenerateRequest): Promise<GenerateResu
   for (const modelKey of candidates) {
     const r: GenerateRequest = { ...req, model: modelKey };
     let adapters = PRIORITY[r.kind].filter((a) => a.supports(r) && healthyAtStart.has(a.name));
+    adapters = adapters.filter((adapter) => isProviderAllowed(req, adapter.name));
     // Self-hosted requests run ONLY on the GPU worker pool — never a hosted API.
     if (req.selfHostedOnly) adapters = adapters.filter((a) => a === gpuWorker);
     // Free GPU only mode: drop every paid adapter so it is never reached. Only the

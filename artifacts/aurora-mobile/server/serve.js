@@ -28,9 +28,9 @@ function getAppName() {
   try {
     const appJsonPath = path.resolve(__dirname, "..", "app.json");
     const appJson = JSON.parse(fs.readFileSync(appJsonPath, "utf-8"));
-    return appJson.expo?.name || "Aurora Studio";
+    return appJson.expo?.name || "Aurora Performance Studio";
   } catch {
-    return "Aurora Studio";
+    return "Aurora Performance Studio";
   }
 }
 
@@ -88,5 +88,5 @@ const server = http.createServer((req, res) => {
 
 const port = parseInt(process.env.PORT || "8081", 10);
 server.listen(port, "0.0.0.0", () => {
-  console.log(`Aurora Studio serving on port ${port}`);
+  console.log(`Aurora Performance Studio serving on port ${port}`);
 });

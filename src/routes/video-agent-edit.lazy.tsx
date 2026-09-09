@@ -17,6 +17,8 @@ import {
   getVideoAgentProject,
   updateVideoAgentProject,
   enqueueVideoAgentRender,
+  approveFilmStudioRender,
+  generateVideoAgentPrevisPlate,
   upgradeVideoAgentPlate,
   generateVideoAgentPrevisPlate,
   VIDEO_AGENT_RENDER_COST,
@@ -61,14 +63,16 @@ function VideoEditor() {
   const getProject = useServerFn(getVideoAgentProject);
   const updateProject = useServerFn(updateVideoAgentProject);
   const enqueueRender = useServerFn(enqueueVideoAgentRender);
-  const generatePrevisPlate = useServerFn(generateVideoAgentPrevisPlate);
+  const approveFilmRender = useServerFn(approveFilmStudioRender);
   const upgradePlate = useServerFn(upgradeVideoAgentPlate);
+  const generatePlate = useServerFn(generateVideoAgentPrevisPlate);
 
   const [draft, setDraft] = useState<Draft | null>(null);
   const [selectedIdx, setSelectedIdx] = useState(0);
   const [activeTab, setActiveTab] = useState<"preview" | "edit">("preview");
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "blocked" | "error">("idle");
   const [rendering, setRendering] = useState(false);
+  const [approvingRender, setApprovingRender] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [regenId, setRegenId] = useState<string | null>(null);
   const [upgradeId, setUpgradeId] = useState<string | null>(null);
@@ -77,13 +81,29 @@ function VideoEditor() {
   const dirtyRef = useRef(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const sessionRef = useRef(0);
+  const projectQueryKey = ["video-agent-project", user?.id, id] as const;
 
   useEffect(() => {
     if (!authLoading && !user) void navigate({ to: "/auth", search: authNextSearch() });
   }, [authLoading, user, navigate]);
 
+  useEffect(() => {
+    sessionRef.current++;
+    abortRef.current?.abort();
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    dirtyRef.current = false;
+    setDraft(null);
+    setSelectedIdx(0);
+    setSaveState("idle");
+    setRendering(false);
+    setApprovingRender(false);
+    setRegenId(null);
+    setUpgradeId(null);
+  }, [user?.id, id]);
+
   const projectQuery = useQuery({
-    queryKey: ["video-agent-project", id],
+    queryKey: projectQueryKey,
     queryFn: () => getProject({ data: { id } }),
     enabled: !!user && !!id,
     retry: false,
@@ -110,6 +130,7 @@ function VideoEditor() {
   }, []);
 
   async function persistDraft(next: Draft): Promise<VideoAgentProjectDto | null> {
+    const session = sessionRef.current;
     if (sceneProblem(next.scenes)) {
       setSaveState("blocked");
       return null;
@@ -121,10 +142,12 @@ function VideoEditor() {
           id,
           title: next.title.trim().slice(0, 160) || "Untitled Video",
           scenes: sanitizeForSave(next.scenes),
+          expectedVersion: project?.version,
         },
       });
+      if (sessionRef.current !== session) return null;
       dirtyRef.current = false;
-      queryClient.setQueryData(["video-agent-project", id], saved);
+      queryClient.setQueryData(projectQueryKey, saved);
       setSaveState("saved");
       return saved;
     } catch (err) {
@@ -185,64 +208,17 @@ function VideoEditor() {
   }
 
   async function regenFrame(scene: SceneDraft) {
+    const session = sessionRef.current;
     if (renderActive) return;
     if (!scene.description.trim()) return toast.error("Add a visual description first");
     setRegenId(scene.id);
     updateScene(scene.id, { frameStatus: "loading" });
 
-    try {
-      const res = await generatePrevisPlate({ data: { id, sceneId: scene.id } });
-      updateScene(scene.id, { frame: res.url, frameStatus: "done" });
-      toast.success("Frame regenerated and saved to the storyboard");
-    } catch (err) {
-      toast.error((err as Error).message);
-      updateScene(scene.id, { frameStatus: "error" });
-    } finally {
-      setRegenId(null);
-    }
-  }
-
-  async function animateScene(scene: SceneDraft) {
-    if (renderActive || animatingId) return;
-    if (!session?.access_token) return toast.error("Your session expired — sign in again");
-    if (!scene.description.trim()) return toast.error("Add a visual description first");
-
-    if (draft && dirtyRef.current) {
-      if (saveTimer.current) clearTimeout(saveTimer.current);
-      const saved = await persistDraft(draft).catch(() => null);
-      if (!saved) return toast.error("Fix the storyboard before animating this shot");
-    }
-
-    setAnimatingId(scene.id);
-    try {
-      const response = await fetch("/api/video-agent/render-shot", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify({ projectId: id, sceneId: scene.id }),
-      });
-      const payload = (await response.json()) as { ok?: boolean; url?: string; error?: string; cost?: number };
-      if (!response.ok || !payload.ok || !payload.url) {
-        throw new Error(payload.error || `Shot animation failed (${response.status})`);
-      }
-      setShotVideoUrls((current) => ({ ...current, [scene.id]: payload.url! }));
-      await projectQuery.refetch();
-      toast.success(`Shot animated${payload.cost ? ` · ${payload.cost} Aura` : ""}`);
-    } catch (err) {
-      const msg = (err as Error).message;
-      if (/aura|credit/i.test(msg)) {
-        toast.error(msg, { action: { label: "Top up", onClick: () => void navigate({ to: "/billing" }) } });
-      } else {
-        toast.error(msg);
-      }
-    } finally {
-      setAnimatingId(null);
     }
   }
 
   async function upgradePlateNow(scene: SceneDraft) {
+    const session = sessionRef.current;
     if (renderActive || upgradeId) return;
     if (!scene.description.trim()) return toast.error("Add a visual description first");
     if (draft && dirtyRef.current) {
@@ -253,11 +229,13 @@ function VideoEditor() {
     setUpgradeId(scene.id);
     try {
       const res = await upgradePlate({ data: { id, sceneId: scene.id } });
+      if (sessionRef.current !== session) return;
       updateScene(scene.id, { frame: res.url, frameStatus: "done" });
       dirtyRef.current = false;
       await projectQuery.refetch();
       toast.success(`Premium plate rendered — ${res.cost} Aura`);
     } catch (err) {
+      if (sessionRef.current !== session) return;
       const msg = (err as Error).message;
       updateScene(scene.id, { frameStatus: "error" });
       if (/aura|credit/i.test(msg)) {
@@ -266,11 +244,12 @@ function VideoEditor() {
         toast.error(msg);
       }
     } finally {
-      setUpgradeId(null);
+      if (sessionRef.current === session) setUpgradeId(null);
     }
   }
 
   async function startRender() {
+    const session = sessionRef.current;
     if (!draft || renderActive || rendering) return;
     const problem = sceneProblem(draft.scenes);
     if (problem) return toast.error(problem);
@@ -282,9 +261,11 @@ function VideoEditor() {
         if (!saved) throw new Error("Fix the storyboard before rendering");
       }
       const res = await enqueueRender({ data: { id } });
+      if (sessionRef.current !== session) return;
       toast.success(`Render started — ${res.cost} Aura reserved. Safe to close this page.`);
       await projectQuery.refetch();
     } catch (err) {
+      if (sessionRef.current !== session) return;
       const msg = (err as Error).message;
       if (/aura|credit/i.test(msg)) {
         toast.error(msg, {
@@ -294,7 +275,30 @@ function VideoEditor() {
         toast.error(msg);
       }
     } finally {
-      setRendering(false);
+      if (sessionRef.current === session) setRendering(false);
+    }
+  }
+
+  async function approveCurrentFilmRender() {
+    const session = sessionRef.current;
+    if (!draft || !project?.filmPlan || renderActive || approvingRender) return;
+    setApprovingRender(true);
+    try {
+      if (saveTimer.current) clearTimeout(saveTimer.current);
+      const current = dirtyRef.current ? await persistDraft(draft) : project;
+      if (!current) throw new Error("Save the storyboard before approving it");
+      const approved = await approveFilmRender({
+        data: { id, expectedVersion: current.version },
+      });
+      if (sessionRef.current !== session) return;
+      queryClient.setQueryData(projectQueryKey, approved);
+      toast.success("Current storyboard and continuity fingerprint approved");
+    } catch (err) {
+      if (sessionRef.current !== session) return;
+      toast.error(err instanceof Error ? err.message : "Could not approve render plan");
+      await projectQuery.refetch();
+    } finally {
+      if (sessionRef.current === session) setApprovingRender(false);
     }
   }
 
@@ -355,7 +359,9 @@ function VideoEditor() {
         project={project}
         production={project.production}
         onProjectUpdated={(updated) => {
-          if (updated.id === project.id) queryClient.setQueryData(["video-agent-project", project.id], updated);
+          if (updated.id === project.id) {
+            queryClient.setQueryData(projectQueryKey, updated);
+          }
           void projectQuery.refetch();
         }}
       />
@@ -384,9 +390,34 @@ function VideoEditor() {
         <div className="flex-1" />
         {saveLabel && <span className={`text-[11px] hidden md:block ${saveState === "blocked" || saveState === "error" ? "text-destructive" : "text-muted-foreground"}`}>{saveLabel}</span>}
         <div className="w-px h-4 bg-border hidden sm:block" />
-        <Button size="sm" className="h-7 gap-1.5 text-xs" onClick={startRender} disabled={renderActive || rendering}>
-          {renderActive || rendering ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
-          {renderActive ? "Rendering…" : project.status === "succeeded" ? `Re-render · ${VIDEO_AGENT_RENDER_COST}✦` : `Render video · ${VIDEO_AGENT_RENDER_COST}✦`}
+        {project.filmPlan && !project.filmPlan.renderApproval?.approved && (
+          <Button
+            size="sm"
+            variant="secondary"
+            className="h-7 gap-1.5 text-xs"
+            onClick={() => void approveCurrentFilmRender()}
+            disabled={renderActive || approvingRender}
+          >
+            {approvingRender ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
+            Approve render plan
+          </Button>
+        )}
+        <Button
+          size="sm"
+          className="h-7 gap-1.5 text-xs"
+          onClick={startRender}
+          disabled={renderActive || rendering || (!!project.filmPlan && !project.filmPlan.renderApproval?.approved)}
+        >
+          {renderActive || rendering ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <Sparkles className="h-3.5 w-3.5" />
+          )}
+          {renderActive
+            ? "Rendering…"
+            : project.status === "succeeded"
+              ? `Re-render · ${VIDEO_AGENT_RENDER_COST}✦`
+              : `Render video · ${VIDEO_AGENT_RENDER_COST}✦`}
         </Button>
       </div>
 
@@ -415,6 +446,28 @@ function VideoEditor() {
               <Button size="sm" variant="secondary" className="gap-1.5 text-xs" onClick={() => void copyResultLink(project.exportUrl!)}><LinkIcon className="h-3.5 w-3.5" /> Copy link</Button>
             </div>
           </div>
+           {project.renderEngine && (
+             <details className="mt-2 text-[11px] text-muted-foreground">
+               <summary className="cursor-pointer font-medium text-foreground/80">
+                 Render engines · {project.renderEngine.scenes.length} scene{project.renderEngine.scenes.length === 1 ? "" : "s"}
+               </summary>
+               <div className="mt-1 space-y-0.5">
+                 {project.renderEngine.scenes.map((engine) => (
+                   <div key={`${engine.sceneId}-${engine.index}`}>
+                     Scene {engine.index + 1}:{" "}
+                     {engine.image.source === "reused"
+                       ? `plate reused${engine.image.plateQuality ? ` (${engine.image.plateQuality})` : ""}`
+                       : `image ${engine.image.provider} · ${engine.image.endpoint}`}
+                     {" → "}
+                     video {engine.video.provider} · {engine.video.endpoint}
+                   </div>
+                 ))}
+                 <div>
+                   Assembly: {project.renderEngine.assembler.provider} · {project.renderEngine.assembler.endpoint}
+                 </div>
+               </div>
+             </details>
+           )}
         </div>
       )}
 
@@ -492,10 +545,23 @@ function VideoEditor() {
             </div>
 
             <div className="border-t border-border/50 p-3 flex gap-2">
-              <Button size="sm" variant="secondary" className="flex-1 gap-1.5 text-xs" onClick={() => navigate({ to: "/video-agent" })}>New video</Button>
-              <Button size="sm" className="flex-1 gap-1.5 text-xs" onClick={startRender} disabled={renderActive || rendering}>
-                {renderActive || rendering ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
-                {renderActive ? "Rendering…" : `Render · ${VIDEO_AGENT_RENDER_COST}✦`}
+              <Button size="sm" variant="secondary" className="flex-1 gap-1.5 text-xs"
+                onClick={() => navigate({ to: "/video-agent" })}>
+                New video
+              </Button>
+              <Button size="sm" className="flex-1 gap-1.5 text-xs"
+                onClick={project.filmPlan && !project.filmPlan.renderApproval?.approved ? () => void approveCurrentFilmRender() : startRender}
+                disabled={renderActive || rendering || approvingRender}>
+                {renderActive || rendering ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Sparkles className="h-3.5 w-3.5" />
+                )}
+                {renderActive
+                  ? "Rendering…"
+                  : project.filmPlan && !project.filmPlan.renderApproval?.approved
+                    ? "Approve render plan"
+                    : `Render · ${VIDEO_AGENT_RENDER_COST}✦`}
               </Button>
             </div>
           </div>

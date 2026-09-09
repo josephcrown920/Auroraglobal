@@ -3,8 +3,7 @@
 // Adapted from the directors-board zip: uses Aurora's AI gateway (OpenAI-compatible)
 // instead of the Lovable AI Gateway.
 import { createFileRoute } from "@tanstack/react-router";
-import { streamText, convertToModelMessages, type UIMessage } from "ai";
-import { tool } from "@ai-sdk/provider-utils";
+import { streamText, convertToModelMessages, tool, type UIMessage } from "ai";
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import { z } from "zod";
 
