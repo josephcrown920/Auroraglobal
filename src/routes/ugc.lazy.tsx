@@ -20,12 +20,6 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Smartphone, Camera, ShoppingBag, Coffee, Dumbbell, Sparkles, Check, Loader2, Wand2, Film, AudioLines, Music2, X, Plus, ImagePlus, Presentation, ArrowRight, PackageOpen } from "lucide-react";
-import avatarMaya from "@/assets/ugc/maya.jpg.asset.json";
-import avatarLuna from "@/assets/ugc/luna.jpg.asset.json";
-import avatarAva from "@/assets/ugc/ava.jpg.asset.json";
-import avatarRio from "@/assets/ugc/rio.jpg.asset.json";
-import avatarScarlet from "@/assets/ugc/scarlet.jpg.asset.json";
-import avatarNova from "@/assets/ugc/nova.jpg.asset.json";
 import productLipstick from "@/assets/ugc/product-lipstick-car.jpg.asset.json";
 import realCarHold from "@/assets/ugc/ugc-car-product-hold.webp.asset.json";
 import realStreet from "@/assets/ugc/ugc-street-coffee.jpeg.asset.json";
@@ -43,6 +37,7 @@ import { useSiteCopyValue } from "@/components/landing/SiteCopyProvider";
 import { PageHeroBanner } from "@/components/visual/PageHeroBanner";
 import { OutputGallery } from "@/components/visual/OutputGallery";
 import { DEMO_ASSETS } from "@/lib/demo-assets";
+import { UGC_AVATARS } from "@/lib/ugc-avatars";
 
 // Artist-only mode: this feature is hidden from regular users by default.
 // Admins always pass; regular users are redirected to /studio unless the
@@ -55,16 +50,7 @@ export const Route = createLazyFileRoute("/ugc")({
   ),
 });
 
-const AVATARS = [
-  { id: "maya",    name: "Maya",    vibe: "Soft-glam beauty reviewer", img: avatarMaya.url },
-  { id: "luna",    name: "Luna",    vibe: "Clean-girl skincare lead",  img: avatarLuna.url },
-  { id: "ava",     name: "Ava",     vibe: "Bold lip, red-dress energy", img: avatarAva.url },
-  { id: "rio",     name: "Rio",     vibe: "Cool-tone editorial",       img: avatarRio.url },
-  { id: "scarlet", name: "Scarlet", vibe: "Red-hair freckled it-girl", img: avatarScarlet.url },
-  { id: "nova",    name: "Nova",    vibe: "Glossy fitness creator",    img: avatarNova.url },
-  { id: "emma",    name: "Emma",    vibe: "Car-selfie product reviewer", img: realCarHold.url },
-  { id: "sasha",   name: "Sasha",   vibe: "Street-style coffee run",     img: realStreet.url },
-];
+const AVATARS = UGC_AVATARS;
 
 const PRESETS = [
   { id: "iphone-selfie", name: "iPhone selfie review", icon: Smartphone, hint: "Front camera, slightly tilted, soft window light, casual room.", video: demo1.url, poster: undefined as string | undefined },

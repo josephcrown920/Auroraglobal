@@ -1326,4 +1326,121 @@ describe("processOneJob progress wiring", () => {
     expect(stages).toContain("rendering frames"); // provider free text passes through
     expect(stages).toContain("syncing lips");
   });
+
+  for (const duration of [30, 45] as const) {
+    it(`Content Line ${duration}s jobs assemble every scene and persist the captioned export`, async () => {
+      const oldXaiKey = process.env.XAI_API_KEY;
+      process.env.XAI_API_KEY = "test-key";
+      try {
+        let sceneCount = 0;
+        orchestrateImpl = async (request) => {
+          const req = request as { kind: string };
+          const url = req.kind === "caption_burn"
+            ? "https://out/captioned.mp4"
+            : `https://out/scene-${++sceneCount}.mp4`;
+          return { url, provider: "test-provider", endpoint: `test:${req.kind}`, latencyMs: 1, costUsd: 0 };
+        };
+        const script = "I used to wake up every night. Then I tried a new routine. Now I wake up feeling rested.";
+        claimQueue = [job({
+          kind: "ugc_ad",
+          payload: {
+            avatarImageUrl: "https://in/avatar.png",
+            avatarName: "Maya",
+            productPrompt: "A sleep routine",
+            scriptOverride: script,
+            captionText: "MY NEW ROUTINE",
+            aspect: "9:16",
+            duration,
+          },
+        })];
+        const bytes = Buffer.from("assembled-test-video");
+        const assemble = mock(async (params: {
+          clips: string[]; maxDurationSec?: number; targetClipDurationSec?: number; preserveClipDuration?: boolean;
+        }) => {
+          expect(params.clips).toEqual(Array.from({ length: duration / 15 }, (_, i) => `https://out/scene-${i + 1}.mp4`));
+          expect(params.preserveClipDuration).toBe(true);
+          expect(params.targetClipDurationSec).toBe(15);
+          expect(params.maxDurationSec).toBe(duration);
+          expect(params.clips.length * params.targetClipDurationSec!).toBe(duration);
+          return bytes;
+        });
+        const upload = mock(async (userId: string, jobId: string, video: Buffer) => {
+          expect(userId).toBe("u1");
+          expect(jobId).toBe("j1");
+          expect(video).toBe(bytes);
+          return "https://out/assembled.mp4";
+        });
+        const result = await rawProcessOneJob("w1", { ...deps, assembleUGC: assemble, uploadUGC: upload });
+        expect(result.status).toBe("succeeded");
+        expect(assemble).toHaveBeenCalledTimes(1);
+        expect(upload).toHaveBeenCalledTimes(1);
+        const requests = orchRequests as Array<{ kind: string; duration?: number; model?: string; prompt?: string; videoUrl?: string; segments?: unknown }>;
+        expect(requests.map((r) => r.kind)).toEqual([...Array(duration / 15).fill("video"), "caption_burn"]);
+        for (const request of requests.filter((r) => r.kind === "video")) {
+          expect(request.duration).toBe(15);
+          expect(request.model).toBe("xai/grok-imagine-video-1.5");
+        }
+        const caption = requests.at(-1)!;
+        expect(caption.videoUrl).toBe("https://out/assembled.mp4");
+        expect(caption.segments).toEqual([{ start: duration * 0.42, end: duration - 0.35, text: "MY NEW ROUTINE" }]);
+        const finish = calls.rpc.find((call) => call.name === "finalize_job");
+        expect(finish?.args._result_video_url).toBe("https://out/captioned.mp4");
+      } finally {
+        if (oldXaiKey === undefined) delete process.env.XAI_API_KEY;
+        else process.env.XAI_API_KEY = oldXaiKey;
+      }
+    });
+  }
+
+  it("Content Line UGC jobs preserve authored copy and persist the caption-burned video", async () => {
+    const oldXaiKey = process.env.XAI_API_KEY;
+    const oldHfToken = process.env.HF_TOKEN;
+    process.env.XAI_API_KEY = "test-key";
+    delete process.env.HF_TOKEN;
+    try {
+      orchestrateImpl = async (request) => {
+        const req = request as { kind: string };
+        const url = req.kind === "caption_burn"
+          ? "https://out/captioned.mp4"
+          : "https://out/raw.mp4";
+        return { url, provider: "test-provider", endpoint: `test:${req.kind}`, latencyMs: 1, costUsd: 0 };
+      };
+      claimQueue = [job({
+        kind: "ugc_ad",
+        payload: {
+          avatarImageUrl: "https://in/avatar.png",
+          avatarName: "Maya",
+          vibe: "Beauty reviewer",
+          sceneHint: "Window-lit bathroom mirror selfie",
+          sceneName: "testimonial",
+          productPrompt: "A magnesium sleep gummy",
+          scriptOverride: "I stopped waking up at 3 AM every single night.",
+          captionText: "I SLEEP THROUGH THE NIGHT NOW",
+          aspect: "9:16",
+          duration: 8,
+        },
+      })];
+
+      const result = await processOneJob("w1");
+
+      expect(result.processed).toBe(true);
+      const videoRequest = orchRequests.find((request) => (request as { kind?: string }).kind === "video") as { prompt?: string };
+      expect(videoRequest.prompt).toContain("I stopped waking up at 3 AM every single night.");
+      const captionRequest = orchRequests.find((request) => (request as { kind?: string }).kind === "caption_burn") as {
+        videoUrl?: string;
+        segments?: Array<{ text: string }>;
+      };
+      expect(captionRequest.videoUrl).toBe("https://out/raw.mp4");
+      expect(captionRequest.segments).toEqual(expect.arrayContaining([
+        expect.objectContaining({ text: "I SLEEP THROUGH THE NIGHT NOW" }),
+      ]));
+      const finish = calls.rpc.find((call) => call.name === "finalize_job");
+      expect(finish?.args._result_video_url).toBe("https://out/captioned.mp4");
+    } finally {
+      if (oldXaiKey === undefined) delete process.env.XAI_API_KEY;
+      else process.env.XAI_API_KEY = oldXaiKey;
+      if (oldHfToken === undefined) delete process.env.HF_TOKEN;
+      else process.env.HF_TOKEN = oldHfToken;
+    }
+  });
 });

@@ -15,6 +15,7 @@ import { buildMimicMotionRequest, type MotionParams } from "./motion-workflows.s
 import { hfTextToSpeech } from "./hf.server";
 import {
   generateUGCScript,
+  providedUGCScript,
   buildUGCImagePrompt,
   buildUGCMotionPrompt,
   buildXAIUGCPrompt,
@@ -86,6 +87,8 @@ type Orchestrate = typeof orchestrate;
 type JobDeps = {
   orchestrate: Orchestrate;
   getUserTier?: typeof getUserTier;
+  assembleUGC?: typeof runLocalFfmpegAssemble;
+  uploadUGC?: typeof uploadAutocutResult;
 };
 const defaultDeps: JobDeps = { orchestrate, getUserTier };
 
@@ -101,6 +104,131 @@ type JobOutput = {
   videoUrl?: string;
   meta?: Record<string, unknown>;
 };
+
+export function buildUGCCaptionSegments(captionText: string | undefined, duration: number) {
+  const text = captionText?.trim();
+  if (!text) return [];
+  // Keep the title in the lower third and on screen long enough to read, while
+  // avoiding the first spoken hook where faces/gestures are most prominent.
+  return [{ start: Math.max(0, duration * 0.42), end: Math.max(0.5, duration - 0.35), text }];
+}
+
+export function planContentLineScenes(script: string, duration: 15 | 30 | 45): Array<{ script: string; duration: 15 }> {
+  const scenes = duration / 15;
+  if (scenes === 1) return [{ script: script.trim(), duration: 15 }];
+
+  // Keep sentence boundaries whenever possible. Every non-whitespace character
+  // from the writer's brief belongs to exactly one scene, so long scripts do not
+  // get truncated or regenerated to fit the talking-video provider's 15s limit.
+  // Partition at whitespace, never by matching and discarding unmatched text.
+  // Decimals, quotes and adjacent punctuation must remain authored dialogue.
+  const sentences = script.trim().split(/(?<=[.!?])\s+/);
+  const words = sentences.map((sentence) => sentence.trim().split(/\s+/).filter(Boolean).length);
+  const totalWords = words.reduce((sum, count) => sum + count, 0);
+  if (totalWords < scenes) {
+    throw new Error(`A ${duration}-second script needs at least ${scenes} words to create non-empty scenes.`);
+  }
+  const targetWords = totalWords / scenes;
+  const output: string[] = [];
+  let current = "";
+  let currentWords = 0;
+  for (let i = 0; i < sentences.length; i++) {
+    const remainingScenes = scenes - output.length;
+    const sentencesRemaining = sentences.length - i;
+    const shouldBreak =
+      current.length > 0 &&
+      currentWords >= targetWords &&
+      remainingScenes > 1 &&
+      sentencesRemaining >= remainingScenes;
+    if (shouldBreak) {
+      output.push(current.trim());
+      current = "";
+      currentWords = 0;
+    }
+    current += (current ? " " : "") + sentences[i];
+    currentWords += words[i];
+  }
+  if (current.trim()) output.push(current.trim());
+  // An unusually long single sentence still needs a 15s scene boundary. Split
+  // it by words rather than dropping it; all copy remains intact.
+  while (output.length < scenes) {
+    const sourceIndex = output.reduce((longest, scene, index, all) =>
+      scene.split(/\s+/).length > all[longest].split(/\s+/).length ? index : longest, 0);
+    const splitWords = output[sourceIndex].split(/\s+/);
+    const midpoint = Math.ceil(splitWords.length / 2);
+    output.splice(sourceIndex, 1, splitWords.slice(0, midpoint).join(" "), splitWords.slice(midpoint).join(" "));
+  }
+  return output.slice(0, scenes).map((scene) => ({ script: scene.trim(), duration: 15 }));
+}
+
+async function runLongFormContentLineUGC(
+  job: JobRow,
+  orch: Orchestrate,
+  p: {
+    avatarImageUrl?: string;
+    avatarName?: string;
+    productPrompt: string;
+    scriptOverride: string;
+    captionText?: string;
+    aspect?: string;
+    duration: 30 | 45;
+  },
+  deps: JobDeps,
+): Promise<JobOutput> {
+  if (!process.env.XAI_API_KEY || !p.avatarImageUrl) {
+    throw new Error("Long-form Content Line renders require the configured xAI talking-video provider and an avatar.");
+  }
+  const scenes = planContentLineScenes(p.scriptOverride, p.duration);
+  const clipUrls: string[] = [];
+  for (const scene of scenes) {
+    const clip = await orch({
+      kind: "video",
+      model: "xai/grok-imagine-video-1.5",
+      prompt: buildXAIUGCPrompt({
+        script: providedUGCScript(scene.script),
+        productPrompt: p.productPrompt,
+        avatarName: p.avatarName,
+      }),
+      imageUrls: [p.avatarImageUrl],
+      duration: scene.duration,
+      resolution: "720p",
+      aspectRatio: p.aspect ?? "9:16",
+      userId: job.user_id,
+      refId: job.id,
+    });
+    clipUrls.push(clip.url);
+  }
+  const assembledBytes = await (deps.assembleUGC ?? runLocalFfmpegAssemble)({
+    clips: clipUrls,
+    aspect: p.aspect ?? "9:16",
+    maxDurationSec: p.duration,
+    preserveClipDuration: true,
+    targetClipDurationSec: 15,
+  });
+  const assembledUrl = await (deps.uploadUGC ?? uploadAutocutResult)(job.user_id, job.id, assembledBytes);
+  const captioned = p.captionText
+    ? await orch({
+      kind: "caption_burn",
+      videoUrl: assembledUrl,
+      segments: buildUGCCaptionSegments(p.captionText, p.duration),
+      userId: job.user_id,
+      refId: job.id,
+    })
+    : { url: assembledUrl, provider: "local-ffmpeg", endpoint: "content-line-assemble" };
+  return {
+    url: captioned.url,
+    videoUrl: captioned.url,
+    provider: captioned.provider,
+    endpoint: captioned.endpoint,
+    meta: {
+      script: p.scriptOverride,
+      script_source: "provided",
+      duration: p.duration,
+      scene_count: scenes.length,
+      captions_burned: Boolean(p.captionText),
+    },
+  };
+}
 
 type JobRow = {
   id: string;
@@ -903,7 +1031,7 @@ async function touchJobLock(jobId: string, workerId: string): Promise<void> {
 //   4. image→video   — `video`
 //   5. lip-sync      — `lipsync` (only when voice audio was produced)
 // The final clip is saved; degradation is surfaced in `meta`.
-async function runUGCAd(job: JobRow, orch: Orchestrate): Promise<JobOutput> {
+async function runUGCAd(job: JobRow, orch: Orchestrate, deps: JobDeps): Promise<JobOutput> {
   const p = job.payload as {
     avatarImageUrl?: string;
     avatarName?: string;
@@ -911,6 +1039,8 @@ async function runUGCAd(job: JobRow, orch: Orchestrate): Promise<JobOutput> {
     sceneHint?: string;
     sceneName?: string;
     productPrompt: string;
+    scriptOverride?: string;
+    captionText?: string;
     aspect?: string;
     duration?: number;
     voiceModel?: string;
@@ -919,19 +1049,31 @@ async function runUGCAd(job: JobRow, orch: Orchestrate): Promise<JobOutput> {
     audioUrl?: string;
   };
   if (!p.productPrompt) throw new Error("ugc_ad requires productPrompt");
-  const duration = Math.max(3, Math.min(12, p.duration ?? 8));
+  const requestedDuration = Math.max(3, Math.min(45, p.duration ?? 8));
+  if (p.scriptOverride?.trim() && (requestedDuration === 30 || requestedDuration === 45)) {
+    return runLongFormContentLineUGC(job, orch, {
+      avatarImageUrl: p.avatarImageUrl,
+      avatarName: p.avatarName,
+      productPrompt: p.productPrompt,
+      scriptOverride: p.scriptOverride,
+      captionText: p.captionText,
+      aspect: p.aspect,
+      duration: requestedDuration,
+    }, deps);
+  }
+  const duration = Math.min(15, requestedDuration);
 
   // Stage 1 — script
-  const {
-    script,
-    source: scriptSource,
-    provider: scriptProvider,
-  } = await generateUGCScript({
-    avatarName: p.avatarName,
-    productPrompt: p.productPrompt,
-    sceneHint: p.sceneHint,
-    durationSec: duration,
-  });
+  const providedScript = p.scriptOverride?.trim();
+  const generated = providedScript
+    ? { script: providedUGCScript(providedScript), source: "provided" as const, provider: undefined }
+    : await generateUGCScript({
+      avatarName: p.avatarName,
+      productPrompt: p.productPrompt,
+      sceneHint: p.sceneHint,
+      durationSec: duration,
+    });
+  const { script, source: scriptSource, provider: scriptProvider } = generated;
 
   // Stage 2 — voice. Runs BEFORE the xAI fast path because the character's
   // voice must stay CONSISTENT across renders: a user-supplied track is the
@@ -992,11 +1134,20 @@ async function runUGCAd(job: JobRow, orch: Orchestrate): Promise<JobOutput> {
         });
         fastLipsyncSkipped = false;
       }
+      const captioned = p.captionText
+        ? await orch({
+          kind: "caption_burn",
+          videoUrl: fastFinal.url,
+          segments: buildUGCCaptionSegments(p.captionText, duration),
+          userId: job.user_id,
+          refId: job.id,
+        })
+        : fastFinal;
       return {
-        url: fastFinal.url,
-        videoUrl: fastFinal.url,
-        provider: fastFinal.provider,
-        endpoint: fastFinal.endpoint,
+        url: captioned.url,
+        videoUrl: captioned.url,
+        provider: captioned.provider,
+        endpoint: captioned.endpoint,
         meta: {
           script: script.full,
           script_source: scriptSource,
@@ -1005,6 +1156,7 @@ async function runUGCAd(job: JobRow, orch: Orchestrate): Promise<JobOutput> {
           lipsync_skipped: fastLipsyncSkipped,
           duration,
           xai_ugc: true,
+          captions_burned: Boolean(p.captionText),
         },
       };
     } catch (e) {
@@ -1071,11 +1223,20 @@ async function runUGCAd(job: JobRow, orch: Orchestrate): Promise<JobOutput> {
     }
   }
 
+  const captioned = p.captionText
+    ? await orch({
+      kind: "caption_burn",
+      videoUrl: final.url,
+      segments: buildUGCCaptionSegments(p.captionText, duration),
+      userId: job.user_id,
+      refId: job.id,
+    })
+    : final;
   return {
-    url: final.url,
-    videoUrl: final.url,
-    provider: final.provider,
-    endpoint: final.endpoint,
+    url: captioned.url,
+    videoUrl: captioned.url,
+    provider: captioned.provider,
+    endpoint: captioned.endpoint,
     meta: {
       script: script.full,
       script_source: scriptSource,
@@ -1083,6 +1244,7 @@ async function runUGCAd(job: JobRow, orch: Orchestrate): Promise<JobOutput> {
       tts_skipped: ttsSkipped,
       lipsync_skipped: lipsyncSkipped,
       duration,
+      captions_burned: Boolean(p.captionText),
     },
   };
 }
@@ -1611,7 +1773,7 @@ export async function processOneJob(
     } else if (job.kind === "performance_reskin") {
       out = await runPerformanceReskin(job, orch, workerId);
     } else if (job.kind === "ugc_ad") {
-      out = await runUGCAd(job, orch);
+      out = await runUGCAd(job, orch, deps);
     } else if (job.kind === "product_demo") {
       out = await runProductDemo(job, orch);
     } else if (job.kind === "ugc_campaign_item") {
