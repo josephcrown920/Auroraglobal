@@ -52,7 +52,7 @@ Run the EAS preflight from the repository root first:
 bash scripts/eas-preflight.sh
 ```
 
-The current Android configuration uses `versionCode` 3. A signed production build was queued on 2026-09-09: [track the vc3 build](https://expo.dev/accounts/nbajoshs-organization/projects/aurora-performance-studio/builds/0e0b090b-4766-45a0-92ae-0c991fdeab9b). The build is not yet confirmed finished. The existing vc2 AAB carries OLD branding and is not recommended for upload. Once the fresh vc3 Android App Bundle (`.aab`) finishes, confirm its version code and branding, then upload it manually in Google Play Console:
+The current Android configuration uses `versionCode` 3. The production [vc3 build `0e0b090b`](https://expo.dev/accounts/nbajoshs-organization/projects/aurora-performance-studio/builds/0e0b090b-4766-45a0-92ae-0c991fdeab9b) **FAILED** with status `ERRORED` on 2026-09-09, as confirmed by the build watcher. Its remote failure details have not been inspected, so this document does not assert a root cause. The existing vc2 AAB carries OLD branding and is not recommended for upload. After the build issue is investigated, create a fresh vc3 Android App Bundle (`.aab`), confirm its version code and branding, then upload it manually in Google Play Console:
 
 1. Create or open the Aurora Performance Studio app record.
 2. Go to **Testing → Internal testing** and create a release.

@@ -15,6 +15,7 @@ import { buildMimicMotionRequest, type MotionParams } from "./motion-workflows.s
 import { hfTextToSpeech } from "./hf.server";
 import {
   generateUGCScript,
+  providedUGCScript,
   buildUGCImagePrompt,
   buildUGCMotionPrompt,
   buildXAIUGCPrompt,
@@ -39,8 +40,12 @@ import { getMusicTrack, signedAutocutUrl } from "./autocut.server";
 import { assertDurationCap, getUserTier } from "./cost-guardrails.server";
 import {
   FilmPlanSchema,
+  assertVideoAgentSeedanceEntitlement,
+  assertSupportedFilmStudioAssembly,
   filmRenderFingerprintAsync,
+  resolveVideoAgentScenePrompt,
   type FilmPlanRecord,
+  type VideoAgentRenderEngine,
 } from "./video-agent-projects.functions";
 import { persistResultUrl, resultMediaTypeForKind } from "./result-store.server";
 import {
@@ -86,8 +91,17 @@ type Orchestrate = typeof orchestrate;
 type JobDeps = {
   orchestrate: Orchestrate;
   getUserTier?: typeof getUserTier;
+  assembleUGC?: typeof runLocalFfmpegAssemble;
+  uploadUGC?: typeof uploadAutocutResult;
+  assembleVideoAgent?: typeof runLocalFfmpegAssemble;
+  uploadVideoAgent?: typeof uploadAutocutResult;
 };
-const defaultDeps: JobDeps = { orchestrate, getUserTier };
+const defaultDeps: JobDeps = {
+  orchestrate,
+  getUserTier,
+  assembleVideoAgent: runLocalFfmpegAssemble,
+  uploadVideoAgent: uploadAutocutResult,
+};
 
 // Result envelope for every job runner. Single-media runners populate `url`;
 // the campaign runner additionally sets both `imageUrl` and `videoUrl` so the
@@ -101,6 +115,131 @@ type JobOutput = {
   videoUrl?: string;
   meta?: Record<string, unknown>;
 };
+
+export function buildUGCCaptionSegments(captionText: string | undefined, duration: number) {
+  const text = captionText?.trim();
+  if (!text) return [];
+  // Keep the title in the lower third and on screen long enough to read, while
+  // avoiding the first spoken hook where faces/gestures are most prominent.
+  return [{ start: Math.max(0, duration * 0.42), end: Math.max(0.5, duration - 0.35), text }];
+}
+
+export function planContentLineScenes(script: string, duration: 15 | 30 | 45): Array<{ script: string; duration: 15 }> {
+  const scenes = duration / 15;
+  if (scenes === 1) return [{ script: script.trim(), duration: 15 }];
+
+  // Keep sentence boundaries whenever possible. Every non-whitespace character
+  // from the writer's brief belongs to exactly one scene, so long scripts do not
+  // get truncated or regenerated to fit the talking-video provider's 15s limit.
+  // Partition at whitespace, never by matching and discarding unmatched text.
+  // Decimals, quotes and adjacent punctuation must remain authored dialogue.
+  const sentences = script.trim().split(/(?<=[.!?])\s+/);
+  const words = sentences.map((sentence) => sentence.trim().split(/\s+/).filter(Boolean).length);
+  const totalWords = words.reduce((sum, count) => sum + count, 0);
+  if (totalWords < scenes) {
+    throw new Error(`A ${duration}-second script needs at least ${scenes} words to create non-empty scenes.`);
+  }
+  const targetWords = totalWords / scenes;
+  const output: string[] = [];
+  let current = "";
+  let currentWords = 0;
+  for (let i = 0; i < sentences.length; i++) {
+    const remainingScenes = scenes - output.length;
+    const sentencesRemaining = sentences.length - i;
+    const shouldBreak =
+      current.length > 0 &&
+      currentWords >= targetWords &&
+      remainingScenes > 1 &&
+      sentencesRemaining >= remainingScenes;
+    if (shouldBreak) {
+      output.push(current.trim());
+      current = "";
+      currentWords = 0;
+    }
+    current += (current ? " " : "") + sentences[i];
+    currentWords += words[i];
+  }
+  if (current.trim()) output.push(current.trim());
+  // An unusually long single sentence still needs a 15s scene boundary. Split
+  // it by words rather than dropping it; all copy remains intact.
+  while (output.length < scenes) {
+    const sourceIndex = output.reduce((longest, scene, index, all) =>
+      scene.split(/\s+/).length > all[longest].split(/\s+/).length ? index : longest, 0);
+    const splitWords = output[sourceIndex].split(/\s+/);
+    const midpoint = Math.ceil(splitWords.length / 2);
+    output.splice(sourceIndex, 1, splitWords.slice(0, midpoint).join(" "), splitWords.slice(midpoint).join(" "));
+  }
+  return output.slice(0, scenes).map((scene) => ({ script: scene.trim(), duration: 15 }));
+}
+
+async function runLongFormContentLineUGC(
+  job: JobRow,
+  orch: Orchestrate,
+  p: {
+    avatarImageUrl?: string;
+    avatarName?: string;
+    productPrompt: string;
+    scriptOverride: string;
+    captionText?: string;
+    aspect?: string;
+    duration: 30 | 45;
+  },
+  deps: JobDeps,
+): Promise<JobOutput> {
+  if (!process.env.XAI_API_KEY || !p.avatarImageUrl) {
+    throw new Error("Long-form Content Line renders require the configured xAI talking-video provider and an avatar.");
+  }
+  const scenes = planContentLineScenes(p.scriptOverride, p.duration);
+  const clipUrls: string[] = [];
+  for (const scene of scenes) {
+    const clip = await orch({
+      kind: "video",
+      model: "xai/grok-imagine-video-1.5",
+      prompt: buildXAIUGCPrompt({
+        script: providedUGCScript(scene.script),
+        productPrompt: p.productPrompt,
+        avatarName: p.avatarName,
+      }),
+      imageUrls: [p.avatarImageUrl],
+      duration: scene.duration,
+      resolution: "720p",
+      aspectRatio: p.aspect ?? "9:16",
+      userId: job.user_id,
+      refId: job.id,
+    });
+    clipUrls.push(clip.url);
+  }
+  const assembledBytes = await (deps.assembleUGC ?? runLocalFfmpegAssemble)({
+    clips: clipUrls,
+    aspect: p.aspect ?? "9:16",
+    maxDurationSec: p.duration,
+    preserveClipDuration: true,
+    targetClipDurationSec: 15,
+  });
+  const assembledUrl = await (deps.uploadUGC ?? uploadAutocutResult)(job.user_id, job.id, assembledBytes);
+  const captioned = p.captionText
+    ? await orch({
+      kind: "caption_burn",
+      videoUrl: assembledUrl,
+      segments: buildUGCCaptionSegments(p.captionText, p.duration),
+      userId: job.user_id,
+      refId: job.id,
+    })
+    : { url: assembledUrl, provider: "local-ffmpeg", endpoint: "content-line-assemble" };
+  return {
+    url: captioned.url,
+    videoUrl: captioned.url,
+    provider: captioned.provider,
+    endpoint: captioned.endpoint,
+    meta: {
+      script: p.scriptOverride,
+      script_source: "provided",
+      duration: p.duration,
+      scene_count: scenes.length,
+      captions_burned: Boolean(p.captionText),
+    },
+  };
+}
 
 type JobRow = {
   id: string;
@@ -660,6 +799,7 @@ type VideoAgentWorkerPatch = Partial<{
   error: string | null;
   thumbnail_url: string | null;
   export_url: string | null;
+  production: unknown;
 }>;
 
 function videoAgentProjectsTable() {
@@ -692,6 +832,65 @@ async function updateVideoAgentProject(
   if (error) throw new Error(`Video Agent project update failed: ${error.message}`);
 }
 
+export function mergeVideoAgentRenderReceipt(
+  currentProduction: unknown,
+  renderEngine: VideoAgentRenderEngine,
+): Record<string, unknown> {
+  // Production is an open JSON contract shared by legacy projects and native
+  // Film Studio. Never rebuild it from the queued payload: fields may have been
+  // added after enqueue, and Zod intentionally does not know every legacy key.
+  const current =
+    currentProduction && typeof currentProduction === "object" && !Array.isArray(currentProduction)
+      ? currentProduction as Record<string, unknown>
+      : currentProduction == null
+        ? {}
+        : { legacyProduction: currentProduction };
+  return { ...current, renderEngine };
+}
+
+async function finalizeVideoAgentProject(
+  projectId: string | undefined,
+  userId: string,
+  jobId: string,
+  patch: VideoAgentWorkerPatch,
+  renderEngine: VideoAgentRenderEngine,
+): Promise<void> {
+  if (!projectId) return;
+  type Current = { production: unknown; updated_at: string };
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- table is newer than generated Supabase types
+  const projects = () => (supabaseAdmin as unknown as { from: (name: string) => any })
+    .from("video_agent_projects");
+
+  // A project can receive a legitimate concurrent metadata update after the
+  // job finalizes. Re-read and merge rather than overwriting it. Every write is
+  // still scoped to owner + active job and CASes updated_at.
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const { data: current, error: readError } = await projects()
+      .select("production, updated_at")
+      .eq("id", projectId)
+      .eq("user_id", userId)
+      .eq("job_id", jobId)
+      .maybeSingle() as { data: Current | null; error: { message: string } | null };
+    if (readError) throw new Error(`Video Agent project read failed: ${readError.message}`);
+    if (!current) throw new Error("Video Agent project is no longer attached to this render job");
+
+    const { data: updated, error: updateError } = await projects()
+      .update({
+        ...patch,
+        production: mergeVideoAgentRenderReceipt(current.production, renderEngine),
+      })
+      .eq("id", projectId)
+      .eq("user_id", userId)
+      .eq("job_id", jobId)
+      .eq("updated_at", current.updated_at)
+      .select("id")
+      .maybeSingle() as { data: { id: string } | null; error: { message: string } | null };
+    if (updateError) throw new Error(`Video Agent project update failed: ${updateError.message}`);
+    if (updated) return;
+  }
+  throw new Error("Video Agent project changed repeatedly while saving the render receipt");
+}
+
 /**
  * Video Agent's durable production renderer. It deliberately uses the same
  * provider orchestration and queue finalization as every other paid Aurora
@@ -704,6 +903,8 @@ async function runVideoAgentRender(
   orch: Orchestrate,
   workerId: string,
   lookupUserTier: typeof getUserTier,
+  assembleVideo: typeof runLocalFfmpegAssemble,
+  uploadVideo: typeof uploadAutocutResult,
 ): Promise<JobOutput> {
   const p = job.payload as {
     projectId?: string;
@@ -728,6 +929,7 @@ async function runVideoAgentRender(
       throw new Error("Film Studio native rendering is disabled pending production readiness verification");
     }
     nativePlan = FilmPlanSchema.parse(p.filmPlan);
+    assertSupportedFilmStudioAssembly(nativePlan.renderPlan);
     if (nativePlan.renderPlan.rendererModel !== p.rendererModel) {
       throw new Error("Film Studio renderer does not match the approved native contract");
     }
@@ -739,10 +941,11 @@ async function runVideoAgentRender(
     ) {
       throw new Error("Film Studio approval fingerprint is stale or invalid");
     }
-    if (await lookupUserTier(job.user_id) !== "pro") {
-      throw new Error("An active Pro subscription is required for Seedance 2.5 Film Studio renders");
-    }
   }
+  // Both native and legacy requests below are paid Seedance dispatches. The
+  // orchestrator's forSubscriber flag only selects adapters; it does not prove
+  // an active subscription, so fail before any image/video provider call.
+  assertVideoAgentSeedanceEntitlement(await lookupUserTier(job.user_id));
 
   await updateVideoAgentProject(p.projectId, job.user_id, {
     status: "processing",
@@ -751,20 +954,23 @@ async function runVideoAgentRender(
   }, job.id);
 
   const clipUrls: string[] = [];
+  const engineScenes: VideoAgentRenderEngine["scenes"] = [];
   let firstFrame: string | null = null;
   for (const scene of scenes) {
     if (!scene.description?.trim()) throw new Error(`video_agent_render scene ${scene.index + 1} is missing a visual description`);
     if (!scene.script?.trim()) throw new Error(`video_agent_render scene ${scene.index + 1} is missing narration`);
-    const visualPrompt = scene.modelPrompt?.trim() || scene.description;
-    const stillUrl = scene.frame && scene.plateQuality
-      ? scene.frame
-      : (await orch({
+    const visualPrompt = resolveVideoAgentScenePrompt(scene);
+    const reusedPlate = Boolean(scene.frame && scene.plateQuality);
+    const image = reusedPlate
+      ? null
+      : await orch({
           kind: "image",
           model: "google/nano-banana",
           prompt: visualPrompt,
           userId: job.user_id,
           refId: job.id,
-        })).url;
+        });
+    const stillUrl = reusedPlate ? scene.frame! : image!.url;
     firstFrame ??= stillUrl;
     const nativeRequest = nativePlan ? {
       model: nativePlan.renderPlan.rendererModel,
@@ -798,6 +1004,22 @@ async function runVideoAgentRender(
       refId: job.id,
     });
     clipUrls.push(clip.url);
+    engineScenes.push({
+      sceneId: scene.id,
+      index: scene.index,
+      image: reusedPlate
+        ? {
+            source: "reused",
+            plateQuality: scene.plateQuality ?? null,
+            generationId: scene.plateGenerationId ?? null,
+          }
+        : {
+            source: "generated",
+            provider: image!.provider,
+            endpoint: image!.endpoint,
+          },
+      video: { provider: clip.provider, endpoint: clip.endpoint },
+    });
     await updateVideoAgentProject(p.projectId, job.user_id, {
       status_message: `Rendered scene ${clipUrls.length} of ${scenes.length}…`,
       thumbnail_url: firstFrame,
@@ -824,18 +1046,44 @@ async function runVideoAgentRender(
   }
 
   await updateVideoAgentProject(p.projectId, job.user_id, { status_message: "Assembling your final MP4…" }, job.id);
-  const bytes = await runLocalFfmpegAssemble({
+  const nativeAssembly = nativePlan
+    ? {
+        // No style transition: approved shot boundaries are hard cuts.
+        style: null,
+        aspect: nativePlan.renderPlan.aspectRatio,
+        fps: nativePlan.renderPlan.fps,
+        preserveClipDuration: true,
+        targetClipDurationsSec: scenes.map((scene) => scene.duration),
+        maxDurationSec: scenes.reduce((sum, scene) => sum + scene.duration, 0),
+      }
+    : {
+        style: p.style === "cinematic" ? "cinematic" : "hype",
+        maxDurationSec: Math.max(15, Math.min(p.targetDuration ?? 60, 120)),
+      };
+  const bytes = await assembleVideo({
     clips: clipUrls,
-    style: p.style === "cinematic" ? "cinematic" : "hype",
-    maxDurationSec: Math.max(15, Math.min(p.targetDuration ?? 60, 120)),
+    ...nativeAssembly,
   });
-  const url = await uploadAutocutResult(job.user_id, `video-agent-${p.projectId}`, bytes);
+  const url = await uploadVideo(job.user_id, `video-agent-${p.projectId}`, bytes);
+  const renderEngine: VideoAgentRenderEngine = {
+    version: 1,
+    scenes: engineScenes,
+    assembler: {
+      provider: "aurora-video-agent",
+      endpoint: "local-ffmpeg-assemble",
+    },
+  };
   return {
     url,
     videoUrl: url,
     provider: "aurora-video-agent",
     endpoint: "local-ffmpeg-assemble",
-    meta: { projectId: p.projectId, sceneCount: scenes.length, narrationTracks: scenes.length },
+    meta: {
+      projectId: p.projectId,
+      sceneCount: scenes.length,
+      narrationTracks: scenes.length,
+      renderEngine,
+    },
   };
 }
 
@@ -903,7 +1151,7 @@ async function touchJobLock(jobId: string, workerId: string): Promise<void> {
 //   4. image→video   — `video`
 //   5. lip-sync      — `lipsync` (only when voice audio was produced)
 // The final clip is saved; degradation is surfaced in `meta`.
-async function runUGCAd(job: JobRow, orch: Orchestrate): Promise<JobOutput> {
+async function runUGCAd(job: JobRow, orch: Orchestrate, deps: JobDeps): Promise<JobOutput> {
   const p = job.payload as {
     avatarImageUrl?: string;
     avatarName?: string;
@@ -911,6 +1159,8 @@ async function runUGCAd(job: JobRow, orch: Orchestrate): Promise<JobOutput> {
     sceneHint?: string;
     sceneName?: string;
     productPrompt: string;
+    scriptOverride?: string;
+    captionText?: string;
     aspect?: string;
     duration?: number;
     voiceModel?: string;
@@ -919,19 +1169,31 @@ async function runUGCAd(job: JobRow, orch: Orchestrate): Promise<JobOutput> {
     audioUrl?: string;
   };
   if (!p.productPrompt) throw new Error("ugc_ad requires productPrompt");
-  const duration = Math.max(3, Math.min(12, p.duration ?? 8));
+  const requestedDuration = Math.max(3, Math.min(45, p.duration ?? 8));
+  if (p.scriptOverride?.trim() && (requestedDuration === 30 || requestedDuration === 45)) {
+    return runLongFormContentLineUGC(job, orch, {
+      avatarImageUrl: p.avatarImageUrl,
+      avatarName: p.avatarName,
+      productPrompt: p.productPrompt,
+      scriptOverride: p.scriptOverride,
+      captionText: p.captionText,
+      aspect: p.aspect,
+      duration: requestedDuration,
+    }, deps);
+  }
+  const duration = Math.min(15, requestedDuration);
 
   // Stage 1 — script
-  const {
-    script,
-    source: scriptSource,
-    provider: scriptProvider,
-  } = await generateUGCScript({
-    avatarName: p.avatarName,
-    productPrompt: p.productPrompt,
-    sceneHint: p.sceneHint,
-    durationSec: duration,
-  });
+  const providedScript = p.scriptOverride?.trim();
+  const generated = providedScript
+    ? { script: providedUGCScript(providedScript), source: "provided" as const, provider: undefined }
+    : await generateUGCScript({
+      avatarName: p.avatarName,
+      productPrompt: p.productPrompt,
+      sceneHint: p.sceneHint,
+      durationSec: duration,
+    });
+  const { script, source: scriptSource, provider: scriptProvider } = generated;
 
   // Stage 2 — voice. Runs BEFORE the xAI fast path because the character's
   // voice must stay CONSISTENT across renders: a user-supplied track is the
@@ -992,11 +1254,20 @@ async function runUGCAd(job: JobRow, orch: Orchestrate): Promise<JobOutput> {
         });
         fastLipsyncSkipped = false;
       }
+      const captioned = p.captionText
+        ? await orch({
+          kind: "caption_burn",
+          videoUrl: fastFinal.url,
+          segments: buildUGCCaptionSegments(p.captionText, duration),
+          userId: job.user_id,
+          refId: job.id,
+        })
+        : fastFinal;
       return {
-        url: fastFinal.url,
-        videoUrl: fastFinal.url,
-        provider: fastFinal.provider,
-        endpoint: fastFinal.endpoint,
+        url: captioned.url,
+        videoUrl: captioned.url,
+        provider: captioned.provider,
+        endpoint: captioned.endpoint,
         meta: {
           script: script.full,
           script_source: scriptSource,
@@ -1005,6 +1276,7 @@ async function runUGCAd(job: JobRow, orch: Orchestrate): Promise<JobOutput> {
           lipsync_skipped: fastLipsyncSkipped,
           duration,
           xai_ugc: true,
+          captions_burned: Boolean(p.captionText),
         },
       };
     } catch (e) {
@@ -1071,11 +1343,20 @@ async function runUGCAd(job: JobRow, orch: Orchestrate): Promise<JobOutput> {
     }
   }
 
+  const captioned = p.captionText
+    ? await orch({
+      kind: "caption_burn",
+      videoUrl: final.url,
+      segments: buildUGCCaptionSegments(p.captionText, duration),
+      userId: job.user_id,
+      refId: job.id,
+    })
+    : final;
   return {
-    url: final.url,
-    videoUrl: final.url,
-    provider: final.provider,
-    endpoint: final.endpoint,
+    url: captioned.url,
+    videoUrl: captioned.url,
+    provider: captioned.provider,
+    endpoint: captioned.endpoint,
     meta: {
       script: script.full,
       script_source: scriptSource,
@@ -1083,6 +1364,7 @@ async function runUGCAd(job: JobRow, orch: Orchestrate): Promise<JobOutput> {
       tts_skipped: ttsSkipped,
       lipsync_skipped: lipsyncSkipped,
       duration,
+      captions_burned: Boolean(p.captionText),
     },
   };
 }
@@ -1611,7 +1893,7 @@ export async function processOneJob(
     } else if (job.kind === "performance_reskin") {
       out = await runPerformanceReskin(job, orch, workerId);
     } else if (job.kind === "ugc_ad") {
-      out = await runUGCAd(job, orch);
+      out = await runUGCAd(job, orch, deps);
     } else if (job.kind === "product_demo") {
       out = await runProductDemo(job, orch);
     } else if (job.kind === "ugc_campaign_item") {
@@ -1621,7 +1903,14 @@ export async function processOneJob(
     } else if (job.kind === "autocut") {
       out = await runAutocut(job, orch, workerId);
     } else if (job.kind === "video_agent_render") {
-      out = await runVideoAgentRender(job, orch, workerId, deps.getUserTier ?? getUserTier);
+      out = await runVideoAgentRender(
+        job,
+        orch,
+        workerId,
+        deps.getUserTier ?? getUserTier,
+        deps.assembleVideoAgent ?? runLocalFfmpegAssemble,
+        deps.uploadVideoAgent ?? uploadAutocutResult,
+      );
     } else {
       out = await runMediaJob(job, orch, workerId);
     }
@@ -1742,17 +2031,29 @@ export async function processOneJob(
         }
       })();
       if (job.kind === "video_agent_render") {
-        await updateVideoAgentProject(
-          (job.payload as { projectId?: string }).projectId,
-          job.user_id,
-          {
-            status: "succeeded",
-            status_message: "Final MP4 ready",
-            export_url: persistedUrl,
-            error: null,
-          },
-          job.id,
-        );
+        const renderEngine = (out.meta as { renderEngine?: VideoAgentRenderEngine } | undefined)?.renderEngine;
+        const projectPatch: VideoAgentWorkerPatch = {
+          status: "succeeded",
+          status_message: "Final MP4 ready",
+          export_url: persistedUrl,
+          error: null,
+        };
+        if (renderEngine) {
+          await finalizeVideoAgentProject(
+            (job.payload as { projectId?: string }).projectId,
+            job.user_id,
+            job.id,
+            projectPatch,
+            renderEngine,
+          );
+        } else {
+          await updateVideoAgentProject(
+            (job.payload as { projectId?: string }).projectId,
+            job.user_id,
+            projectPatch,
+            job.id,
+          );
+        }
       }
     }
     return {

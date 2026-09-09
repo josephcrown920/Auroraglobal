@@ -27,6 +27,17 @@ const UGCScriptSchema = z.object({
 export type UGCScript = { hook: string; body: string; cta: string; full: string };
 
 /**
+ * Preserve supplied creator copy verbatim when a caller has already written the
+ * script (for example Content Line). This deliberately bypasses the LLM rewrite
+ * used for a conventional product brief.
+ */
+export function providedUGCScript(full: string): UGCScript {
+  const script = full.trim();
+  if (!script) throw new Error("Provided UGC script cannot be empty");
+  return { hook: "", body: "", cta: "", full: script };
+}
+
+/**
  * Write a short UGC ad script. Tries the configured LLM fallback chain and, when
  * no LLM key is configured (or every provider fails), returns a deterministic
  * templated script so the pipeline still produces a real, functional ad. The

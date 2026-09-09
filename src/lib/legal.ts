@@ -1,6 +1,6 @@
 // Versioned legal documents. Bump the version when content changes — it
 // invalidates prior acceptances for that document.
-export const LEGAL_VERSION = "2026-06-10";
+export const LEGAL_VERSION = "2026-09-09";
 export const COMPANY = {
   name: "Aurora Performance Studio",
   product: "Aurora",

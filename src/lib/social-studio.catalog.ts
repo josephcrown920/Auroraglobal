@@ -26,7 +26,7 @@ export const AURORA_MARKETING_FEATURES: readonly AuroraMarketingFeature[] = [
     name: "Video Agent",
     promise: "Turn a creative brief into a directed, multi-shot video production.",
     proof: "Conversational planning, shot generation, project state, and rendered video outputs.",
-    preview: "/nav-previews/video-agent.jpg",
+    preview: "/nav-previews/video-agent-workspace.jpg",
     route: "/agent",
   },
   {
@@ -67,7 +67,7 @@ export const AURORA_MARKETING_FEATURES: readonly AuroraMarketingFeature[] = [
     promise: "Plan scenes, looks, shots, and production decisions in one directing workspace.",
     proof: "Moodboards, storyboard tools, shot direction, and an inspector stay inside one project.",
     preview: "/director-room/streets-performance-hero.jpeg",
-    route: "/agent",
+    route: "/director-room",
   },
   {
     id: "custom",

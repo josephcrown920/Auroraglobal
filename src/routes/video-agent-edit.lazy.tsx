@@ -509,6 +509,28 @@ function VideoEditor() {
               </Button>
             </div>
           </div>
+           {project.renderEngine && (
+             <details className="mt-2 text-[11px] text-muted-foreground">
+               <summary className="cursor-pointer font-medium text-foreground/80">
+                 Render engines · {project.renderEngine.scenes.length} scene{project.renderEngine.scenes.length === 1 ? "" : "s"}
+               </summary>
+               <div className="mt-1 space-y-0.5">
+                 {project.renderEngine.scenes.map((engine) => (
+                   <div key={`${engine.sceneId}-${engine.index}`}>
+                     Scene {engine.index + 1}:{" "}
+                     {engine.image.source === "reused"
+                       ? `plate reused${engine.image.plateQuality ? ` (${engine.image.plateQuality})` : ""}`
+                       : `image ${engine.image.provider} · ${engine.image.endpoint}`}
+                     {" → "}
+                     video {engine.video.provider} · {engine.video.endpoint}
+                   </div>
+                 ))}
+                 <div>
+                   Assembly: {project.renderEngine.assembler.provider} · {project.renderEngine.assembler.endpoint}
+                 </div>
+               </div>
+             </details>
+           )}
         </div>
       )}
 

@@ -191,7 +191,7 @@ Suggested screenshot sequence:
 | Store copy (Play + App Store) | ✅ Updated to current mobile behavior; owner must review before submission |
 | EAS project linked (`@nbajoshs-organization/aurora-performance-studio`) | ✅ ID `9927fad2-c399-4ae3-8727-614a2c751184` in `app.json` |
 | Current Android configuration | ✅ `versionCode` 3 |
-| **Fresh Android production AAB (vc3)** | Queued on 2026-09-09 — [Expo build](https://expo.dev/accounts/nbajoshs-organization/projects/aurora-performance-studio/builds/0e0b090b-4766-45a0-92ae-0c991fdeab9b); completion and device testing pending |
+| **Fresh Android production AAB (vc3)** | ❌ FAILED — [Expo build `0e0b090b`](https://expo.dev/accounts/nbajoshs-organization/projects/aurora-performance-studio/builds/0e0b090b-4766-45a0-92ae-0c991fdeab9b) reached `ERRORED` on 2026-09-09. The remote failure details have not been inspected, so no root cause is asserted; a replacement build and device testing are pending. |
 | Existing Android AAB (vc2) | ⚠️ OLD branding; not recommended for upload |
 | `eas.json` production profiles | ✅ Android AAB + iOS store distribution |
 | Google Play developer verification | User reports verified; not audited in Play Console from this repository |

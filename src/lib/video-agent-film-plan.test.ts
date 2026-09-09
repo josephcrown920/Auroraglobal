@@ -1,5 +1,13 @@
 import { describe, expect, it } from "bun:test";
-import { FilmPlanAdoptionInputSchema, FilmPlanSchema } from "./video-agent-projects.functions";
+import {
+  FilmPlanAdoptionInputSchema,
+  FilmPlanSchema,
+  assertVideoAgentSeedanceEntitlement,
+  assertSupportedFilmStudioAssembly,
+  mapVideoAgentProject,
+  mergeVideoAgentSceneEdit,
+  resolveVideoAgentScenePrompt,
+} from "./video-agent-projects.functions";
 
 const validPlan = {
   schemaVersion: 1 as const,
@@ -48,6 +56,60 @@ const validPlan = {
 };
 
 describe("durable Film Studio plan contract", () => {
+  it("requires an active Pro entitlement for every Video Agent Seedance render", () => {
+    expect(() => assertVideoAgentSeedanceEntitlement("free")).toThrow(/active Pro subscription/i);
+    expect(() => assertVideoAgentSeedanceEntitlement("starter")).toThrow(/active Pro subscription/i);
+    expect(() => assertVideoAgentSeedanceEntitlement("pro")).not.toThrow();
+  });
+
+  it("exposes a render receipt from an otherwise unknown legacy production object", () => {
+    const renderEngine = {
+      version: 1 as const,
+      scenes: [{
+        sceneId: "legacy-scene",
+        index: 0,
+        image: {
+          source: "reused" as const,
+          plateQuality: "free" as const,
+          generationId: null,
+        },
+        video: {
+          provider: "actual-provider",
+          endpoint: "actual/video/endpoint",
+        },
+      }],
+      assembler: {
+        provider: "aurora-video-agent" as const,
+        endpoint: "local-ffmpeg-assemble" as const,
+      },
+    };
+    const mapped = mapVideoAgentProject({
+      id: "p1",
+      prompt: "A sufficiently long legacy project prompt",
+      title: "Legacy",
+      style: "cinematic",
+      voice: "narrator-warm",
+      target_duration: 30,
+      scenes: [],
+      status: "succeeded",
+      status_message: "ready",
+      job_id: "j1",
+      generation_id: "g1",
+      export_url: "https://example.com/final.mp4",
+      thumbnail_url: null,
+      error: null,
+      production: {
+        template: "unknown-legacy-template",
+        custom: { untouched: true },
+        renderEngine,
+      },
+      created_at: "2026-09-09T00:00:00.000Z",
+      updated_at: "2026-09-09T00:00:01.000Z",
+    });
+    expect(mapped.production).toBeNull();
+    expect(mapped.renderEngine).toEqual(renderEngine);
+  });
+
   it("accepts the fail-closed Seedance 2.5 renderer contract", () => {
     expect(FilmPlanSchema.parse(validPlan).renderPlan.rendererModel).toBe("byteplus/seedance-2.5");
   });
@@ -59,15 +121,77 @@ describe("durable Film Studio plan contract", () => {
     })).toThrow();
   });
 
-  it("rejects an unsupported native resolution or cinema ratio", () => {
+  it("rejects unsupported native resolution and assembly settings explicitly", () => {
     expect(() => FilmPlanSchema.parse({
       ...validPlan,
       renderPlan: { ...validPlan.renderPlan, resolution: "1080p" },
     })).toThrow();
-    expect(() => FilmPlanSchema.parse({
-      ...validPlan,
-      renderPlan: { ...validPlan.renderPlan, aspectRatio: "2.39:1" },
-    })).toThrow();
+    expect(() => assertSupportedFilmStudioAssembly({
+      ...validPlan.renderPlan,
+      aspectRatio: "4:3",
+    })).toThrow(/supports 16:9, 9:16, or 1:1/i);
+    expect(() => assertSupportedFilmStudioAssembly({
+      ...validPlan.renderPlan,
+      fps: 30,
+    })).toThrow(/supports 24fps/i);
+    expect(FilmPlanAdoptionInputSchema.safeParse({
+      prompt: "Adopt this otherwise valid unsupported film plan.",
+      originalPlan: {},
+      renderSettings: { ...validPlan.renderPlan, aspectRatio: "4:3" },
+    }).success).toBe(false);
+  });
+
+  it("uses the edited camera description as the shared plate and provider prompt boundary", () => {
+    const adopted = {
+      id: "shot-1",
+      index: 0,
+      title: "Opening",
+      script: "Voice-over",
+      description: "Original planner shot prompt",
+      modelPrompt: "Original planner shot prompt",
+      duration: 5,
+      frame: "https://example.com/old-generated-plate.png",
+      frameStatus: "done" as const,
+      plateQuality: "premium" as const,
+      plateGenerationId: "old-plate-generation",
+    };
+    const edited = mergeVideoAgentSceneEdit(adopted, {
+      ...adopted,
+      description: "Edited low-angle tracking shot at blue hour",
+    });
+
+    expect(resolveVideoAgentScenePrompt(edited)).toBe("Edited low-angle tracking shot at blue hour");
+    expect(edited).toMatchObject({
+      frame: null,
+      frameStatus: "idle",
+      plateGenerationId: null,
+    });
+    expect(edited.plateQuality).toBeUndefined();
+  });
+
+  it("does not invalidate a generated plate for unrelated narration edits", () => {
+    const previous = {
+      id: "shot-1",
+      index: 0,
+      title: "Opening",
+      script: "Old narration",
+      description: "Stable visual prompt",
+      modelPrompt: "Original planner prompt",
+      duration: 5,
+      frame: "https://example.com/plate.png",
+      frameStatus: "done" as const,
+      plateQuality: "premium" as const,
+      plateGenerationId: "plate-generation",
+    };
+    const edited = mergeVideoAgentSceneEdit(previous, {
+      ...previous,
+      script: "New narration only",
+    });
+    expect(edited).toMatchObject({
+      frame: previous.frame,
+      plateQuality: "premium",
+      plateGenerationId: "plate-generation",
+    });
   });
 
   it("requires authentic planner provenance", () => {

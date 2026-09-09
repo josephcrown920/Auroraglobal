@@ -50,6 +50,68 @@ const SceneSchema = z.object({
 const SceneListSchema = z.array(SceneSchema);
 type SceneRecord = z.infer<typeof SceneSchema>;
 
+/** The editor's visual description is the canonical provider prompt. */
+export function resolveVideoAgentScenePrompt(scene: {
+  description?: string | null;
+  modelPrompt?: string | null;
+}): string {
+  return scene.description?.trim() || scene.modelPrompt?.trim() || "";
+}
+
+export function mergeVideoAgentSceneEdit(
+  previous: SceneRecord | undefined,
+  scene: SceneRecord,
+): SceneRecord {
+  const visualPromptChanged =
+    previous !== undefined &&
+    resolveVideoAgentScenePrompt(previous) !== resolveVideoAgentScenePrompt(scene);
+  return {
+    ...scene,
+    // A generated plate is derived from the old canonical visual prompt. Clear
+    // it only when that prompt changes; narration/timing/title edits retain it.
+    frame: visualPromptChanged ? null : previous?.frame ?? null,
+    frameStatus: visualPromptChanged ? "idle" : previous?.frameStatus ?? "idle",
+    plateQuality: visualPromptChanged ? undefined : previous?.plateQuality,
+    plateGenerationId: visualPromptChanged ? null : previous?.plateGenerationId ?? null,
+  };
+}
+
+const VideoAgentRenderEngineSchema = z.object({
+  version: z.literal(1),
+  scenes: z.array(z.object({
+    sceneId: z.string().min(1).max(100),
+    index: z.number().int().min(0).max(20),
+    image: z.discriminatedUnion("source", [
+      z.object({
+        source: z.literal("generated"),
+        provider: z.string().min(1).max(200),
+        endpoint: z.string().min(1).max(500),
+      }),
+      z.object({
+        source: z.literal("reused"),
+        plateQuality: z.enum(["free", "premium"]).nullable(),
+        generationId: z.string().max(160).nullable(),
+      }),
+    ]),
+    video: z.object({
+      provider: z.string().min(1).max(200),
+      endpoint: z.string().min(1).max(500),
+    }),
+  })).max(12),
+  assembler: z.object({
+    provider: z.literal("aurora-video-agent"),
+    endpoint: z.literal("local-ffmpeg-assemble"),
+  }),
+});
+export type VideoAgentRenderEngine = z.infer<typeof VideoAgentRenderEngineSchema>;
+
+/** Pure entitlement boundary shared by enqueue and the durable worker. */
+export function assertVideoAgentSeedanceEntitlement(tier: string): void {
+  if (tier !== "pro") {
+    throw new Error("An active Pro subscription is required for Video Agent Seedance renders");
+  }
+}
+
 const ProjectInput = z.object({
   prompt: z.string().min(10).max(4000),
   title: z.string().min(1).max(160).default("Untitled Video"),
@@ -139,15 +201,45 @@ export const FilmPlanSchema = z.object({
     fingerprint: z.string().length(64),
     approvedAt: z.string().datetime(),
   }).nullable().default(null),
+  // Actual provider/endpoint receipt from the most recently finalized render.
+  // It is intentionally outside the approval fingerprint: it is an execution
+  // receipt, not an input to the approved creative/render contract.
+  renderEngine: VideoAgentRenderEngineSchema.optional(),
 });
 
 export type FilmPlanRecord = z.infer<typeof FilmPlanSchema>;
 
 const FilmRenderChoicesSchema = FilmPlanSchema.shape.renderPlan;
+const SupportedFilmRenderChoicesSchema = FilmRenderChoicesSchema.superRefine((settings, context) => {
+  if (!["16:9", "9:16", "1:1"].includes(settings.aspectRatio)) {
+    context.addIssue({
+      code: "custom",
+      path: ["aspectRatio"],
+      message: "Durable Film Studio assembly currently supports 16:9, 9:16, or 1:1",
+    });
+  }
+  if (settings.fps !== 24) {
+    context.addIssue({
+      code: "custom",
+      path: ["fps"],
+      message: "Durable Film Studio assembly currently supports 24fps",
+    });
+  }
+});
+
+export function assertSupportedFilmStudioAssembly(
+  settings: z.infer<typeof FilmRenderChoicesSchema>,
+): void {
+  const parsed = SupportedFilmRenderChoicesSchema.safeParse(settings);
+  if (!parsed.success) {
+    throw new Error(parsed.error.issues.map((issue) => issue.message).join("; "));
+  }
+}
+
 export const FilmPlanAdoptionInputSchema = z.object({
   prompt: z.string().min(10).max(4000),
   originalPlan: VideoPlanSchema,
-  renderSettings: FilmRenderChoicesSchema,
+  renderSettings: SupportedFilmRenderChoicesSchema,
 }).strict();
 
 function verifiedPlanScript(plan: VideoPlan): string {
@@ -324,6 +416,14 @@ function parseFilmPlan(value: unknown): FilmPlanRecord | null {
   return parsed.success ? parsed.data : null;
 }
 
+function parseRenderEngine(value: unknown): VideoAgentRenderEngine | null {
+  if (!value || typeof value !== "object") return null;
+  const parsed = VideoAgentRenderEngineSchema.safeParse(
+    (value as { renderEngine?: unknown }).renderEngine,
+  );
+  return parsed.success ? parsed.data : null;
+}
+
 export async function filmRenderFingerprintAsync(scenes: SceneRecord[], plan: FilmPlanRecord): Promise<string> {
   const canonical = JSON.stringify({
     scenes: scenes.map((scene) => ({
@@ -362,6 +462,7 @@ export function mapVideoAgentProject(row: ProjectRow) {
     error: row.error,
     production: parseProduction(row.production),
     filmPlan: parseFilmPlan(row.production),
+    renderEngine: parseRenderEngine(row.production),
     createdAt: new Date(row.created_at).getTime(),
     updatedAt: new Date(row.updated_at).getTime(),
     version: row.updated_at,
@@ -490,6 +591,7 @@ export const approveFilmStudioRender = createServerFn({ method: "POST" })
     }
     const plan = parseFilmPlan(current.production);
     if (!plan) throw new Error("This project does not contain an adopted film plan");
+    assertSupportedFilmStudioAssembly(plan.renderPlan);
     const scenes = SceneListSchema.min(1).max(12).parse(current.scenes);
     const shortScene = scenes.find((scene) => !Number.isInteger(scene.duration) || scene.duration < 4);
     if (shortScene) {
@@ -627,13 +729,7 @@ export const updateVideoAgentProject = createServerFn({ method: "POST" })
       // but cannot inject a frame URL or impersonate a paid generation.
       patch.scenes = data.scenes.map((scene) => {
         const previous = currentScenes.find((item) => item.id === scene.id);
-        return {
-          ...scene,
-          frame: previous?.frame ?? null,
-          frameStatus: previous?.frameStatus ?? "idle",
-          plateQuality: previous?.plateQuality,
-          plateGenerationId: previous?.plateGenerationId ?? null,
-        };
+        return mergeVideoAgentSceneEdit(previous, scene);
       });
       // Storyboard edits move a draft into the editable state, but never
       // clobber a terminal render status (succeeded/failed keep showing the
@@ -1147,7 +1243,7 @@ export const generateVideoAgentPrevisPlate = createServerFn({ method: "POST" })
     const scenes = parseScenes(project.scenes);
     const scene = scenes.find((item) => item.id === data.sceneId);
     if (!scene) throw new Error("Scene not found in this project");
-    const prompt = (scene.modelPrompt || scene.description).trim();
+    const prompt = resolveVideoAgentScenePrompt(scene);
     if (!prompt) throw new Error("Add a model prompt before generating the plate");
 
     const url = pollinationsPrevisUrl(prompt);
@@ -1179,7 +1275,7 @@ export const upgradeVideoAgentPlate = createServerFn({ method: "POST" })
     if (!scene.description.trim()) throw new Error("Add a visual description before upgrading the plate");
 
     const styleHint = previsStyleHints[project.style] ?? previsStyleHints.cinematic;
-    const prompt = `${scene.modelPrompt || scene.description}. Style: ${styleHint}. Cinematic keyframe.`;
+    const prompt = `${resolveVideoAgentScenePrompt(scene)}. Style: ${styleHint}. Cinematic keyframe.`;
 
     const { reserveOrchestrateRecord } = await import("./generate-core.server");
     let outcome;
@@ -1225,6 +1321,7 @@ export const enqueueVideoAgentRender = createServerFn({ method: "POST" })
     const filmPlan = parseFilmPlan(project.production);
     let renderCost = VIDEO_AGENT_RENDER_COST;
     if (filmPlan) {
+      assertSupportedFilmStudioAssembly(filmPlan.renderPlan);
       const shortScene = scenes.find((scene) => !Number.isInteger(scene.duration) || scene.duration < 4);
       if (shortScene) {
         throw new Error(`${shortScene.title} is ${shortScene.duration}s. Seedance 2.5 requires every shot to be an integer from 4–15 seconds.`);
@@ -1238,9 +1335,6 @@ export const enqueueVideoAgentRender = createServerFn({ method: "POST" })
           "Film Studio native rendering is prepared but disabled until scoped video_agent_projects write grants are deployed. No Aura was reserved.",
         );
       }
-      if (await getUserTier(context.userId) !== "pro") {
-        throw new Error("An active Pro subscription is required for Seedance 2.5 Film Studio renders");
-      }
       renderCost = computeCost({
         features: ["video", "audio"],
         model: filmPlan.renderPlan.rendererModel,
@@ -1248,6 +1342,10 @@ export const enqueueVideoAgentRender = createServerFn({ method: "POST" })
         durationSeconds: scenes.reduce((sum, scene) => sum + scene.duration, 0),
       }).total;
     }
+    // The legacy path also explicitly dispatches paid Seedance with
+    // forSubscriber=true. Adapter-native checks are not an entitlement lookup:
+    // enforce active Pro before an existing job is adopted or Aura is reserved.
+    assertVideoAgentSeedanceEntitlement(await getUserTier(context.userId));
     if (project.job_id && ["queued", "processing"].includes(project.status)) {
       return { jobId: project.job_id, generationId: project.generation_id, cost: renderCost };
     }

@@ -1251,10 +1251,15 @@ const REPLICATE_MAP: Record<string, ReplicateEntry> = {
       return {
         video: r.videoUrl,
         srt,
-        font_size: 24,
+        // Viral UGC caption treatment: one large white line, heavy black
+        // outline, and a lower-third anchor. This is the sole visual caption
+        // layer for exported Content Line clips (the UI does not duplicate it).
+        font_size: 42,
         font_color: "white",
         border: true,
         border_color: "black",
+        border_width: 3,
+        position: "bottom",
       };
     },
   },

@@ -32,7 +32,7 @@ type FilmPlanEnvelope = VideoPlan & {
 };
 
 type RenderAspect = FilmPlanRecord["renderPlan"]["aspectRatio"];
-const SUPPORTED_RENDER_ASPECTS: RenderAspect[] = ["16:9", "9:16", "1:1", "4:3", "3:4", "21:9"];
+const SUPPORTED_RENDER_ASPECTS: RenderAspect[] = ["16:9", "9:16", "1:1"];
 
 const REFERENCE_IMAGES = [
   { src: "/prime/shot-neon-face.jpg", label: "Lighting reference" },
@@ -212,7 +212,8 @@ export function FilmStudioPlan({
             rendererModel: "byteplus/seedance-2.5",
             aspectRatio: renderAspect,
             resolution,
-            fps: envelope.render_plan?.fps ?? 24,
+            // Durable Film Studio assembly is currently verified at 24fps.
+            fps: 24,
             generateAudio: true,
             watermark: false,
           },
@@ -404,7 +405,7 @@ export function FilmStudioPlan({
                 <option value="720p">720p</option>
                 <option value="480p">480p</option>
               </select>
-              <span>· {envelope.render_plan?.fps ?? 24}fps</span>
+              <span>· 24fps</span>
             </dd>
             <dt className="text-ink-dim">Boundary</dt><dd className="text-ink">{isApproved ? "Approved fingerprint" : "Approval required before paid render"}</dd>
           </dl>

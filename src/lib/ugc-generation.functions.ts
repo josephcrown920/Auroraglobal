@@ -26,8 +26,18 @@ const UGCAdSchema = z.object({
   presetHint: z.string().max(600).optional(),
   presetName: z.string().max(120).optional(),
   productPrompt: z.string().min(2).max(1000),
+  /** Exact creator copy supplied by a script-writing surface. When present the
+   * worker must speak this verbatim rather than asking the UGC scriptwriter to
+   * generate a replacement. */
+  scriptOverride: z.string().min(2).max(6000).optional(),
+  /** Short, post-ready caption burned into the final clip by the established
+   * caption_burn renderer. */
+  captionText: z.string().min(1).max(500).optional(),
   aspect: z.enum(["9:16", "16:9", "1:1", "4:5"]).default("9:16"),
-  duration: z.number().int().min(3).max(12).default(8),
+  // Content Line authors 15/30/45s briefs. Long authored scripts are rendered
+  // as ordered 15-second talking-head scenes and locally assembled by the
+  // existing UGC worker rather than being silently squeezed into one short clip.
+  duration: z.number().int().min(3).max(45).default(8),
   voiceModel: z.string().max(120).optional(),
   /** The character's own voice track. When set it always drives the final
    *  lip-sync — no generated/TTS voice is ever shipped in its place. */
@@ -65,6 +75,8 @@ export async function _enqueueUGCAd(
       sceneHint: data.presetHint,
       sceneName: data.presetName,
       productPrompt: data.productPrompt,
+      scriptOverride: data.scriptOverride,
+      captionText: data.captionText,
       aspect: data.aspect,
       duration: data.duration,
       voiceModel: data.voiceModel,
