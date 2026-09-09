@@ -1,6 +1,6 @@
 import { createLazyFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
   CalendarDays,
@@ -50,7 +50,13 @@ type StudioView = "create" | "campaign" | "calendar" | "queue";
 type PostStatus = "draft" | "approved" | "scheduled" | "published";
 type Channel = "instagram_feed" | "instagram_carousel" | "instagram_reel" | "instagram_story";
 type CampaignItem = MarketingCampaignItem & {
-  assetUrls: string[];
+  /**
+   * Slot-indexed visuals: for a carousel, index i is slide i's image (or null
+   * when that slide's render failed); for feed/reel posts a single slot.
+   * Indexed (not compacted) so a failed slide never shifts later slides'
+   * numbering in the card, manifest or downloads.
+   */
+  assetUrls: Array<string | null>;
   videoUrl: string | null;
   status: PostStatus;
   scheduledDate: string;
@@ -97,8 +103,11 @@ function readCampaign(): CampaignState | null {
   if (typeof window === "undefined") return null;
   try {
     const value = JSON.parse(window.localStorage.getItem(CAMPAIGN_KEY) ?? "null") as unknown;
-    if (!value || typeof value !== "object" || !Array.isArray((value as CampaignState).items)) return null;
-    return value as CampaignState;
+    if (!value || typeof value !== "object") return null;
+    const candidate = value as Partial<CampaignState>;
+    if (typeof candidate.id !== "string" || !Array.isArray(candidate.items)) return null;
+    if (!candidate.items.every((item) => item && typeof item === "object" && typeof (item as CampaignItem).id === "string" && Array.isArray((item as CampaignItem).assetUrls))) return null;
+    return candidate as CampaignState;
   } catch {
     return null;
   }
@@ -106,6 +115,20 @@ function readCampaign(): CampaignState | null {
 
 function safeFileName(value: string): string {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 60) || "campaign";
+}
+
+/** First rendered visual of a post, skipping failed slots. */
+function firstVisual(item: Pick<CampaignItem, "assetUrls">): string | null {
+  return item.assetUrls.find((url): url is string => Boolean(url)) ?? null;
+}
+
+/** Rendered visuals with their original slot numbers preserved. */
+function renderedVisuals(item: Pick<CampaignItem, "assetUrls">): Array<{ slot: number; url: string }> {
+  return item.assetUrls.flatMap((url, index) => (url ? [{ slot: index + 1, url }] : []));
+}
+
+function failedSlots(item: Pick<CampaignItem, "assetUrls">): number[] {
+  return item.assetUrls.flatMap((url, index) => (url ? [] : [index + 1]));
 }
 
 function AuroraMarketingStudio() {
@@ -123,10 +146,22 @@ function AuroraMarketingStudio() {
   const [postCount, setPostCount] = useState(7);
   const [notes, setNotes] = useState("");
   const [planning, setPlanning] = useState(false);
+  // Activity is keyed by `${campaignId}:${itemId}` and every async render
+  // captures the campaign id it started under, so a render that completes
+  // after "New campaign" can neither write into the replacement campaign
+  // (model-generated item ids like "day-1-reel" repeat) nor clear its spinners.
   const [activity, setActivity] = useState<Record<string, "visuals" | "reel">>({});
+  const campaignIdRef = useRef<string | null>(campaign?.id ?? null);
+  campaignIdRef.current = campaign?.id ?? null;
 
   useEffect(() => {
-    if (campaign) window.localStorage.setItem(CAMPAIGN_KEY, JSON.stringify(campaign));
+    if (!campaign) return;
+    try {
+      window.localStorage.setItem(CAMPAIGN_KEY, JSON.stringify(campaign));
+    } catch (error) {
+      console.warn("[marketing-studio] campaign could not be saved locally", error);
+      toast.error("Campaign could not be saved in this browser — export the manifest before leaving");
+    }
   }, [campaign]);
 
   const feature = getAuroraMarketingFeature(campaign?.featureId ?? featureId) ?? AURORA_MARKETING_FEATURES[0];
@@ -139,12 +174,28 @@ function AuroraMarketingStudio() {
     }));
   }, [campaign, days]);
 
-  function patchItem(id: string, patch: Partial<CampaignItem>) {
+  function patchItem(id: string, patch: Partial<CampaignItem>, campaignId = campaignIdRef.current) {
     setCampaign((current) =>
-      current
+      current && current.id === campaignId
         ? { ...current, items: current.items.map((item) => (item.id === id ? { ...item, ...patch } : item)) }
         : current,
     );
+  }
+
+  function activityKey(campaignId: string | null, itemId: string) {
+    return `${campaignId ?? "none"}:${itemId}`;
+  }
+
+  function beginActivity(campaignId: string | null, itemId: string, kind: "visuals" | "reel") {
+    setActivity((current) => ({ ...current, [activityKey(campaignId, itemId)]: kind }));
+  }
+
+  function endActivity(campaignId: string | null, itemId: string) {
+    setActivity((current) => {
+      const next = { ...current };
+      delete next[activityKey(campaignId, itemId)];
+      return next;
+    });
   }
 
   async function createCampaign() {
@@ -183,7 +234,8 @@ function AuroraMarketingStudio() {
   }
 
   async function generateVisuals(item: CampaignItem) {
-    setActivity((current) => ({ ...current, [item.id]: "visuals" }));
+    const campaignId = campaignIdRef.current;
+    beginActivity(campaignId, item.id, "visuals");
     try {
       const prompts =
         item.format === "carousel" && item.slides.length
@@ -192,39 +244,60 @@ function AuroraMarketingStudio() {
                 `${slide.visualPrompt}. Instagram carousel slide ${index + 1} of ${item.slides.length}. ${slide.heading}: ${slide.body}. Keep typography areas clean and mobile readable.`,
             )
           : [item.visualPrompt];
+      // Retry semantics: when a previous run left failed slots, render ONLY
+      // those slots and keep every slide that already succeeded. A fresh run
+      // (no slots yet, or a slot-count mismatch) renders everything.
+      const previous = item.assetUrls.length === prompts.length ? item.assetUrls : prompts.map(() => null);
+      const pending = prompts.map((prompt, index) => ({ prompt, index })).filter(({ index }) => !previous[index]);
+      const targets = pending.length ? pending : prompts.map((prompt, index) => ({ prompt, index }));
       const settled = await Promise.allSettled(
-        prompts.map((prompt) => generateImage({ data: { prompt, imageUrls: [], motionVideoUrl: null } })),
+        targets.map(({ prompt }) => generateImage({ data: { prompt, imageUrls: [], motionVideoUrl: null } })),
       );
-      const urls = settled
-        .filter((result): result is PromiseFulfilledResult<{ id: string; resultUrl: string }> => result.status === "fulfilled")
-        .map((result) => result.value.resultUrl);
-      const failures = settled.length - urls.length;
-      if (urls.length) patchItem(item.id, { assetUrls: urls });
-      if (urls.length) toast.success(`${urls.length} visual${urls.length === 1 ? "" : "s"} ready`);
-      if (failures) toast.error(`${failures} visual${failures === 1 ? "" : "s"} failed — successful images were kept`);
-      if (!urls.length) {
+      const next = pending.length ? [...previous] : prompts.map(() => null as string | null);
+      let succeeded = 0;
+      settled.forEach((result, position) => {
+        if (result.status === "fulfilled") {
+          next[targets[position].index] = result.value.resultUrl;
+          succeeded++;
+        }
+      });
+      const failures = settled.length - succeeded;
+      if (succeeded) patchItem(item.id, { assetUrls: next }, campaignId);
+      if (succeeded) toast.success(`${succeeded} visual${succeeded === 1 ? "" : "s"} ready`);
+      if (failures) {
+        const slots = targets.filter((_, position) => settled[position].status === "rejected").map(({ index }) => index + 1);
+        toast.error(
+          prompts.length > 1
+            ? `Slide${slots.length === 1 ? "" : "s"} ${slots.join(", ")} failed — finished slides were kept; use Retry to render only the missing ones`
+            : "Visual failed",
+        );
+      }
+      if (!succeeded) {
         const first = settled.find((result) => result.status === "rejected") as PromiseRejectedResult | undefined;
         if (first) handleGenerationError(first.reason);
       }
     } finally {
-      setActivity((current) => {
-        const next = { ...current };
-        delete next[item.id];
-        return next;
-      });
+      endActivity(campaignId, item.id);
     }
   }
 
   async function generateReel(item: CampaignItem) {
-    setActivity((current) => ({ ...current, [item.id]: "reel" }));
+    const campaignId = campaignIdRef.current;
+    beginActivity(campaignId, item.id, "reel");
     try {
-      let imageUrl = item.assetUrls[0];
+      let imageUrl = firstVisual(item);
       if (!imageUrl) {
         const image = await generateImage({
           data: { prompt: item.visualPrompt, imageUrls: [], motionVideoUrl: null },
         });
         imageUrl = image.resultUrl;
-        patchItem(item.id, { assetUrls: [imageUrl] });
+        patchItem(item.id, { assetUrls: [imageUrl] }, campaignId);
+      }
+      if (campaignIdRef.current !== campaignId) {
+        // The operator reset the campaign while the still was rendering: do
+        // not spend on a Reel nobody can see.
+        toast.error("Campaign was reset — Reel cancelled before rendering");
+        return;
       }
       const video = await generateVideo({
         data: {
@@ -235,16 +308,12 @@ function AuroraMarketingStudio() {
           modelKey: "seedance-2.0-fast",
         },
       });
-      patchItem(item.id, { videoUrl: video.videoUrl });
-      toast.success("Reel rendered");
+      patchItem(item.id, { videoUrl: video.videoUrl }, campaignId);
+      toast.success(video.preview ? "Reel preview rendered (480p proof pass)" : "Reel rendered");
     } catch (error) {
       handleGenerationError(error);
     } finally {
-      setActivity((current) => {
-        const next = { ...current };
-        delete next[item.id];
-        return next;
-      });
+      endActivity(campaignId, item.id);
     }
   }
 
@@ -273,7 +342,8 @@ function AuroraMarketingStudio() {
           item.hashtags.map((tag) => `#${tag.replace(/^#/, "")}`).join(" "),
           `CTA: ${item.cta}`,
           item.videoUrl ? `Video: ${item.videoUrl}` : "",
-          ...item.assetUrls.map((url, index) => `Visual ${index + 1}: ${url}`),
+          ...renderedVisuals(item).map(({ slot, url }) => `Visual ${slot}: ${url}`),
+          ...(failedSlots(item).length && firstVisual(item) ? [`Missing visuals: slot ${failedSlots(item).join(", ")}`] : []),
         ]
           .filter(Boolean)
           .join("\n"),
@@ -294,7 +364,7 @@ function AuroraMarketingStudio() {
   async function downloadCampaignAssets() {
     if (!campaign) return;
     const assets = campaign.items.flatMap((item) => [
-      ...item.assetUrls.map((url, index) => ({ url, name: `${safeFileName(item.title)}-${index + 1}.png` })),
+      ...renderedVisuals(item).map(({ slot, url }) => ({ url, name: `${safeFileName(item.title)}-${slot}.png` })),
       ...(item.videoUrl ? [{ url: item.videoUrl, name: `${safeFileName(item.title)}-reel.mp4` }] : []),
     ]);
     if (!assets.length) {
@@ -310,14 +380,19 @@ function AuroraMarketingStudio() {
 
   function startNewCampaign() {
     setCampaign(null);
-    window.localStorage.removeItem(CAMPAIGN_KEY);
+    setActivity({});
+    try {
+      window.localStorage.removeItem(CAMPAIGN_KEY);
+    } catch {
+      toast.error("Could not clear the saved campaign from this browser — it may reappear after reload");
+    }
     setView("create");
   }
 
   return (
     <main className="aurora-page-shell min-h-screen text-foreground">
       <span aria-hidden className="aurora-ambient" />
-      <header className="relative z-20 border-b border-white/10 bg-black/55 px-4 py-4 backdrop-blur-xl md:px-8">
+      <header className="relative z-20 border-b border-white/10 bg-black/55 px-4 py-2.5 backdrop-blur-xl md:px-8">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4">
           <div className="flex min-w-0 items-center gap-3">
             <Link
@@ -328,21 +403,22 @@ function AuroraMarketingStudio() {
               <ArrowLeft className="size-4" />
             </Link>
             <div className="min-w-0">
-              <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.22em] text-violet-300">
-                <Instagram className="size-3.5" /> Aurora operator tool
+              <div className="flex items-center gap-1.5 whitespace-nowrap text-[10px] font-semibold uppercase tracking-[0.18em] text-violet-300">
+                <Instagram className="size-3" /> Operator tool
               </div>
-              <h1 className="truncate text-xl font-semibold tracking-tight md:text-2xl">Marketing Studio</h1>
+              <h1 className="truncate text-lg font-semibold tracking-tight">Marketing Studio</h1>
             </div>
           </div>
           <div className="flex items-center gap-2">
             {campaign && (
-              <Button variant="outline" size="sm" onClick={startNewCampaign} className="hidden gap-1.5 sm:flex">
-                <RefreshCw className="size-3.5" /> New campaign
+              <Button variant="outline" size="sm" onClick={startNewCampaign} className="gap-1.5">
+                <RefreshCw className="size-3.5" />
+                <span className="sr-only">New campaign</span>
+                <span aria-hidden>New</span>
               </Button>
             )}
             <Button variant="outline" size="sm" onClick={exportManifest} disabled={!campaign} className="gap-1.5">
-              <Download className="size-3.5" />
-              <span className="hidden sm:inline">Export</span>
+              <Download className="size-3.5" /> Export
             </Button>
           </div>
         </div>
@@ -359,7 +435,7 @@ function AuroraMarketingStudio() {
               </h2>
               <p className="mt-4 max-w-2xl text-sm leading-6 text-white/60 md:text-base">
                 Plan the campaign, render feed and carousel visuals, create short Reels, approve the copy, and move every
-                post through a real publishing queue.
+                post through a review-first publish queue before it is posted by hand.
               </p>
             </div>
             <div className="grid grid-cols-4 gap-2">
@@ -422,13 +498,13 @@ function AuroraMarketingStudio() {
         {view === "campaign" && campaign && (
           <section>
             <CampaignHeading campaign={campaign} />
-            <div className="mt-6 grid gap-5 lg:grid-cols-2">
+            <div className="mt-6 grid grid-cols-[repeat(auto-fit,minmax(min(100%,340px),1fr))] gap-5">
               {campaign.items.map((item) => (
                 <PostCard
                   key={item.id}
                   item={item}
                   fallbackImage={feature.preview}
-                  activity={activity[item.id]}
+                  activity={activity[activityKey(campaign.id, item.id)]}
                   patchItem={patchItem}
                   generateVisuals={generateVisuals}
                   generateReel={generateReel}
@@ -442,7 +518,7 @@ function AuroraMarketingStudio() {
         {view === "calendar" && campaign && (
           <section className="space-y-4">
             <CampaignHeading campaign={campaign} />
-            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+            <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,240px),1fr))] gap-3">
               {calendarDays.map(({ day, items }) => (
                 <div key={day} className="min-h-44 rounded-2xl border border-white/10 bg-white/[0.035] p-4">
                   <div className="mb-3 flex items-center justify-between">
@@ -459,7 +535,7 @@ function AuroraMarketingStudio() {
                           className="flex w-full items-center gap-3 rounded-xl border border-white/8 bg-black/20 p-2.5 text-left transition hover:border-violet-400/30"
                         >
                           <img
-                            src={item.assetUrls[0] || feature.preview}
+                            src={firstVisual(item) || feature.preview}
                             alt=""
                             className="size-12 rounded-lg object-cover"
                           />
@@ -498,7 +574,7 @@ function AuroraMarketingStudio() {
             <div className="overflow-hidden rounded-2xl border border-white/10">
               {campaign.items.map((item) => (
                 <div key={item.id} className="grid gap-3 border-b border-white/8 bg-white/[0.025] p-4 last:border-0 md:grid-cols-[72px_1fr_auto] md:items-center">
-                  <img src={item.assetUrls[0] || feature.preview} alt="" className="aspect-square size-[72px] rounded-xl object-cover" />
+                  <img src={firstVisual(item) || feature.preview} alt="" className="aspect-square size-[72px] rounded-xl object-cover" />
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                       <h3 className="truncate font-medium">{item.title}</h3>
@@ -589,7 +665,7 @@ function CampaignBrief(props: BriefProps) {
         {props.featureId === "custom" && (
           <div>
             <label htmlFor="custom-capability" className="mb-2 block text-sm font-medium">Verified capability notes</label>
-            <Textarea id="custom-capability" value={props.customCapability} onChange={(event) => props.setCustomCapability(event.target.value)} placeholder="Describe exactly what the new Aurora capability does and what visual proof exists. The campaign will not make claims beyond these notes." rows={4} />
+            <Textarea id="custom-capability" value={props.customCapability} onChange={(event) => props.setCustomCapability(event.target.value)} placeholder="Describe exactly what the new Aurora capability does and what visual proof exists. These notes are the only facts the planner is given — the claim audit flags known bad patterns, but you still fact-check every post before it is approved." rows={4} />
           </div>
         )}
         <div className="rounded-2xl border border-white/10 bg-white/[0.035] p-5">
@@ -683,25 +759,37 @@ type PostCardProps = {
 };
 
 function PostCard({ item, fallbackImage, activity, patchItem, generateVisuals, generateReel, copyPost }: PostCardProps) {
-  const visuals = item.assetUrls.length ? item.assetUrls : [fallbackImage];
+  const rendered = renderedVisuals(item);
+  const missing = failedSlots(item);
+  const hasVisuals = rendered.length > 0;
+  const partialCarousel = hasVisuals && missing.length > 0;
   return (
     <article className="overflow-hidden rounded-[24px] border border-white/10 bg-white/[0.035]">
       <div className="relative bg-black">
         {item.videoUrl ? (
-          <video src={item.videoUrl} poster={item.assetUrls[0] || fallbackImage} autoPlay muted loop playsInline preload="metadata" className="aspect-[4/3] w-full object-cover" />
+          <video src={item.videoUrl} poster={firstVisual(item) || fallbackImage} autoPlay muted loop playsInline preload="metadata" className="aspect-[4/3] w-full object-cover" />
         ) : (
           <div className="flex snap-x gap-1 overflow-x-auto">
-            {visuals.map((url, index) => (
-              <img key={`${url}-${index}`} src={url} alt={item.assetUrls.length ? `${item.title} visual ${index + 1}` : `${item.title} Aurora reference`} loading="lazy" className="aspect-[4/3] min-w-full snap-center object-cover" />
-            ))}
+            {hasVisuals ? (
+              rendered.map(({ slot, url }) => (
+                <img key={`${url}-${slot}`} src={url} alt={`${item.title} visual ${slot}`} loading="lazy" className="aspect-[4/3] min-w-full snap-center object-cover" />
+              ))
+            ) : (
+              <img src={fallbackImage} alt={`${item.title} Aurora reference`} loading="lazy" className="aspect-[4/3] min-w-full snap-center object-cover" />
+            )}
           </div>
         )}
         <div className="absolute left-3 top-3 flex gap-2">
           <span className="rounded-full border border-white/15 bg-black/55 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider backdrop-blur">{item.format}</span>
           <span className="rounded-full border border-white/15 bg-black/55 px-2.5 py-1 text-[10px] backdrop-blur">Day {item.day}</span>
         </div>
-        {!item.assetUrls.length && (
+        {!hasVisuals && (
           <span className="absolute bottom-3 left-3 rounded-full border border-white/10 bg-black/55 px-2.5 py-1 text-[10px] text-white/65 backdrop-blur">Aurora reference · generate final visual below</span>
+        )}
+        {partialCarousel && (
+          <span className="absolute bottom-3 left-3 rounded-full border border-red-400/30 bg-black/60 px-2.5 py-1 text-[10px] text-red-200 backdrop-blur">
+            Slide{missing.length === 1 ? "" : "s"} {missing.join(", ")} missing
+          </span>
         )}
       </div>
       <div className="space-y-4 p-5">
@@ -724,7 +812,11 @@ function PostCard({ item, fallbackImage, activity, patchItem, generateVisuals, g
               {item.slides.map((slide, index) => (
                 <li key={`${slide.heading}-${index}`} className="grid grid-cols-[24px_1fr] gap-2 text-xs">
                   <span className="text-violet-300">{index + 1}</span>
-                  <span><strong className="block text-white/75">{slide.heading}</strong><span className="text-white/40">{slide.body}</span></span>
+                  <span>
+                    <strong className="block text-white/75">{slide.heading}</strong>
+                    <span className="text-white/40">{slide.body}</span>
+                    {partialCarousel && !item.assetUrls[index] && <span className="ml-1 text-red-300">· visual missing</span>}
+                  </span>
                 </li>
               ))}
             </ol>
@@ -734,7 +826,7 @@ function PostCard({ item, fallbackImage, activity, patchItem, generateVisuals, g
         <div className="flex flex-wrap gap-2">
           <Button size="sm" variant="outline" onClick={() => void generateVisuals(item)} disabled={Boolean(activity)} className="gap-1.5">
             {activity === "visuals" ? <Loader2 className="size-3.5 animate-spin" /> : <ImagePlus className="size-3.5" />}
-            {item.format === "carousel" ? "Generate slides" : "Generate visual"}
+            {partialCarousel ? `Retry ${missing.length} missing slide${missing.length === 1 ? "" : "s"}` : item.format === "carousel" ? "Generate slides" : "Generate visual"}
           </Button>
           {item.format === "reel" && (
             <Button size="sm" onClick={() => void generateReel(item)} disabled={Boolean(activity)} className="gap-1.5">

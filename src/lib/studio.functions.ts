@@ -229,12 +229,26 @@ const CAMERA_HINTS: Record<string, string> = {
 };
 
 
+type EnqueueVideoDeps = {
+  assertOwned: (url: string, userId: string) => Promise<void>;
+};
+
 // Internal canonical dispatch — shared by the generateVideoFromImage handler
 // AND runSmokeStudioChain so the two can NEVER drift on gating or payload shape.
-async function _enqueueVideoFromImage(
+// The reference-image ownership guard lives HERE (same contract as
+// _enqueuePerformanceShot): the start frame and optional end frame must be the
+// caller's own upload/result/avatar, checked before any gate, row or charge —
+// otherwise a crafted request could animate another user's private studio
+// object (the orchestrator signs studio refs with service-role access).
+// Exported for unit tests only.
+export async function _enqueueVideoFromImage(
   userId: string,
   data: z.infer<typeof VideoSchema>,
+  deps: EnqueueVideoDeps = { assertOwned: assertOwnedReferenceImage },
 ): Promise<{ jobId: string; generationId: string; preview: boolean }> {
+  await deps.assertOwned(data.imageUrl, userId);
+  if (data.endFrameUrl) await deps.assertOwned(data.endFrameUrl, userId);
+
   const cameraHint = data.cameraMovement ? CAMERA_HINTS[data.cameraMovement] : null;
   const fullPrompt = cameraHint ? `${data.prompt}. Camera: ${cameraHint}.` : data.prompt;
 
