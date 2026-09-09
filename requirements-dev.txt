@@ -1,0 +1,4 @@
+# Minimal dev requirements for running tests and adapters locally
+
+pytest
+requests
