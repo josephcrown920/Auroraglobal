@@ -177,6 +177,91 @@ export async function bytePlusImage(opts: {
   return url;
 }
 
+export type LayerizedImageLayer = {
+  url: string;
+  zIndex: number;
+  name: string;
+  description?: string;
+  boundingBox?: {
+    absolute?: number[];
+    normalized?: number[];
+  };
+};
+
+export type LayerizedImageResult = {
+  /** The reconstructed/base image (z-index 0). */
+  baseUrl: string;
+  /** Transparent PNG layers ordered from back to front. */
+  layers: LayerizedImageLayer[];
+};
+
+/**
+ * Decompose ANY finished image into editable transparent layers.
+ *
+ * This is intentionally independent from the model that created the source
+ * image: Nano Banana, GPT Image, Seedream, Flux, ComfyUI, etc. all arrive here
+ * as one image URL. ModelArk's Seedream 5 Pro layer-decomposition capability is
+ * the post-processing layerizer, not the source generator.
+ */
+export async function bytePlusLayerize(opts: {
+  imageUrl: string;
+  prompt?: string;
+  size?: "auto" | "1K" | "1.5K" | "2K";
+}): Promise<LayerizedImageResult> {
+  const body: Record<string, unknown> = {
+    model: process.env.BYTEPLUS_LAYER_MODEL || "dola-seedream-5-0-pro-260628",
+    image: opts.imageUrl,
+    layer_decomposition: true,
+    response_format: "url",
+    size: opts.size ?? "auto",
+    watermark: false,
+  };
+  if (opts.prompt?.trim()) body.prompt = opts.prompt.trim();
+
+  const res = await fetch(`${bytePlusBaseUrl()}/images/generations`, {
+    method: "POST",
+    headers: authHeaders(),
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(120_000),
+  });
+  if (!res.ok) {
+    const t = await res.text();
+    throw new BytePlusError(`BytePlus layerize ${res.status}: ${t.slice(0, 500)}`, {
+      status: res.status,
+      retryAfterMs: parseRetryAfterMs(res, t),
+    });
+  }
+
+  const json = (await res.json()) as {
+    data?: Array<{
+      url?: string;
+      z_index?: number;
+      name?: string;
+      description?: string;
+      bounding_box?: { absolute?: number[]; normalized?: number[] };
+    }>;
+  };
+  const data = Array.isArray(json.data) ? json.data.filter((item) => typeof item?.url === "string") : [];
+  if (!data.length) throw new BytePlusError("BytePlus layerize: response contained no layer images");
+
+  const ordered = [...data].sort((a, b) => (a.z_index ?? 0) - (b.z_index ?? 0));
+  const base = ordered.find((item) => (item.z_index ?? 0) === 0) ?? ordered[0];
+  const layers = ordered
+    .filter((item) => item !== base)
+    .map((item, index) => ({
+      url: item.url as string,
+      zIndex: item.z_index ?? index + 1,
+      name: item.name?.trim() || `Layer ${index + 1}`,
+      description: item.description,
+      boundingBox: item.bounding_box,
+    }));
+
+  return {
+    baseUrl: base.url as string,
+    layers,
+  };
+}
+
 // ─── Video (Seedance) — async task create + poll ─────────────────────────────
 // POST /contents/generations/tasks → { id }; then GET .../tasks/{id} until the
 // status is a terminal one. Generation knobs (resolution, duration) ride on the

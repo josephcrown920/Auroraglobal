@@ -10,6 +10,9 @@ export const startLipsync = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => z.object({
     videoUrl: z.string().url(),
     audioUrl: z.string().url(),
+    // Use the normal orchestrator path by default. It prefers the registered
+    // GPU worker (including Vast/self-hosted workers) and can fall through to
+    // hosted providers such as Sync/FAL when the GPU path is unavailable.
     engine: z.enum(["sync-v2", "wav2lip", "latentsync", "xai-ugc", "heygen-photo"]).default("sync-v2"),
     imageUrl: z.string().url().optional(),
   }).parse(d))
