@@ -40,8 +40,12 @@ import { getMusicTrack, signedAutocutUrl } from "./autocut.server";
 import { assertDurationCap, getUserTier } from "./cost-guardrails.server";
 import {
   FilmPlanSchema,
+  assertVideoAgentSeedanceEntitlement,
+  assertSupportedFilmStudioAssembly,
   filmRenderFingerprintAsync,
+  resolveVideoAgentScenePrompt,
   type FilmPlanRecord,
+  type VideoAgentRenderEngine,
 } from "./video-agent-projects.functions";
 import { persistResultUrl, resultMediaTypeForKind } from "./result-store.server";
 import {
@@ -89,8 +93,15 @@ type JobDeps = {
   getUserTier?: typeof getUserTier;
   assembleUGC?: typeof runLocalFfmpegAssemble;
   uploadUGC?: typeof uploadAutocutResult;
+  assembleVideoAgent?: typeof runLocalFfmpegAssemble;
+  uploadVideoAgent?: typeof uploadAutocutResult;
 };
-const defaultDeps: JobDeps = { orchestrate, getUserTier };
+const defaultDeps: JobDeps = {
+  orchestrate,
+  getUserTier,
+  assembleVideoAgent: runLocalFfmpegAssemble,
+  uploadVideoAgent: uploadAutocutResult,
+};
 
 // Result envelope for every job runner. Single-media runners populate `url`;
 // the campaign runner additionally sets both `imageUrl` and `videoUrl` so the
@@ -788,6 +799,7 @@ type VideoAgentWorkerPatch = Partial<{
   error: string | null;
   thumbnail_url: string | null;
   export_url: string | null;
+  production: unknown;
 }>;
 
 function videoAgentProjectsTable() {
@@ -820,6 +832,65 @@ async function updateVideoAgentProject(
   if (error) throw new Error(`Video Agent project update failed: ${error.message}`);
 }
 
+export function mergeVideoAgentRenderReceipt(
+  currentProduction: unknown,
+  renderEngine: VideoAgentRenderEngine,
+): Record<string, unknown> {
+  // Production is an open JSON contract shared by legacy projects and native
+  // Film Studio. Never rebuild it from the queued payload: fields may have been
+  // added after enqueue, and Zod intentionally does not know every legacy key.
+  const current =
+    currentProduction && typeof currentProduction === "object" && !Array.isArray(currentProduction)
+      ? currentProduction as Record<string, unknown>
+      : currentProduction == null
+        ? {}
+        : { legacyProduction: currentProduction };
+  return { ...current, renderEngine };
+}
+
+async function finalizeVideoAgentProject(
+  projectId: string | undefined,
+  userId: string,
+  jobId: string,
+  patch: VideoAgentWorkerPatch,
+  renderEngine: VideoAgentRenderEngine,
+): Promise<void> {
+  if (!projectId) return;
+  type Current = { production: unknown; updated_at: string };
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- table is newer than generated Supabase types
+  const projects = () => (supabaseAdmin as unknown as { from: (name: string) => any })
+    .from("video_agent_projects");
+
+  // A project can receive a legitimate concurrent metadata update after the
+  // job finalizes. Re-read and merge rather than overwriting it. Every write is
+  // still scoped to owner + active job and CASes updated_at.
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const { data: current, error: readError } = await projects()
+      .select("production, updated_at")
+      .eq("id", projectId)
+      .eq("user_id", userId)
+      .eq("job_id", jobId)
+      .maybeSingle() as { data: Current | null; error: { message: string } | null };
+    if (readError) throw new Error(`Video Agent project read failed: ${readError.message}`);
+    if (!current) throw new Error("Video Agent project is no longer attached to this render job");
+
+    const { data: updated, error: updateError } = await projects()
+      .update({
+        ...patch,
+        production: mergeVideoAgentRenderReceipt(current.production, renderEngine),
+      })
+      .eq("id", projectId)
+      .eq("user_id", userId)
+      .eq("job_id", jobId)
+      .eq("updated_at", current.updated_at)
+      .select("id")
+      .maybeSingle() as { data: { id: string } | null; error: { message: string } | null };
+    if (updateError) throw new Error(`Video Agent project update failed: ${updateError.message}`);
+    if (updated) return;
+  }
+  throw new Error("Video Agent project changed repeatedly while saving the render receipt");
+}
+
 /**
  * Video Agent's durable production renderer. It deliberately uses the same
  * provider orchestration and queue finalization as every other paid Aurora
@@ -832,6 +903,8 @@ async function runVideoAgentRender(
   orch: Orchestrate,
   workerId: string,
   lookupUserTier: typeof getUserTier,
+  assembleVideo: typeof runLocalFfmpegAssemble,
+  uploadVideo: typeof uploadAutocutResult,
 ): Promise<JobOutput> {
   const p = job.payload as {
     projectId?: string;
@@ -856,6 +929,7 @@ async function runVideoAgentRender(
       throw new Error("Film Studio native rendering is disabled pending production readiness verification");
     }
     nativePlan = FilmPlanSchema.parse(p.filmPlan);
+    assertSupportedFilmStudioAssembly(nativePlan.renderPlan);
     if (nativePlan.renderPlan.rendererModel !== p.rendererModel) {
       throw new Error("Film Studio renderer does not match the approved native contract");
     }
@@ -867,10 +941,11 @@ async function runVideoAgentRender(
     ) {
       throw new Error("Film Studio approval fingerprint is stale or invalid");
     }
-    if (await lookupUserTier(job.user_id) !== "pro") {
-      throw new Error("An active Pro subscription is required for Seedance 2.5 Film Studio renders");
-    }
   }
+  // Both native and legacy requests below are paid Seedance dispatches. The
+  // orchestrator's forSubscriber flag only selects adapters; it does not prove
+  // an active subscription, so fail before any image/video provider call.
+  assertVideoAgentSeedanceEntitlement(await lookupUserTier(job.user_id));
 
   await updateVideoAgentProject(p.projectId, job.user_id, {
     status: "processing",
@@ -879,20 +954,23 @@ async function runVideoAgentRender(
   }, job.id);
 
   const clipUrls: string[] = [];
+  const engineScenes: VideoAgentRenderEngine["scenes"] = [];
   let firstFrame: string | null = null;
   for (const scene of scenes) {
     if (!scene.description?.trim()) throw new Error(`video_agent_render scene ${scene.index + 1} is missing a visual description`);
     if (!scene.script?.trim()) throw new Error(`video_agent_render scene ${scene.index + 1} is missing narration`);
-    const visualPrompt = scene.modelPrompt?.trim() || scene.description;
-    const stillUrl = scene.frame && scene.plateQuality
-      ? scene.frame
-      : (await orch({
+    const visualPrompt = resolveVideoAgentScenePrompt(scene);
+    const reusedPlate = Boolean(scene.frame && scene.plateQuality);
+    const image = reusedPlate
+      ? null
+      : await orch({
           kind: "image",
           model: "google/nano-banana",
           prompt: visualPrompt,
           userId: job.user_id,
           refId: job.id,
-        })).url;
+        });
+    const stillUrl = reusedPlate ? scene.frame! : image!.url;
     firstFrame ??= stillUrl;
     const nativeRequest = nativePlan ? {
       model: nativePlan.renderPlan.rendererModel,
@@ -926,6 +1004,22 @@ async function runVideoAgentRender(
       refId: job.id,
     });
     clipUrls.push(clip.url);
+    engineScenes.push({
+      sceneId: scene.id,
+      index: scene.index,
+      image: reusedPlate
+        ? {
+            source: "reused",
+            plateQuality: scene.plateQuality ?? null,
+            generationId: scene.plateGenerationId ?? null,
+          }
+        : {
+            source: "generated",
+            provider: image!.provider,
+            endpoint: image!.endpoint,
+          },
+      video: { provider: clip.provider, endpoint: clip.endpoint },
+    });
     await updateVideoAgentProject(p.projectId, job.user_id, {
       status_message: `Rendered scene ${clipUrls.length} of ${scenes.length}…`,
       thumbnail_url: firstFrame,
@@ -952,18 +1046,44 @@ async function runVideoAgentRender(
   }
 
   await updateVideoAgentProject(p.projectId, job.user_id, { status_message: "Assembling your final MP4…" }, job.id);
-  const bytes = await runLocalFfmpegAssemble({
+  const nativeAssembly = nativePlan
+    ? {
+        // No style transition: approved shot boundaries are hard cuts.
+        style: null,
+        aspect: nativePlan.renderPlan.aspectRatio,
+        fps: nativePlan.renderPlan.fps,
+        preserveClipDuration: true,
+        targetClipDurationsSec: scenes.map((scene) => scene.duration),
+        maxDurationSec: scenes.reduce((sum, scene) => sum + scene.duration, 0),
+      }
+    : {
+        style: p.style === "cinematic" ? "cinematic" : "hype",
+        maxDurationSec: Math.max(15, Math.min(p.targetDuration ?? 60, 120)),
+      };
+  const bytes = await assembleVideo({
     clips: clipUrls,
-    style: p.style === "cinematic" ? "cinematic" : "hype",
-    maxDurationSec: Math.max(15, Math.min(p.targetDuration ?? 60, 120)),
+    ...nativeAssembly,
   });
-  const url = await uploadAutocutResult(job.user_id, `video-agent-${p.projectId}`, bytes);
+  const url = await uploadVideo(job.user_id, `video-agent-${p.projectId}`, bytes);
+  const renderEngine: VideoAgentRenderEngine = {
+    version: 1,
+    scenes: engineScenes,
+    assembler: {
+      provider: "aurora-video-agent",
+      endpoint: "local-ffmpeg-assemble",
+    },
+  };
   return {
     url,
     videoUrl: url,
     provider: "aurora-video-agent",
     endpoint: "local-ffmpeg-assemble",
-    meta: { projectId: p.projectId, sceneCount: scenes.length, narrationTracks: scenes.length },
+    meta: {
+      projectId: p.projectId,
+      sceneCount: scenes.length,
+      narrationTracks: scenes.length,
+      renderEngine,
+    },
   };
 }
 
@@ -1783,7 +1903,14 @@ export async function processOneJob(
     } else if (job.kind === "autocut") {
       out = await runAutocut(job, orch, workerId);
     } else if (job.kind === "video_agent_render") {
-      out = await runVideoAgentRender(job, orch, workerId, deps.getUserTier ?? getUserTier);
+      out = await runVideoAgentRender(
+        job,
+        orch,
+        workerId,
+        deps.getUserTier ?? getUserTier,
+        deps.assembleVideoAgent ?? runLocalFfmpegAssemble,
+        deps.uploadVideoAgent ?? uploadAutocutResult,
+      );
     } else {
       out = await runMediaJob(job, orch, workerId);
     }
@@ -1904,17 +2031,29 @@ export async function processOneJob(
         }
       })();
       if (job.kind === "video_agent_render") {
-        await updateVideoAgentProject(
-          (job.payload as { projectId?: string }).projectId,
-          job.user_id,
-          {
-            status: "succeeded",
-            status_message: "Final MP4 ready",
-            export_url: persistedUrl,
-            error: null,
-          },
-          job.id,
-        );
+        const renderEngine = (out.meta as { renderEngine?: VideoAgentRenderEngine } | undefined)?.renderEngine;
+        const projectPatch: VideoAgentWorkerPatch = {
+          status: "succeeded",
+          status_message: "Final MP4 ready",
+          export_url: persistedUrl,
+          error: null,
+        };
+        if (renderEngine) {
+          await finalizeVideoAgentProject(
+            (job.payload as { projectId?: string }).projectId,
+            job.user_id,
+            job.id,
+            projectPatch,
+            renderEngine,
+          );
+        } else {
+          await updateVideoAgentProject(
+            (job.payload as { projectId?: string }).projectId,
+            job.user_id,
+            projectPatch,
+            job.id,
+          );
+        }
       }
     }
     return {
