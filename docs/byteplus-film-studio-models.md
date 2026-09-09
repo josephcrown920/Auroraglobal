@@ -70,6 +70,13 @@ Before enabling it:
    including entitlement, reservation settlement, preserved reference and
    controls, actual model disclosure, and export.
 
+Durable exports currently accept 16:9, 9:16, or 1:1 at 24fps. Unsupported
+assembly settings are rejected at adoption, approval, enqueue, and worker
+dispatch rather than silently changed. Native assembly receives the approved
+aspect and individual shot durations, uses hard cuts, and preserves the summed
+timeline. These boundaries have focused tests; a real native export still needs
+verification before rollout.
+
 The permissions migration has not been applied. Production has unrelated
 pending migrations, so an unrestricted `supabase db push` is not an acceptable
 shortcut. No live native paid render has been claimed successful.
@@ -122,10 +129,51 @@ image URLs are rejected.
 
 ## Verification result
 
-Minimal live checks were attempted against the configured environment without
-rendering or uploading media. The configured preferred BytePlus credential
-returned HTTP 401 `AuthenticationError`. The fallback ARK credential reached
-the provider but returned HTTP 403 `AccountOverdueError`. Consequently:
+### Image/video recheck — 2026-09-09
+
+- The preferred BytePlus credential independently returned HTTP 401
+  `AuthenticationError` from the models catalog.
+- The alternate ARK credential returned HTTP 200 from the catalog, which lists
+  the wired Seedream 5 Pro and native Seedance 2.5 IDs. Catalog visibility does
+  not establish rendering entitlement or available credit.
+- An intentionally invalid native Seedance request using ARK returned HTTP 403
+  `AccountOverdueError`. Native video is still blocked on provider billing and
+  the existing rollout gates remain off.
+- An invalid Seedream request reached parameter validation (`MissingParameter`).
+  One valid 2048px Seedream 5 Pro image request was then attempted through the
+  image helper. It timed out without a confirmed output. Its outcome is
+  ambiguous: it was **not retried**, and live image generation is not claimed
+  successful.
+- The separate Gemini key authenticated for model metadata. The Replit Gemini
+  proxy returned 405 for a metadata GET; neither check proves image generation.
+
+The image/video helpers now permit one alternate-credential attempt after a
+definitive HTTP 401 only. They do not retry timeouts, 403, 429 or 5xx submissions.
+Video polls use the credential that created the task. HTTP errors retain a
+bounded structured provider code but omit raw provider bodies and credentials.
+The additional Dola/embedding helpers and model watcher are separate,
+single-credential paths; this change does not certify or alter them.
+
+Paid durable Video Agent renders now recheck Pro entitlement both before
+reservation and at worker dispatch. Successful renders retain per-scene actual
+image/video provider and endpoint receipts, visible in the editor's final-result
+details. Reused plates are labeled as reused rather than given invented model
+provenance. These receipts are saved only after the job wins finalization.
+
+Saved camera descriptions are now the shared prompt source for free plates,
+paid plate upgrades, and worker generation. Changing a visual description
+invalidates its old generated plate; narration-only edits retain the plate.
+
+Focused model, queue, planner, and navigation tests passed, along with the
+TypeScript check. Tests use mocked provider results; they do not establish a
+successful live cinematic render.
+
+### Earlier auxiliary-helper checks
+
+Earlier minimal checks of the Responses/embedding helpers returned HTTP 401
+`AuthenticationError` with the preferred credential and HTTP 403
+`AccountOverdueError` with ARK. These helper-specific live checks were not rerun.
+Consequently:
 
 - The live Responses event schema and optional DeepWiki tool execution remain
   blocked and are not claimed ready for production traffic.

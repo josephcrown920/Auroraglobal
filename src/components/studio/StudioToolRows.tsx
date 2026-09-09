@@ -1,9 +1,12 @@
 import { Link } from "@tanstack/react-router";
 import {
   ArrowUpRight,
+  Camera,
   Clapperboard,
   Flame,
+  Layers3,
   Mic2,
+  Music2,
   Palette,
   Wand2,
   Workflow,
@@ -79,6 +82,92 @@ const ACCENTS = {
 
 const studioToolRows: StudioToolRow[] = [
   (() => {
+    const tool = TOOL_DIRECTORY.find((item) => item.name === "Perform Anywhere")!;
+    return {
+      key: "perform-anywhere",
+      name: tool.name,
+      description: tool.description,
+      to: tool.to,
+      price: tool.price,
+      badge: "Flagship",
+      image: "/nav-previews/perform-anywhere.jpg",
+      alt: "Perform Anywhere cinematic performance preview",
+      icon: Wand2,
+      accent: ACCENTS.red,
+    };
+  })(),
+  (() => {
+    const tool = TOOL_DIRECTORY.find((item) => item.name === "Performance Studio")!;
+    return {
+      key: "performance-studio",
+      name: tool.name,
+      description: tool.description,
+      to: tool.to,
+      price: tool.price,
+      badge: "Motion",
+      image: "/nav-previews/perform-anywhere.jpg",
+      alt: "Performance Studio motion transfer preview",
+      icon: Wand2,
+      accent: ACCENTS.violet,
+    };
+  })(),
+  (() => {
+    const tool = TOOL_DIRECTORY.find((item) => item.name === "Scene Builder")!;
+    return {
+      key: "scene-builder",
+      name: tool.name,
+      description: tool.description,
+      to: tool.to,
+      price: tool.price,
+      badge: "5 References",
+      image: "/nav-previews/music-video.jpg",
+      alt: "Scene Builder five-reference cinematic setup preview",
+      icon: Camera,
+      accent: ACCENTS.amber,
+    };
+  })(),
+  (() => {
+    const tool = TOOL_DIRECTORY.find((item) => item.name === "Lip Sync")!;
+    return {
+      key: "lip-sync",
+      name: tool.name,
+      description: tool.description,
+      to: tool.to,
+      price: tool.price,
+      badge: "Performance",
+      image: "/nav-previews/lipsync.jpg",
+      alt: "Lip Sync audio-synced performance preview",
+      icon: Mic2,
+      accent: ACCENTS.cyan,
+    };
+  })(),
+  (() => {
+    const tool = TOOL_DIRECTORY.find((item) => item.name === "Music Video")!;
+    return {
+      key: "music-video",
+      name: tool.name,
+      description: tool.description,
+      to: tool.to,
+      price: tool.price,
+      badge: "Music Video",
+      image: "/nav-previews/music-video.jpg",
+      alt: "Music Video Studio cinematic production preview",
+      icon: Music2,
+      accent: ACCENTS.pink,
+    };
+  })(),
+  {
+    key: "directors-chair",
+    name: "Director’s Chair",
+    description: "Build the shot: wardrobe, scenes, storyboard, and final frames in one room.",
+    to: "/director-room",
+    badge: "Director",
+    image: "/nav-previews/music-video.jpg",
+    alt: "Director's Room cinematic shot planning preview",
+    icon: Clapperboard,
+    accent: ACCENTS.amber,
+  },
+  (() => {
     const tool = TOOL_DIRECTORY.find((item) => item.name === "Aurora Video Agent")!;
     return {
       key: "video-agent",
@@ -86,11 +175,26 @@ const studioToolRows: StudioToolRow[] = [
       description: tool.description,
       to: tool.to,
       price: tool.price,
-      badge: "Director",
+      badge: "Agent",
       image: "/nav-previews/video-agent.jpg",
       alt: "Aurora Video Agent storyboard and production preview",
       icon: Clapperboard,
       accent: ACCENTS.violet,
+    };
+  })(),
+  (() => {
+    const tool = TOOL_DIRECTORY.find((item) => item.name === "Layers")!;
+    return {
+      key: "layers",
+      name: tool.name,
+      description: tool.description,
+      to: tool.to,
+      price: tool.price,
+      badge: "Edit",
+      image: "/nav-previews/music-video.jpg",
+      alt: "Aurora Layers editable scene preview",
+      icon: Layers3,
+      accent: ACCENTS.lavender,
     };
   })(),
   (() => {
@@ -107,46 +211,6 @@ const studioToolRows: StudioToolRow[] = [
       accent: ACCENTS.lime,
     };
   })(),
-  (() => {
-    const tool = TOOL_DIRECTORY.find((item) => item.name === "Perform Anywhere")!;
-    return {
-      key: "perform-anywhere",
-      name: tool.name,
-      description: tool.description,
-      to: tool.to,
-      price: tool.price,
-      badge: "Flagship",
-      image: "/nav-previews/perform-anywhere.jpg",
-      alt: "Perform Anywhere cinematic performance preview",
-      icon: Wand2,
-      accent: ACCENTS.red,
-    };
-  })(),
-  (() => {
-    const tool = TOOL_DIRECTORY.find((item) => item.name === "Lip Sync")!;
-    return {
-      key: "lip-sync",
-      name: tool.name,
-      description: tool.description,
-      to: tool.to,
-      price: tool.price,
-      image: "/nav-previews/lipsync.jpg",
-      alt: "Lip Sync audio-synced performance preview",
-      icon: Mic2,
-      accent: ACCENTS.cyan,
-    };
-  })(),
-  {
-    key: "directors-chair",
-    name: "Director’s Chair",
-    description: "Build the shot: wardrobe, scenes, storyboard, and final frames in one room.",
-    to: "/director-room",
-    badge: "New",
-    image: "/nav-previews/music-video.jpg",
-    alt: "Director's Room cinematic shot planning preview",
-    icon: Clapperboard,
-    accent: ACCENTS.amber,
-  },
   (() => {
     const tool = TOOL_DIRECTORY.find((item) => item.name === "Colors")!;
     return {
@@ -169,6 +233,7 @@ const studioToolRows: StudioToolRow[] = [
       description: tool.description,
       to: tool.to,
       price: tool.price,
+      badge: "Workflow",
       image: "/nav-previews/canvas.jpg",
       alt: "Infinity Canvas connected creative workflow preview",
       icon: Workflow,
@@ -187,7 +252,7 @@ export function StudioToolRows() {
             Pick a direction.
           </h2>
         </div>
-        <span className="pb-0.5 text-[10px] uppercase tracking-[0.16em] text-zinc-600">7 tools</span>
+        <span className="pb-0.5 text-[10px] uppercase tracking-[0.16em] text-zinc-600">{studioToolRows.length} tools</span>
       </div>
 
       <div className="space-y-3">

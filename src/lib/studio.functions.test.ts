@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { _enqueuePerformanceShot, COST_IMAGE, isDemoSelfieUrl } from "./studio.functions";
+import { _enqueuePerformanceShot, _enqueueVideoFromImage, COST_IMAGE, isDemoSelfieUrl } from "./studio.functions";
 
 // The reference-image ownership guard was moved INTO _enqueuePerformanceShot so
 // that every caller — the generatePerformanceShot server fn, runSmokeStudioChain,
@@ -156,5 +156,56 @@ describe("demo-selfie labelling — persists a 'demo' marker for gallery badges"
       deps,
     );
     expect(demoMarked).toHaveLength(0);
+  });
+});
+
+describe("_enqueueVideoFromImage — reference ownership guard runs before any gate or charge", () => {
+  const base = {
+    prompt: "animate this still",
+    duration: 5,
+    resolution: "720p" as const,
+    modelKey: "seedance-2.0-fast",
+    cameraMovement: null,
+    endFrameUrl: null,
+    confirmPreviewId: null,
+    templateId: null,
+  };
+
+  it("rejects a foreign start frame with the ownership error and never proceeds", async () => {
+    const checked: string[] = [];
+    await expect(
+      _enqueueVideoFromImage(
+        "user-1",
+        { ...base, imageUrl: `${STUDIO}user-2/uploads/portrait.jpg` },
+        {
+          assertOwned: async (url) => {
+            checked.push(url);
+            throw new Error(OWNERSHIP_ERR);
+          },
+        },
+      ),
+    ).rejects.toThrow(OWNERSHIP_ERR);
+    expect(checked).toEqual([`${STUDIO}user-2/uploads/portrait.jpg`]);
+  });
+
+  it("checks the end frame too, after the start frame", async () => {
+    const checked: string[] = [];
+    await expect(
+      _enqueueVideoFromImage(
+        "user-1",
+        {
+          ...base,
+          imageUrl: `${STUDIO}user-1/uploads/start.jpg`,
+          endFrameUrl: `${STUDIO}user-2/uploads/end.jpg`,
+        },
+        {
+          assertOwned: async (url) => {
+            checked.push(url);
+            if (url.includes("user-2")) throw new Error(OWNERSHIP_ERR);
+          },
+        },
+      ),
+    ).rejects.toThrow(OWNERSHIP_ERR);
+    expect(checked).toEqual([`${STUDIO}user-1/uploads/start.jpg`, `${STUDIO}user-2/uploads/end.jpg`]);
   });
 });

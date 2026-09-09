@@ -6,8 +6,15 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { isAdmin } from "@/lib/admin.server";
 import { routedGenerate } from "@/lib/ai-router";
 import { getAuroraMarketingFeature } from "@/lib/social-studio.catalog";
+import { auditMarketingCampaignClaims } from "@/lib/social-studio.claims";
 
 const ChannelSchema = z.enum(["instagram_feed", "instagram_carousel", "instagram_reel", "instagram_story"]);
+const CHANNEL_FORMAT = {
+  instagram_feed: "feed",
+  instagram_carousel: "carousel",
+  instagram_reel: "reel",
+  instagram_story: "story",
+} as const;
 const GoalSchema = z.enum(["launch", "feature_education", "announcement", "tutorial", "community", "conversion"]);
 const ToneSchema = z.enum(["cinematic", "editorial", "playful", "technical", "artist_first"]);
 
@@ -98,14 +105,53 @@ export const generateMarketingCampaign = createServerFn({ method: "POST" })
       .filter(Boolean)
       .join("\n");
 
-    const result = await routedGenerate({
+    const system =
+      "You are Aurora Performance Studio's senior social creative director. You turn verified product capabilities into visual-first Instagram campaigns. Never invent product claims, metrics, testimonials, integrations, or availability. Never name competitors or third-party tools.";
+    const allowedFormats = new Set(data.channels.map((channel) => CHANNEL_FORMAT[channel]));
+
+    // Generate, audit deterministically, and allow ONE corrective rewrite that
+    // feeds the exact violations back. A campaign that still breaks the
+    // catalog contract is refused with the violations named — never shipped.
+    // A multi-post campaign with carousel outlines is a large structured
+    // output: the router's 15s per-provider default times out every model
+    // (observed live), so give each provider a real budget and skip the
+    // duplicate retry that would double the wait.
+    const budget = {
+      providerTimeoutMs: 60_000,
+      routerTimeoutMs: 110_000,
+      maxAttemptsPerProvider: 1 as const,
+      maxOutputTokens: 8_000,
+    };
+    let result = await routedGenerate({
       category: "SOCIAL_CONTENT",
-      system:
-        "You are Aurora Performance Studio's senior social creative director. You turn verified product capabilities into visual-first Instagram campaigns. Never invent product claims, metrics, testimonials, integrations, or availability.",
+      system,
       prompt,
       schema: CampaignOutputSchema,
       estimatedCost: 0,
+      ...budget,
     });
+    let issues = auditMarketingCampaignClaims(result.output, { allowedFormats });
+    if (issues.length) {
+      result = await routedGenerate({
+        category: "SOCIAL_CONTENT",
+        system,
+        prompt: [
+          prompt,
+          "",
+          "A previous draft violated the approved-facts contract. Rewrite the full campaign and fix every issue below without introducing new claims:",
+          ...issues.map((issue) => `- ${issue}`),
+        ].join("\n"),
+        schema: CampaignOutputSchema,
+        estimatedCost: 0,
+        ...budget,
+      });
+      issues = auditMarketingCampaignClaims(result.output, { allowedFormats });
+    }
+    if (issues.length) {
+      throw new Error(
+        `Campaign refused — copy stepped outside the approved Aurora facts: ${issues.slice(0, 4).join("; ")}${issues.length > 4 ? ` (+${issues.length - 4} more)` : ""}. Adjust the brief and try again.`,
+      );
+    }
 
     return {
       campaign: result.output,

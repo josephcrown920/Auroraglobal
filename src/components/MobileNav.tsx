@@ -53,9 +53,8 @@ type Feature = {
 
 
 // ── Core — the heart of Aurora, always first (owner-picked flagship set) ──
-// Note: Video Agent, TikTok30, and Infinity Canvas are pinned in the bottom
-// tab bar (TAB_ITEMS) — keep them OUT of CORE_FEATURES to avoid showing the
-// same entry twice (once in this menu, once in the tab).
+// Note: Video Agent and TikTok30 are pinned in the bottom tab bar (TAB_ITEMS)
+// — keep them OUT of CORE_FEATURES to avoid showing the same entry twice.
 const CORE_FEATURES: Feature[] = [
   { to: "/motion",        label: "Perform Anywhere",   icon: Wand2,        previewImg: "/nav-previews/perform-anywhere.jpg", starred: true },
   { to: "/colors",        label: "Colors Studio",      icon: Palette,      previewImg: "/nav-previews/colors.jpg",          starred: true },
@@ -106,7 +105,6 @@ const CONTENT_FEATURES: Feature[] = [
   { to: "/content-machine", label: "Content Machine",icon: LayoutGrid },
   { to: "/ads",             label: "Ads Studio",     icon: Megaphone },
   { to: "/tiktok",          label: "TikTok Studio",  icon: Music2 },
-  { to: "/edit",            label: "AutoCut",        icon: Clapperboard },
 ];
 
 const ACCOUNT_FEATURES: Feature[] = [
@@ -147,10 +145,62 @@ export const ARCHIVED_FEATURES: Feature[] = [
 
 // Bottom tab — flagship trio with premium badge treatment.
 const TAB_ITEMS: (Feature & { premium?: boolean })[] = [
-  { to: "/canvas",       label: "Infinity Canvas", icon: Workflow, premium: true },
   { to: "/video-agent",  label: "Video Agent",     icon: Film,     premium: true },
   { to: "/spin",         label: "TikTok30",        icon: Flame,    premium: true },
 ];
+
+type GlobalNavSection = {
+  label: string;
+  features: Feature[];
+};
+
+/**
+ * The single source of truth for every globally rendered MobileNav branch.
+ * Director's Room tools belong to DirectorRoomRail, never to these sections.
+ */
+// eslint-disable-next-line react-refresh/only-export-components -- exported for the nav-boundary regression test
+export function getGlobalMobileNavBranches({
+  isAdmin = true,
+  showFeature = () => true,
+}: {
+  isAdmin?: boolean;
+  showFeature?: Parameters<typeof filterNavFeatures>[1]["showFeature"];
+} = {}): {
+  desktop: GlobalNavSection[];
+  mobileDrawer: GlobalNavSection[];
+  mobileTabs: Array<Feature & { premium?: boolean }>;
+} {
+  const visible = (items: Feature[]) => filterNavFeatures(items, { isAdmin, showFeature });
+  const visibleTabs = TAB_ITEMS.filter((item) => showFeature(featureKeyForRoute(item.to)));
+  const quickAccessTabs = visibleTabs.filter((item) => item.to !== "/spin");
+  const tiktokThirty = visibleTabs.find((item) => item.to === "/spin");
+  const content = visible(CONTENT_FEATURES);
+
+  return {
+    desktop: [
+      { label: "Start Here", features: CORE_FEATURES },
+      { label: "Quick Access", features: quickAccessTabs },
+      ...(tiktokThirty
+        ? [{ label: "TikTok30 Premium", features: [tiktokThirty] }]
+        : []),
+      { label: "Studio", features: STUDIO_FEATURES },
+      { label: "Music & Audio", features: MUSIC_FEATURES },
+      { label: "Promotion", features: PROMOTION_FEATURES },
+      ...(content.length > 0 ? [{ label: "Content", features: content }] : []),
+      { label: "Account", features: visible(ACCOUNT_FEATURES) },
+    ],
+    mobileDrawer: [
+      { label: "Start Here", features: CORE_FEATURES },
+      { label: "Studio", features: STUDIO_FEATURES },
+      { label: "Music & Audio", features: MUSIC_FEATURES },
+      { label: "Promotion", features: PROMOTION_FEATURES },
+      ...(content.length > 0 ? [{ label: "Content", features: content }] : []),
+      { label: "More", features: visible(MORE_FEATURES) },
+      { label: "Account", features: visible(ACCOUNT_FEATURES) },
+    ],
+    mobileTabs: visibleTabs,
+  };
+}
 
 
 function isActive(pathname: string, to: string) {
@@ -251,11 +301,9 @@ export function MobileNav() {
   // Admin-only entries (the Admin console) are dropped for everyone until the
   // server-verified admin check has settled as admin — partner, referral and
   // ordinary accounts never see them, whatever sits in session/local storage.
-  const visible = (items: Feature[]) => filterNavFeatures(items, { isAdmin, showFeature });
   const gatedBadge = (f: Feature) => isHiddenFromUsers(featureKeyForRoute(f.to));
-  const visibleTabs = TAB_ITEMS.filter((t) => showFeature(featureKeyForRoute(t.to)));
-  const quickAccessTabs = visibleTabs.filter((t) => t.to !== "/spin");
-  const tiktokThirty = visibleTabs.find((t) => t.to === "/spin");
+  const globalNav = getGlobalMobileNavBranches({ isAdmin, showFeature });
+  const visibleTabs = globalNav.mobileTabs;
 
   const isCanvas  = isActive(pathname, "/canvas");
   const isLanding = pathname === "/";
@@ -320,55 +368,13 @@ export function MobileNav() {
         </header>
 
         <nav aria-label="All features" className="relative flex flex-1 flex-col gap-3 overflow-y-auto p-3">
-          <NavSection label="Start Here">
-            {CORE_FEATURES.map((f) => (
-              <LiveNavItem key={f.to} f={f} active={isActive(pathname, f.to)} onClick={() => {}} />
-            ))}
-          </NavSection>
-
-          <NavSection label="Quick Access">
-            {quickAccessTabs.map((f) => (
-              <LiveNavItem key={f.to} f={f} active={isActive(pathname, f.to)} onClick={() => {}} hiddenBadge={gatedBadge(f)} />
-            ))}
-          </NavSection>
-
-          {tiktokThirty && (
-            <NavSection label="TikTok30 Premium">
-              <LiveNavItem f={tiktokThirty} active={isActive(pathname, tiktokThirty.to)} onClick={() => {}} hiddenBadge={gatedBadge(tiktokThirty)} />
-            </NavSection>
-          )}
-
-          <NavSection label="Studio">
-            {STUDIO_FEATURES.map((f) => (
-              <LiveNavItem key={f.to} f={f} active={isActive(pathname, f.to)} onClick={() => {}} />
-            ))}
-          </NavSection>
-
-          <NavSection label="Music & Audio">
-            {MUSIC_FEATURES.map((f) => (
-              <LiveNavItem key={f.to} f={f} active={isActive(pathname, f.to)} onClick={() => {}} />
-            ))}
-          </NavSection>
-
-          <NavSection label="Promotion">
-            {PROMOTION_FEATURES.map((f) => (
-              <LiveNavItem key={f.to} f={f} active={isActive(pathname, f.to)} onClick={() => {}} hiddenBadge={gatedBadge(f)} />
-            ))}
-          </NavSection>
-
-          {visible(CONTENT_FEATURES).length > 0 && (
-            <NavSection label="Content">
-              {visible(CONTENT_FEATURES).map((f) => (
+          {globalNav.desktop.map((section) => (
+            <NavSection key={section.label} label={section.label}>
+              {section.features.map((f) => (
                 <LiveNavItem key={f.to} f={f} active={isActive(pathname, f.to)} onClick={() => {}} hiddenBadge={gatedBadge(f)} />
               ))}
             </NavSection>
-          )}
-
-          <NavSection label="Account">
-            {visible(ACCOUNT_FEATURES).map((f) => (
-              <LiveNavItem key={f.to} f={f} active={isActive(pathname, f.to)} onClick={() => {}} hiddenBadge={gatedBadge(f)} />
-            ))}
-          </NavSection>
+          ))}
         </nav>
 
         <div className="relative shrink-0 border-t border-border p-3">
@@ -523,50 +529,13 @@ export function MobileNav() {
 
           {/* ── Nav body ────────────────────────────────────────────────── */}
           <nav aria-label="All features" className="relative flex flex-1 flex-col gap-3 overflow-y-auto p-3 pb-4">
-
-            <NavSection label="Start Here">
-              {CORE_FEATURES.map((f) => (
-                <LiveNavItem key={f.to} f={f} active={isActive(pathname, f.to)} onClick={() => setOpen(false)} />
-              ))}
-            </NavSection>
-
-            <NavSection label="Studio">
-              {STUDIO_FEATURES.map((f) => (
-                <LiveNavItem key={f.to} f={f} active={isActive(pathname, f.to)} onClick={() => setOpen(false)} />
-              ))}
-            </NavSection>
-
-            <NavSection label="Music & Audio">
-              {MUSIC_FEATURES.map((f) => (
-                <LiveNavItem key={f.to} f={f} active={isActive(pathname, f.to)} onClick={() => setOpen(false)} />
-              ))}
-            </NavSection>
-
-            <NavSection label="Promotion">
-              {PROMOTION_FEATURES.map((f) => (
+            {globalNav.mobileDrawer.map((section) => (
+              <NavSection key={section.label} label={section.label}>
+                {section.features.map((f) => (
                 <LiveNavItem key={f.to} f={f} active={isActive(pathname, f.to)} onClick={() => setOpen(false)} hiddenBadge={gatedBadge(f)} />
-              ))}
-            </NavSection>
-
-            {visible(CONTENT_FEATURES).length > 0 && (
-              <NavSection label="Content">
-                {visible(CONTENT_FEATURES).map((f) => (
-                  <LiveNavItem key={f.to} f={f} active={isActive(pathname, f.to)} onClick={() => setOpen(false)} hiddenBadge={gatedBadge(f)} />
                 ))}
               </NavSection>
-            )}
-
-            <NavSection label="More">
-              {visible(MORE_FEATURES).map((f) => (
-                <LiveNavItem key={f.to} f={f} active={isActive(pathname, f.to)} onClick={() => setOpen(false)} hiddenBadge={gatedBadge(f)} />
-              ))}
-            </NavSection>
-
-            <NavSection label="Account">
-              {visible(ACCOUNT_FEATURES).map((f) => (
-                <LiveNavItem key={f.to} f={f} active={isActive(pathname, f.to)} onClick={() => setOpen(false)} hiddenBadge={gatedBadge(f)} />
-              ))}
-            </NavSection>
+            ))}
           </nav>
 
           {/* ── Footer ──────────────────────────────────────────────────── */}

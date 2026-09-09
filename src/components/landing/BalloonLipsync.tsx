@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Play, Pause, Volume2, ArrowRight, Wand2, Upload, Loader2, Mic2 } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
+import { Link } from "@tanstack/react-router";
 import { toast } from "sonner";
 import audioAsset from "@/assets/the-one-hook.mp3.asset.json";
 import { transcribeAudio } from "@/lib/hf.functions";
@@ -324,12 +325,13 @@ export function BalloonLipsync() {
                 {playing ? <Pause className="size-4" /> : <Play className="size-4" />}
                 {playing ? "Pause hook" : "Play the hook"}
               </button>
-              <a
-                href="/canvas?template=lipsync-preset"
+              <Link
+                to="/canvas"
+                search={{ template: "lipsync-preset" }}
                 className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-5 py-3 text-sm font-medium text-white hover:bg-white/10 hover:border-white/30 transition-colors no-underline"
               >
                 <Wand2 className="size-3.5" /> Use template <ArrowRight className="size-3.5 opacity-60" />
-              </a>
+              </Link>
             </div>
 
             <span className="inline-flex items-center gap-1.5 text-xs text-white/35">

@@ -7,7 +7,7 @@ type Workflow = {
   icon: typeof Mic2;
   glow: string;
   nodes: string[];
-  /** Optional canvas template id — if set, card deep-links to /canvas?template=... */
+  /** Canvas template id — cards launch the real preset directly. */
   template?: string;
   badge?: "PRESET" | "BLANK";
 };
@@ -41,11 +41,11 @@ export function TrendingWorkflows() {
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
         {WORKFLOWS.map((w) => {
           const Icon = w.icon;
-          const href = w.template ? `/canvas?template=${w.template}` : "/canvas";
           return (
-            <a
+            <Link
               key={w.name}
-              href={href}
+              to="/canvas"
+              search={w.template ? { template: w.template } : undefined}
               className="group relative rounded-2xl aurora-card p-4 overflow-hidden hover:border-border/60 hover:-translate-y-0.5 transition-all no-underline"
             >
               <div className={`absolute -inset-16 opacity-50 blur-3xl bg-gradient-to-br ${w.glow} group-hover:opacity-80 transition-opacity`} />
@@ -72,7 +72,7 @@ export function TrendingWorkflows() {
               <div className="relative mt-3 inline-flex items-center gap-1 text-[11px] text-primary group-hover:opacity-80">
                 <Sparkles className="size-3" /> Open in Canvas <ArrowRight className="size-3" />
               </div>
-            </a>
+            </Link>
           );
         })}
       </div>
@@ -84,7 +84,7 @@ const FEATURES = [
   { name: "Performance Studio", desc: "Selfie → magazine-grade portrait in seconds.", to: "/studio", icon: Camera, glow: "from-violet-500/30 to-fuchsia-500/10" },
   { name: "Aurora Canvas", desc: "Node-graph orchestrator for image + video + lip-sync.", to: "/canvas", icon: Sparkles, glow: "from-fuchsia-500/30 to-pink-500/10" },
   { name: "Colors Studio", desc: "Direct your color palette across studio, indoor, rooftop scenes.", to: "/colors", icon: Palette, glow: "from-pink-500/30 to-rose-500/10" },
-  { name: "Lip-sync", desc: "Frame-accurate Sync 1.9 in 8+ languages.", to: "/studio", icon: Mic2, glow: "from-emerald-500/30 to-teal-500/10" },
+  { name: "Lip-sync", desc: "Frame-accurate Sync 1.9 in 8+ languages.", to: "/lipsync", icon: Mic2, glow: "from-emerald-500/30 to-teal-500/10" },
   { name: "UGC Ads", desc: "Talent + product → looping social ads.", to: "/ugc", icon: Film, glow: "from-amber-500/30 to-orange-500/10" },
   { name: "Gallery", desc: "Browse the community's best Aurora shots.", to: "/gallery", icon: ImageIcon, glow: "from-indigo-500/30 to-violet-500/10" },
   { name: "Gifts", desc: "Send Aura to a friend.", to: "/gifts", icon: Wand2, glow: "from-rose-500/30 to-pink-500/10" },
