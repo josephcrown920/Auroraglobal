@@ -53,6 +53,7 @@ async function webSearch(args: unknown, _ctx: SkillContext): Promise<SkillResult
         prompt: `Topic: ${query}\n\nReturn 3-5 bullet points of relevant facts.`,
         schema: z.object({ bullets: z.array(z.string()).min(1).max(8) }),
         category: "GENERAL_CHAT",
+        routingMode: "modelark-free",
       });
       bullets.push(...(output as { bullets: string[] }).bullets);
     }
@@ -105,6 +106,7 @@ async function scrapeUrl(args: unknown, _ctx: SkillContext): Promise<SkillResult
         cta: z.string(),
       }),
       category: "ARTIST_BRANDING",
+      routingMode: "modelark-free",
     });
 
     return {
@@ -151,6 +153,7 @@ async function generateHooks(args: unknown, _ctx: SkillContext): Promise<SkillRe
     prompt: `TOPIC: ${topic}\n\nGenerate exactly 3 competing hooks now. Vary the style (e.g., question vs. bold claim vs. story opener). Score each and give one-line rationale.`,
     schema: HookSchema,
     category: "SOCIAL_CONTENT",
+    routingMode: "modelark-free",
   });
 
   const hooks = (output as z.infer<typeof HookSchema>).hooks;
@@ -175,6 +178,7 @@ async function generateBroll(args: unknown, ctx: SkillContext): Promise<SkillRes
     prompt: `Shot: ${shot_description}\n\nWrite the full cinematic image prompt now.`,
     schema: z.object({ prompt: z.string().min(20).max(600) }),
     category: "IMAGE_PROMPTS",
+    routingMode: "modelark-free",
   });
 
   const richPrompt = (enriched as { prompt: string }).prompt;

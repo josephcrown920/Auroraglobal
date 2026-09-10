@@ -4,6 +4,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { routedGenerate } from "@/lib/ai-router";
 import { computeCost } from "@/lib/pricing";
 import { assertOwnedReferenceImage } from "@/lib/url-guard";
+import { assertRateLimit } from "@/lib/rate-limit.server";
 import {
   PlanSchema,
   DIRECTOR_SYSTEM,
@@ -47,6 +48,24 @@ type RunAgentDeps = {
   generate: typeof routedGenerate;
 };
 
+// Shared, synchronous reservations for all paid-primary Aurora Agent paths.
+// The router may fall back, but a request still consumes platform/provider
+// capacity. Reservations happen in the server-function handler before any
+// awaited ownership/DB/LLM work begins. The in-memory limiter is only the
+// process-local burst guard; credit/account guards remain authoritative.
+const AGENT_LLM_RATE_WINDOW_MS = 60_000;
+const AGENT_LLM_MAX_PER_WINDOW = 20;
+const CHAT_LLM_RESERVATION = 3; // first pass + skill amplification + compose pass
+
+function reserveAgentLlmCalls(userId: string, calls: number): void {
+  assertRateLimit(
+    `aurora-agent-llm:${userId}`,
+    AGENT_LLM_MAX_PER_WINDOW,
+    AGENT_LLM_RATE_WINDOW_MS,
+    calls,
+  );
+}
+
 // Deps-injected core (same pattern as gifts.functions.ts): the createServerFn
 // handler can't run without a Start request context, so unit tests exercise
 // this core directly — proving the ownership guard fires BEFORE any reference
@@ -68,6 +87,7 @@ export async function runAuroraAgentCore(
       prompt: buildDirectorPrompt(data.brief, buildRefNote(data.referenceImages)),
       schema: PlanSchema,
       category: "VIDEO_DIRECTION",
+      routingMode: "modelark-free",
     });
     return output as AgentPlan;
   } catch (err) {
@@ -86,7 +106,10 @@ export const runAuroraAgent = createServerFn({ method: "POST" })
       })
       .parse(d),
   )
-  .handler(async ({ data, context }) => runAuroraAgentCore(context.userId, data));
+  .handler(({ data, context }) => {
+    reserveAgentLlmCalls(context.userId, 1);
+    return runAuroraAgentCore(context.userId, data);
+  });
 
 // ─── Director → Critic refinement + session persistence (authed) ─────────────
 export const refineAuroraPlan = createServerFn({ method: "POST" })
@@ -104,6 +127,11 @@ export const refineAuroraPlan = createServerFn({ method: "POST" })
       .parse(d),
   )
   .handler(async ({ data, context }) => {
+    const maxIterations = Math.max(1, Math.min(5, data.maxIterations ?? 3));
+    // Each refinement iteration can contain a director call and a critic
+    // call. Reserve the bounded worst case synchronously before the first
+    // ownership check or database/LLM await.
+    reserveAgentLlmCalls(context.userId, maxIterations * 2);
     // Ownership guard: reference images used for LLM planning context must belong
     // to the authenticated caller — prevent exposure of private studio assets to
     // the LLM provider via a crafted referenceImages array.
@@ -241,14 +269,64 @@ export type SkillMeta = {
   durationMs: number;
 };
 
+/** Truthful serving metadata stored alongside the existing skill JSON. */
+export type AiRoutingMeta = {
+  provider: string;
+  model: string | null;
+};
+
 export type AgentChatMessage = {
   id: string;
   role: "user" | "assistant";
   content: string;
   plan: AgentPlan | null;
   skillMeta: SkillMeta | null;
+  aiRouting: AiRoutingMeta | null;
   created_at: string;
 };
+
+type StoredSkillMeta = Partial<SkillMeta> & {
+  ai_routing?: unknown;
+};
+
+export function decodeAgentChatSkillMeta(raw: unknown): {
+  skillMeta: SkillMeta | null;
+  aiRouting: AiRoutingMeta | null;
+} {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+    return { skillMeta: null, aiRouting: null };
+  }
+  const value = raw as StoredSkillMeta;
+  const routing =
+    value.ai_routing && typeof value.ai_routing === "object" && !Array.isArray(value.ai_routing)
+      ? (value.ai_routing as { provider?: unknown; model?: unknown })
+      : null;
+  const aiRouting =
+    routing && typeof routing.provider === "string"
+      ? {
+          provider: routing.provider,
+          model: typeof routing.model === "string" ? routing.model : null,
+        }
+      : null;
+  const hasSkill =
+    typeof value.name === "string" &&
+    typeof value.icon === "string" &&
+    typeof value.label === "string" &&
+    typeof value.summary === "string" &&
+    typeof value.durationMs === "number";
+  return {
+    skillMeta: hasSkill
+      ? {
+          name: value.name!,
+          icon: value.icon!,
+          label: value.label!,
+          summary: value.summary!,
+          durationMs: value.durationMs!,
+        }
+      : null,
+    aiRouting,
+  };
+}
 
 const CHAT_CONTEXT_MESSAGES = 20;
 const CHAT_CONTEXT_CHARS = 1000;
@@ -315,11 +393,14 @@ ${CHAT_DIRECTOR_SYSTEM}`
       }));
 
     let turn: AgentChatTurn;
+    let servingProvider: string | null = null;
+    let servingModel: string | null = null;
     try {
-      const { output } = await deps.generate({
+      const routed = await deps.generate({
         system,
         prompt: buildChatPrompt({ memory, transcript, message: data.message, cinematicMode: data.cinematicMode }),
         schema: ChatTurnSchema,
+        routingMode: "modelark-free",
         degradedOutput: {
           reply: "Aurora is catching up right now. Your context is safe — please try again in about 30 seconds.",
           plan: null,
@@ -327,7 +408,9 @@ ${CHAT_DIRECTOR_SYSTEM}`
           skillCall: null,
         },
       });
-      turn = output;
+      turn = routed.output;
+      servingProvider = routed.provider;
+      servingModel = routed.model;
     } catch (err) {
       throw mapLlmError(err);
     }
@@ -352,7 +435,7 @@ ${CHAT_DIRECTOR_SYSTEM}`
         if (skillResult.ok) {
           // Second LLM pass: inject skill result and compose the real reply.
           try {
-            const { output: turn2 } = await deps.generate({
+            const routed2 = await deps.generate({
               system,
               prompt: buildChatPromptWithSkill({
                 memory,
@@ -363,6 +446,7 @@ ${CHAT_DIRECTOR_SYSTEM}`
                 cinematicMode: data.cinematicMode,
               }),
               schema: ChatTurnSchema,
+              routingMode: "modelark-free",
               degradedOutput: {
                 reply: "Aurora is catching up right now. Your context is safe — please try again in about 30 seconds.",
                 plan: null,
@@ -371,7 +455,9 @@ ${CHAT_DIRECTOR_SYSTEM}`
               },
             });
             // Suppress further skill calls from the second pass to avoid loops.
-            turn = { ...turn2, skillCall: null };
+            turn = { ...routed2.output, skillCall: null };
+            servingProvider = routed2.provider;
+            servingModel = routed2.model;
           } catch {
             // Second pass failed — keep the first-pass acknowledgment reply.
           }
@@ -382,6 +468,14 @@ ${CHAT_DIRECTOR_SYSTEM}`
     }
 
     // Persist both turns server-side (never trust client-written assistant rows).
+    // Keep the existing skill_meta JSON column shape: skill metadata remains
+    // unchanged when present, while ai_routing is namespaced alongside it.
+    const aiRouting = servingProvider
+      ? { provider: servingProvider, model: servingModel }
+      : null;
+    const persistedSkillMeta = aiRouting
+      ? { ...(skillMeta ?? {}), ai_routing: aiRouting }
+      : skillMeta;
     const { error: insErr } = await context.supabase.from("agent_chat_messages").insert([
       { user_id: context.userId, role: "user", content: data.message },
       {
@@ -389,7 +483,7 @@ ${CHAT_DIRECTOR_SYSTEM}`
         role: "assistant",
         content: turn.reply,
         plan: (turn.plan ?? null) as unknown as Json,
-        skill_meta: (skillMeta ?? null) as unknown as Json,
+        skill_meta: (persistedSkillMeta ?? null) as unknown as Json,
       },
     ]);
     if (insErr) throw new Error(insErr.message);
@@ -408,6 +502,8 @@ ${CHAT_DIRECTOR_SYSTEM}`
       plan: turn.plan ?? null,
       memoryUpdated: !!(turn.memoryUpdate && turn.memoryUpdate.trim()),
       skillInvoked: skillMeta,
+      provider: servingProvider,
+      model: servingModel,
     };
 }
 
@@ -420,7 +516,13 @@ const chatInputSchema = z.object({
 export const chatWithAuroraAgent = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => chatInputSchema.parse(d))
-  .handler(async ({ data, context }) => chatWithAuroraAgentCore(context, data));
+  .handler(({ data, context }) => {
+    // A chat turn can invoke one skill plus a second composing pass. Reserve
+    // all three possible LLM calls up front so skill amplification cannot
+    // bypass the shared per-user burst budget.
+    reserveAgentLlmCalls(context.userId, CHAT_LLM_RESERVATION);
+    return chatWithAuroraAgentCore(context, data);
+  });
 
 export const listAgentChat = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -446,14 +548,18 @@ export const listAgentChat = createServerFn({ method: "GET" })
       messages: (msgs ?? [])
         .slice()
         .reverse()
-        .map((m) => ({
-          id: m.id,
-          role: (m.role === "assistant" ? "assistant" : "user") as "user" | "assistant",
-          content: m.content,
-          plan: (m.plan as unknown as AgentPlan | null) ?? null,
-          skillMeta: ((m as { skill_meta?: unknown }).skill_meta as SkillMeta | null) ?? null,
-          created_at: m.created_at,
-        })) satisfies AgentChatMessage[],
+        .map((m) => {
+          const decoded = decodeAgentChatSkillMeta((m as { skill_meta?: unknown }).skill_meta);
+          return {
+            id: m.id,
+            role: (m.role === "assistant" ? "assistant" : "user") as "user" | "assistant",
+            content: m.content,
+            plan: (m.plan as unknown as AgentPlan | null) ?? null,
+            skillMeta: decoded.skillMeta,
+            aiRouting: decoded.aiRouting,
+            created_at: m.created_at,
+          };
+        }) satisfies AgentChatMessage[],
       hasMemory: !!memRow?.memory?.trim(),
       memory: memRow?.memory ?? "",
     };

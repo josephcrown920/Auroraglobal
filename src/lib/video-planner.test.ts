@@ -122,7 +122,7 @@ describe("cinematic planner contract", () => {
     expect(rich.stages?.render_plan.status).toBe("complete");
   });
 
-  it("prefers DeepSeek, preserves fallbacks, and authors provenance server-side", async () => {
+  it("uses constrained free routing and authors provenance server-side", async () => {
     let captured: Record<string, unknown> | undefined;
     const plan = await planCinematicVideo(
       { mode: "full", userIdea: "Keep the courier's tragic ending exactly.", format: "16:9" },
@@ -131,8 +131,8 @@ describe("cinematic planner contract", () => {
         captured = args as unknown as Record<string, unknown>;
         return {
           output: { ...completePlannerPlan, provenance: { provider: "model-claim" } },
-          provider: "deepseek",
-          model: "deepseek/deepseek-v3.2",
+          provider: "modelark",
+          model: "modelark-test-model",
           category: "VIDEO_DIRECTION",
           fallbackCount: 0,
           latencyMs: 42,
@@ -140,11 +140,12 @@ describe("cinematic planner contract", () => {
       },
     );
 
-    expect(captured?.preferredProviders).toEqual(["deepseek"]);
+    expect(captured?.routingMode).toBe("modelark-free");
+    expect(captured).not.toHaveProperty("preferredProviders");
     expect(String(captured?.prompt)).toContain("warn instead of silently rewriting");
     expect(plan.provenance).toMatchObject({
-      provider: "deepseek",
-      model: "deepseek/deepseek-v3.2",
+      provider: "modelark",
+      model: "modelark-test-model",
       planning_mode: "full",
       schema_version: "2",
     });
@@ -198,8 +199,8 @@ describe("cinematic planner contract", () => {
           async () =>
             ({
               output: incomplete,
-              provider: "deepseek",
-              model: "deepseek/deepseek-v3.2",
+              provider: "modelark",
+              model: "modelark-test-model",
               category: "VIDEO_DIRECTION",
               fallbackCount: 0,
               latencyMs: 1,

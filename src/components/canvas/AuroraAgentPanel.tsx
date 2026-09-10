@@ -250,6 +250,7 @@ export function AuroraAgentPanel({ open, onClose, onSendToCanvas }: Props) {
   const [activeStyle, setActiveStyle] = useState<string | null>(null);
   const [cinematicMode, setCinematicMode] = useState(false);
   const [activeSkillLabel, setActiveSkillLabel] = useState<string | null>(null);
+  const [servingModel, setServingModel] = useState<string | null>(null);
   const chatFn = useServerFn(chatWithAuroraAgent);
   const listFn = useServerFn(listAgentChat);
   const clearFn = useServerFn(clearAgentChat);
@@ -264,10 +265,18 @@ export function AuroraAgentPanel({ open, onClose, onSendToCanvas }: Props) {
   });
   const messages: AgentChatMessage[] = history.data?.messages ?? [];
   const hasMemory = history.data?.hasMemory ?? false;
+  useEffect(() => {
+    const latest = [...(history.data?.messages ?? [])]
+      .reverse()
+      .find((message) => message.role === "assistant" && message.aiRouting)?.aiRouting ?? null;
+    setServingModel(latest ? `${latest.provider}${latest.model ? ` · ${latest.model}` : ""}` : null);
+  }, [history.data?.messages]);
+  const servingLabel = servingModel;
 
   const sendMut = useMutation({
     mutationFn: async (message: string) => chatFn({ data: { message, cinematicMode } }),
     onSuccess: (res) => {
+      setServingModel(res.model ? `${res.provider} · ${res.model}` : res.provider);
       setActiveSkillLabel(null);
       setPendingUserMsg(null);
       qc.invalidateQueries({ queryKey: ["agent-chat"] });
@@ -315,6 +324,7 @@ export function AuroraAgentPanel({ open, onClose, onSendToCanvas }: Props) {
   };
 
   const toggleStyle = (style: (typeof STYLES)[number]) => {
+    setServingModel(null);
     if (activeStyle === style.name) {
       setActiveStyle(null);
       setDraft((d) => d.replace(`, in a ${style.hint} style.`, "").trim());
@@ -362,6 +372,9 @@ export function AuroraAgentPanel({ open, onClose, onSendToCanvas }: Props) {
                 "Scripts, styles & storyboards — end to end"
               )}
             </p>
+            {servingLabel && (
+              <p className="text-[9px] text-emerald-300/70">Serving {servingLabel}</p>
+            )}
           </div>
         </div>
         <div className="flex items-center gap-1">
@@ -482,10 +495,14 @@ export function AuroraAgentPanel({ open, onClose, onSendToCanvas }: Props) {
               }
             >
               {/* Skill chip — shown above the reply text on assistant messages */}
-              {m.role === "assistant" && m.skillMeta && (
-                <SkillChip meta={m.skillMeta} />
-              )}
+              {m.role === "assistant" && m.skillMeta && <SkillChip meta={m.skillMeta} />}
               <p className="whitespace-pre-wrap">{m.content}</p>
+              {m.role === "assistant" && m.aiRouting && (
+                <p className="mt-1 text-[9px] uppercase tracking-wider text-emerald-300/60">
+                  Serving {m.aiRouting.provider}
+                  {m.aiRouting.model ? ` · ${m.aiRouting.model}` : ""}
+                </p>
+              )}
               {m.role === "assistant" && m.plan && (
                 <PlanCard
                   plan={m.plan}
@@ -541,7 +558,10 @@ export function AuroraAgentPanel({ open, onClose, onSendToCanvas }: Props) {
         )}
         <Textarea
           value={draft}
-          onChange={(e) => setDraft(e.target.value)}
+          onChange={(e) => {
+            setDraft(e.target.value);
+            setServingModel(null);
+          }}
           onKeyDown={(e) => {
             if (e.key === "Enter" && !e.shiftKey) {
               e.preventDefault();

@@ -37,16 +37,27 @@ export class RateLimitError extends Error {
 /**
  * Throws RateLimitError if `key` (typically `${routeName}:${userId}`) has
  * already made `maxPerWindow` calls within the trailing `windowMs`.
- * Otherwise records this call and returns normally.
+ * Otherwise records this call (or the requested number of reservations) and
+ * returns normally. Reservations are recorded synchronously, before callers
+ * begin any awaited work, so concurrent requests in one process cannot all
+ * pass the check against the same stale count.
  */
-export function assertRateLimit(key: string, maxPerWindow: number, windowMs: number): void {
+export function assertRateLimit(
+  key: string,
+  maxPerWindow: number,
+  windowMs: number,
+  reservations = 1,
+): void {
+  if (!Number.isInteger(reservations) || reservations < 1) {
+    throw new Error("Rate-limit reservations must be a positive integer");
+  }
   const now = Date.now();
   sweep(now, windowMs);
   const hits = (buckets.get(key) ?? []).filter((t) => now - t < windowMs);
-  if (hits.length >= maxPerWindow) {
+  if (hits.length + reservations > maxPerWindow) {
     throw new RateLimitError();
   }
-  hits.push(now);
+  for (let i = 0; i < reservations; i++) hits.push(now);
   buckets.set(key, hits);
 }
 

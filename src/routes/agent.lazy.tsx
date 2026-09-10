@@ -11,6 +11,7 @@ import {
   listAgentChat,
   clearAgentChat,
   type SkillMeta,
+  type AiRoutingMeta,
 } from "@/lib/agent.functions";
 import { useAuth } from "@/hooks/use-auth";
 import {
@@ -216,6 +217,7 @@ type ChatMsg = {
   role: "user" | "assistant";
   content: string;
   skillMeta?: SkillMeta | null;
+  aiRouting?: AiRoutingMeta | null;
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────
@@ -275,6 +277,7 @@ function HeyGenPanel() {
   const [enhancing,   setEnhancing]   = useState(false);
   const [result,      setResult]      = useState<{ url: string; generationId: string } | null>(null);
   const [styleId,     setStyleId]     = useState<string>("");
+  const [enhanceServingModel, setEnhanceServingModel] = useState<string | null>(null);
   const [plan,        setPlan]        = useState<VideoPlan | null>(null);
   const [analyzing,   setAnalyzing]   = useState(false);
 
@@ -309,6 +312,7 @@ function HeyGenPanel() {
     try {
       const res = await enhanceFn({ data: { prompt: p, targetSeconds: 20, styleId: styleId || undefined } });
       setPrompt(res.script);
+      setEnhanceServingModel(res.model ? `${res.provider} · ${res.model}` : res.provider);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Enhance failed");
     } finally {
@@ -532,7 +536,10 @@ function HeyGenPanel() {
             <div className="space-y-3">
               <textarea
                 value={prompt}
-                onChange={(e) => setPrompt(e.target.value)}
+                onChange={(e) => {
+                  setPrompt(e.target.value);
+                  setEnhanceServingModel(null);
+                }}
                 rows={5}
                 placeholder="Write what the presenter says — or describe your idea and hit Enhance…"
                 className="w-full resize-none rounded-sm border border-line bg-panel/60 px-4 py-3 text-sm text-ink placeholder:text-ink-dim/60 focus:border-prime focus:outline-none"
@@ -544,7 +551,10 @@ function HeyGenPanel() {
                 <div className="relative">
                   <select
                     value={styleId}
-                    onChange={(e) => setStyleId(e.target.value)}
+                     onChange={(e) => {
+                       setStyleId(e.target.value);
+                       setEnhanceServingModel(null);
+                     }}
                     className="w-full appearance-none rounded-sm border border-line bg-panel px-3 py-2 pr-8 text-[12px] text-ink focus:border-prime focus:outline-none"
                   >
                     <option value="">— No style (Video Agent decides) —</option>
@@ -570,6 +580,11 @@ function HeyGenPanel() {
                   <Wand2 className="size-3.5" />
                   {enhancing ? "Enhancing…" : "Enhance"}
                 </button>
+                {enhanceServingModel && (
+                  <span className="text-[10px] text-ink-dim/70">
+                    Serving {enhanceServingModel}
+                  </span>
+                )}
 
                 <div className="ml-auto flex items-center gap-2">
                   {(["landscape", "portrait"] as const).map((o) => (
@@ -776,6 +791,7 @@ function AgentPage() {
           role: m.role,
           content: m.content,
           skillMeta: m.skillMeta,
+          aiRouting: m.aiRouting,
         })),
       );
       if (historyQ.data.memory) {
@@ -828,6 +844,9 @@ function AgentPage() {
           role: "assistant",
           content: result.reply,
           skillMeta: result.skillInvoked,
+          aiRouting: result.provider
+            ? { provider: result.provider, model: result.model }
+            : null,
         },
       ]);
       return true;
@@ -1178,6 +1197,12 @@ function AgentPage() {
                         <article className="prose prose-invert prose-sm max-w-none prose-headings:text-ink prose-p:text-ink prose-strong:text-ink prose-code:text-prime-glow prose-pre:border prose-pre:border-line prose-pre:bg-panel/80 prose-pre:prose-a:text-prime-glow">
                           <ReactMarkdown>{m.content || "…"}</ReactMarkdown>
                         </article>
+                        {m.aiRouting && (
+                          <div className="mt-2 text-[10px] uppercase tracking-wider text-ink-dim/70">
+                            Serving {m.aiRouting.provider}
+                            {m.aiRouting.model ? ` · ${m.aiRouting.model}` : ""}
+                          </div>
+                        )}
                       </div>
                     </>
                   )}

@@ -38,3 +38,18 @@ Anthropic); `RouterProvider.providerOptions` is forwarded by routedGenerate.
 Also: `npm install <new pkg>` can prune the root `@tanstack/router-core`
 (it wasn't in the lockfile) — it's now an explicit exact dep; re-check after
 any install and run prod-build (kill tsserver first if it OOMs silently).
+
+**Rule:** A provider accepting non-strict `json_schema` can still return prose.
+Include an explicit JSON output instruction and schema in the agent's system
+contract; retain runtime schema validation rather than coercing prose into a
+successful plan.
+
+**Why:** Funded ModelArk and OpenRouter free requests both returned HTTP 200
+but failed Aurora's rich chat schema, despite a simple object smoke passing.
+Repeating the schema in the system contract produced valid real chat output.
+Free-pool selections can also fail intermittently even when another selection
+successfully returns a valid object at zero reported cost.
+
+**How to apply:** Verify the actual feature prompt/schema, not just a greeting
+or connectivity check. Preserve bounded attempts and report unavailable
+providers honestly; successful catalog lookup is not a generation test.

@@ -50,6 +50,83 @@ const SceneSchema = z.object({
 const SceneListSchema = z.array(SceneSchema);
 type SceneRecord = z.infer<typeof SceneSchema>;
 
+/**
+ * Server-authored attribution for the script-writing pass. This lives inside
+ * the existing project `production` JSON envelope, so script attribution
+ * survives the process→editor transition without a schema migration.
+ *
+ * The hash covers the normalized title/script/visual/timing content. Editor
+ * edits therefore cannot continue to display an attribution for a different
+ * script; the update path removes it when that hash changes.
+ */
+export const VideoAgentScriptAttributionSchema = z.object({
+  version: z.literal(1),
+  provider: z.string().min(1).max(120),
+  model: z.string().min(1).max(240).nullable(),
+  scriptHash: z.string().regex(/^[a-f0-9]{64}$/),
+  generatedAt: z.string().datetime(),
+});
+export type VideoAgentScriptAttribution = z.infer<typeof VideoAgentScriptAttributionSchema>;
+const SCRIPT_ATTRIBUTION_KEY = "aurora_script_attribution";
+
+export type VideoAgentScriptSceneLike = {
+  title?: string | null;
+  script?: string | null;
+  description?: string | null;
+  duration?: number | null;
+};
+
+function normalizedScriptContent(title: string, scenes: VideoAgentScriptSceneLike[]) {
+  return {
+    title: title.trim().slice(0, 160) || "Untitled Video",
+    scenes: scenes
+      .map((scene, index) => ({
+        index,
+        title: (scene.title ?? "").trim().slice(0, 160) || `Scene ${index + 1}`,
+        script: (scene.script ?? "").trim().slice(0, 2400),
+        description: (scene.description ?? "").trim().slice(0, 3000),
+        duration: Math.max(3, Math.min(15, Math.round(Number(scene.duration)) || 6)),
+      }))
+      .filter((scene) => scene.script && scene.description)
+      .slice(0, 12)
+      .map((scene, index) => ({ ...scene, index })),
+  };
+}
+
+export async function videoAgentScriptContentHash(
+  title: string,
+  scenes: VideoAgentScriptSceneLike[],
+): Promise<string> {
+  const canonical = JSON.stringify(normalizedScriptContent(title, scenes));
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(canonical));
+  return Array.from(new Uint8Array(digest))
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+function parseScriptAttribution(value: unknown): VideoAgentScriptAttribution | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const raw = (value as Record<string, unknown>)[SCRIPT_ATTRIBUTION_KEY];
+  const parsed = VideoAgentScriptAttributionSchema.safeParse(raw);
+  return parsed.success ? parsed.data : null;
+}
+
+function productionWithScriptAttribution(
+  production: unknown,
+  attribution: VideoAgentScriptAttribution,
+): Record<string, unknown> {
+  const base = production && typeof production === "object" && !Array.isArray(production)
+    ? { ...(production as Record<string, unknown>) }
+    : {};
+  return { ...base, [SCRIPT_ATTRIBUTION_KEY]: attribution };
+}
+
+function productionWithoutScriptAttribution(production: unknown): Record<string, unknown> | null {
+  if (!production || typeof production !== "object" || Array.isArray(production)) return null;
+  const { [SCRIPT_ATTRIBUTION_KEY]: _removed, ...rest } = production as Record<string, unknown>;
+  return Object.keys(rest).length > 0 ? rest : null;
+}
+
 /** The editor's visual description is the canonical provider prompt. */
 export function resolveVideoAgentScenePrompt(scene: {
   description?: string | null;
@@ -463,6 +540,7 @@ export function mapVideoAgentProject(row: ProjectRow) {
     production: parseProduction(row.production),
     filmPlan: parseFilmPlan(row.production),
     renderEngine: parseRenderEngine(row.production),
+    scriptAttribution: parseScriptAttribution(row.production),
     createdAt: new Date(row.created_at).getTime(),
     updatedAt: new Date(row.updated_at).getTime(),
     version: row.updated_at,
@@ -478,6 +556,46 @@ async function fetchOwnedProject(id: string, userId: string) {
   if (error) throw new Error(error.message);
   if (!row) throw new Error("Project not found");
   return row;
+}
+
+/**
+ * Persists attribution for the exact script returned by the authenticated
+ * server route. The client never supplies provider/model or the stored
+ * metadata; it only receives the already-authenticated response and later
+ * edits the storyboard through updateVideoAgentProject.
+ */
+export async function persistVideoAgentScriptAttribution(
+  projectId: string,
+  userId: string,
+  script: {
+    title: string;
+    scenes: VideoAgentScriptSceneLike[];
+    provider: string;
+    model: string | null;
+  },
+): Promise<void> {
+  const current = await fetchOwnedProject(projectId, userId);
+  if (!normalizedScriptContent(script.title, script.scenes).scenes.length) {
+    throw new Error("The generated script has no usable scenes");
+  }
+  const scriptHash = await videoAgentScriptContentHash(script.title, script.scenes);
+  const attribution = VideoAgentScriptAttributionSchema.parse({
+    version: 1,
+    provider: script.provider,
+    model: script.model,
+    scriptHash,
+    generatedAt: new Date().toISOString(),
+  });
+  const { error } = await projectTable()
+    .update({
+      production: productionWithScriptAttribution(current.production, attribution),
+      status_message: `Storyboard generated · served by ${attribution.provider} · ${attribution.model}`,
+    })
+    .eq("id", projectId)
+    .eq("user_id", userId)
+    .select("*")
+    .single();
+  if (error) throw new Error(error.message);
 }
 
 export const createVideoAgentProject = createServerFn({ method: "POST" })
@@ -715,6 +833,7 @@ export const updateVideoAgentProject = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const current = await fetchOwnedProject(data.id, context.userId);
     const patch: Record<string, unknown> = {};
+    const currentScriptAttribution = parseScriptAttribution(current.production);
     if (data.title !== undefined) patch.title = data.title;
     if (data.scenes !== undefined) {
       // The queued/processing render consumed a snapshot of this storyboard;
@@ -731,6 +850,20 @@ export const updateVideoAgentProject = createServerFn({ method: "POST" })
         const previous = currentScenes.find((item) => item.id === scene.id);
         return mergeVideoAgentSceneEdit(previous, scene);
       });
+      // Frame/status enrichment performed by the processing page does not
+      // change the generated script and therefore keeps its attribution.
+      // Actual title, narration, visual, or timing edits change the content
+      // hash and must clear the server-authored claim.
+      if (currentScriptAttribution) {
+        const nextScriptHash = await videoAgentScriptContentHash(
+          data.title ?? current.title,
+          data.scenes,
+        );
+        if (nextScriptHash !== currentScriptAttribution.scriptHash) {
+          patch.production = productionWithoutScriptAttribution(current.production);
+          patch.status_message = "Storyboard changed — script attribution cleared";
+        }
+      }
       // Storyboard edits move a draft into the editable state, but never
       // clobber a terminal render status (succeeded/failed keep showing the
       // last render result until a re-render is queued).
@@ -745,6 +878,17 @@ export const updateVideoAgentProject = createServerFn({ method: "POST" })
         patch.production = { ...filmPlan, renderApproval: null };
         patch.status_message = "Storyboard changed — render approval must be renewed";
       }
+    }
+    if (
+      data.title !== undefined &&
+      currentScriptAttribution &&
+      (data.scenes === undefined || (
+        await videoAgentScriptContentHash(data.title, parseScenes(current.scenes))
+          !== currentScriptAttribution.scriptHash
+      ))
+    ) {
+      patch.production = productionWithoutScriptAttribution(current.production);
+      patch.status_message = "Storyboard changed — script attribution cleared";
     }
     if (data.production !== undefined) {
       if (current.status === "queued" || current.status === "processing") {

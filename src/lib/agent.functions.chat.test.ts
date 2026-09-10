@@ -1,12 +1,7 @@
-import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
+import { afterEach, describe, expect, it, mock } from "bun:test";
 import { z } from "zod";
-import { generateText } from "ai";
-import { routedGenerate } from "./ai-router";
 import { classifyRequest } from "./ai-router/classifier";
-import { resetHealthMap } from "./ai-router/health";
-import { resetProviderRegistry, setProviderRegistryForTest, type RouterProvider } from "./ai-router/providers";
-import { ChatTurnSchema } from "./agent.schema";
-import { chatWithAuroraAgentCore } from "./agent.functions";
+import { chatWithAuroraAgentCore, decodeAgentChatSkillMeta } from "./agent.functions";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 
@@ -16,16 +11,6 @@ const ChatResultSchema = z.object({
   memoryUpdate: z.null(),
   skillCall: z.null(),
 });
-
-function provider(name: string): RouterProvider {
-  return {
-    name,
-    displayName: name,
-    enabled: true,
-    model: `${name}-test-model`,
-    make: () => ((model: string) => ({ model }) as never) as never,
-  };
-}
 
 function chatContext() {
   const inserts: unknown[][] = [];
@@ -61,43 +46,44 @@ function chatContext() {
 }
 
 describe("Aurora chat router integration", () => {
-  beforeEach(() => {
-    resetHealthMap();
-  });
-
   afterEach(() => {
     mock.restore();
-    resetProviderRegistry();
-    resetHealthMap();
   });
 
   it("classifies a chat turn, selects its provider, and returns schema-shaped output", async () => {
     const classified = classifyRequest("Help me shape a cinematic music video treatment.");
     expect(classified).toBe("VIDEO_DIRECTION");
 
-    setProviderRegistryForTest(new Map([["claude", provider("claude")]]));
-    mock.module("ai", () => ({
-      generateText: mock(async () => ({
-        experimental_output: {
-          reply: "Start with a restrained dusk performance and one visual motif.",
-          plan: null,
-          memoryUpdate: null,
-          skillCall: null,
-        },
-      })),
-      Output: { object: ({ schema }: { schema: unknown }) => schema },
+    const { context } = chatContext();
+    const generate = mock(async () => ({
+      output: {
+        reply: "Start with a restrained dusk performance and one visual motif.",
+        plan: null,
+        memoryUpdate: null,
+        skillCall: null,
+      },
+      provider: "modelark",
+      model: "modelark-chat",
+      category: "VIDEO_DIRECTION" as const,
+      fallbackCount: 0,
+      latencyMs: 1,
     }));
+    const result = await chatWithAuroraAgentCore(
+      context,
+      { message: "Help me shape a cinematic music video treatment." },
+      { generate: generate as never, loadSkills: async () => ({}) as never },
+    );
 
-    const result = await routedGenerate({
-      system: "Aurora chat director",
-      prompt: "Help me shape a cinematic music video treatment.",
-      schema: ChatTurnSchema,
-    });
-
-    expect(result.category).toBe("VIDEO_DIRECTION");
-    expect(result.provider).toBe("claude");
-    expect(result.fallbackCount).toBe(0);
-    expect(ChatResultSchema.parse(result.output)).toEqual({
+    expect(result.provider).toBe("modelark");
+    expect(result.model).toBe("modelark-chat");
+    expect(
+      ChatResultSchema.parse({
+        reply: result.reply,
+        plan: result.plan,
+        memoryUpdate: null,
+        skillCall: null,
+      }),
+    ).toEqual({
       reply: "Start with a restrained dusk performance and one visual motif.",
       plan: null,
       memoryUpdate: null,
@@ -105,63 +91,82 @@ describe("Aurora chat router integration", () => {
     });
   });
 
-  it("falls back to the next chat provider when the first one throws", async () => {
-    setProviderRegistryForTest(new Map([
-      ["gemini", provider("gemini")],
-      ["grok", provider("grok")],
-    ]));
-
-    const generated = mock(async ({ model }: { model: { model: string } }) => {
-      if (model.model === "gemini-test-model")
-        throw new Error("first provider unavailable");
-      return {
-        experimental_output: {
-          reply: "The fallback director is ready.",
-          plan: null,
-          memoryUpdate: null,
-          skillCall: null,
-        },
-      };
-    });
-    mock.module("ai", () => ({
-      generateText: generated,
-      Output: { object: ({ schema }: { schema: unknown }) => schema },
+  it("preserves metadata when the constrained generator returns its free fallback", async () => {
+    const { context } = chatContext();
+    const generated = mock(async () => ({
+      output: {
+        reply: "The fallback director is ready.",
+        plan: null,
+        memoryUpdate: null,
+        skillCall: null,
+      },
+      provider: "openrouter-free",
+      model: "pool/served-model:free",
+      category: "GENERAL_CHAT" as const,
+      fallbackCount: 1,
+      latencyMs: 1,
     }));
+    const result = await chatWithAuroraAgentCore(
+      context,
+      { message: "What should I shoot first?" },
+      { generate: generated as never, loadSkills: async () => ({}) as never },
+    );
 
-    const result = await routedGenerate({
-      system: "Aurora chat director",
-      prompt: "What should I shoot first?",
-      schema: ChatTurnSchema,
-      category: "GENERAL_CHAT",
+    expect(result.reply).toBe("The fallback director is ready.");
+    expect(result.provider).toBe("openrouter-free");
+    expect(result.model).toBe("pool/served-model:free");
+    expect(generated).toHaveBeenCalledTimes(1);
+  });
+
+  it("reloads routing metadata without turning a skill-less row into a SkillMeta", () => {
+    expect(decodeAgentChatSkillMeta({
+      ai_routing: { provider: "modelark", model: "served-model" },
+    })).toEqual({
+      skillMeta: null,
+      aiRouting: { provider: "modelark", model: "served-model" },
     });
-
-    expect(result.provider).toBe("grok");
-    expect(result.fallbackCount).toBe(1);
-    expect(ChatResultSchema.parse(result.output).reply).toBe("The fallback director is ready.");
-    // Non-transient model/provider failures skip immediately rather than
-    // wasting a second call before trying the fallback.
-    expect(generated).toHaveBeenCalledTimes(2);
+    expect(decodeAgentChatSkillMeta({
+      name: "web_search",
+      icon: "🔍",
+      label: "Web Search",
+      summary: "Searched",
+      durationMs: 12,
+      ai_routing: { provider: "openrouter-free", model: "openrouter/free" },
+    })).toEqual({
+      skillMeta: {
+        name: "web_search",
+        icon: "🔍",
+        label: "Web Search",
+        summary: "Searched",
+        durationMs: 12,
+      },
+      aiRouting: { provider: "openrouter-free", model: "openrouter/free" },
+    });
   });
 
   it("runs the real chat server-function core with authenticated context, router classification, and persistence", async () => {
-    setProviderRegistryForTest(new Map([["claude", provider("claude")]]));
-    const generated = mock(async () => ({
-      experimental_output: {
+    type ChatDeps = NonNullable<Parameters<typeof chatWithAuroraAgentCore>[2]>;
+    const generated = mock(async (args: Parameters<ChatDeps["generate"]>[0]) => ({
+      output: {
         reply: "Open on a close, intimate performance and build outward from there.",
         plan: null,
         memoryUpdate: null,
         skillCall: null,
       },
-    }));
-    mock.module("ai", () => ({
-      generateText: generated,
-      Output: { object: ({ schema }: { schema: unknown }) => schema },
-    }));
+      provider: "modelark",
+      model: "mock-model",
+      category: args.category ?? "VIDEO_DIRECTION",
+      fallbackCount: 0,
+      latencyMs: 1,
+    })) as ChatDeps["generate"];
     const { context, inserts } = chatContext();
 
     const result = await chatWithAuroraAgentCore(context, {
       message: "Help me shape a cinematic music video treatment.",
       memory: "Brand voice: luxurious, restrained, and intimate.",
+    }, {
+      generate: generated,
+      loadSkills: async () => ({}) as never,
     });
 
     expect(result).toEqual({
@@ -169,6 +174,8 @@ describe("Aurora chat router integration", () => {
       plan: null,
       memoryUpdated: false,
       skillInvoked: null,
+      provider: "modelark",
+      model: "mock-model",
     });
     expect(generated).toHaveBeenCalled();
     const firstRequest = generated.mock.calls[0]?.[0] as { system?: string } | undefined;
@@ -182,33 +189,88 @@ describe("Aurora chat router integration", () => {
       { user_id: "test-user", role: "user", content: "Help me shape a cinematic music video treatment." },
       expect.objectContaining({ user_id: "test-user", role: "assistant", content: result.reply }),
     ]);
+    expect(inserts[0]?.[1]).toEqual(expect.objectContaining({
+      skill_meta: { ai_routing: { provider: "modelark", model: "mock-model" } },
+    }));
   });
 
-  it("keeps the real chat server-function core available when its first provider fails", async () => {
-    setProviderRegistryForTest(new Map([
-      ["claude", provider("claude")],
-      ["gemini", provider("gemini")],
-    ]));
-    const generated = mock(async ({ model }: { model: { model: string } }) => {
-      if (model.model === "claude-test-model") throw new Error("first provider unavailable");
-      return {
-        experimental_output: {
-          reply: "The fallback director is ready.",
-          plan: null,
-          memoryUpdate: null,
-          skillCall: null,
-        },
-      };
-    });
-    mock.module("ai", () => ({
-      generateText: generated,
-      Output: { object: ({ schema }: { schema: unknown }) => schema },
-    }));
+  it("keeps the real chat server-function core available when its constrained generator returns a fallback", async () => {
+    type ChatDeps = NonNullable<Parameters<typeof chatWithAuroraAgentCore>[2]>;
+    const generated = mock(async (args: Parameters<ChatDeps["generate"]>[0]) => ({
+      output: {
+        reply: "The fallback director is ready.",
+        plan: null,
+        memoryUpdate: null,
+        skillCall: null,
+      },
+      provider: args.routingMode === "modelark-free" ? "openrouter-free" : "none",
+      model: "mock-model",
+      category: "GENERAL_CHAT" as const,
+      fallbackCount: 1,
+      latencyMs: 1,
+    })) as ChatDeps["generate"];
     const { context } = chatContext();
 
-    const result = await chatWithAuroraAgentCore(context, { message: "Where do I begin?" });
+    const result = await chatWithAuroraAgentCore(
+      context,
+      { message: "Where do I begin?" },
+      { generate: generated, loadSkills: async () => ({}) as never },
+    );
 
     expect(result.reply).toBe("The fallback director is ready.");
-    expect(generated).toHaveBeenCalledTimes(2);
+    expect(result.provider).toBe("openrouter-free");
+    expect(result.model).toBe("mock-model");
+    expect(generated).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps both chat passes on the constrained free routing mode", async () => {
+    const calls: Array<{ routingMode?: string }> = [];
+    const { context } = chatContext();
+    const firstTurn = {
+      reply: "I checked the latest visual references.",
+      plan: null,
+      memoryUpdate: null,
+      skillCall: { skill: "web_search" as const, args: { query: "cinematic lighting" } },
+    };
+    const secondTurn = {
+      reply: "Use a cool key and a warm practical for contrast.",
+      plan: null,
+      memoryUpdate: null,
+      skillCall: null,
+    };
+    type ChatDeps = NonNullable<Parameters<typeof chatWithAuroraAgentCore>[2]>;
+    const generate = mock(async (args: Parameters<ChatDeps["generate"]>[0]) => {
+      calls.push({ routingMode: args.routingMode });
+      const output = calls.length === 1 ? firstTurn : secondTurn;
+      return {
+        output,
+        provider: calls.length === 1 ? "modelark" : "openrouter-free",
+        model: calls.length === 1 ? "modelark-test" : "openrouter/free",
+        category: "GENERAL_CHAT" as const,
+        fallbackCount: calls.length === 1 ? 0 : 1,
+        latencyMs: 1,
+      };
+    }) as ChatDeps["generate"];
+    const deps = {
+      generate,
+      loadSkills: async () => ({
+        dispatchSkill: async () => ({
+          ok: true,
+          summary: "Searched lighting references",
+          data: { bullets: ["Use motivated contrast."] },
+        }),
+        SKILL_REGISTRY: {
+          web_search: { icon: "🔍", label: "Web Search" },
+        },
+      }),
+    } as unknown as ChatDeps;
+
+    const result = await chatWithAuroraAgentCore(context, { message: "Research cinematic lighting." }, deps);
+
+    expect(calls).toHaveLength(2);
+    expect(calls.every((call) => call.routingMode === "modelark-free")).toBe(true);
+    expect(result.reply).toBe(secondTurn.reply);
+    expect(result.provider).toBe("openrouter-free");
+    expect(result.model).toBe("openrouter/free");
   });
 });

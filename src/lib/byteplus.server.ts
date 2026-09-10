@@ -60,7 +60,7 @@ function authHeaders(key: string): Record<string, string> {
   return { Authorization: `Bearer ${key}`, "Content-Type": "application/json" };
 }
 
-async function fetchWithCredentialFallback(
+export async function fetchWithCredentialFallback(
   request: (key: string) => Promise<Response>,
 ): Promise<{ response: Response; key: string }> {
   const keys = bytePlusKeys();

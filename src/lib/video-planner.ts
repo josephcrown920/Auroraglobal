@@ -16,8 +16,6 @@ export type CinematicPlanningRequest =
 
 type Generate = <T>(args: RoutedGenerateArgs<T>) => Promise<RoutedResult<T>>;
 
-const PLANNER_PREFERENCE = ["deepseek"] as const;
-
 function deterministicWarnings(plan: VideoPlan): NonNullable<VideoPlan["warnings"]> {
   const warnings: NonNullable<VideoPlan["warnings"]> = [];
   const shots = plan.shots ?? [];
@@ -128,9 +126,9 @@ Create a complete plan with brief, screenplay, continuity ledger, direction, 4â€
 }
 
 /**
- * DeepSeek-preferred cinematic planner. The preference is not a pin: all
- * existing VIDEO_DIRECTION fallbacks remain available and serving metadata is
- * copied from the router result, never accepted from model output.
+ * Free cinematic planner. The router owns the bounded ModelArk-primary /
+ * OpenRouter-free fallback chain; serving metadata is copied from the router
+ * result, never accepted from model output.
  */
 export async function planCinematicVideo(
   request: CinematicPlanningRequest,
@@ -142,7 +140,7 @@ export async function planCinematicVideo(
     prompt: plannerPrompt(request),
     schema: PlannerRouterSchema,
     category: "VIDEO_DIRECTION",
-    preferredProviders: [...PLANNER_PREFERENCE],
+    routingMode: "modelark-free",
     providerTimeoutMs: 55_000,
     routerTimeoutMs: 120_000,
     maxAttemptsPerProvider: 1,

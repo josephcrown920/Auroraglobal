@@ -7,6 +7,7 @@ import {
   mapVideoAgentProject,
   mergeVideoAgentSceneEdit,
   resolveVideoAgentScenePrompt,
+  videoAgentScriptContentHash,
 } from "./video-agent-projects.functions";
 
 const validPlan = {
@@ -56,6 +57,56 @@ const validPlan = {
 };
 
 describe("durable Film Studio plan contract", () => {
+  it("reloads server-owned script attribution from the existing project envelope", async () => {
+    const scenes = [{
+      title: "First light",
+      script: "The day begins with one deliberate choice.",
+      description: "Warm dawn light crosses a quiet kitchen.",
+      duration: 8,
+    }];
+    const scriptHash = await videoAgentScriptContentHash("A Better Morning", scenes);
+    const mapped = mapVideoAgentProject({
+      id: "script-project",
+      prompt: "A sufficiently long script project prompt",
+      title: "A Better Morning",
+      style: "cinematic",
+      voice: "narrator-warm",
+      target_duration: 30,
+      scenes: [{
+        id: "scene-1",
+        index: 0,
+        ...scenes[0],
+        frame: null,
+      }],
+      status: "editing",
+      status_message: "Storyboard ready to render",
+      job_id: null,
+      generation_id: null,
+      export_url: null,
+      thumbnail_url: null,
+      error: null,
+      production: {
+        aurora_script_attribution: {
+          version: 1,
+          provider: "modelark",
+          model: "script-model",
+          scriptHash,
+          generatedAt: "2026-09-09T00:00:00.000Z",
+        },
+      },
+      created_at: "2026-09-09T00:00:00.000Z",
+      updated_at: "2026-09-09T00:00:01.000Z",
+    });
+
+    expect(mapped.scriptAttribution).toEqual({
+      version: 1,
+      provider: "modelark",
+      model: "script-model",
+      scriptHash,
+      generatedAt: "2026-09-09T00:00:00.000Z",
+    });
+  });
+
   it("requires an active Pro entitlement for every Video Agent Seedance render", () => {
     expect(() => assertVideoAgentSeedanceEntitlement("free")).toThrow(/active Pro subscription/i);
     expect(() => assertVideoAgentSeedanceEntitlement("starter")).toThrow(/active Pro subscription/i);

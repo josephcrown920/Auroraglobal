@@ -16,6 +16,7 @@ describe("video-agent generate-script LLM routing", () => {
     };
     const generate = mock(async (args: Parameters<typeof routedGenerate>[0]) => {
       expect(args.category).toBe("SCRIPT_WRITING");
+      expect(args.routingMode).toBe("modelark-free");
       expect(args.prompt).toContain("Number of scenes: 4");
       expect(args).not.toHaveProperty("model");
       expect(args).not.toHaveProperty("response_format");
@@ -37,7 +38,11 @@ describe("video-agent generate-script LLM routing", () => {
       targetDuration: 60,
     }, generate);
 
-    expect(result).toEqual(output);
+    expect(result).toEqual({
+      ...output,
+      provider: "openai",
+      model: "router-selected-model",
+    });
     expect(generate).toHaveBeenCalledTimes(1);
   });
 });

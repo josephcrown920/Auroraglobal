@@ -167,8 +167,21 @@ function VideoEditor() {
     }, 800);
   }
 
+  function clearScriptAttributionForEdit() {
+    const current = queryClient.getQueryData<VideoAgentProjectDto>(projectQueryKey);
+    if (current?.scriptAttribution) {
+      queryClient.setQueryData(projectQueryKey, {
+        ...current,
+        scriptAttribution: null,
+      });
+    }
+  }
+
   function updateScene(sceneId: string, patch: Partial<SceneDraft>) {
     if (!draft || renderActive) return;
+    if (["title", "script", "description", "duration"].some((key) => key in patch)) {
+      clearScriptAttributionForEdit();
+    }
     scheduleSave({
       ...draft,
       scenes: draft.scenes.map((s) => (s.id === sceneId ? { ...s, ...patch } : s)),
@@ -177,12 +190,14 @@ function VideoEditor() {
 
   function updateTitle(title: string) {
     if (!draft || renderActive) return;
+    clearScriptAttributionForEdit();
     scheduleSave({ ...draft, title });
   }
 
   function addScene() {
     if (!draft || renderActive) return;
     if (draft.scenes.length >= 12) return toast.error("A video can have at most 12 scenes");
+    clearScriptAttributionForEdit();
     const scene: SceneDraft = {
       id: vaUid(),
       index: draft.scenes.length,
@@ -200,6 +215,7 @@ function VideoEditor() {
   function removeScene(sceneId: string) {
     if (!draft || renderActive) return;
     if (draft.scenes.length <= 1) return toast.error("A video needs at least one scene");
+    clearScriptAttributionForEdit();
     scheduleSave({
       ...draft,
       scenes: draft.scenes.filter((s) => s.id !== sceneId).map((s, i) => ({ ...s, index: i })),
@@ -361,7 +377,7 @@ function VideoEditor() {
     );
   }
 
-  if (projectQuery.isError || !project || (!draft && !project.production)) {
+  if (projectQuery.isError || !project || (!draft && !project.production && !project.scenes.length)) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
         <div className="glass rounded-xl p-10 text-center max-w-sm">
@@ -423,6 +439,15 @@ function VideoEditor() {
           disabled={renderActive}
           className="h-7 w-52 text-sm font-medium glass border-transparent focus:border-border"
         />
+        {project.scriptAttribution && (
+          <span
+            className="hidden max-w-[280px] truncate text-[11px] text-primary/80 md:block"
+            title={`Generated script · ${project.scriptAttribution.provider}${project.scriptAttribution.model ? ` · ${project.scriptAttribution.model}` : ""}`}
+          >
+            Script served by {project.scriptAttribution.provider}
+            {project.scriptAttribution.model ? ` · ${project.scriptAttribution.model}` : ""}
+          </span>
+        )}
         <div className="flex-1" />
         {saveLabel && (
           <span className={`text-[11px] hidden md:block ${saveState === "blocked" || saveState === "error" ? "text-destructive" : "text-muted-foreground"}`}>

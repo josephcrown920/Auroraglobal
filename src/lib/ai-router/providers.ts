@@ -6,6 +6,14 @@ import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import type { LanguageModel } from "ai";
+import { bytePlusBaseUrl, getBytePlusKey } from "../byteplus.server";
+import {
+  FREE_OPENROUTER_BASE,
+  FREE_OPENROUTER_MODEL,
+  freeOpenRouterFetch,
+  modelArkTextFetch,
+  modelArkTextModel,
+} from "./agent-routing";
 
 /** A provider gateway: call it with a model id to get an AI SDK language model. */
 export type RouterGateway = (modelId: string) => LanguageModel;
@@ -79,6 +87,36 @@ export function buildProviderRegistry(): Map<string, RouterProvider> {
   const registry = new Map<string, RouterProvider>();
 
   const add = (p: RouterProvider) => registry.set(p.name, p);
+
+  // Agent text only: explicit primary + zero-cost fallback. These are not
+  // inserted into unrelated category chains or media-generation routing.
+  add({
+    name: "modelark",
+    displayName: "ModelArk",
+    enabled: !!getBytePlusKey() && !!modelArkTextModel(),
+    model: modelArkTextModel(),
+    providerOptions: NON_STRICT_SCHEMA("modelark"),
+    make: () => createOpenAICompatible({
+      name: "modelark",
+      baseURL: bytePlusBaseUrl(),
+      fetch: modelArkTextFetch,
+      supportsStructuredOutputs: true,
+    }),
+  });
+  add({
+    name: "openrouter-free",
+    displayName: "OpenRouter Free",
+    enabled: !!process.env.OPENROUTER_API_KEY,
+    model: FREE_OPENROUTER_MODEL,
+    providerOptions: NON_STRICT_SCHEMA("openrouter-free"),
+    make: () => createOpenAICompatible({
+      name: "openrouter-free",
+      baseURL: FREE_OPENROUTER_BASE,
+      fetch: freeOpenRouterFetch,
+      headers: { "X-Title": "Aurora" },
+      supportsStructuredOutputs: true,
+    }),
+  });
 
   // ── Claude (Anthropic) — Premium Creative Director ─────────────────────────
   // Native Messages API via @ai-sdk/anthropic. Structured output rides on

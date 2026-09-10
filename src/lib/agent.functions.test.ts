@@ -19,15 +19,17 @@ type AgentDeps = NonNullable<Parameters<typeof runAuroraAgentCore>[2]>;
 
 function makeDeps(over: Partial<AgentDeps> = {}) {
   let generateCalls = 0;
+  let lastGenerateArgs: Parameters<AgentDeps["generate"]>[0] | undefined;
   const deps = {
     assertOwned: async () => {},
-    generate: (async () => {
+    generate: (async (args: Parameters<AgentDeps["generate"]>[0]) => {
       generateCalls++;
+      lastGenerateArgs = args;
       return { output: FAKE_PLAN };
     }) as unknown as AgentDeps["generate"],
     ...over,
   } as AgentDeps;
-  return { deps, generated: () => generateCalls };
+  return { deps, generated: () => generateCalls, lastGenerateArgs: () => lastGenerateArgs };
 }
 
 describe("runAuroraAgentCore — ownership guard", () => {
@@ -49,7 +51,7 @@ describe("runAuroraAgentCore — ownership guard", () => {
 
   it("checks every owned reference image, then returns the plan", async () => {
     const seen: string[] = [];
-    const { deps, generated } = makeDeps({
+    const { deps, generated, lastGenerateArgs } = makeDeps({
       assertOwned: async (url: string) => {
         seen.push(url);
       },
@@ -62,6 +64,7 @@ describe("runAuroraAgentCore — ownership guard", () => {
     );
     expect(seen).toEqual(urls);
     expect(generated()).toBe(1);
+    expect(lastGenerateArgs()?.routingMode).toBe("modelark-free");
     expect(plan).toEqual(FAKE_PLAN as never);
   });
 
