@@ -104,6 +104,7 @@ async function createNonAdminSession(): Promise<{ userId: string; accessToken: s
     email_confirm: true,
   });
   if (createErr || !created.user) fail(`createUser: ${createErr?.message}`);
+  try {
   const { data: link, error: linkErr } = await supabaseAdmin.auth.admin.generateLink({
     type: "magiclink",
     email,
@@ -118,6 +119,11 @@ async function createNonAdminSession(): Promise<{ userId: string; accessToken: s
   });
   if (sessErr || !sess.session) fail(`verifyOtp: ${sessErr?.message}`);
   return { userId: created.user.id, accessToken: sess.session.access_token };
+  } catch (error) {
+    const { error: cleanupError } = await supabaseAdmin.auth.admin.deleteUser(created.user.id);
+    if (cleanupError) console.warn("  ! temporary-user cleanup failed after session setup failure");
+    throw error;
+  }
 }
 
 async function main() {

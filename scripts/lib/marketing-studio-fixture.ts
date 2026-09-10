@@ -1,0 +1,28 @@
+/** Synthetic UI-only campaign. Never evidence that a provider rendered media. */
+export const marketingStudioFixture = {
+  id: "marketing-ui-fixture",
+  name: "Video Agent workflow — UI fixture",
+  strategy: "Review a brief-to-shot campaign using synthetic copy. This fixture checks the interface, not AI generation.",
+  featureId: "video-agent",
+  featureName: "Video Agent",
+  createdAt: "2026-09-10T12:00:00.000Z",
+  provider: "UI fixture — no model called",
+  items: ["reel", "feed"].map((format, index) => ({
+    id: `fixture-${format}`,
+    day: index + 1,
+    format,
+    title: format === "reel" ? "From your brief to a shot" : "Review your campaign",
+    hook: "Start with a creative brief",
+    caption: "Turn your creative brief into a shot plan, then review each result before sharing it.",
+    hashtags: ["Aurora", "CreativeWorkflow", "VideoAgent"],
+    cta: "Explore Video Agent",
+    visualPrompt: "An Aurora creative workspace showing a brief beside a cinematic shot preview.",
+    reelPrompt: "Slow movement across the creative workspace, keeping the preview readable.",
+    recommendedTime: "6:30 PM",
+    slides: [],
+    assetUrls: [],
+    videoUrl: null,
+    status: "draft",
+    scheduledDate: "",
+  })),
+};

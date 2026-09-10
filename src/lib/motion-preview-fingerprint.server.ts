@@ -44,6 +44,23 @@ type PerformanceVariantFingerprintInput = {
   settings: Record<string, string>;
 };
 
+/**
+ * The user-facing video request is preview-capped at dispatch time, but the
+ * confirmation ticket must bind to the request the user actually made.  In
+ * particular, `duration` and `resolution` here are the requested full-quality
+ * values, not the effective 5s/480p preview values.
+ */
+export type VideoPreviewFingerprintInput = {
+  imageUrl: string;
+  endFrameUrl?: string | null;
+  prompt: string;
+  duration: number;
+  resolution: string;
+  modelKey: string;
+  cameraMovement?: string | null;
+  templateId?: string | null;
+};
+
 function canonicalMotionMedia(raw: string): string {
   const url = new URL(raw);
   const storage = url.pathname.match(/\/storage\/v1\/object\/(?:sign|public)\/studio\/(.+)$/);
@@ -93,6 +110,33 @@ export function performanceReskinFingerprint(input: PerformanceReskinFingerprint
     params: canonicalParams(input.params),
   });
 }
+
+/**
+ * Cryptographically bind a video preview to every input that can change the
+ * resulting clip.  The effective preview quality is intentionally not used:
+ * the requested full-quality duration/resolution are part of the ticket so a
+ * caller cannot reuse a preview to escalate the confirmed render.
+ *
+ * Storage signatures/tokens are excluded by canonicalMotionMedia, allowing a
+ * normal re-sign of the same owned asset without invalidating its ticket.
+ */
+export function videoPreviewFingerprint(input: VideoPreviewFingerprintInput): string {
+  return sha256({
+    kind: "video",
+    imageUrl: canonicalMotionMedia(input.imageUrl),
+    endFrameUrl: input.endFrameUrl ? canonicalMotionMedia(input.endFrameUrl) : null,
+    prompt: input.prompt,
+    duration: input.duration,
+    resolution: input.resolution,
+    modelKey: input.modelKey,
+    cameraMovement: input.cameraMovement ?? null,
+    templateId: input.templateId ?? null,
+  });
+}
+
+// Descriptive alias for callers that use the same naming as the motion
+// fingerprint helpers.
+export const videoInputFingerprint = videoPreviewFingerprint;
 
 export function performanceVariantInputFingerprint(input: PerformanceVariantFingerprintInput): string {
   const studioPath = (url: string): string => {

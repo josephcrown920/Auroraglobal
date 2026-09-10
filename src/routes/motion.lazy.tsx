@@ -16,6 +16,7 @@ import {
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
+import { supabase } from "@/integrations/supabase/client";
 import { UploadSlot } from "@/components/studio/UploadSlot";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -126,6 +127,23 @@ type Mode = "pose" | "transfer" | "reskin" | "avatar-shots" | "live-avatar" | "m
 type ShotEngine = "seedream" | "gemini" | "kling";
 type ShotResult = { url: string; engine: ShotEngine; kind: "image" | "video"; fallbackFrom?: ShotEngine };
 
+const ANIMATE_DURATION_SECONDS = 5;
+
+type AnimatePreviewKeyInput = {
+  sourceUrl: string | null;
+  endFrameUrl: string | null;
+  prompt: string;
+  cameraMovement: string;
+  modelKey: string;
+  resolution: Resolution;
+  durationSeconds: number;
+};
+
+/** Stable identity for the inputs bound to an animation preview ticket. */
+function buildAnimatePreviewKey(input: AnimatePreviewKeyInput): string {
+  return JSON.stringify(input);
+}
+
 const SHOT_ENGINE_LABEL: Record<ShotEngine, string> = { seedream: "SeedDream", gemini: "Gemini Omni", kling: "KlingAI" };
 
 const KLING_FALLBACK_TOAST = "KlingAI unavailable — generated a SeedDream portrait instead";
@@ -235,18 +253,6 @@ function MotionStudio() {
     }
   }, []);
 
-  // Animate runs generateVideoFromImage at a fixed 5s; cost mirrors the server
-  // charge exactly. First pass is a 480p preview; confirmed full render uses
-  // the selected resolution (720p → 2160p). Premium models retier live.
-  const animateCost = useMemo(
-    () => computeCost({ features: ["video"], model: videoModel, durationSeconds: 5, resolution: videoResolution }).total,
-    [videoModel, videoResolution],
-  );
-  const animatePreviewCost = useMemo(
-    () => computeCost({ features: ["video"], model: videoModel, durationSeconds: 5, resolution: "480p" }).total,
-    [videoModel],
-  );
-
   // Motion Transfer (MimicMotion)
   const [mtImage, setMtImage] = useState<string | null>(null);
   const [mtImage2, setMtImage2] = useState<string | null>(null);
@@ -291,6 +297,116 @@ function MotionStudio() {
   const [reskinPreviewId, setReskinPreviewId] = useState<string | null>(null);
   const [animatePreviewId, setAnimatePreviewId] = useState<string | null>(null);
   const [animateHdDialogOpen, setAnimateHdDialogOpen] = useState(false);
+
+  // The quick-start sample is bundled with the app, not owned by the caller.
+  // Stage it into the caller's studio folder before using it as a character
+  // reference so generateVideoFromImage can enforce the same ownership guard as
+  // a user-uploaded frame.
+  type DemoStageStatus = "idle" | "loading" | "ready" | "error";
+  const [demoRef, setDemoRef] = useState<{ userId: string; url: string } | null>(null);
+  const [demoStageStatus, setDemoStageStatus] = useState<DemoStageStatus>("idle");
+  const [demoStageError, setDemoStageError] = useState<string | null>(null);
+  const [demoStageAttempt, setDemoStageAttempt] = useState(0);
+  const demoOwnerId = user?.id ?? null;
+  useEffect(() => {
+    if (!demoOwnerId) {
+      setDemoRef(null);
+      setDemoStageStatus("idle");
+      setDemoStageError(null);
+      return;
+    }
+
+    let cancelled = false;
+    const ownerId = demoOwnerId;
+    const path = `${ownerId}/demo/selfie.jpg`;
+    setDemoRef(null);
+    setDemoStageStatus("loading");
+    setDemoStageError(null);
+
+    const stageDemo = async () => {
+      try {
+        // The studio bucket may be private, so probing its public URL with an
+        // <img> is not a reliable existence check. A signed URL uses the
+        // caller's authenticated session and also gives the guarded enqueue
+        // path a fetchable reference.
+        const existing = await supabase.storage.from("studio").createSignedUrl(path, 60 * 60);
+        let signedUrl = existing.data?.signedUrl ?? null;
+
+        if (!signedUrl) {
+          const response = await fetch(demoSelfie);
+          if (!response.ok) throw new Error(`Demo selfie fetch failed: HTTP ${response.status}`);
+          const blob = await response.blob();
+          const { error } = await supabase.storage.from("studio").upload(path, blob, {
+            contentType: blob.type || "image/jpeg",
+            upsert: true,
+          });
+          if (error) throw new Error(`Demo selfie staging failed: ${error.message}`);
+
+          const staged = await supabase.storage.from("studio").createSignedUrl(path, 60 * 60);
+          if (staged.error || !staged.data?.signedUrl) {
+            throw new Error(`Demo selfie URL failed: ${staged.error?.message ?? "no signed URL"}`);
+          }
+          signedUrl = staged.data.signedUrl;
+        }
+
+        if (!cancelled) {
+          setDemoRef({ userId: ownerId, url: signedUrl });
+          setDemoStageStatus("ready");
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setDemoStageStatus("error");
+          setDemoStageError(error instanceof Error ? error.message : "Could not prepare the demo selfie");
+        }
+      }
+    };
+
+    void stageDemo();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [demoOwnerId, demoStageAttempt]);
+  const usableDemoUrl = demoRef?.userId === demoOwnerId ? demoRef.url : null;
+
+  // A preview confirmation ticket is only valid for the exact inputs that
+  // produced it. Keep this identity separate from output/mutation state so a
+  // completed video or a refetch cannot invalidate a fresh preview.
+  const animatePreviewBindingRef = useRef<string | null>(null);
+  const animateRequestKeyRef = useRef<string | null>(null);
+  const animateSource = startFrame ?? stagedImage ?? usableDemoUrl;
+  const animateInputKey = buildAnimatePreviewKey({
+    sourceUrl: animateSource,
+    endFrameUrl: endFrame,
+    prompt: videoPrompt,
+    cameraMovement,
+    modelKey: videoModel,
+    resolution: videoResolution,
+    durationSeconds: ANIMATE_DURATION_SECONDS,
+  });
+  const currentAnimateInputKeyRef = useRef(animateInputKey);
+  currentAnimateInputKeyRef.current = animateInputKey;
+  const activeAnimatePreviewId =
+    animatePreviewId && animatePreviewBindingRef.current === animateInputKey ? animatePreviewId : null;
+
+  useEffect(() => {
+    if (!animatePreviewId || animatePreviewBindingRef.current === animateInputKey) return;
+    animatePreviewBindingRef.current = null;
+    setAnimatePreviewId(null);
+    setAnimateHdDialogOpen(false);
+  }, [animateInputKey, animatePreviewId]);
+
+  // Animate runs generateVideoFromImage at a fixed 5s; cost mirrors the server
+  // charge exactly. First pass is a 480p preview; confirmed full render uses
+  // the selected resolution (720p → 2160p). Premium models retier live.
+  const animateCost = useMemo(
+    () => computeCost({ features: ["video"], model: videoModel, durationSeconds: ANIMATE_DURATION_SECONDS, resolution: videoResolution }).total,
+    [videoModel, videoResolution],
+  );
+  const animatePreviewCost = useMemo(
+    () => computeCost({ features: ["video"], model: videoModel, durationSeconds: ANIMATE_DURATION_SECONDS, resolution: "480p" }).total,
+    [videoModel],
+  );
 
   useEffect(() => {
     if (!loading && !user) navigate({ to: "/auth", search: authNextSearch() });
@@ -380,9 +496,9 @@ function MotionStudio() {
   const animatePlanWarnings = evaluatePlanLimits({
     tier: isPro ? "pro" : "free",
     kind: "video",
-    durationSeconds: 5,
+    durationSeconds: ANIMATE_DURATION_SECONDS,
     resolution: videoResolution,
-    nextRenderIsPreview: !animatePreviewId,
+    nextRenderIsPreview: !activeAnimatePreviewId,
   });
   const animatePlanBlocked = animatePlanWarnings.some((w) => w.blocksNextRender);
 
@@ -446,18 +562,28 @@ function MotionStudio() {
     mutationFn: async () => {
       const override = animateOverrideRef.current;
       animateOverrideRef.current = null;
-      const source = startFrame ?? override ?? stagedImage;
+      const source = startFrame ?? override ?? stagedImage ?? usableDemoUrl;
       if (!source) throw new Error("Add a first frame or stage a pose first");
+      const previewId = activeAnimatePreviewId;
+      animateRequestKeyRef.current = buildAnimatePreviewKey({
+        sourceUrl: source,
+        endFrameUrl: endFrame,
+        prompt: videoPrompt,
+        cameraMovement,
+        modelKey: videoModel,
+        resolution: videoResolution,
+        durationSeconds: ANIMATE_DURATION_SECONDS,
+      });
       const out = await videoFn({
         data: {
           imageUrl: source,
           prompt: videoPrompt,
-          duration: 5,
-          resolution: animatePreviewId ? videoResolution : "480p",
+          duration: ANIMATE_DURATION_SECONDS,
+          resolution: previewId ? videoResolution : "480p",
           modelKey: videoModel,
           cameraMovement,
           endFrameUrl: endFrame ?? null,
-          confirmPreviewId: animatePreviewId ?? undefined,
+          confirmPreviewId: previewId ?? undefined,
         },
       });
       return out;
@@ -468,9 +594,17 @@ function MotionStudio() {
       const res = out;
       setVideoUrl(res?.videoUrl ?? null);
       if (res?.preview) {
-        setAnimatePreviewId(res.id ?? null);
+        const requestKey = animateRequestKeyRef.current;
+        if (res.id && requestKey && requestKey === currentAnimateInputKeyRef.current) {
+          animatePreviewBindingRef.current = requestKey;
+          setAnimatePreviewId(res.id);
+        } else {
+          animatePreviewBindingRef.current = null;
+          setAnimatePreviewId(null);
+        }
         toast.success("Preview ready — happy with it? Render full quality next");
       } else {
+        animatePreviewBindingRef.current = null;
         setAnimatePreviewId(null);
         toast.success("Motion ready");
       }
@@ -478,6 +612,7 @@ function MotionStudio() {
     },
     onError: (e) => {
       if (e instanceof Error && e.message.includes("Unsupported preview confirmation")) {
+        animatePreviewBindingRef.current = null;
         setAnimatePreviewId(null);
       }
       setVideoError(friendlyGenerationMessage(e));
@@ -1187,6 +1322,27 @@ function MotionStudio() {
                 </div>
               </div>
 
+              {!stagedImage && !startFrame && demoStageStatus === "loading" && (
+                <p className="text-xs text-muted-foreground" role="status" aria-live="polite">
+                  Preparing the quick-start demo…
+                </p>
+              )}
+              {!stagedImage && !startFrame && demoStageStatus === "error" && (
+                <div className="flex items-start gap-3 rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2.5 text-xs" role="alert">
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium text-destructive">Quick-start demo unavailable</p>
+                    <p className="mt-0.5 text-destructive/80">{demoStageError ?? "Could not prepare the sample image."}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setDemoStageAttempt((attempt) => attempt + 1)}
+                    className="shrink-0 rounded-lg border border-destructive/40 px-2.5 py-1.5 font-semibold text-destructive hover:bg-destructive/10"
+                  >
+                    Retry
+                  </button>
+                </div>
+              )}
+
               <ExampleChips
                 presets={MOTION_EXAMPLE_PRESETS}
                 activeId={activeExampleId}
@@ -1201,10 +1357,19 @@ function MotionStudio() {
                 }}
                 onGenerate={() => {
                   if (!stagedImage && !startFrame) {
-                    animateOverrideRef.current = demoSelfie as string;
+                    if (!usableDemoUrl) {
+                      if (demoStageStatus === "error") {
+                        setDemoStageAttempt((attempt) => attempt + 1);
+                        return;
+                      }
+                      toast.error("Demo selfie is still loading — try again in a second");
+                      return;
+                    }
+                    animateOverrideRef.current = usableDemoUrl;
                   }
                   animateMut.mutate();
                 }}
+                generateDisabled={animateMut.isPending || (!stagedImage && !startFrame && demoStageStatus === "loading")}
                 label="Quick start:"
                 className="mb-1"
               />
@@ -1277,11 +1442,11 @@ function MotionStudio() {
                 <div className="flex items-center justify-between gap-2">
                   <span>Animate will charge</span>
                   <span className="font-semibold text-foreground">
-                    {animatePreviewId ? animateCost : animatePreviewCost} Aura
+                    {activeAnimatePreviewId ? animateCost : animatePreviewCost} Aura
                   </span>
                 </div>
                 <p className="mt-0.5">
-                  {animatePreviewId
+                  {activeAnimatePreviewId
                     ? `Full-quality ${videoResolution === "2160p" ? "4K" : videoResolution} render · 5s video`
                     : "480p preview · 5s video"}
                   {" "}· pose preset & camera move included free
@@ -1301,7 +1466,7 @@ function MotionStudio() {
                   disabled={animateMut.isPending || animatePlanBlocked || (!stagedImage && !startFrame)}
                   onClick={() => {
                     const isHd = videoResolution === "1080p" || videoResolution === "2160p";
-                    if (animatePreviewId && isHd) {
+                    if (activeAnimatePreviewId && isHd) {
                       setAnimateHdDialogOpen(true);
                     } else {
                       animateMut.mutate();
@@ -1313,7 +1478,7 @@ function MotionStudio() {
                   {animateMut.isPending ? (
                     <><Loader2 className="size-4 mr-2 animate-spin" /> Rendering…</>
                   ) : (
-                    <><Film className="size-4 mr-2" /> {videoError ? "Retry animate" : animatePreviewId ? `Render full quality · ${animateCost} Aura` : `Preview animation · ${animatePreviewCost} Aura`}</>
+                    <><Film className="size-4 mr-2" /> {videoError ? "Retry animate" : activeAnimatePreviewId ? `Render full quality · ${animateCost} Aura` : `Preview animation · ${animatePreviewCost} Aura`}</>
                   )}
                 </Button>
                 <AlertDialog open={animateHdDialogOpen} onOpenChange={setAnimateHdDialogOpen}>

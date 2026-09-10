@@ -15,12 +15,15 @@ import { getStudioTemplate } from "./template-studio";
 import { isAdmin } from "./admin.server";
 import {
   resolvePreviewGate,
+  validateConfirmedPreview,
+  type PreviewRowCheck,
   assertDurationCap,
   assertHdEntitlement,
   PREVIEW_RESOLUTION,
   PREVIEW_MAX_SECONDS,
 } from "./cost-guardrails.server";
 import { DURATION_CAPS } from "./billing.plans";
+import { videoPreviewFingerprint } from "./motion-preview-fingerprint.server";
 
 // Sourced from the shared price list (src/lib/pricing.ts) rather than a local
 // literal, so a future repricing of the "image" base can't silently drift
@@ -231,7 +234,86 @@ const CAMERA_HINTS: Record<string, string> = {
 
 type EnqueueVideoDeps = {
   assertOwned: (url: string, userId: string) => Promise<void>;
+  resolveGate?: typeof resolvePreviewGate;
+  assertPreviewBinding?: (
+    userId: string,
+    previewId: string,
+    fingerprint: string,
+  ) => Promise<void>;
+  reserve?: typeof reserveGenerationJob;
+  markPreview?: (generationId: string, fingerprint?: string) => Promise<void>;
+  track?: typeof trackServer;
 };
+
+type VideoPreviewBindingRow = PreviewRowCheck & {
+  result_video_url: string | null;
+  preview_fingerprint: string | null;
+};
+
+/**
+ * The generic preview gate deliberately accepts every temporal kind.  Video
+ * confirmation needs a stricter second gate: only an owned, successful video
+ * preview with a binding fingerprint for the exact request can unlock the
+ * full render.  Legacy previews have no fingerprint and fail closed.
+ *
+ * This is pure so the no-spend contract can be tested without a database.
+ */
+export function validateVideoPreviewBinding(
+  row: VideoPreviewBindingRow | null,
+  userId: string,
+  expectedFingerprint: string,
+  nowMs: number = Date.now(),
+): void {
+  const reject = (why: string): never => {
+    throw new Error(`Unsupported preview confirmation: ${why}`);
+  };
+  // Keep the null guard as an explicit throw rather than relying on control
+  // flow through the `never`-returning helper; strict TypeScript can then
+  // narrow the row for every binding check below.
+  if (!row) {
+    throw new Error("Unsupported preview confirmation: preview not found");
+  }
+  if (row.user_id !== userId) {
+    throw new Error("Unsupported preview confirmation: preview not found");
+  }
+  validateConfirmedPreview(row, userId, nowMs);
+  if (row.kind !== "video") reject("preview is not a video render");
+  if (!row.result_video_url) reject("video preview has no completed video result");
+  if (!row.preview_fingerprint) {
+    reject("legacy video preview has no exact input binding — generate a fresh preview first");
+  }
+  if (row.preview_fingerprint !== expectedFingerprint) {
+    reject("video preview does not match these exact inputs — generate a fresh preview first");
+  }
+}
+
+/**
+ * Read the existing generation metadata used by the generic gate, then apply
+ * the video-specific binding check.  No new table/column is needed:
+ * `generations.preview_fingerprint` already exists and is populated for new
+ * video previews by _enqueueVideoFromImage.
+ */
+async function assertVideoPreviewBinding(
+  userId: string,
+  previewId: string,
+  expectedFingerprint: string,
+): Promise<void> {
+  const { data, error } = await supabaseAdmin
+    .from("generations")
+    .select("id, user_id, kind, mode, status, created_at, result_video_url, preview_fingerprint")
+    .eq("id", previewId)
+    .maybeSingle();
+  if (error) {
+    // Fail closed if the binding metadata cannot be read.  The caller must
+    // never fall through to a paid full render on an unverifiable ticket.
+    throw new Error("Unsupported preview confirmation: could not verify the exact video preview");
+  }
+  validateVideoPreviewBinding(
+    (data as VideoPreviewBindingRow | null) ?? null,
+    userId,
+    expectedFingerprint,
+  );
+}
 
 // Internal canonical dispatch — shared by the generateVideoFromImage handler
 // AND runSmokeStudioChain so the two can NEVER drift on gating or payload shape.
@@ -246,20 +328,46 @@ export async function _enqueueVideoFromImage(
   data: z.infer<typeof VideoSchema>,
   deps: EnqueueVideoDeps = { assertOwned: assertOwnedReferenceImage },
 ): Promise<{ jobId: string; generationId: string; preview: boolean }> {
-  await deps.assertOwned(data.imageUrl, userId);
-  if (data.endFrameUrl) await deps.assertOwned(data.endFrameUrl, userId);
+  const assertOwned = deps.assertOwned ?? assertOwnedReferenceImage;
+  await assertOwned(data.imageUrl, userId);
+  if (data.endFrameUrl) await assertOwned(data.endFrameUrl, userId);
 
   const cameraHint = data.cameraMovement ? CAMERA_HINTS[data.cameraMovement] : null;
   const fullPrompt = cameraHint ? `${data.prompt}. Camera: ${cameraHint}.` : data.prompt;
+  // Bind the ticket to the original request, not the worker's preview-capped
+  // 480p/5s effective values. This lets a later confirm prove the exact
+  // requested full-quality inputs, including the intended resolution.
+  const fingerprint = videoPreviewFingerprint({
+    imageUrl: data.imageUrl,
+    endFrameUrl: data.endFrameUrl ?? null,
+    prompt: data.prompt,
+    duration: data.duration,
+    resolution: data.resolution,
+    modelKey: data.modelKey,
+    cameraMovement: data.cameraMovement ?? null,
+    templateId: data.templateId ?? null,
+  });
 
   // Preview-confirm gate: without a valid confirmPreviewId the render is
   // forced to 480p/≤5s and recorded as mode='preview' — its id is the ticket
   // for the follow-up full-quality render. Invalid/expired ids throw here,
   // before any row insert or charge.
-  const gate = await resolvePreviewGate({
+  const resolveGate = deps.resolveGate ?? resolvePreviewGate;
+  const gate = await resolveGate({
     userId,
     confirmPreviewId: data.confirmPreviewId ?? undefined,
   });
+  if (gate.confirmed) {
+    // resolvePreviewGate is intentionally generic across temporal kinds. This
+    // second check narrows this video path to an owned, completed video whose
+    // persisted fingerprint matches every requested input exactly.
+    const assertBinding = deps.assertPreviewBinding ?? assertVideoPreviewBinding;
+    if (!data.confirmPreviewId) {
+      // Defensive only: the generic gate cannot confirm without a ticket.
+      throw new Error("Unsupported preview confirmation: preview ticket is missing");
+    }
+    await assertBinding(userId, data.confirmPreviewId, fingerprint);
+  }
   const previewPass = !gate.confirmed;
   const effResolution = previewPass ? PREVIEW_RESOLUTION : data.resolution;
   const effDuration = previewPass ? Math.min(data.duration, PREVIEW_MAX_SECONDS) : data.duration;
@@ -295,7 +403,8 @@ export async function _enqueueVideoFromImage(
       durationSeconds: effDuration,
       resolution: effResolution,
     }).total + presetFee;
-  const out = await reserveGenerationJob(userId, "video", fullPrompt, videoCost, {
+  const reserve = deps.reserve ?? reserveGenerationJob;
+  const out = await reserve(userId, "video", fullPrompt, videoCost, {
     kind: "video",
     model: data.modelKey,
     prompt: fullPrompt,
@@ -304,10 +413,19 @@ export async function _enqueueVideoFromImage(
     resolution: effResolution,
     cameraMovement: data.cameraMovement,
     cameraMovementKey: data.cameraMovement ?? null,
+    // Keep the original requested quality in existing job metadata; the
+    // worker still receives the effective preview values above.
+    requestedDuration: data.duration,
+    requestedResolution: data.resolution,
+    ...(previewPass ? { previewFingerprint: fingerprint } : {}),
     ...(previewPass ? { previewOnly: true } : {}),
   });
-  if (previewPass) await markGenerationPreview(out.generationId);
-  await trackServer("video_enqueued", userId, { jobId: out.jobId });
+  if (previewPass) {
+    const markPreview = deps.markPreview ?? markGenerationPreview;
+    await markPreview(out.generationId, fingerprint);
+  }
+  const track = deps.track ?? trackServer;
+  await track("video_enqueued", userId, { jobId: out.jobId });
   return { ...out, preview: previewPass };
 }
 

@@ -25,6 +25,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { ViewportVideo } from "@/components/ui/ViewportVideo";
 import { cn } from "@/lib/utils";
 import { handleGenerationError } from "@/lib/error-toasts";
 import { saveAssetToDisk } from "@/lib/save";
@@ -34,13 +35,24 @@ import {
 } from "@/lib/social-studio.catalog";
 import {
   generateMarketingCampaign,
-  type MarketingCampaignItem,
-  type MarketingCampaignPlan,
 } from "@/lib/social-studio.functions";
 import {
   usePerformanceShotJobFn,
   useVideoFromImageJobFn,
 } from "@/lib/use-job-polling";
+import {
+  CAMPAIGN_PLANNER_OPERATION,
+  applyVisualGenerationResults,
+  createOperationFence,
+  itemOperationKey,
+  planVisualGeneration,
+} from "@/lib/social-studio.reliability";
+import {
+  parseGeneratedCampaign,
+  parseStoredCampaign,
+  type StoredCampaign,
+  type StoredCampaignItem,
+} from "@/lib/social-studio.schema";
 
 export const Route = createLazyFileRoute("/admin/social-studio")({
   component: AuroraMarketingStudio,
@@ -49,26 +61,14 @@ export const Route = createLazyFileRoute("/admin/social-studio")({
 type StudioView = "create" | "campaign" | "calendar" | "queue";
 type PostStatus = "draft" | "approved" | "scheduled" | "published";
 type Channel = "instagram_feed" | "instagram_carousel" | "instagram_reel" | "instagram_story";
-type CampaignItem = MarketingCampaignItem & {
-  /**
-   * Slot-indexed visuals: for a carousel, index i is slide i's image (or null
-   * when that slide's render failed); for feed/reel posts a single slot.
-   * Indexed (not compacted) so a failed slide never shifts later slides'
-   * numbering in the card, manifest or downloads.
-   */
-  assetUrls: Array<string | null>;
-  videoUrl: string | null;
-  status: PostStatus;
-  scheduledDate: string;
-};
-type CampaignState = Omit<MarketingCampaignPlan, "items"> & {
-  id: string;
-  featureId: string;
-  featureName: string;
-  createdAt: string;
-  provider: string;
-  items: CampaignItem[];
-};
+/**
+ * Slot-indexed visuals: for a carousel, index i is slide i's image (or null
+ * when that slide's render failed); for feed/reel posts a single slot.
+ * Indexed (not compacted) so a failed slide never shifts later slides'
+ * numbering in the card, manifest or downloads.
+ */
+type CampaignItem = StoredCampaignItem;
+type CampaignState = StoredCampaign;
 
 const CAMPAIGN_KEY = "aurora.marketing_studio.campaign.v2";
 const CHANNELS: Array<{ id: Channel; label: string }> = [
@@ -103,13 +103,20 @@ function readCampaign(): CampaignState | null {
   if (typeof window === "undefined") return null;
   try {
     const value = JSON.parse(window.localStorage.getItem(CAMPAIGN_KEY) ?? "null") as unknown;
-    if (!value || typeof value !== "object") return null;
-    const candidate = value as Partial<CampaignState>;
-    if (typeof candidate.id !== "string" || !Array.isArray(candidate.items)) return null;
-    if (!candidate.items.every((item) => item && typeof item === "object" && typeof (item as CampaignItem).id === "string" && Array.isArray((item as CampaignItem).assetUrls))) return null;
-    return candidate as CampaignState;
+    return parseStoredCampaign(value);
   } catch {
     return null;
+  }
+}
+
+function hasInvalidStoredCampaign(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    const raw = window.localStorage.getItem(CAMPAIGN_KEY);
+    if (raw === null) return false;
+    return parseStoredCampaign(JSON.parse(raw)) === null;
+  } catch {
+    return true;
   }
 }
 
@@ -137,6 +144,7 @@ function AuroraMarketingStudio() {
   const generateVideo = useVideoFromImageJobFn();
   const [view, setView] = useState<StudioView>(() => (readCampaign() ? "campaign" : "create"));
   const [campaign, setCampaign] = useState<CampaignState | null>(() => readCampaign());
+  const [storedCampaignWarning, setStoredCampaignWarning] = useState(hasInvalidStoredCampaign);
   const [featureId, setFeatureId] = useState("video-agent");
   const [customCapability, setCustomCapability] = useState("");
   const [goal, setGoal] = useState<(typeof GOALS)[number][0]>("feature_education");
@@ -151,8 +159,20 @@ function AuroraMarketingStudio() {
   // after "New campaign" can neither write into the replacement campaign
   // (model-generated item ids like "day-1-reel" repeat) nor clear its spinners.
   const [activity, setActivity] = useState<Record<string, "visuals" | "reel">>({});
+  const operationFenceRef = useRef<ReturnType<typeof createOperationFence> | null>(null);
+  if (!operationFenceRef.current) operationFenceRef.current = createOperationFence();
   const campaignIdRef = useRef<string | null>(campaign?.id ?? null);
   campaignIdRef.current = campaign?.id ?? null;
+
+  useEffect(() => {
+    return () => {
+      // Invalidate synchronously on unmount. Async job polling may continue in
+      // the background, but its completion is no longer allowed to write or
+      // toast in this route.
+      operationFenceRef.current?.invalidate();
+      campaignIdRef.current = null;
+    };
+  }, []);
 
   useEffect(() => {
     if (!campaign) return;
@@ -163,6 +183,12 @@ function AuroraMarketingStudio() {
       toast.error("Campaign could not be saved in this browser — export the manifest before leaving");
     }
   }, [campaign]);
+
+  useEffect(() => {
+    if (storedCampaignWarning) {
+      toast.warning("Saved campaign could not be loaded. It was kept in this browser for recovery.");
+    }
+  }, [storedCampaignWarning]);
 
   const feature = getAuroraMarketingFeature(campaign?.featureId ?? featureId) ?? AURORA_MARKETING_FEATURES[0];
   const calendarDays = useMemo(() => {
@@ -203,13 +229,29 @@ function AuroraMarketingStudio() {
       toast.error("Choose at least one Instagram format");
       return;
     }
+    const operationFence = operationFenceRef.current!;
+    if (operationFence.isLocked(CAMPAIGN_PLANNER_OPERATION)) {
+      toast.error("Campaign planning is already in progress");
+      return;
+    }
+    // Replacing a campaign invalidates every item render synchronously, before
+    // this planner request yields.
+    operationFence.invalidate();
+    setActivity({});
+    const operation = operationFence.begin(CAMPAIGN_PLANNER_OPERATION);
+    if (!operation) return;
     setPlanning(true);
     try {
       const result = await campaignFn({
         data: { featureId, customCapability, goal, tone, channels, days, postCount, notes },
       });
-      const next: CampaignState = {
-        ...result.campaign,
+      if (!operationFence.isCurrent(operation)) return;
+      const planned = parseGeneratedCampaign(result.campaign);
+      if (!planned) {
+        throw new Error("Campaign planner returned invalid or duplicate posts; nothing was saved");
+      }
+      const candidate = {
+        ...planned,
         id: crypto.randomUUID(),
         featureId,
         featureName: result.feature.name,
@@ -219,23 +261,49 @@ function AuroraMarketingStudio() {
           ...item,
           assetUrls: [],
           videoUrl: null,
+          videoGenerationId: null,
+          reelPreviewId: null,
+          reelPreviewUrl: null,
           status: "draft",
           scheduledDate: "",
         })),
       };
+      const next = parseStoredCampaign(candidate);
+      if (!next) {
+        throw new Error("Campaign planner returned invalid campaign state; nothing was saved");
+      }
+      if (!operationFence.isCurrent(operation)) return;
+      campaignIdRef.current = next.id;
+      setStoredCampaignWarning(false);
       setCampaign(next);
       setView("campaign");
       toast.success(`${next.items.length}-post campaign ready`);
     } catch (error) {
-      handleGenerationError(error);
+      if (operationFence.isCurrent(operation)) handleGenerationError(error);
     } finally {
-      setPlanning(false);
+      if (operationFence.isCurrent(operation)) {
+        operationFence.finish(operation);
+        setPlanning(false);
+      }
     }
   }
 
   async function generateVisuals(item: CampaignItem) {
     const campaignId = campaignIdRef.current;
+    if (!campaignId) return;
+    const operationFence = operationFenceRef.current!;
+    const operation = operationFence.begin(itemOperationKey(campaignId, item.id));
+    if (!operation) return;
     beginActivity(campaignId, item.id, "visuals");
+    if (item.format === "reel") {
+      // A new still can change the preview's input. Invalidate the old ticket
+      // before dispatching any replacement work.
+      patchItem(
+        item.id,
+        { videoUrl: null, videoGenerationId: null, reelPreviewId: null, reelPreviewUrl: null },
+        campaignId,
+      );
+    }
     try {
       const prompts =
         item.format === "carousel" && item.slides.length
@@ -244,25 +312,27 @@ function AuroraMarketingStudio() {
                 `${slide.visualPrompt}. Instagram carousel slide ${index + 1} of ${item.slides.length}. ${slide.heading}: ${slide.body}. Keep typography areas clean and mobile readable.`,
             )
           : [item.visualPrompt];
-      // Retry semantics: when a previous run left failed slots, render ONLY
-      // those slots and keep every slide that already succeeded. A fresh run
-      // (no slots yet, or a slot-count mismatch) renders everything.
-      const previous = item.assetUrls.length === prompts.length ? item.assetUrls : prompts.map(() => null);
-      const pending = prompts.map((prompt, index) => ({ prompt, index })).filter(({ index }) => !previous[index]);
-      const targets = pending.length ? pending : prompts.map((prompt, index) => ({ prompt, index }));
+      const slotPlan = planVisualGeneration(item.assetUrls, prompts.length);
+      const targets = slotPlan.targets.map((index) => ({ prompt: prompts[index], index }));
       const settled = await Promise.allSettled(
         targets.map(({ prompt }) => generateImage({ data: { prompt, imageUrls: [], motionVideoUrl: null } })),
       );
-      const next = pending.length ? [...previous] : prompts.map(() => null as string | null);
+      if (!operationFence.isCurrent(operation)) return;
+      const next = applyVisualGenerationResults(
+        slotPlan,
+        settled.map((result) => (result.status === "fulfilled" ? result.value.resultUrl : null)),
+      );
       let succeeded = 0;
       settled.forEach((result, position) => {
         if (result.status === "fulfilled") {
-          next[targets[position].index] = result.value.resultUrl;
           succeeded++;
         }
       });
       const failures = settled.length - succeeded;
-      if (succeeded) patchItem(item.id, { assetUrls: next }, campaignId);
+      // Always persist the slot array, including an all-failed first attempt:
+      // explicit nulls are what make the next click a missing-only retry.
+      patchItem(item.id, { assetUrls: next }, campaignId);
+      if (!operationFence.isCurrent(operation)) return;
       if (succeeded) toast.success(`${succeeded} visual${succeeded === 1 ? "" : "s"} ready`);
       if (failures) {
         const slots = targets.filter((_, position) => settled[position].status === "rejected").map(({ index }) => index + 1);
@@ -274,31 +344,42 @@ function AuroraMarketingStudio() {
       }
       if (!succeeded) {
         const first = settled.find((result) => result.status === "rejected") as PromiseRejectedResult | undefined;
-        if (first) handleGenerationError(first.reason);
+        if (first && operationFence.isCurrent(operation)) handleGenerationError(first.reason);
       }
     } finally {
-      endActivity(campaignId, item.id);
+      if (operationFence.isCurrent(operation)) {
+        endActivity(campaignId, item.id);
+        operationFence.finish(operation);
+      }
     }
   }
 
   async function generateReel(item: CampaignItem) {
     const campaignId = campaignIdRef.current;
+    if (!campaignId) return;
+    const operationFence = operationFenceRef.current!;
+    const operation = operationFence.begin(itemOperationKey(campaignId, item.id));
+    if (!operation) return;
     beginActivity(campaignId, item.id, "reel");
+    // Regeneration always starts a new input-bound preview. Never leave an
+    // earlier ticket or video metadata authorized while this work runs.
+    patchItem(
+      item.id,
+      { videoUrl: null, videoGenerationId: null, reelPreviewId: null, reelPreviewUrl: null },
+      campaignId,
+    );
     try {
       let imageUrl = firstVisual(item);
       if (!imageUrl) {
         const image = await generateImage({
           data: { prompt: item.visualPrompt, imageUrls: [], motionVideoUrl: null },
         });
+        if (!operationFence.isCurrent(operation)) return;
         imageUrl = image.resultUrl;
         patchItem(item.id, { assetUrls: [imageUrl] }, campaignId);
       }
-      if (campaignIdRef.current !== campaignId) {
-        // The operator reset the campaign while the still was rendering: do
-        // not spend on a Reel nobody can see.
-        toast.error("Campaign was reset — Reel cancelled before rendering");
-        return;
-      }
+      // Never chain the paid video dispatch after a reset/replacement/unmount.
+      if (!operationFence.isCurrent(operation)) return;
       const video = await generateVideo({
         data: {
           imageUrl,
@@ -308,12 +389,78 @@ function AuroraMarketingStudio() {
           modelKey: "seedance-2.0-fast",
         },
       });
-      patchItem(item.id, { videoUrl: video.videoUrl }, campaignId);
+      if (!operationFence.isCurrent(operation)) return;
+      patchItem(
+        item.id,
+        {
+          videoUrl: video.videoUrl,
+          videoGenerationId: video.id ?? null,
+          reelPreviewId: video.preview ? video.id ?? null : null,
+          reelPreviewUrl: video.preview ? video.videoUrl : null,
+        },
+        campaignId,
+      );
       toast.success(video.preview ? "Reel preview rendered (480p proof pass)" : "Reel rendered");
     } catch (error) {
-      handleGenerationError(error);
+      if (operationFence.isCurrent(operation)) handleGenerationError(error);
     } finally {
-      endActivity(campaignId, item.id);
+      if (operationFence.isCurrent(operation)) {
+        endActivity(campaignId, item.id);
+        operationFence.finish(operation);
+      }
+    }
+  }
+
+  async function confirmReel(item: CampaignItem) {
+    const campaignId = campaignIdRef.current;
+    if (!campaignId) return;
+    const operationFence = operationFenceRef.current!;
+    const operation = operationFence.begin(itemOperationKey(campaignId, item.id));
+    if (!operation) return;
+    beginActivity(campaignId, item.id, "reel");
+    try {
+      const previewId = item.reelPreviewId;
+      const previewUrl = item.reelPreviewUrl;
+      if (!previewId || !previewUrl || item.videoUrl !== previewUrl) {
+        toast.error("This Reel preview is missing a valid confirmation ticket — regenerate it first");
+        return;
+      }
+      const imageUrl = firstVisual(item);
+      if (!imageUrl) {
+        toast.error("Generate a Reel still before confirming the preview");
+        return;
+      }
+      // This is deliberately a separate, explicit operator action. A preview
+      // completion never dispatches this paid full-quality request itself.
+      const video = await generateVideo({
+        data: {
+          imageUrl,
+          prompt: item.reelPrompt || `${item.visualPrompt}. Subtle confident camera movement for a premium Instagram Reel.`,
+          duration: 5,
+          resolution: "720p",
+          modelKey: "seedance-2.0-fast",
+          confirmPreviewId: previewId,
+        },
+      });
+      if (!operationFence.isCurrent(operation)) return;
+      patchItem(
+        item.id,
+        {
+          videoUrl: video.videoUrl,
+          videoGenerationId: video.id ?? null,
+          reelPreviewId: video.preview ? video.id ?? null : null,
+          reelPreviewUrl: video.preview ? video.videoUrl : null,
+        },
+        campaignId,
+      );
+      toast.success(video.preview ? "Reel preview refreshed" : "Full Reel rendered");
+    } catch (error) {
+      if (operationFence.isCurrent(operation)) handleGenerationError(error);
+    } finally {
+      if (operationFence.isCurrent(operation)) {
+        endActivity(campaignId, item.id);
+        operationFence.finish(operation);
+      }
     }
   }
 
@@ -379,10 +526,17 @@ function AuroraMarketingStudio() {
   }
 
   function startNewCampaign() {
+    // Invalidate before React schedules the replacement state. Old jobs may
+    // still finish, but none of their continuations remain authorized to write,
+    // toast, or chain a Reel video request.
+    operationFenceRef.current?.invalidate();
+    campaignIdRef.current = null;
     setCampaign(null);
     setActivity({});
+    setPlanning(false);
     try {
       window.localStorage.removeItem(CAMPAIGN_KEY);
+      setStoredCampaignWarning(false);
     } catch {
       toast.error("Could not clear the saved campaign from this browser — it may reappear after reload");
     }
@@ -472,6 +626,12 @@ function AuroraMarketingStudio() {
           ))}
         </nav>
 
+        {storedCampaignWarning && (
+          <div role="alert" className="mb-5 rounded-2xl border border-amber-300/25 bg-amber-300/10 px-4 py-3 text-sm text-amber-100">
+            The saved campaign could not be loaded safely. Its raw saved value was kept for recovery; starting a new campaign will replace it.
+          </div>
+        )}
+
         {view === "create" && (
           <CampaignBrief
             featureId={featureId}
@@ -508,6 +668,7 @@ function AuroraMarketingStudio() {
                   patchItem={patchItem}
                   generateVisuals={generateVisuals}
                   generateReel={generateReel}
+                   confirmReel={confirmReel}
                   copyPost={copyPost}
                 />
               ))}
@@ -755,19 +916,38 @@ type PostCardProps = {
   patchItem: (id: string, patch: Partial<CampaignItem>) => void;
   generateVisuals: (item: CampaignItem) => Promise<void>;
   generateReel: (item: CampaignItem) => Promise<void>;
+  confirmReel: (item: CampaignItem) => Promise<void>;
   copyPost: (item: CampaignItem) => Promise<void>;
 };
 
-function PostCard({ item, fallbackImage, activity, patchItem, generateVisuals, generateReel, copyPost }: PostCardProps) {
+function PostCard({ item, fallbackImage, activity, patchItem, generateVisuals, generateReel, confirmReel, copyPost }: PostCardProps) {
   const rendered = renderedVisuals(item);
   const missing = failedSlots(item);
   const hasVisuals = rendered.length > 0;
-  const partialCarousel = hasVisuals && missing.length > 0;
+  const partialCarousel =
+    item.format === "carousel" &&
+    item.assetUrls.length === item.slides.length &&
+    missing.length > 0;
+  const hasConfirmableReelPreview =
+    item.format === "reel" &&
+    Boolean(item.reelPreviewId && item.reelPreviewUrl && item.videoUrl === item.reelPreviewUrl);
+  const videoQualityLabel = item.reelPreviewId
+    ? "480p preview · confirm for full quality"
+    : item.videoUrl && item.videoGenerationId
+      ? "Full-quality Reel"
+      : item.videoUrl
+        ? "Reel quality unknown · regenerate before publishing"
+        : null;
   return (
     <article className="overflow-hidden rounded-[24px] border border-white/10 bg-white/[0.035]">
       <div className="relative bg-black">
         {item.videoUrl ? (
-          <video src={item.videoUrl} poster={firstVisual(item) || fallbackImage} autoPlay muted loop playsInline preload="metadata" className="aspect-[4/3] w-full object-cover" />
+          <ViewportVideo
+            src={item.videoUrl}
+            poster={firstVisual(item) || fallbackImage}
+            alt={`${item.title} Reel`}
+            className="aspect-[4/3] w-full"
+          />
         ) : (
           <div className="flex snap-x gap-1 overflow-x-auto">
             {hasVisuals ? (
@@ -783,12 +963,17 @@ function PostCard({ item, fallbackImage, activity, patchItem, generateVisuals, g
           <span className="rounded-full border border-white/15 bg-black/55 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider backdrop-blur">{item.format}</span>
           <span className="rounded-full border border-white/15 bg-black/55 px-2.5 py-1 text-[10px] backdrop-blur">Day {item.day}</span>
         </div>
-        {!hasVisuals && (
+        {!hasVisuals && !partialCarousel && (
           <span className="absolute bottom-3 left-3 rounded-full border border-white/10 bg-black/55 px-2.5 py-1 text-[10px] text-white/65 backdrop-blur">Aurora reference · generate final visual below</span>
         )}
         {partialCarousel && (
           <span className="absolute bottom-3 left-3 rounded-full border border-red-400/30 bg-black/60 px-2.5 py-1 text-[10px] text-red-200 backdrop-blur">
             Slide{missing.length === 1 ? "" : "s"} {missing.join(", ")} missing
+          </span>
+        )}
+        {videoQualityLabel && (
+          <span className="absolute bottom-3 right-3 rounded-full border border-white/10 bg-black/60 px-2.5 py-1 text-[10px] text-white/70 backdrop-blur">
+            {videoQualityLabel}
           </span>
         )}
       </div>
@@ -829,10 +1014,24 @@ function PostCard({ item, fallbackImage, activity, patchItem, generateVisuals, g
             {partialCarousel ? `Retry ${missing.length} missing slide${missing.length === 1 ? "" : "s"}` : item.format === "carousel" ? "Generate slides" : "Generate visual"}
           </Button>
           {item.format === "reel" && (
-            <Button size="sm" onClick={() => void generateReel(item)} disabled={Boolean(activity)} className="gap-1.5">
-              {activity === "reel" ? <Loader2 className="size-3.5 animate-spin" /> : <Play className="size-3.5" />}
-              Generate 5s Reel
-            </Button>
+            <>
+              <Button size="sm" onClick={() => void generateReel(item)} disabled={Boolean(activity)} className="gap-1.5">
+                {activity === "reel" ? <Loader2 className="size-3.5 animate-spin" /> : <Play className="size-3.5" />}
+                Generate 5s Reel preview
+              </Button>
+              {hasConfirmableReelPreview && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => void confirmReel(item)}
+                  disabled={Boolean(activity)}
+                  className="gap-1.5"
+                  data-testid="confirm-reel-preview"
+                >
+                  <Check className="size-3.5" /> Confirm full Reel
+                </Button>
+              )}
+            </>
           )}
           <Button size="sm" variant="ghost" onClick={() => void copyPost(item)} className="gap-1.5">
             <Clipboard className="size-3.5" /> Copy post
@@ -842,7 +1041,7 @@ function PostCard({ item, fallbackImage, activity, patchItem, generateVisuals, g
         <div className="grid gap-3 border-t border-white/8 pt-4 sm:grid-cols-[1fr_auto]">
           <label className="space-y-1 text-xs text-white/45">
             <span className="flex items-center gap-1.5"><CalendarDays className="size-3" /> Schedule date</span>
-            <Input type="date" value={item.scheduledDate} onChange={(event) => patchItem(item.id, { scheduledDate: event.target.value, status: event.target.value ? "scheduled" : item.status })} />
+            <Input type="date" value={item.scheduledDate} onChange={(event) => patchItem(item.id, { scheduledDate: event.target.value })} />
           </label>
           <label className="space-y-1 text-xs text-white/45">
             <span className="flex items-center gap-1.5"><Clock3 className="size-3" /> Workflow</span>

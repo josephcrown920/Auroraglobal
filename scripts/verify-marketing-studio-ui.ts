@@ -4,19 +4,27 @@
  * publish queue → copy/export/download, saving screenshots at desktop and
  * phone widths under /tmp/marketing-studio/.
  *
- * Real generations run and SPEND real Aura + provider budget — admin accounts are
+ * Default: a synthetic saved-campaign fixture; NO generation calls.
+ * LIVE_CAMPAIGN=1 opts into a real paid planner call.
+ * LIVE_RENDERS=1 ALSO requires LIVE_CAMPAIGN=1 and opts into image/video spend.
+ * Real generations SPEND real Aura + provider budget — admin accounts are
  * NOT exempt on the studio render paths (reserve_credits has no admin bypass).
- * Set SKIP_RENDERS=1 to stop after the campaign plan.
+ * SKIP_RENDERS=1 always disables renders, but not an opted-in paid planner.
  *
  *   bun run scripts/verify-marketing-studio-ui.ts
  */
 import { mkdirSync } from "node:fs";
 import { chromium, type Page } from "playwright";
 import { getTestSession } from "./lib/get-test-session";
+import { marketingStudioFixture } from "./lib/marketing-studio-fixture";
 
 const BASE = process.env.SMOKE_BASE_URL ?? "http://localhost:8080";
 const OUT = "/tmp/marketing-studio";
 const POSTS = 2;
+const liveCampaign = process.env.LIVE_CAMPAIGN === "1";
+const liveRenders = liveCampaign && process.env.LIVE_RENDERS === "1" && process.env.SKIP_RENDERS !== "1";
+let reelOutcome: "not-tested" | "passed" | "blocked" = "not-tested";
+const runtimeErrors: string[] = [];
 mkdirSync(OUT, { recursive: true });
 
 const { session } = await getTestSession();
@@ -38,7 +46,22 @@ async function newPage(width: number, height: number, seedCampaign?: string | nu
     [storageKey, payload, seedCampaign ? "aurora.marketing_studio.campaign.v2" : null, seedCampaign ?? null],
   );
   const page = await context.newPage();
-  page.on("pageerror", (error) => console.log("  [pageerror]", error.message));
+  page.on("pageerror", (error) => { runtimeErrors.push(error.message); console.log("  [pageerror]", error.message); });
+  if (!liveCampaign) {
+    // This walk-through should never click generation controls. Fail closed if it does.
+    await page.route("**/_serverFn/**", async (route) => {
+      const encoded = new URL(route.request().url()).pathname.split("/").pop() ?? "";
+      let rpcExport = "";
+      try {
+        rpcExport = JSON.parse(Buffer.from(decodeURIComponent(encoded), "base64").toString("utf8")).export ?? "";
+      } catch { /* Unknown POST identifiers are blocked in fixture mode. */ }
+      const generation = /^(generateMarketingCampaign|generatePerformanceShot|generateVideoFromImage)(_|$)/.test(rpcExport);
+      if (route.request().method() === "POST" && (!rpcExport || generation)) {
+        runtimeErrors.push("Unexpected server mutation in fixture-only verification");
+        await route.abort();
+      } else await route.continue();
+    });
+  }
   page.on("console", (msg) => {
     if (msg.type() === "error" && !/hydrat|didn't match/i.test(msg.text())) console.log("  [console.error]", msg.text().slice(0, 200));
   });
@@ -61,6 +84,7 @@ try {
   await page.getByText("1 · Choose what Aurora is promoting").waitFor({ timeout: 20_000 });
   await page.screenshot({ path: `${OUT}/01-desktop-brief.png`, fullPage: true });
 
+  if (liveCampaign) {
   // Brief: Video Agent, 2 posts over 2 days, feed + reel.
   await page.getByRole("button", { name: /Video Agent/ }).first().click();
   const carousel = page.getByRole("button", { name: /Carousel/ });
@@ -71,6 +95,14 @@ try {
   await page.getByRole("button", { name: `Build ${POSTS}-post campaign` }).click();
   console.log("  building campaign…");
   await page.getByText(`${POSTS} posts`, { exact: true }).waitFor({ timeout: 200_000 });
+  } else {
+    await page.evaluate((fixture) => {
+      window.localStorage.setItem("aurora.marketing_studio.campaign.v2", JSON.stringify(fixture));
+    }, marketingStudioFixture);
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await page.getByText(`${POSTS} posts`, { exact: true }).waitFor({ timeout: 60_000 });
+    console.log("  ✓ synthetic campaign loaded; generation not tested");
+  }
   await page.waitForTimeout(1_000);
   await page.screenshot({ path: `${OUT}/02-desktop-campaign.png`, fullPage: true });
   const cards = page.locator("article");
@@ -92,7 +124,7 @@ try {
   ]);
   console.log(`  ✓ manifest download: ${manifest.suggestedFilename()}`);
 
-  if (!process.env.SKIP_RENDERS) {
+   if (liveRenders) {
     // Visual on the first non-reel card (or any card).
     const feedCard = cards.filter({ hasNot: page.getByRole("button", { name: "Generate 5s Reel" }) }).first();
     const visualTarget = (await feedCard.count()) ? feedCard : cards.first();
@@ -101,7 +133,7 @@ try {
     await page.getByText(/visuals? ready/).waitFor({ timeout: 360_000 });
     const src = await visualTarget.locator("img").first().getAttribute("src");
     if (!src || src.startsWith("/")) fail(`visual did not replace the reference image (src=${src})`);
-    console.log(`  ✓ visual rendered: ${src.slice(0, 80)}…`);
+    console.log("  ✓ visual rendered");
 
     // Reel on a reel card if the plan produced one.
     const reelCard = cards.filter({ has: page.getByRole("button", { name: "Generate 5s Reel" }) }).first();
@@ -117,10 +149,12 @@ try {
       if (await success.isVisible().catch(() => false)) {
         const video = await reelCard.locator("video").getAttribute("src");
         if (!video) fail("reel card has no video element after render");
-        console.log(`  ✓ reel rendered: ${video.slice(0, 80)}…`);
+        reelOutcome = "passed";
+        console.log("  ✓ reel rendered");
       } else {
         const text = (await errorToast.first().innerText()).replace(/\s+/g, " ").trim();
         console.log(`  ! reel blocked by provider/account error (surfaced to the operator as a toast): ${text}`);
+        reelOutcome = "blocked";
         await page.screenshot({ path: `${OUT}/03b-desktop-reel-error.png` });
       }
     } else {
@@ -143,12 +177,14 @@ try {
   const firstTitle = (await cards.first().getByRole("heading", { level: 3 }).textContent())?.trim() ?? "";
   await page.getByLabel(`Workflow status for ${firstTitle}`).selectOption("approved");
   await cards.first().locator('input[type="date"]').fill("2026-09-15");
+  if ((await page.getByLabel(`Workflow status for ${firstTitle}`).inputValue()) !== "approved") fail("date assignment unexpectedly changed the review status");
+  await page.getByLabel(`Workflow status for ${firstTitle}`).selectOption("scheduled");
   await page.getByRole("button", { name: "Calendar" }).click();
   await page.waitForTimeout(500);
   await page.screenshot({ path: `${OUT}/04-desktop-calendar.png`, fullPage: true });
   await page.getByRole("button", { name: "Publish queue" }).click();
   const status = page.getByLabel(`Publishing status for ${firstTitle}`);
-  if ((await status.inputValue()) !== "scheduled") fail("scheduling a date did not move the post to scheduled");
+  if ((await status.inputValue()) !== "scheduled") fail("explicit scheduled status was not retained");
   await status.selectOption("published");
   await page.waitForTimeout(400);
   await page.screenshot({ path: `${OUT}/05-desktop-queue.png`, fullPage: true });
@@ -198,7 +234,9 @@ try {
   await phone.screenshot({ path: `${OUT}/09-phone-brief.png`, fullPage: true });
   console.log("  ✓ phone views captured; New campaign resets to the brief");
   await phone.context().close();
-  console.log("── PASS ──");
+  if (runtimeErrors.length) fail(`${runtimeErrors.length} browser runtime error(s)`);
+  console.log(`── UI CHECKS PASS · planner: ${liveCampaign ? "live" : "NOT TESTED (fixture)"} · renders: ${liveRenders ? "live" : "NOT TESTED"} · Reel: ${reelOutcome.toUpperCase()} ──`);
+  if (liveRenders && reelOutcome !== "passed") process.exitCode = 2;
 } finally {
   await browser.close();
 }

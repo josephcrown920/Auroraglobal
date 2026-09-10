@@ -1,5 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { _enqueuePerformanceShot, _enqueueVideoFromImage, COST_IMAGE, isDemoSelfieUrl } from "./studio.functions";
+import { assertOwnedReferenceImage } from "./url-guard";
 
 // The reference-image ownership guard was moved INTO _enqueuePerformanceShot so
 // that every caller — the generatePerformanceShot server fn, runSmokeStudioChain,
@@ -207,5 +208,23 @@ describe("_enqueueVideoFromImage — reference ownership guard runs before any g
       ),
     ).rejects.toThrow(OWNERSHIP_ERR);
     expect(checked).toEqual([`${STUDIO}user-1/uploads/start.jpg`, `${STUDIO}user-2/uploads/end.jpg`]);
+  });
+
+  it("accepts caller-owned start and end frames before entering billing", async () => {
+    const startFrame = `${STUDIO}user-1/uploads/start.jpg`;
+    const endFrame = `${STUDIO}user-1/uploads/end.jpg`;
+    const data = { ...base, imageUrl: startFrame, endFrameUrl: endFrame };
+
+    // Stop immediately after the two ownership checks. This keeps the positive
+    // path free of preview, credit, and provider calls while proving the real
+    // guard accepts both caller-owned references.
+    Object.defineProperty(data, "prompt", {
+      get: () => {
+        throw new Error("guard-only test stop");
+      },
+    });
+    await expect(
+      _enqueueVideoFromImage("user-1", data, { assertOwned: assertOwnedReferenceImage }),
+    ).rejects.toThrow("guard-only test stop");
   });
 });
