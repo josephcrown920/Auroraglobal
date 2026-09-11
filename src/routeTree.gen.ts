@@ -102,6 +102,7 @@ import { Route as AdminSmokeRouteImport } from './routes/admin.smoke'
 import { Route as AdminSocialStudioRouteImport } from './routes/admin.social-studio'
 import { Route as AdminTemplatesRouteImport } from './routes/admin.templates'
 import { Route as AdminWorkflowsRouteImport } from './routes/admin.workflows'
+import { Route as ApiBalanceRouteImport } from './routes/api/balance'
 import { Route as ApiEstimateRouteImport } from './routes/api/estimate'
 import { Route as ApiHealthRouteImport } from './routes/api/health'
 import { Route as ApiMcpRouteImport } from './routes/api/mcp'
@@ -161,6 +162,7 @@ import { Route as ApiVideoAgentGenerateFrameRouteImport } from './routes/api/vid
 import { Route as ApiVideoAgentGenerateScriptRouteImport } from './routes/api/video-agent/generate-script'
 import { Route as ApiVideoAgentSubmitRouteImport } from './routes/api/video-agent/submit'
 import { Route as SoulGenerateVideoRouteImport } from './routes/soul.generate.video'
+import { Route as ApiJobsIdStatusRouteImport } from './routes/api/jobs/$id/status'
 import { Route as ApiPublicCliVastRouteImport } from './routes/api/public/cli/vast'
 import { Route as ApiPublicGpuClaimRouteImport } from './routes/api/public/gpu/claim'
 import { Route as ApiPublicGpuCompleteRouteImport } from './routes/api/public/gpu/complete'
@@ -685,6 +687,11 @@ const AdminWorkflowsRoute = AdminWorkflowsRouteImport.update({
 } as any).lazy(() =>
   import('./routes/admin.workflows.lazy').then((d) => d.Route),
 )
+const ApiBalanceRoute = ApiBalanceRouteImport.update({
+  id: '/api/balance',
+  path: '/api/balance',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiEstimateRoute = ApiEstimateRouteImport.update({
   id: '/api/estimate',
   path: '/api/estimate',
@@ -996,6 +1003,11 @@ const SoulGenerateVideoRoute = SoulGenerateVideoRouteImport.update({
 } as any).lazy(() =>
   import('./routes/soul.generate.video.lazy').then((d) => d.Route),
 )
+const ApiJobsIdStatusRoute = ApiJobsIdStatusRouteImport.update({
+  id: '/api/jobs/$id/status',
+  path: '/api/jobs/$id/status',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicCliVastRoute = ApiPublicCliVastRouteImport.update({
   id: '/api/public/cli/vast',
   path: '/api/public/cli/vast',
@@ -1191,6 +1203,7 @@ export interface FileRoutesByFullPath {
   '/admin/social-studio': typeof AdminSocialStudioRoute
   '/admin/templates': typeof AdminTemplatesRoute
   '/admin/workflows': typeof AdminWorkflowsRoute
+  '/api/balance': typeof ApiBalanceRoute
   '/api/estimate': typeof ApiEstimateRoute
   '/api/health': typeof ApiHealthRoute
   '/api/mcp': typeof ApiMcpRoute
@@ -1252,6 +1265,7 @@ export interface FileRoutesByFullPath {
   '/api/video-agent/generate-script': typeof ApiVideoAgentGenerateScriptRoute
   '/api/video-agent/submit': typeof ApiVideoAgentSubmitRoute
   '/soul/generate/video': typeof SoulGenerateVideoRoute
+  '/api/jobs/$id/status': typeof ApiJobsIdStatusRoute
   '/api/public/cli/vast': typeof ApiPublicCliVastRoute
   '/api/public/gpu/claim': typeof ApiPublicGpuClaimRoute
   '/api/public/gpu/complete': typeof ApiPublicGpuCompleteRoute
@@ -1364,6 +1378,7 @@ export interface FileRoutesByTo {
   '/admin/social-studio': typeof AdminSocialStudioRoute
   '/admin/templates': typeof AdminTemplatesRoute
   '/admin/workflows': typeof AdminWorkflowsRoute
+  '/api/balance': typeof ApiBalanceRoute
   '/api/estimate': typeof ApiEstimateRoute
   '/api/health': typeof ApiHealthRoute
   '/api/mcp': typeof ApiMcpRoute
@@ -1425,6 +1440,7 @@ export interface FileRoutesByTo {
   '/api/video-agent/generate-script': typeof ApiVideoAgentGenerateScriptRoute
   '/api/video-agent/submit': typeof ApiVideoAgentSubmitRoute
   '/soul/generate/video': typeof SoulGenerateVideoRoute
+  '/api/jobs/$id/status': typeof ApiJobsIdStatusRoute
   '/api/public/cli/vast': typeof ApiPublicCliVastRoute
   '/api/public/gpu/claim': typeof ApiPublicGpuClaimRoute
   '/api/public/gpu/complete': typeof ApiPublicGpuCompleteRoute
@@ -1539,6 +1555,7 @@ export interface FileRoutesById {
   '/admin/social-studio': typeof AdminSocialStudioRoute
   '/admin/templates': typeof AdminTemplatesRoute
   '/admin/workflows': typeof AdminWorkflowsRoute
+  '/api/balance': typeof ApiBalanceRoute
   '/api/estimate': typeof ApiEstimateRoute
   '/api/health': typeof ApiHealthRoute
   '/api/mcp': typeof ApiMcpRoute
@@ -1600,6 +1617,7 @@ export interface FileRoutesById {
   '/api/video-agent/generate-script': typeof ApiVideoAgentGenerateScriptRoute
   '/api/video-agent/submit': typeof ApiVideoAgentSubmitRoute
   '/soul/generate/video': typeof SoulGenerateVideoRoute
+  '/api/jobs/$id/status': typeof ApiJobsIdStatusRoute
   '/api/public/cli/vast': typeof ApiPublicCliVastRoute
   '/api/public/gpu/claim': typeof ApiPublicGpuClaimRoute
   '/api/public/gpu/complete': typeof ApiPublicGpuCompleteRoute
@@ -1715,6 +1733,7 @@ export interface FileRouteTypes {
     | '/admin/social-studio'
     | '/admin/templates'
     | '/admin/workflows'
+    | '/api/balance'
     | '/api/estimate'
     | '/api/health'
     | '/api/mcp'
@@ -1776,6 +1795,7 @@ export interface FileRouteTypes {
     | '/api/video-agent/generate-script'
     | '/api/video-agent/submit'
     | '/soul/generate/video'
+    | '/api/jobs/$id/status'
     | '/api/public/cli/vast'
     | '/api/public/gpu/claim'
     | '/api/public/gpu/complete'
@@ -1888,6 +1908,7 @@ export interface FileRouteTypes {
     | '/admin/social-studio'
     | '/admin/templates'
     | '/admin/workflows'
+    | '/api/balance'
     | '/api/estimate'
     | '/api/health'
     | '/api/mcp'
@@ -1949,6 +1970,7 @@ export interface FileRouteTypes {
     | '/api/video-agent/generate-script'
     | '/api/video-agent/submit'
     | '/soul/generate/video'
+    | '/api/jobs/$id/status'
     | '/api/public/cli/vast'
     | '/api/public/gpu/claim'
     | '/api/public/gpu/complete'
@@ -2062,6 +2084,7 @@ export interface FileRouteTypes {
     | '/admin/social-studio'
     | '/admin/templates'
     | '/admin/workflows'
+    | '/api/balance'
     | '/api/estimate'
     | '/api/health'
     | '/api/mcp'
@@ -2123,6 +2146,7 @@ export interface FileRouteTypes {
     | '/api/video-agent/generate-script'
     | '/api/video-agent/submit'
     | '/soul/generate/video'
+    | '/api/jobs/$id/status'
     | '/api/public/cli/vast'
     | '/api/public/gpu/claim'
     | '/api/public/gpu/complete'
@@ -2223,6 +2247,7 @@ export interface RootRouteChildren {
   VideoEditorRoute: typeof VideoEditorRoute
   WorkflowsRoute: typeof WorkflowsRoute
   BeatReelLazyRoute: typeof BeatReelLazyRoute
+  ApiBalanceRoute: typeof ApiBalanceRoute
   ApiEstimateRoute: typeof ApiEstimateRoute
   ApiHealthRoute: typeof ApiHealthRoute
   ApiMcpRoute: typeof ApiMcpRoute
@@ -2277,6 +2302,7 @@ export interface RootRouteChildren {
   ApiVideoAgentGenerateFrameRoute: typeof ApiVideoAgentGenerateFrameRoute
   ApiVideoAgentGenerateScriptRoute: typeof ApiVideoAgentGenerateScriptRoute
   ApiVideoAgentSubmitRoute: typeof ApiVideoAgentSubmitRoute
+  ApiJobsIdStatusRoute: typeof ApiJobsIdStatusRoute
   ApiPublicCliVastRoute: typeof ApiPublicCliVastRoute
   ApiPublicGpuClaimRoute: typeof ApiPublicGpuClaimRoute
   ApiPublicGpuCompleteRoute: typeof ApiPublicGpuCompleteRoute
@@ -2957,6 +2983,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminWorkflowsRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/api/balance': {
+      id: '/api/balance'
+      path: '/api/balance'
+      fullPath: '/api/balance'
+      preLoaderRoute: typeof ApiBalanceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/estimate': {
       id: '/api/estimate'
       path: '/api/estimate'
@@ -3370,6 +3403,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SoulGenerateVideoRouteImport
       parentRoute: typeof SoulGenerateRoute
     }
+    '/api/jobs/$id/status': {
+      id: '/api/jobs/$id/status'
+      path: '/api/jobs/$id/status'
+      fullPath: '/api/jobs/$id/status'
+      preLoaderRoute: typeof ApiJobsIdStatusRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/cli/vast': {
       id: '/api/public/cli/vast'
       path: '/api/public/cli/vast'
@@ -3665,6 +3705,7 @@ const rootRouteChildren: RootRouteChildren = {
   VideoEditorRoute: VideoEditorRoute,
   WorkflowsRoute: WorkflowsRoute,
   BeatReelLazyRoute: BeatReelLazyRoute,
+  ApiBalanceRoute: ApiBalanceRoute,
   ApiEstimateRoute: ApiEstimateRoute,
   ApiHealthRoute: ApiHealthRoute,
   ApiMcpRoute: ApiMcpRoute,
@@ -3719,6 +3760,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiVideoAgentGenerateFrameRoute: ApiVideoAgentGenerateFrameRoute,
   ApiVideoAgentGenerateScriptRoute: ApiVideoAgentGenerateScriptRoute,
   ApiVideoAgentSubmitRoute: ApiVideoAgentSubmitRoute,
+  ApiJobsIdStatusRoute: ApiJobsIdStatusRoute,
   ApiPublicCliVastRoute: ApiPublicCliVastRoute,
   ApiPublicGpuClaimRoute: ApiPublicGpuClaimRoute,
   ApiPublicGpuCompleteRoute: ApiPublicGpuCompleteRoute,

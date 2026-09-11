@@ -248,7 +248,7 @@ export async function routedGenerate<T>(
           experimental_output: Output.object({ schema: args.schema }),
           // e.g. strictJsonSchema:false for OpenAI-compatible json_schema mode.
           providerOptions: provider.providerOptions,
-          maxOutputTokens,
+           maxOutputTokens: maxOutputTokens ?? (provider.name === "openrouter-auto" ? 4096 : undefined),
           maxRetries: 0,
           abortSignal: AbortSignal.timeout(
             Math.max(1, Math.min(providerTimeoutMs, routerTimeoutMs - (Date.now() - t0))),
@@ -276,7 +276,14 @@ export async function routedGenerate<T>(
         return {
           output,
           provider: provider.name,
-          model: response?.modelId || provider.model,
+          // Auto Router is an alias, not the model that actually answered.
+          // The OpenAI-compatible SDK exposes OpenRouter's response.model here.
+          model:
+            response?.modelId && response.modelId !== "openrouter/auto"
+              ? response.modelId
+              : provider.model === "openrouter/auto"
+                ? null
+                : provider.model,
           category,
           fallbackCount,
           latencyMs,

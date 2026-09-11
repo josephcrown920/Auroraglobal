@@ -41,7 +41,7 @@ export type RouterProvider = {
  * (nested plan/shots unions, optional fields, transforms) fail zod validation
  * nearly every time ("No object generated: response did not match schema").
  *
- * The adapter defaults json_schema to `strict: true`, which OpenAI and Groq
+ * The adapter defaults json_schema to `strict: true`, which OpenAI-compatible
  * REJECT for any schema whose objects have optional properties or lack
  * additionalProperties:false (ChatTurnSchema is both). So every provider that
  * opts into json_schema also forwards strictJsonSchema:false via
@@ -49,8 +49,8 @@ export type RouterProvider = {
  * insists on strict:true (and rejects minItems > 1), so it keeps the default
  * and simply can't serve the richest schemas — the chain falls through.
  *
- * Verified live 2026-09-07 against ChatTurnSchema: openai / qwen / deepseek /
- * groq all fail in json_object mode and succeed with json_schema+non-strict.
+ * Verified live 2026-09-07 against ChatTurnSchema: openai / qwen / deepseek
+ * all fail in json_object mode and succeed with json_schema+non-strict.
  */
 const NON_STRICT_SCHEMA = (providerName: string): RouterProvider["providerOptions"] => ({
   [providerName]: { strictJsonSchema: false },
@@ -284,43 +284,32 @@ export function buildProviderRegistry(): Map<string, RouterProvider> {
       }),
   });
 
-  // ── Llama via Groq — Emergency fallback (fast inference) ─────────────────
-  // Groq's inference platform is dramatically faster than HuggingFace for Llama.
-  // Falls back to HuggingFace when Groq key is absent.
-  if (process.env.GROQ_API_KEY) {
-    add({
-      name: "llama",
-      displayName: "Llama (Groq)",
-      enabled: true,
-      // llama-3.3-70b-versatile was retired from Groq (2026-09); gpt-oss-120b is
-      // Groq's current fast frontier-class text model.
-      model: "openai/gpt-oss-120b",
-      providerOptions: NON_STRICT_SCHEMA("groq"),
-      make: () =>
-        createOpenAICompatible({
-          name: "groq",
-          baseURL: "https://api.groq.com/openai/v1",
-          headers: { Authorization: `Bearer ${process.env.GROQ_API_KEY}` },
-          supportsStructuredOutputs: true,
+  // ── OpenRouter Auto Router — Low-cost schema-aware emergency fallback ─────
+  add({
+    name: "openrouter-auto",
+    displayName: "Auto Router (OpenRouter)",
+    enabled: openRouterConfig().enabled,
+    model: "openrouter/auto",
+    providerOptions: NON_STRICT_SCHEMA("openrouter-auto"),
+    make: () =>
+      createOpenAICompatible({
+        name: "openrouter-auto",
+        baseURL: openRouterConfig().baseURL,
+        headers: OPENROUTER_HEADERS(),
+        supportsStructuredOutputs: true,
+        // The compatible adapter only recognizes a small provider-options
+        // schema. Its transform hook is the supported way to put OpenRouter's
+        // routing controls on the actual wire body for both generate and stream.
+        transformRequestBody: (body) => ({
+          ...body,
+          plugins: [{ id: "auto-router", cost_tier: "low" }],
+          provider: {
+            ...(typeof body.provider === "object" && body.provider !== null ? body.provider : {}),
+            require_parameters: true,
+          },
         }),
-    });
-  } else {
-    // HuggingFace's router can select different downstream inference
-    // providers with different response_format support. Do not advertise
-    // json_schema universally here unless that route is pinned and verified.
-    add({
-      name: "llama",
-      displayName: "Llama (HuggingFace)",
-      enabled: !!process.env.HF_TOKEN,
-      model: "meta-llama/Llama-3.3-70B-Instruct",
-      make: () =>
-        createOpenAICompatible({
-          name: "huggingface",
-          baseURL: "https://router.huggingface.co/v1",
-          headers: { Authorization: `Bearer ${process.env.HF_TOKEN}` },
-        }),
-    });
-  }
+      }),
+  });
 
   return registry;
 }

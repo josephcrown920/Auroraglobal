@@ -270,6 +270,7 @@ export const Route = createFileRoute("/api/public/generate")({
               provider: outcome.provider,
               endpoint: outcome.endpoint,
               latencyMs: outcome.latencyMs,
+              generationId: outcome.generationId,
               estimatedCostUsd: outcome.costUsd,
               creditsCost: cost,
               costBreakdown: quote.breakdown,

@@ -13,29 +13,29 @@ export const CATEGORY_CHAINS: Record<RequestCategory, string[]> = {
   // chain as the always-on backstop, so a dead slug or drained balance on the
   // preferred provider never leaves a feature with no working model.
   // ── Utility / low-cost first ──────────────────────────────────────────────
-  GENERAL_CHAT:     ["gemini", "openai", "grok", "qwen", "deepseek", "llama"],
-  CUSTOMER_SUPPORT: ["gemini", "openai", "qwen", "llama", "claude"],
-  FAQ:              ["gemini", "openai", "deepseek", "qwen", "llama"],
-  PRICING:          ["gemini", "openai", "deepseek", "qwen"],
-  PRODUCT_DISCOVERY:["gemini", "openai", "grok", "claude", "deepseek"],
+  GENERAL_CHAT:     ["gemini", "openai", "grok", "qwen", "deepseek", "openrouter-auto"],
+  CUSTOMER_SUPPORT: ["gemini", "openai", "qwen", "openrouter-auto", "claude"],
+  FAQ:              ["gemini", "openai", "deepseek", "qwen", "openrouter-auto"],
+  PRICING:          ["gemini", "openai", "deepseek", "qwen", "openrouter-auto"],
+  PRODUCT_DISCOVERY:["gemini", "openai", "grok", "claude", "deepseek", "openrouter-auto"],
 
   // ── Premium creative — Claude leads ───────────────────────────────────────
-  VIDEO_DIRECTION:  ["claude", "openai", "gemini", "deepseek", "qwen", "llama"],
-  VIDEO_PROMPTS:    ["claude", "openai", "gemini", "deepseek", "qwen"],
-  IMAGE_PROMPTS:    ["claude", "openai", "gemini", "deepseek", "qwen"],
-  SCRIPT_WRITING:   ["claude", "openai", "grok", "gemini", "deepseek", "qwen"],
-  MUSIC_MARKETING:  ["claude", "openai", "grok", "gemini", "deepseek"],
-  ARTIST_BRANDING:  ["claude", "openai", "grok", "gemini", "deepseek"],
-  SOCIAL_CONTENT:   ["claude", "openai", "grok", "gemini", "deepseek"],
-  ADVERTISEMENT:    ["claude", "openai", "grok", "gemini", "deepseek"],
-  COPYWRITING:      ["claude", "openai", "gemini", "deepseek", "grok"],
-  LANDING_PAGE:     ["claude", "openai", "gemini", "deepseek"],
-  BLOG:             ["claude", "openai", "gemini", "deepseek"],
-  EMAIL_WRITING:    ["claude", "openai", "gemini", "deepseek"],
-  PLAYLIST_PITCHING:["claude", "openai", "grok", "gemini", "deepseek"],
+  VIDEO_DIRECTION:  ["claude", "openai", "gemini", "deepseek", "qwen", "openrouter-auto"],
+  VIDEO_PROMPTS:    ["claude", "openai", "gemini", "deepseek", "qwen", "openrouter-auto"],
+  IMAGE_PROMPTS:    ["claude", "openai", "gemini", "deepseek", "qwen", "openrouter-auto"],
+  SCRIPT_WRITING:   ["claude", "openai", "grok", "gemini", "deepseek", "qwen", "openrouter-auto"],
+  MUSIC_MARKETING:  ["claude", "openai", "grok", "gemini", "deepseek", "openrouter-auto"],
+  ARTIST_BRANDING:  ["claude", "openai", "grok", "gemini", "deepseek", "openrouter-auto"],
+  SOCIAL_CONTENT:   ["claude", "openai", "grok", "gemini", "deepseek", "openrouter-auto"],
+  ADVERTISEMENT:    ["claude", "openai", "grok", "gemini", "deepseek", "openrouter-auto"],
+  COPYWRITING:      ["claude", "openai", "gemini", "deepseek", "grok", "openrouter-auto"],
+  LANDING_PAGE:     ["claude", "openai", "gemini", "deepseek", "openrouter-auto"],
+  BLOG:             ["claude", "openai", "gemini", "deepseek", "openrouter-auto"],
+  EMAIL_WRITING:    ["claude", "openai", "gemini", "deepseek", "openrouter-auto"],
+  PLAYLIST_PITCHING:["claude", "openai", "grok", "gemini", "deepseek", "openrouter-auto"],
 
   // ── Technical — Claude + coder-specialised models ─────────────────────────
-  CODING:    ["claude", "openai", "qwen-coder", "deepseek-coder", "gemini", "grok"],
-  DEBUGGING: ["claude", "openai", "qwen-coder", "deepseek-coder", "gemini"],
+  CODING:    ["claude", "openai", "qwen-coder", "deepseek-coder", "gemini", "grok", "openrouter-auto"],
+  DEBUGGING: ["claude", "openai", "qwen-coder", "deepseek-coder", "gemini", "openrouter-auto"],
 };
 

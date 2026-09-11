@@ -401,6 +401,8 @@ ${CHAT_DIRECTOR_SYSTEM}`
         prompt: buildChatPrompt({ memory, transcript, message: data.message, cinematicMode: data.cinematicMode }),
         schema: ChatTurnSchema,
         routingMode: "modelark-free",
+        // Keep the agent response bounded even when the selected brain is slow.
+        maxOutputTokens: 4096,
         degradedOutput: {
           reply: "Aurora is catching up right now. Your context is safe — please try again in about 30 seconds.",
           plan: null,
@@ -447,6 +449,7 @@ ${CHAT_DIRECTOR_SYSTEM}`
               }),
               schema: ChatTurnSchema,
               routingMode: "modelark-free",
+              maxOutputTokens: 4096,
               degradedOutput: {
                 reply: "Aurora is catching up right now. Your context is safe — please try again in about 30 seconds.",
                 plan: null,

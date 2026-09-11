@@ -4,7 +4,6 @@
 - [TanStack Nitro namespace exports](tanstack-nitro-namespace-exports.md) — keep TanStack Start server packages external in SSR/Nitro or bundled export-star namespaces can leave createRequestHandler unbound.
 - [TanStack package version alignment](tanstack-package-versions.md) — router-plugin version cadence differs from react-start; verify each on npm before bumping; routeTree.gen.ts auto-regenerates on new route file addition during dev (no manual edit needed).
 - [Video Agent routes](video-agent-routes.md) — server-state projects on the prod job queue; -process plans EMPTY drafts only; project row is CAS-gated UI convenience; queue-distress alerts ride uptime-monitor row 'queue'.
-- [LANDR mastering integration](landr-mastering-routes.md) — lib at src/lib/landr-mastering.server.ts; API routes at /api/audio/upload, /api/audio/master, /api/audio/master/$id/status; UI at /mastering; needs LANDR_MASTERING_API_KEY secret (not yet set).
 - [Prime Director agent page](prime-director-agent-page.md) — /agent is now the Prime Video Agent UI (3-panel: sidebar/chat/inspector); Aurora skills live in sidebar "Aurora Skills" section; CSS tokens at --canvas/panel/prime/rec; useServerFn takes { data: {...} } not bare args.
 - [Landing nav pitfalls](landing-nav-desktop-header-dead-code.md) — desktop header nav is unreachable, real nav lives in MobileNav.tsx (single-column build), editing header nav has no visible effect; separately, the route-transition wrapper animates opacity ONLY — a leftover transform re-anchors every fixed/absolute descendant (nav can go off-screen).
 - [Retired /home route](home-route-retired.md) — /home 307s to /studio (2026-08-11); home.lazy.tsx renders for NOBODY — signed-in discovery surfaces belong on /studio; spin cards never say "Free".
@@ -80,7 +79,6 @@
 - [Studio bucket cross-origin download](studio-bucket-cross-origin-download.md) — `<a download>` on a public studio-bucket URL silently fails (cross-origin); fetch→Blob→objectURL anchor to actually save the file.
 - [Manual auth.users inserts](supabase-manual-auth-user-inserts.md) — direct SQL insert into auth.users 500s at login unless nullable token columns (confirmation_token etc.) are '' not NULL.
 - [Spin pricing & ViralEngine grid](spin-pricing-and-viral-grid.md) — pre-render pricing must call templateCost() not a hardcoded number; landing mockup grids: tile count/aspect drives height more than frame width.
-- [Spin batch smoke verification](spin-batch-smoke-verification.md) — QA user is admin (charges no-op unless role dropped); SPIN_COUNT=50 now; cron finishes batches if the driver dies; fund smokes from spinTotalCost.
 - [Spin template card avatar identities](spin-template-card-identities.md) — per-template identity + candid-UGC style contract for the 6 Spin picker cards; generateImage is text-only, no image conditioning.
 - [Cookie consent region heuristic](cookie-consent-region-heuristic.md) — no real IP-geo backend; EU/UK/CA detection is locale-region + timezone client heuristic, deliberately conservative toward showing the banner.
 - [AutoCut local ffmpeg assemble fallback](autocut-local-ffmpeg-assemble.md) — AutoCut no longer needs an online self-hosted GPU worker; falls back to running ffmpeg assemble in-process (container already ships ffmpeg).
@@ -109,7 +107,6 @@
 - [Tutorial guide PDF is a manual snapshot](tutorial-pdf-regeneration.md) — /tutorial-guide.pdf is a static Playwright print of /tutorial; regenerate + copy to all three public locations after any tutorial content edit.
 - [Gemini Veo discrete durations](gemini-veo-discrete-durations.md) — veo-3.1-fast-generate-preview accepts only 4 or 8 for durationSeconds (not 5-7); snap with `d <= 5 ? 4 : 8`; 5 returns 400 despite misleading "4-8" error.
 - [TanStack nested router-core conflict](tanstack-nested-router-core-conflict.md) — npm override fixes getScriptPreloadAttrs build failure; never delete ALL nested @tanstack node_modules.
-- [Live site-image override table](live-site-images-table.md) — `/api/public/site-images` can 500 when the live DB migration is absent; landing safely falls back to bundled defaults.
 - [Server-file client stub](server-file-client-stub.md) — *.server.ts is stubbed from the client bundle (runtime-only explosion); client-called createServerFn must live in *.functions.ts; empty-state UI ≠ proof a query round-tripped.
 - [WebAuthn passkeys](webauthn-passkeys.md) — rpID from validated client origin on BOTH begin paths (own-domain allowlist, no replit wildcards); E2E-testable via CDP virtual authenticator; @simplewebauthn v10 positional API.
 - [Deploy dangling symlinks & artifact prod services](deploy-dangling-symlink-node.md) — dev-only artifacts: no [services.production]; bare `node` run cmds can hit a dangling .pythonlibs symlink in prod → deploy killed.
@@ -119,7 +116,6 @@
 - [ComfyUI Studio integration](comfy-studio-integration.md) — second Comfy backend gated on COMFY_STUDIO_URL; comfy_runs source='studio'+external_run_id; no Aura charge or bearer auth yet.
 - [Comfy Cloud MCP i2v](comfy-cloud-mcp-i2v.md) — partner video models are t2v-only (no media roles); i2v = use_previous_output + open-source Wan 2.1 graph, 0 partner credits.
 - [Vast.ai API contract quirks](vast-api-contract.md) — search=POST /bundles/, offer-by-id=ask_contract_id, env=Docker-flag string, `price` is bid-only (not on-demand cap), instance ops need a post-2FA key.
-- [Aurora geo/PPP billing state](aurora-geo-billing.md) — geo pricing designed but OFF (detectCurrency pinned USD, everyone pays USD); /billing has an admin-only region preview; live payments table was EMPTY 2026-08-04.
 - [Previs Pro plate surfaces](previs-pro-surfaces.md) — free Pollinations plates vs paid "Upgrade plate" via reserveOrchestrateRecord; prompts read from stored state; chat plans have NO agent_sessions row.
 - [Design-system artifact dev runner](aurora-ds-dev-runner.md) — repo is flat npm/bun (no pnpm); artifact scaffolds must switch to per-artifact start-dev.sh via verifyAndReplaceArtifactToml.
 - [Playwright e2e validation quirks](playwright-e2e-validation.md) — test.use reducedMotion ignored (use emulateMedia); manual newContext corrupts traces; webServer runs under /bin/sh (wrap bash -c); login lands on /home.
@@ -157,3 +153,4 @@
 - [Avatar-shot Kling engine truth](kling-subscription-gate.md) — reservation paths must pass forSubscriber:true + pinnedModelOnly:true for Kling or the orchestrator silently serves another video model under the Kling label/price.
 - [Hybrid agent fallback policy](hybrid-agent-fallback-policy.md) — automatic compatible fallback applies to brains and renderers; disclose the serving engine, retain Seedream/Seedance, protect preview approvals.
 - [Video Agent action claims](video-agent-action-claims.md) — paid NBA Josh mutations need a project-row CAS claim before dispatch, and stored results must retain the actual serving engine.
+- [k6 load-test evidence](k6-load-test-evidence.md) — inspect modes with explicit -e flags; rejection throughput is not authenticated capacity, and every logical flow needs a terminal outcome.

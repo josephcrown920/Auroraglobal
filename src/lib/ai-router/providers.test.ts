@@ -14,8 +14,6 @@ const ENV_KEYS = [
   "OPENAI_API_KEY",
   "XAI_API_KEY",
   "OPENROUTER_API_KEY",
-  "GROQ_API_KEY",
-  "HF_TOKEN",
 ] as const;
 const saved = Object.fromEntries(ENV_KEYS.map((k) => [k, process.env[k]]));
 
@@ -31,7 +29,7 @@ describe("ai-router provider registry", () => {
   });
 
   it("every chain entry names a registered provider", () => {
-    process.env.GROQ_API_KEY = "x";
+    process.env.OPENROUTER_API_KEY = "x";
     const names = new Set(buildProviderRegistry().keys());
     for (const [category, chain] of Object.entries(CATEGORY_CHAINS)) {
       for (const name of chain) {
@@ -46,6 +44,14 @@ describe("ai-router provider registry", () => {
     }
   });
 
+  it("makes OpenRouter Auto reachable from every chain without moving OpenAI", () => {
+    for (const [category, chain] of Object.entries(CATEGORY_CHAINS)) {
+      expect(chain[1], `${category} moved OpenAI from second priority`).toBe("openai");
+      expect(chain.includes("openrouter-auto"), `${category} cannot reach OpenRouter Auto`).toBe(true);
+      expect(chain.includes("llama"), `${category} still references llama`).toBe(false);
+    }
+  });
+
   it("enables the OpenAI backstop from the Replit proxy without a user key", () => {
     process.env.AI_INTEGRATIONS_OPENAI_API_KEY = "proxy-key";
     process.env.AI_INTEGRATIONS_OPENAI_BASE_URL = "https://proxy.example/v1";
@@ -54,13 +60,14 @@ describe("ai-router provider registry", () => {
     expect(openai?.model).toBe("gpt-5.4-mini");
   });
 
-  it("never pins retired OpenRouter :free variants or the retired Groq Llama slug", () => {
+  it("never pins retired OpenRouter :free variants or registers legacy llama", () => {
     process.env.OPENROUTER_API_KEY = "x";
-    process.env.GROQ_API_KEY = "x";
-    for (const p of buildProviderRegistry().values()) {
+    const registry = buildProviderRegistry();
+    for (const p of registry.values()) {
       expect(p.model.endsWith(":free"), `${p.name} pins a retired :free slug`).toBe(false);
-      expect(p.model).not.toBe("llama-3.3-70b-versatile");
     }
+    expect(registry.has("llama")).toBe(false);
+    expect(registry.get("openrouter-auto")?.model).toBe("openrouter/auto");
   });
 
   it("enables Gemini from the Replit proxy alone", () => {
@@ -79,6 +86,7 @@ describe("ai-router provider registry", () => {
     const registry = buildProviderRegistry();
     expect(registry.get("qwen")?.enabled).toBe(true);
     expect(registry.get("deepseek")?.enabled).toBe(true);
+    expect(registry.get("openrouter-auto")?.enabled).toBe(true);
     expect(registry.get("qwen")?.model).toBe("qwen/qwen3-235b-a22b");
   });
 
@@ -94,12 +102,11 @@ describe("ai-router provider registry", () => {
     process.env.AI_INTEGRATIONS_OPENAI_BASE_URL = "https://proxy.example/v1";
     process.env.XAI_API_KEY = "x";
     process.env.OPENROUTER_API_KEY = "x";
-    process.env.GROQ_API_KEY = "x";
     const reg = buildProviderRegistry();
     // Strict json_schema rejects ChatTurnSchema (optional props, unions,
     // missing additionalProperties:false) on OpenAI-compatible gateways —
     // these must all opt out or the chain burns a hop on every rich-schema request.
-    for (const name of ["openai", "grok", "qwen", "qwen-coder", "deepseek", "deepseek-coder", "llama"]) {
+    for (const name of ["openai", "grok", "qwen", "qwen-coder", "deepseek", "deepseek-coder", "openrouter-auto"]) {
       const p = reg.get(name)!;
       const opts = Object.values(p.providerOptions ?? {});
       expect(opts.length, `${name} has no providerOptions`).toBe(1);
@@ -111,14 +118,4 @@ describe("ai-router provider registry", () => {
     expect(reg.get("claude")?.providerOptions).toBeUndefined();
   });
 
-  it("does not claim universal json_schema support for the unpinned HuggingFace router", () => {
-    process.env.HF_TOKEN = "x";
-    const huggingface = buildProviderRegistry().get("llama")!;
-    const model = huggingface.make()(huggingface.model) as unknown as {
-      supportsStructuredOutputs?: boolean;
-    };
-    expect(huggingface.displayName).toBe("Llama (HuggingFace)");
-    expect(huggingface.providerOptions).toBeUndefined();
-    expect(model.supportsStructuredOutputs).toBe(false);
-  });
 });

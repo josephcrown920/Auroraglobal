@@ -16,6 +16,75 @@ export type ServerEntry = {
   fetch: (request: Request, env: unknown, ctx: unknown) => Promise<Response> | Response;
 };
 
+type PublicBucket = { tokens: number; updatedAt: number };
+const publicBuckets = new Map<string, PublicBucket>();
+const PUBLIC_RATE_CAPACITY = 240;
+const PUBLIC_RATE_REFILL_PER_MS = PUBLIC_RATE_CAPACITY / 60_000;
+const PUBLIC_BUCKET_TTL_MS = 5 * 60_000;
+const PUBLIC_BUCKET_MAX_KEYS = 20_000;
+let lastPublicBucketSweep = 0;
+const PUBLIC_RATE_PATHS = new Set([
+  "/api/public/generate",
+  "/api/generate",
+  "/api/public/paystack-webhook",
+  "/api/public/workers/health",
+]);
+
+function requestClientKey(request: Request): string {
+  // Only trust the edge-owned header. x-forwarded-for can be supplied by the
+  // caller in direct/local environments and must not create arbitrary keys.
+  return (request.headers.get("cf-connecting-ip") ?? "unknown").slice(0, 128);
+}
+
+function sweepPublicBuckets(now: number): void {
+  if (
+    publicBuckets.size < PUBLIC_BUCKET_MAX_KEYS
+    && now - lastPublicBucketSweep < 60_000
+  ) {
+    return;
+  }
+  lastPublicBucketSweep = now;
+  for (const [key, bucket] of publicBuckets) {
+    if (now - bucket.updatedAt >= PUBLIC_BUCKET_TTL_MS) publicBuckets.delete(key);
+  }
+  while (publicBuckets.size >= PUBLIC_BUCKET_MAX_KEYS) {
+    const oldest = publicBuckets.keys().next().value as string | undefined;
+    if (!oldest) break;
+    publicBuckets.delete(oldest);
+  }
+}
+
+/** Cheap bounded pre-router token bucket for public API bursts. */
+export function unauthenticatedPublicRateLimitResponse(
+  request: Request,
+  now = Date.now(),
+): Response | null {
+  const pathname = new URL(request.url).pathname;
+  if (!PUBLIC_RATE_PATHS.has(pathname)) return null;
+
+  sweepPublicBuckets(now);
+  const key = `${pathname}:${requestClientKey(request)}`;
+  const previous = publicBuckets.get(key) ?? { tokens: PUBLIC_RATE_CAPACITY, updatedAt: now };
+  const elapsed = Math.max(0, now - previous.updatedAt);
+  const tokens = Math.min(
+    PUBLIC_RATE_CAPACITY,
+    previous.tokens + elapsed * PUBLIC_RATE_REFILL_PER_MS,
+  );
+  if (tokens < 1) {
+    publicBuckets.set(key, { tokens, updatedAt: now });
+    return new Response('{"error":"Too many requests"}', {
+      status: 429,
+      headers: {
+        "content-type": "application/json; charset=utf-8",
+        "cache-control": "no-store",
+        "retry-after": "1",
+      },
+    });
+  }
+  publicBuckets.set(key, { tokens: tokens - 1, updatedAt: now });
+  return null;
+}
+
 // Build the default TanStack Start entry from the concrete implementation
 // modules instead of the package's server namespace. The namespace re-export
 // can leave `createRequestHandler` unbound in the production Rollup/Nitro
@@ -124,15 +193,45 @@ export function createAuroraFetchHandler(entry: ServerEntry) {
         return healthResponse;
       }
 
+      const rateLimitResponse = unauthenticatedPublicRateLimitResponse(request);
+      if (rateLimitResponse) {
+        return rateLimitResponse;
+      }
+      const pathname = new URL(request.url).pathname;
+      if (
+        request.method === "POST"
+        && (pathname === "/api/public/generate" || pathname === "/api/generate")
+        && !request.headers.get("authorization")
+      ) {
+        return new Response('{"error":"Unauthorized"}', {
+          status: 401,
+          headers: {
+            "content-type": "application/json; charset=utf-8",
+            "cache-control": "no-store",
+          },
+        });
+      }
+
       // Every request to src/routes/api/** passes through this single fetch
       // entry point, so logging it here (once) gives complete coverage of
       // every current and future API route without editing each route file.
-      const pathname = new URL(request.url).pathname;
       const isApiRequest = pathname.startsWith("/api/");
       const startedAt = Date.now();
+      let routedRequest = request;
+      if (pathname === "/api/generate") {
+        const routedUrl = new URL(request.url);
+        routedUrl.pathname = "/api/public/generate";
+        routedRequest = new Request(routedUrl, request);
+      }
 
       try {
-        const response = await entry.fetch(request, env, ctx);
+        // Register the complete route promise with Workers-compatible runtimes.
+        // Tick and webhook handlers intentionally await their critical queue /
+        // payment finalization before acknowledging the request; waitUntil keeps
+        // the isolate alive for that same promise if the client disconnects.
+        const routePromise = Promise.resolve(entry.fetch(routedRequest, env, ctx));
+        keepAlive(ctx, routePromise);
+        const response = await routePromise;
         const normalized = await normalizeCatastrophicSsrResponse(response);
         if (isApiRequest) {
           keepAlive(

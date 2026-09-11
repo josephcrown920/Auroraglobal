@@ -273,4 +273,54 @@ describe("Aurora chat router integration", () => {
     expect(result.provider).toBe("openrouter-free");
     expect(result.model).toBe("openrouter/free");
   });
+
+  it("uses Auto Router first for the real Video Agent chat and keeps other providers as fallback", async () => {
+    setProviderRegistryForTest(new Map([
+      ["openrouter-auto", { ...provider("openrouter-auto"), model: "openrouter/auto" }],
+      ["claude", provider("claude")],
+    ]));
+    const generated = mock(async ({ model }: { model: { model: string } }) => ({
+      experimental_output: {
+        reply: `Planned by ${model.model}`,
+        plan: null, memoryUpdate: null, skillCall: null,
+      },
+      response: { modelId: "test-provider/actual-model" },
+    }));
+    mock.module("ai", () => ({
+      generateText: generated,
+      Output: { object: ({ schema }: { schema: unknown }) => schema },
+    }));
+    const { context } = chatContext();
+    const result = await chatWithAuroraAgentCore(context, {
+      message: "Plan a cinematic avatar video.",
+      cinematicMode: true,
+    });
+    expect(result.reply).toBe("Planned by openrouter/auto");
+    expect(generated).toHaveBeenCalledTimes(1);
+    const request = generated.mock.calls[0]?.[0] as { maxOutputTokens?: number } | undefined;
+    expect(request?.maxOutputTokens).toBe(4096);
+  });
+
+  it("uses a working fallback when Auto Router is unavailable", async () => {
+    setProviderRegistryForTest(new Map([
+      ["openrouter-auto", { ...provider("openrouter-auto"), model: "openrouter/auto" }],
+      ["claude", provider("claude")],
+    ]));
+    const generated = mock(async ({ model }: { model: { model: string } }) => {
+      if (model.model === "openrouter/auto") throw new Error("model is not available");
+      return { experimental_output: {
+        reply: "Here is your video plan.", plan: null, memoryUpdate: null, skillCall: null,
+      } };
+    });
+    mock.module("ai", () => ({
+      generateText: generated,
+      Output: { object: ({ schema }: { schema: unknown }) => schema },
+    }));
+    const { context } = chatContext();
+    const result = await chatWithAuroraAgentCore(context, {
+      message: "Plan a cinematic video treatment.", cinematicMode: true,
+    });
+    expect(result.reply).toBe("Here is your video plan.");
+    expect(generated).toHaveBeenCalledTimes(2);
+  });
 });
