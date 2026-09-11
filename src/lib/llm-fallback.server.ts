@@ -1,5 +1,5 @@
 import type { z } from "zod";
-import { routedGenerate } from "@/lib/ai-router";
+import { routedGenerate, type RoutedGenerateDeps } from "@/lib/ai-router";
 
 export type FallbackResult<T> = { provider: string; output: T };
 
@@ -10,7 +10,7 @@ export async function generateWithFallback<T>(args: {
   // Input type is deliberately loose so schemas with .transform() infer T from
   // their OUTPUT type rather than their raw wire shape.
   schema: z.ZodType<T, z.ZodTypeDef, unknown>;
-}): Promise<FallbackResult<T>> {
-  const { provider, output } = await routedGenerate(args);
+}, deps?: RoutedGenerateDeps): Promise<FallbackResult<T>> {
+  const { provider, output } = await routedGenerate(args, deps);
   return { provider, output };
 }

@@ -88,8 +88,9 @@ export function buildProviderRegistry(): Map<string, RouterProvider> {
 
   const add = (p: RouterProvider) => registry.set(p.name, p);
 
-  // Agent text only: explicit primary + zero-cost fallback. These are not
-  // inserted into unrelated category chains or media-generation routing.
+  // Agent brain/skill loop: explicit primary + zero-cost fallback. The model
+  // may return skill calls for Aurora's existing image/video tools; this pair
+  // is not inserted into unrelated category chains or media routing.
   add({
     name: "modelark",
     displayName: "ModelArk",

@@ -9,7 +9,7 @@ import { asSchema, generateText, Output } from "ai";
 import type { z } from "zod";
 import { classifyRequest } from "./classifier";
 import { CATEGORY_CHAINS } from "./chains";
-import { getProviderRegistry } from "./providers";
+import { getProviderRegistry, type RouterProvider } from "./providers";
 import { countHealthyForCategory, isHealthy, recordOutcome } from "./health";
 import { logRouterDecision } from "./logger";
 import type { RequestCategory } from "./categories";
@@ -90,6 +90,12 @@ export type RoutedResult<T> = {
   degraded?: boolean;
 };
 
+export type RoutedGenerateDeps = {
+  logDecision?: typeof logRouterDecision;
+  generateText?: typeof generateText;
+  providerRegistry?: Map<string, RouterProvider>;
+};
+
 export type RoutedGenerateArgs<T> = {
   system: string;
   prompt: string;
@@ -125,9 +131,10 @@ export type RoutedGenerateArgs<T> = {
  */
 export async function routedGenerate<T>(
   args: RoutedGenerateArgs<T>,
-  deps: { logDecision?: typeof logRouterDecision } = {},
+  deps: RoutedGenerateDeps = {},
 ): Promise<RoutedResult<T>> {
   const logDecision = deps.logDecision ?? logRouterDecision;
+  const runGenerateText = deps.generateText ?? generateText;
   const t0 = Date.now();
   if (args.routingMode !== undefined && args.routingMode !== "modelark-free") {
     throw new Error("Unsupported agent routing mode.");
@@ -155,7 +162,7 @@ export async function routedGenerate<T>(
   const chain = agentMode
     ? [...AGENT_BRAIN_CHAIN]
     : [...new Set([...(args.preferredProviders ?? []), ...categoryChain])];
-  const registry = getProviderRegistry();
+  const registry = deps.providerRegistry ?? getProviderRegistry();
 
   // 3. Filter to enabled + healthy providers.
   const candidates = chain
@@ -234,7 +241,7 @@ export async function routedGenerate<T>(
         const gateway = provider.make();
         const model = gateway(provider.model);
 
-        const { experimental_output, response } = await generateText({
+        const { experimental_output, response } = await runGenerateText({
           model,
           system,
           messages,
@@ -269,7 +276,7 @@ export async function routedGenerate<T>(
         return {
           output,
           provider: provider.name,
-          model: response.modelId || provider.model,
+          model: response?.modelId || provider.model,
           category,
           fallbackCount,
           latencyMs,

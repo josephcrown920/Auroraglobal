@@ -170,7 +170,6 @@ function AuroraMarketingStudio() {
       // the background, but its completion is no longer allowed to write or
       // toast in this route.
       operationFenceRef.current?.invalidate();
-      campaignIdRef.current = null;
     };
   }, []);
 
