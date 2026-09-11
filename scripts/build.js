@@ -33,11 +33,11 @@ const fail = (code, ...lines) => {
 };
 
 // 1. Compile. Respect a caller-provided NODE_OPTIONS — the dev-container
-//    prod-build workflow passes 4608 MB, while the 4 GB deploy builder relies
-//    on the 3072 MB default. Keep both in sync with the heap cap in
+//    prod-build workflow passes 4608 MB, while the 8 GB deploy builder relies
+//    on the 4608 MB default. Keep both in sync with the heap cap in
 //    artifacts/web/.replit-artifact/artifact.toml (docs/BACKUP_AND_DR.md).
 const build = run(["node_modules/vite/bin/vite.js", "build"], {
-  NODE_OPTIONS: process.env.NODE_OPTIONS ?? "--max-old-space-size=3072",
+  NODE_OPTIONS: process.env.NODE_OPTIONS ?? "--max-old-space-size=4608",
 });
 if (build.status !== 0) fail(build.status, "vite build failed — no snapshot taken, nothing promoted.");
 

@@ -19,12 +19,12 @@ run = 'echo "Aurora dev server is already running via the Start application work
 
 # Build: delegate to scripts/build.js (the deployer's cached command) so every
 # production build is snapshotted and health-gated (docs/BACKUP_AND_DR.md).
-# Heap cap: 3072 MB for the 4 GB deploy builder — must track app growth
-# together with the prod-build workflow (4608 MB dev container) and the
+# Heap cap: 4608 MB for the 8 GB deploy builder — must track app growth
+# together with the prod-build workflow and the
 # NODE_OPTIONS default inside scripts/build.js and scripts/start-prod.sh.
 [services.production]
-build = [ "bash", "-c", "NODE_OPTIONS=--max-old-space-size=3072 exec bash scripts/replit-node.sh scripts/build.js" ]
-run = [ "bash", "-c", "PORT=8080 HOST=0.0.0.0 exec bash scripts/start-prod.sh" ]
+build = [ "bash", "-c", "NODE_OPTIONS=--max-old-space-size=4608 exec bash scripts/replit-node.sh scripts/build.js" ]
+run = [ "bash", "-c", "NODE_OPTIONS=--max-old-space-size=4608 PORT=8080 HOST=0.0.0.0 exec bash scripts/start-prod.sh" ]
 
 [services.production.health.startup]
 path = "/health"

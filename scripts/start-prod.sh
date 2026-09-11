@@ -34,7 +34,7 @@ PROBE_TIMEOUT="${AURORA_PROBE_TIMEOUT_S:-60}"
 HEALTH_PATH="${AURORA_HEALTH_PATH:-/api/health}"
 # Runtime heap cap — keep in sync with artifact.toml's run env and the build
 # heap cap (docs/BACKUP_AND_DR.md).
-export NODE_OPTIONS="${NODE_OPTIONS:---max-old-space-size=3072}"
+export NODE_OPTIONS="${NODE_OPTIONS:---max-old-space-size=4608}"
 export PORT HOST
 
 boot_ok() { # $1 = build dir

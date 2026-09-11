@@ -1,6 +1,6 @@
 import { authNextSearch } from "@/lib/auth-return-path";
 import { createLazyFileRoute, useNavigate, useSearch } from "@tanstack/react-router";
-import { useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -11,7 +11,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
-import { NbaJoshProductionStudio, NbaJoshProductionStudioSkeleton } from "@/components/video-agent/NbaJoshProductionStudio";
 import { useAuth } from "@/hooks/use-auth";
 import {
   getVideoAgentProject,
@@ -30,8 +29,21 @@ export const Route = createLazyFileRoute("/video-agent-edit")({
   component: VideoEditor,
 });
 
+const NbaJoshProductionStudio = lazy(async () => {
+  const module = await import("@/components/video-agent/NbaJoshProductionStudio");
+  return { default: module.NbaJoshProductionStudio };
+});
+
 type SceneDraft = VideoAgentProjectDto["scenes"][number];
 type Draft = { title: string; scenes: SceneDraft[] };
+
+function NbaJoshStudioLoading() {
+  return (
+    <div className="flex min-h-[60vh] items-center justify-center">
+      <Loader2 className="size-5 animate-spin text-muted-foreground" aria-label="Loading production studio" />
+    </div>
+  );
+}
 
 function sceneProblem(scenes: SceneDraft[]): string | null {
   if (!scenes.length) return "Add at least one scene before rendering";
@@ -372,7 +384,7 @@ function VideoEditor() {
   if (authLoading || !user || projectQuery.isLoading) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
-        {projectQuery.isLoading ? <NbaJoshProductionStudioSkeleton /> : <Loader2 className="size-5 animate-spin text-muted-foreground" />}
+        {projectQuery.isLoading ? <NbaJoshStudioLoading /> : <Loader2 className="size-5 animate-spin text-muted-foreground" />}
       </div>
     );
   }
@@ -396,16 +408,18 @@ function VideoEditor() {
 
   if (project.production?.template === "nba-josh-looping-officers") {
     return (
-      <NbaJoshProductionStudio
-        project={project}
-        production={project.production}
-        onProjectUpdated={(updated) => {
-          if (updated.id === project.id) {
-            queryClient.setQueryData(projectQueryKey, updated);
-          }
-          void projectQuery.refetch();
-        }}
-      />
+      <Suspense fallback={<NbaJoshStudioLoading />}>
+        <NbaJoshProductionStudio
+          project={project}
+          production={project.production}
+          onProjectUpdated={(updated) => {
+            if (updated.id === project.id) {
+              queryClient.setQueryData(projectQueryKey, updated);
+            }
+            void projectQuery.refetch();
+          }}
+        />
+      </Suspense>
     );
   }
 
