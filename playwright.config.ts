@@ -52,7 +52,7 @@ export default defineConfig({
     },
     {
       name: "mobile",
-      testMatch: /mobile-usability\.e2e\.ts/,
+      testMatch: /(?:mobile-usability|navigation-drawer)\.e2e\.ts/,
       use: {
         viewport: { width: 375, height: 667 },
         hasTouch: true,

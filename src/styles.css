@@ -618,8 +618,33 @@ html[data-theme="light"] {
 }
 .phone-drawer-left {
   left: 0;
-  width: 18rem;
-  max-width: 80vw;
+  width: 21rem;
+  max-width: min(88vw, 22rem);
+}
+
+.aurora-navigation-trigger {
+  border: 1px solid oklch(0.60 0.27 295 / 0.22);
+  background:
+    linear-gradient(135deg, oklch(0.15 0.05 285 / 0.96), oklch(0.08 0.026 285 / 0.96)),
+    var(--background);
+  box-shadow:
+    0 12px 32px -20px oklch(0.04 0.03 285 / 0.9),
+    0 0 0 1px oklch(1 0 0 / 0.04) inset;
+  backdrop-filter: blur(20px) saturate(1.35);
+  -webkit-backdrop-filter: blur(20px) saturate(1.35);
+}
+
+.aurora-navigation-drawer {
+  border-right-color: oklch(0.60 0.27 295 / 0.22);
+  background:
+    radial-gradient(circle at 14% 0%, oklch(0.25 0.12 295 / 0.16), transparent 34%),
+    linear-gradient(165deg, oklch(0.075 0.032 285 / 0.995), oklch(0.045 0.018 282 / 0.995) 58%, oklch(0.065 0.026 305 / 0.995)),
+    var(--background);
+  box-shadow:
+    24px 0 70px -34px oklch(0.02 0.02 285 / 0.95),
+    0 0 0 1px oklch(0.60 0.27 295 / 0.08) inset;
+  backdrop-filter: blur(28px) saturate(1.45);
+  -webkit-backdrop-filter: blur(28px) saturate(1.45);
 }
 .phone-panel-col {
   left: 0;
@@ -629,27 +654,6 @@ html[data-theme="light"] {
 
 .aurora-content-shell {
   min-height: 100vh;
-}
-
-/* Desktop navigation is intentionally explicit rather than tied to the
- * disabled Tailwind lg breakpoint. Phones keep the compact menu + tab bar;
- * wider screens get a persistent, keyboard-accessible sidebar. */
-.aurora-desktop-sidebar {
-  display: none;
-}
-
-@media (min-width: 960px) {
-  .aurora-desktop-sidebar {
-    display: flex;
-  }
-
-  .aurora-mobile-chrome {
-    display: none !important;
-  }
-
-  .aurora-with-sidebar {
-    padding-left: 17rem;
-  }
 }
 
 /* Director's Room has its own production rail. It stays horizontally scrollable

@@ -8,6 +8,9 @@ pnpm-debug.log*
 lerna-debug.log*
 
 node_modules
+# Publishing does not need the repository history. Keeping this out of the
+# publish input avoids shipping several gigabytes of Git/LFS objects.
+.git
 dist
 dist-ssr
 .output

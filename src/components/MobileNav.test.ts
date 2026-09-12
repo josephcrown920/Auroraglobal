@@ -84,7 +84,7 @@ describe("MobileNav global Director's Room boundary", () => {
     expectGlobalBranchContract(admin.mobileDrawer);
   });
 
-  test("renders desktop and mobile Sheet branches in an isolated process", async () => {
+  test("renders one all-viewport Sheet branch without a persistent sidebar", async () => {
     const fixture = fileURLToPath(
       new URL("../../scripts/test-fixtures/mobile-nav-render.tsx", import.meta.url),
     );
@@ -110,8 +110,8 @@ describe("MobileNav global Director's Room boundary", () => {
     }
 
     expect(exitCode, `${stdout}\n${stderr}`).toBe(0);
-    expect(stdout).toContain('"desktopRendered":true');
-    expect(stdout).toContain('"mobileDrawerRendered":true');
+    expect(stdout).toContain('"allViewportDrawerRendered":true');
+    expect(stdout).toContain('"persistentDesktopSidebarRendered":false');
 
     // The fixture's incomplete router stub exists only in the child process.
     // If mock.module leaked, this real export would be missing here.

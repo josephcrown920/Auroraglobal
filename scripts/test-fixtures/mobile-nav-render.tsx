@@ -116,15 +116,14 @@ const drawer = html.match(
   /<section aria-label="Mobile navigation drawer"[\s\S]*?<\/section>/,
 )?.[0];
 
-check(desktop, "rendered desktop primary navigation was not found");
 check(drawer, "rendered mobile Sheet drawer was not found");
-assertRenderedGlobalNav(desktop, "desktop sidebar");
-assertRenderedGlobalNav(drawer, "mobile Sheet drawer");
+check(!desktop, "removed persistent desktop sidebar should not render");
+assertRenderedGlobalNav(drawer, "all-viewport Sheet drawer");
 
 console.log(
   JSON.stringify({
     ok: true,
-    desktopRendered: true,
-    mobileDrawerRendered: true,
+    allViewportDrawerRendered: true,
+    persistentDesktopSidebarRendered: false,
   }),
 );

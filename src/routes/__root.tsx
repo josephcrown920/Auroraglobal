@@ -347,7 +347,7 @@ function RootComponent() {
             <SiteImagesProvider>
               <SiteCopyProvider>
                 <div
-                  className={`relative min-h-screen w-full overflow-x-hidden bg-background${hasPersistentNavigation ? " aurora-with-sidebar" : ""}`}
+                  className="relative min-h-screen w-full overflow-x-hidden bg-background"
                 >
                   <div key={pathname} className="aurora-route-enter">
                     <Outlet />
