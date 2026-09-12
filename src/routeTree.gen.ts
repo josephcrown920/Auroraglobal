@@ -148,6 +148,7 @@ import { Route as ApiPublicProviderHealthCheckRouteImport } from './routes/api/p
 import { Route as ApiPublicSiteCopyRouteImport } from './routes/api/public/site-copy'
 import { Route as ApiPublicSiteImagesRouteImport } from './routes/api/public/site-images'
 import { Route as ApiPublicUptimeMonitorRouteImport } from './routes/api/public/uptime-monitor'
+import { Route as ApiPublicViralPreviewRouteImport } from './routes/api/public/viral-preview'
 import { Route as ApiPublicWatchdogRouteImport } from './routes/api/public/watchdog'
 import { Route as ApiPublicWatermarkImageRouteImport } from './routes/api/public/watermark-image'
 import { Route as ApiPublicWatermarkVideoRouteImport } from './routes/api/public/watermark-video'
@@ -929,6 +930,11 @@ const ApiPublicUptimeMonitorRoute = ApiPublicUptimeMonitorRouteImport.update({
   path: '/api/public/uptime-monitor',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicViralPreviewRoute = ApiPublicViralPreviewRouteImport.update({
+  id: '/api/public/viral-preview',
+  path: '/api/public/viral-preview',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicWatchdogRoute = ApiPublicWatchdogRouteImport.update({
   id: '/api/public/watchdog',
   path: '/api/public/watchdog',
@@ -1251,6 +1257,7 @@ export interface FileRoutesByFullPath {
   '/api/public/site-copy': typeof ApiPublicSiteCopyRoute
   '/api/public/site-images': typeof ApiPublicSiteImagesRoute
   '/api/public/uptime-monitor': typeof ApiPublicUptimeMonitorRoute
+  '/api/public/viral-preview': typeof ApiPublicViralPreviewRoute
   '/api/public/watchdog': typeof ApiPublicWatchdogRoute
   '/api/public/watermark-image': typeof ApiPublicWatermarkImageRoute
   '/api/public/watermark-video': typeof ApiPublicWatermarkVideoRoute
@@ -1426,6 +1433,7 @@ export interface FileRoutesByTo {
   '/api/public/site-copy': typeof ApiPublicSiteCopyRoute
   '/api/public/site-images': typeof ApiPublicSiteImagesRoute
   '/api/public/uptime-monitor': typeof ApiPublicUptimeMonitorRoute
+  '/api/public/viral-preview': typeof ApiPublicViralPreviewRoute
   '/api/public/watchdog': typeof ApiPublicWatchdogRoute
   '/api/public/watermark-image': typeof ApiPublicWatermarkImageRoute
   '/api/public/watermark-video': typeof ApiPublicWatermarkVideoRoute
@@ -1603,6 +1611,7 @@ export interface FileRoutesById {
   '/api/public/site-copy': typeof ApiPublicSiteCopyRoute
   '/api/public/site-images': typeof ApiPublicSiteImagesRoute
   '/api/public/uptime-monitor': typeof ApiPublicUptimeMonitorRoute
+  '/api/public/viral-preview': typeof ApiPublicViralPreviewRoute
   '/api/public/watchdog': typeof ApiPublicWatchdogRoute
   '/api/public/watermark-image': typeof ApiPublicWatermarkImageRoute
   '/api/public/watermark-video': typeof ApiPublicWatermarkVideoRoute
@@ -1781,6 +1790,7 @@ export interface FileRouteTypes {
     | '/api/public/site-copy'
     | '/api/public/site-images'
     | '/api/public/uptime-monitor'
+    | '/api/public/viral-preview'
     | '/api/public/watchdog'
     | '/api/public/watermark-image'
     | '/api/public/watermark-video'
@@ -1956,6 +1966,7 @@ export interface FileRouteTypes {
     | '/api/public/site-copy'
     | '/api/public/site-images'
     | '/api/public/uptime-monitor'
+    | '/api/public/viral-preview'
     | '/api/public/watchdog'
     | '/api/public/watermark-image'
     | '/api/public/watermark-video'
@@ -2132,6 +2143,7 @@ export interface FileRouteTypes {
     | '/api/public/site-copy'
     | '/api/public/site-images'
     | '/api/public/uptime-monitor'
+    | '/api/public/viral-preview'
     | '/api/public/watchdog'
     | '/api/public/watermark-image'
     | '/api/public/watermark-video'
@@ -2289,6 +2301,7 @@ export interface RootRouteChildren {
   ApiPublicSiteCopyRoute: typeof ApiPublicSiteCopyRoute
   ApiPublicSiteImagesRoute: typeof ApiPublicSiteImagesRoute
   ApiPublicUptimeMonitorRoute: typeof ApiPublicUptimeMonitorRoute
+  ApiPublicViralPreviewRoute: typeof ApiPublicViralPreviewRoute
   ApiPublicWatchdogRoute: typeof ApiPublicWatchdogRoute
   ApiPublicWatermarkImageRoute: typeof ApiPublicWatermarkImageRoute
   ApiPublicWatermarkVideoRoute: typeof ApiPublicWatermarkVideoRoute
@@ -3305,6 +3318,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicUptimeMonitorRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/viral-preview': {
+      id: '/api/public/viral-preview'
+      path: '/api/public/viral-preview'
+      fullPath: '/api/public/viral-preview'
+      preLoaderRoute: typeof ApiPublicViralPreviewRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/watchdog': {
       id: '/api/public/watchdog'
       path: '/api/public/watchdog'
@@ -3747,6 +3767,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicSiteCopyRoute: ApiPublicSiteCopyRoute,
   ApiPublicSiteImagesRoute: ApiPublicSiteImagesRoute,
   ApiPublicUptimeMonitorRoute: ApiPublicUptimeMonitorRoute,
+  ApiPublicViralPreviewRoute: ApiPublicViralPreviewRoute,
   ApiPublicWatchdogRoute: ApiPublicWatchdogRoute,
   ApiPublicWatermarkImageRoute: ApiPublicWatermarkImageRoute,
   ApiPublicWatermarkVideoRoute: ApiPublicWatermarkVideoRoute,

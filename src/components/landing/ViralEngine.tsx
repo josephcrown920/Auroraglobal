@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { useState, useEffect, useRef } from "react";
-import { ArrowRight, Flame, Sparkles } from "lucide-react";
+import { ArrowRight, Flame, ImageIcon, Sparkles } from "lucide-react";
 import { buildFallbackSpecs, type SpinSpec } from "@/lib/spin-engine";
 import { ResponsiveImage } from "@/components/ui/responsive-image";
 
@@ -71,6 +71,8 @@ export function ViralEngine() {
   const [activeChip, setActiveChip] = useState<string>(HOOK_CHIPS[0].topic);
   const [customText, setCustomText] = useState("");
   const [loading, setLoading] = useState(false);
+  const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
+  const [previewImageLoading, setPreviewImageLoading] = useState(true);
   const [specs, setSpecs] = useState<SpinSpec[]>(() =>
     buildFallbackSpecs(HOOK_CHIPS[0].topic, PREVIEW_COUNT),
   );
@@ -87,6 +89,55 @@ export function ViralEngine() {
     }, 50);
     return () => clearTimeout(t);
   }, [debouncedTopic]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    let active = true;
+    const timeout = setTimeout(() => controller.abort(), 7_000);
+    setPreviewImageLoading(true);
+
+    void fetch("/api/public/viral-preview", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ topic: debouncedTopic }),
+      signal: controller.signal,
+    })
+      .then(async (response) => {
+        if (!response.ok) throw new Error("Preview unavailable");
+        return (await response.json()) as { url?: unknown };
+      })
+      .then(({ url }) => {
+        if (!active) return;
+        if (typeof url !== "string" || !url.startsWith("https://image.pollinations.ai/")) {
+          throw new Error("Invalid preview URL");
+        }
+        setPreviewImageUrl(url);
+      })
+      .catch(() => {
+        if (active) {
+          setPreviewImageUrl(null);
+          setPreviewImageLoading(false);
+        }
+      })
+      .finally(() => {
+        clearTimeout(timeout);
+      });
+
+    return () => {
+      active = false;
+      clearTimeout(timeout);
+      controller.abort();
+    };
+  }, [debouncedTopic]);
+
+  useEffect(() => {
+    if (!previewImageUrl || !previewImageLoading) return;
+    const timeout = setTimeout(() => {
+      setPreviewImageUrl(null);
+      setPreviewImageLoading(false);
+    }, 8_000);
+    return () => clearTimeout(timeout);
+  }, [previewImageUrl, previewImageLoading]);
 
   const handleChipClick = (chip: typeof HOOK_CHIPS[0]) => {
     setActiveChip(chip.topic);
@@ -195,6 +246,46 @@ export function ViralEngine() {
               ×
             </button>
           )}
+        </div>
+
+        <div
+          className="relative mb-3 aspect-[4/5] overflow-hidden rounded-3xl border border-white/10 bg-zinc-900/70"
+          aria-live="polite"
+          aria-label="Rendered post preview"
+        >
+          {previewImageUrl && (
+            <img
+              key={previewImageUrl}
+              src={previewImageUrl}
+              alt={`AI-rendered TikTok campaign preview for ${debouncedTopic}`}
+              className="h-full w-full object-cover"
+              loading="lazy"
+              onLoad={() => setPreviewImageLoading(false)}
+              onError={() => {
+                setPreviewImageUrl(null);
+                setPreviewImageLoading(false);
+              }}
+            />
+          )}
+          {previewImageLoading && (
+            <div className="absolute inset-0 animate-pulse bg-gradient-to-br from-brand/15 via-zinc-900 to-zinc-950" />
+          )}
+          {!previewImageLoading && !previewImageUrl && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-zinc-950/75 px-8 text-center">
+              <ImageIcon className="size-7 text-zinc-600" aria-hidden="true" />
+              <p className="text-xs font-semibold text-zinc-400">Visual preview is taking a break</p>
+              <p className="text-[11px] text-zinc-600">Your post ideas are still ready below.</p>
+            </div>
+          )}
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/85 via-transparent to-black/10" />
+          <div className="absolute bottom-0 left-0 right-0 p-4">
+            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-brand">
+              AI-rendered preview
+            </p>
+            <p className="mt-1 line-clamp-2 text-sm font-semibold text-white">
+              {specs[0]?.hook}
+            </p>
+          </div>
         </div>
 
         <div className="grid grid-cols-2 gap-3 mb-7" aria-live="polite" aria-label="Post preview">
