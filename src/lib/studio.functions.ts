@@ -21,9 +21,11 @@ import {
   assertHdEntitlement,
   PREVIEW_RESOLUTION,
   PREVIEW_MAX_SECONDS,
+  getUserTier,
 } from "./cost-guardrails.server";
 import { DURATION_CAPS } from "./billing.plans";
 import { videoPreviewFingerprint } from "./motion-preview-fingerprint.server";
+import { NATIVE_SEEDANCE_25 } from "./byteplus-video-contract";
 
 // Sourced from the shared price list (src/lib/pricing.ts) rather than a local
 // literal, so a future repricing of the "image" base can't silently drift
@@ -217,6 +219,15 @@ const VideoSchema = z.object({
   },
 );
 
+/** Models whose hosted adapters require the subscriber-only routing fence. */
+export function isSubscriberGatedVideoModel(modelKey: string): boolean {
+  return (
+    /^seedance(?:-|$)/i.test(modelKey) ||
+    /^kling(?:-|$)/i.test(modelKey) ||
+    modelKey === NATIVE_SEEDANCE_25
+  );
+}
+
 const CAMERA_HINTS: Record<string, string> = {
   static: "locked-off static camera, no movement",
   zoom_in: "slow smooth dolly zoom in toward the subject",
@@ -243,6 +254,7 @@ type EnqueueVideoDeps = {
   reserve?: typeof reserveGenerationJob;
   markPreview?: (generationId: string, fingerprint?: string) => Promise<void>;
   track?: typeof trackServer;
+  getTier?: typeof getUserTier;
 };
 
 type VideoPreviewBindingRow = PreviewRowCheck & {
@@ -331,6 +343,17 @@ export async function _enqueueVideoFromImage(
   const assertOwned = deps.assertOwned ?? assertOwnedReferenceImage;
   await assertOwned(data.imageUrl, userId);
   if (data.endFrameUrl) await assertOwned(data.endFrameUrl, userId);
+  const subscriberGated = isSubscriberGatedVideoModel(data.modelKey);
+  if (subscriberGated) {
+    // Admins may exercise paid provider paths for operational verification.
+    // Everyone else must have an active Pro entitlement before we persist the
+    // subscriber-only routing flags or reserve credits.
+    const admin = await isAdmin(userId);
+    const tier = admin ? "pro" : await (deps.getTier ?? getUserTier)(userId);
+    if (tier !== "pro") {
+      throw new Error("An active Pro subscription is required for this video model");
+    }
+  }
 
   const cameraHint = data.cameraMovement ? CAMERA_HINTS[data.cameraMovement] : null;
   const fullPrompt = cameraHint ? `${data.prompt}. Camera: ${cameraHint}.` : data.prompt;
@@ -419,6 +442,9 @@ export async function _enqueueVideoFromImage(
     requestedResolution: data.resolution,
     ...(previewPass ? { previewFingerprint: fingerprint } : {}),
     ...(previewPass ? { previewOnly: true } : {}),
+    ...(subscriberGated
+      ? { forSubscriber: true, pinnedModelOnly: true }
+      : {}),
   });
   if (previewPass) {
     const markPreview = deps.markPreview ?? markGenerationPreview;

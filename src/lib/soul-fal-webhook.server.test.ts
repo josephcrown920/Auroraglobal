@@ -1,6 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
 import { createHash, generateKeyPairSync, sign as cryptoSign } from "crypto";
-import { verifySoulFalWebhook, resetJwksCacheForTests } from "./soul-fal-webhook.server";
+import {
+  verifySoulFalWebhook as verifySoulFalWebhookImpl,
+  resetJwksCacheForTests,
+} from "./soul-fal-webhook.server";
 
 // Real Ed25519 key pair so signatures verify against a JWKS response the test
 // controls — no reliance on fal.ai's live endpoint.
@@ -17,24 +20,28 @@ function jwksResponse(): Response {
   return new Response(JSON.stringify({ keys: [{ crv: "Ed25519", x: publicJwk.x }] }), { status: 200 });
 }
 
-let originalFetch: typeof fetch;
+let jwksFetcher: typeof fetch;
 let originalEnv: string | undefined;
 
 beforeEach(() => {
-  originalFetch = globalThis.fetch;
   originalEnv = process.env.SOUL_FAL_WEBHOOK_SECRET;
   delete process.env.SOUL_FAL_WEBHOOK_SECRET;
   resetJwksCacheForTests();
-  globalThis.fetch = mock(async () => jwksResponse()) as unknown as typeof fetch;
+  jwksFetcher = mock(async () => jwksResponse()) as unknown as typeof fetch;
 });
 
 afterEach(() => {
-  globalThis.fetch = originalFetch;
   if (originalEnv === undefined) delete process.env.SOUL_FAL_WEBHOOK_SECRET;
   else process.env.SOUL_FAL_WEBHOOK_SECRET = originalEnv;
 });
 
-describe("verifySoulFalWebhook", () => {
+function verifySoulFalWebhook(request: Request, fetcher = jwksFetcher) {
+  return verifySoulFalWebhookImpl(request, { fetcher });
+}
+
+// These tests replace process-global fetch to control the JWKS response. Keep
+// them serial so the unavailable-JWKS case cannot race a valid-signature case.
+describe.serial("verifySoulFalWebhook", () => {
   it("rejects a request missing signature headers", async () => {
     const result = await verifySoulFalWebhook(
       new Request("https://example.com/api/soul/fal-webhook", { method: "POST", body: "{}" }),
@@ -62,7 +69,7 @@ describe("verifySoulFalWebhook", () => {
   });
 
   it("returns 503 (not 401) when JWKS verification itself is unavailable", async () => {
-    globalThis.fetch = mock(async () => new Response("down", { status: 500 })) as unknown as typeof fetch;
+    jwksFetcher = mock(async () => new Response("down", { status: 500 })) as unknown as typeof fetch;
     const body = JSON.stringify({ request_id: "req_1", status: "OK" });
     const timestamp = Math.floor(Date.now() / 1000);
     const signature = signWebhook("req_1", "user_1", timestamp, body);

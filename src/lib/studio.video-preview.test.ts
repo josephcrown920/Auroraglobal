@@ -51,6 +51,9 @@ function noSpendDeps(
 ): VideoDeps {
   return {
     assertOwned: async () => {},
+    // Seedance is subscriber-gated in production. Keep these preview-binding
+    // tests focused on fingerprint validation by granting the intended tier.
+    getTier: async () => "pro",
     // This seam represents the generic gate. The strict video binding below
     // must reject before the reserve seam can ever be reached.
     resolveGate: async () => ({ confirmed: true }),

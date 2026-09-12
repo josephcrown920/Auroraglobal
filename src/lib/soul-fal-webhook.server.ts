@@ -30,15 +30,15 @@ export function resetJwksCacheForTests() {
   jwksCache = null;
 }
 
-async function fetchJwks(): Promise<Array<{ x: string }>> {
-  if (jwksCache && Date.now() - jwksCache.fetchedAt < JWKS_TTL_MS) return jwksCache.keys;
-  const res = await fetch(JWKS_URL);
+async function fetchJwks(fetcher: typeof fetch, cache: boolean): Promise<Array<{ x: string }>> {
+  if (cache && jwksCache && Date.now() - jwksCache.fetchedAt < JWKS_TTL_MS) return jwksCache.keys;
+  const res = await fetcher(JWKS_URL);
   if (!res.ok) throw new Error(`JWKS fetch failed [${res.status}]`);
   const json = (await res.json()) as { keys?: Array<{ x?: string; crv?: string }> };
   const keys = (json.keys ?? []).filter((k) => k.crv === "Ed25519" && typeof k.x === "string") as Array<{
     x: string;
   }>;
-  jwksCache = { keys, fetchedAt: Date.now() };
+  if (cache) jwksCache = { keys, fetchedAt: Date.now() };
   return keys;
 }
 
@@ -48,10 +48,12 @@ async function verifyFalSignature(
   timestamp: string,
   bodyDigestHex: string,
   signatureHex: string,
+  fetcher: typeof fetch,
+  cacheJwks: boolean,
 ): Promise<boolean> {
   const message = Buffer.from(`${requestId}\n${userId}\n${timestamp}\n${bodyDigestHex}`);
   const signature = Buffer.from(signatureHex, "hex");
-  const keys = await fetchJwks();
+  const keys = await fetchJwks(fetcher, cacheJwks);
   for (const key of keys) {
     try {
       const publicKey = createPublicKey({
@@ -70,13 +72,24 @@ export type SoulFalWebhookVerification =
   | { ok: true; requestId: string; body: string }
   | { ok: false; status: number; message: string };
 
+type SoulFalWebhookOptions = {
+  /**
+   * Test-only transport seam. Production callers omit this so the published
+   * fal JWKS endpoint and its process cache remain the defaults.
+   */
+  fetcher?: typeof fetch;
+};
+
 /**
  * Verify an incoming fal.ai webhook Request end-to-end (secret gate, header
  * presence, timestamp window, Ed25519 signature). Returns the raw body text
  * on success so the caller (route dispatcher) can parse and act on it — kept
  * separate so verification is unit-testable without touching Supabase.
  */
-export async function verifySoulFalWebhook(request: Request): Promise<SoulFalWebhookVerification> {
+export async function verifySoulFalWebhook(
+  request: Request,
+  options: SoulFalWebhookOptions = {},
+): Promise<SoulFalWebhookVerification> {
   const url = new URL(request.url);
   const requiredSecret = process.env.SOUL_FAL_WEBHOOK_SECRET;
   if (requiredSecret && url.searchParams.get("secret") !== requiredSecret) {
@@ -97,9 +110,18 @@ export async function verifySoulFalWebhook(request: Request): Promise<SoulFalWeb
     return { ok: false, status: 401, message: "Stale timestamp" };
   }
   const bodyDigest = createHash("sha256").update(body).digest("hex");
+  const fetcher = options.fetcher ?? fetch;
 
   try {
-    const valid = await verifyFalSignature(requestId, userId, timestamp, bodyDigest, signature);
+    const valid = await verifyFalSignature(
+      requestId,
+      userId,
+      timestamp,
+      bodyDigest,
+      signature,
+      fetcher,
+      !options.fetcher,
+    );
     if (!valid) return { ok: false, status: 401, message: "Invalid signature" };
   } catch (err) {
     console.error("[soul/fal-webhook] JWKS verification error", err);

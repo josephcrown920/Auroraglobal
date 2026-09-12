@@ -1,5 +1,11 @@
 import { describe, expect, it } from "bun:test";
-import { _enqueuePerformanceShot, _enqueueVideoFromImage, COST_IMAGE, isDemoSelfieUrl } from "./studio.functions";
+import {
+  _enqueuePerformanceShot,
+  _enqueueVideoFromImage,
+  COST_IMAGE,
+  isDemoSelfieUrl,
+  isSubscriberGatedVideoModel,
+} from "./studio.functions";
 import { assertOwnedReferenceImage } from "./url-guard";
 
 // The reference-image ownership guard was moved INTO _enqueuePerformanceShot so
@@ -223,8 +229,67 @@ describe("_enqueueVideoFromImage — reference ownership guard runs before any g
         throw new Error("guard-only test stop");
       },
     });
+    data.modelKey = "veo-3-fast";
     await expect(
-      _enqueueVideoFromImage("user-1", data, { assertOwned: assertOwnedReferenceImage }),
+      _enqueueVideoFromImage(
+        "user-1",
+        data,
+        { assertOwned: assertOwnedReferenceImage },
+      ),
     ).rejects.toThrow("guard-only test stop");
+  });
+});
+
+describe("subscriber-gated video routing", () => {
+  const seedanceBase = {
+    prompt: "animate this still",
+    duration: 5,
+    resolution: "720p" as const,
+    modelKey: "seedance-2.0-fast",
+    cameraMovement: null,
+    endFrameUrl: null,
+    confirmPreviewId: null,
+    templateId: null,
+  };
+
+  it("recognizes Seedance, Kling, and native Seedance keys", () => {
+    expect(isSubscriberGatedVideoModel("seedance-2.0-fast")).toBe(true);
+    expect(isSubscriberGatedVideoModel("kling-3.0")).toBe(true);
+    expect(isSubscriberGatedVideoModel("byteplus/seedance-2.5")).toBe(true);
+    expect(isSubscriberGatedVideoModel("veo-3-fast")).toBe(false);
+  });
+
+  it("persists the subscriber and pinned fences for a Pro Seedance preview", async () => {
+    const reserveCalls: Array<Record<string, unknown>> = [];
+    const out = await _enqueueVideoFromImage(
+      "user-1",
+      {
+        ...seedanceBase,
+        imageUrl: `${STUDIO}user-1/uploads/start.jpg`,
+      },
+      {
+        assertOwned: async () => {},
+        getTier: async () => "pro",
+        resolveGate: async () => ({ confirmed: false }),
+        reserve: async (_userId, _kind, _prompt, _amount, payload) => {
+          reserveCalls.push(payload);
+          return { jobId: "job-video", generationId: "gen-video" };
+        },
+        markPreview: async () => {},
+        track: async () => {},
+      },
+    );
+
+    expect(out).toEqual({
+      jobId: "job-video",
+      generationId: "gen-video",
+      preview: true,
+    });
+    expect(reserveCalls[0]).toMatchObject({
+      model: "seedance-2.0-fast",
+      forSubscriber: true,
+      pinnedModelOnly: true,
+      previewOnly: true,
+    });
   });
 });

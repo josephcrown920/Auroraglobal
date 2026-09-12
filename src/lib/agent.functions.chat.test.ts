@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, it, mock } from "bun:test";
 import { z } from "zod";
 import { classifyRequest } from "./ai-router/classifier";
+import { routedGenerate } from "./ai-router";
+import type { RouterProvider } from "./ai-router/providers";
 import { chatWithAuroraAgentCore, decodeAgentChatSkillMeta } from "./agent.functions";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
@@ -11,6 +13,16 @@ const ChatResultSchema = z.object({
   memoryUpdate: z.null(),
   skillCall: z.null(),
 });
+
+function provider(name: string): RouterProvider {
+  return {
+    name,
+    displayName: name,
+    enabled: true,
+    model: name,
+    make: () => ((modelId: string) => ({ model: modelId, modelId, provider: name })) as never,
+  };
+}
 
 function chatContext() {
   const inserts: unknown[][] = [];
@@ -274,11 +286,11 @@ describe("Aurora chat router integration", () => {
     expect(result.model).toBe("openrouter/free");
   });
 
-  it("uses Auto Router first for the real Video Agent chat and keeps other providers as fallback", async () => {
-    setProviderRegistryForTest(new Map([
-      ["openrouter-auto", { ...provider("openrouter-auto"), model: "openrouter/auto" }],
-      ["claude", provider("claude")],
-    ]));
+  it("uses ModelArk first for the real Video Agent chat and keeps free OpenRouter as fallback", async () => {
+    const providerRegistry = new Map([
+      ["modelark", { ...provider("modelark"), model: "modelark-test" }],
+      ["openrouter-free", { ...provider("openrouter-free"), model: "openrouter/free" }],
+    ]);
     const generated = mock(async ({ model }: { model: { model: string } }) => ({
       experimental_output: {
         reply: `Planned by ${model.model}`,
@@ -286,40 +298,43 @@ describe("Aurora chat router integration", () => {
       },
       response: { modelId: "test-provider/actual-model" },
     }));
-    mock.module("ai", () => ({
-      generateText: generated,
-      Output: { object: ({ schema }: { schema: unknown }) => schema },
-    }));
     const { context } = chatContext();
-    const result = await chatWithAuroraAgentCore(context, {
-      message: "Plan a cinematic avatar video.",
-      cinematicMode: true,
-    });
-    expect(result.reply).toBe("Planned by openrouter/auto");
+    const result = await chatWithAuroraAgentCore(
+      context,
+      { message: "Plan a cinematic avatar video.", cinematicMode: true },
+      {
+        generate: ((args) =>
+          routedGenerate(args, { providerRegistry, generateText: generated as never })) as never,
+        loadSkills: async () => ({}) as never,
+      },
+    );
+    expect(result.reply).toBe("Planned by modelark-test");
     expect(generated).toHaveBeenCalledTimes(1);
     const request = generated.mock.calls[0]?.[0] as { maxOutputTokens?: number } | undefined;
     expect(request?.maxOutputTokens).toBe(4096);
   });
 
-  it("uses a working fallback when Auto Router is unavailable", async () => {
-    setProviderRegistryForTest(new Map([
-      ["openrouter-auto", { ...provider("openrouter-auto"), model: "openrouter/auto" }],
-      ["claude", provider("claude")],
-    ]));
+  it("uses a working free fallback when ModelArk is unavailable", async () => {
+    const providerRegistry = new Map([
+      ["modelark", { ...provider("modelark"), model: "modelark-test" }],
+      ["openrouter-free", { ...provider("openrouter-free"), model: "openrouter/free" }],
+    ]);
     const generated = mock(async ({ model }: { model: { model: string } }) => {
-      if (model.model === "openrouter/auto") throw new Error("model is not available");
+      if (model.model === "modelark-test") throw new Error("model is not available");
       return { experimental_output: {
         reply: "Here is your video plan.", plan: null, memoryUpdate: null, skillCall: null,
       } };
     });
-    mock.module("ai", () => ({
-      generateText: generated,
-      Output: { object: ({ schema }: { schema: unknown }) => schema },
-    }));
     const { context } = chatContext();
-    const result = await chatWithAuroraAgentCore(context, {
-      message: "Plan a cinematic video treatment.", cinematicMode: true,
-    });
+    const result = await chatWithAuroraAgentCore(
+      context,
+      { message: "Plan a cinematic video treatment.", cinematicMode: true },
+      {
+        generate: ((args) =>
+          routedGenerate(args, { providerRegistry, generateText: generated as never })) as never,
+        loadSkills: async () => ({}) as never,
+      },
+    );
     expect(result.reply).toBe("Here is your video plan.");
     expect(generated).toHaveBeenCalledTimes(2);
   });

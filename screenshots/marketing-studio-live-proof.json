@@ -1,0 +1,12 @@
+{
+  "flow": "Marketing Studio live Reel",
+  "status": "succeeded",
+  "requestedModel": "seedance-2.0-fast",
+  "servingProvider": "byteplus",
+  "routingFlags": {
+    "forSubscriber": true,
+    "pinnedModelOnly": true
+  },
+  "renderedScreenshot": "marketing-studio-final.jpg",
+  "verifiedBy": "LIVE_CAMPAIGN=1 LIVE_RENDERS=1 verify-marketing-studio-ui.ts"
+}
