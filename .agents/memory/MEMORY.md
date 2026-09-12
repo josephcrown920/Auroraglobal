@@ -99,6 +99,7 @@
 - [Aura ×10 rebase](aura-x10-rebase.md) — DB+code are new-scale (guarded by rebase_events key); profiles.credits is bigint, plpgsql locals reading it must be bigint; SQL grant functions duplicate TS constants.
 - [Aurora Partners referral loop](aurora-partners-referral.md) — partners.ts constants are the only copy source; grants dedup via partial ledger index + 23505=no-op; validate code BEFORE the CAS attach.
 - [Smoke steps must share production dispatch](smoke-shared-dispatch.md) — reviewers reject "mirror" reconstructions; extract _enqueue*/_dispatch* helpers called by BOTH the handler and the smoke runner.
+- [Stale Vite deps block hydration](vite-outdated-optimize-dep-hydration.md) — page renders SSR but never hydrates + console `504 Outdated Optimize Dep` = restart the dev workflow, not an app bug.
 - [Vite dep optimizer crawl deadlock](vite-dep-optimizer-crawl-deadlock.md) — deps_temp_* piling up with no deps/ = optimizer never commits; dev hangs on optimized-dep imports; fix holdUntilCrawlEnd:false.
 - [vite optimizeDeps vs TanStack Start](vite-optimizedeps-start-hydration.md) — "@tanstack/react-start" in optimizeDeps.include overrides Start's exclude → AsyncLocalStorage crash → app-wide dead UI.
 - [HF account inference credits](hf-account-credit-block.md) — HF_TOKEN valid but free-tier monthly inference credits depleted → ALL router models 402; account-level, not a slug/code bug; needs PRO or billing.

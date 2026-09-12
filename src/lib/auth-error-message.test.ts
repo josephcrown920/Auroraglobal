@@ -1,5 +1,26 @@
 import { describe, expect, test } from "bun:test";
-import { describeAuthError } from "./auth-error-message";
+import { classifyAuthError, describeAuthError } from "./auth-error-message";
+
+describe("classifyAuthError", () => {
+  test("tags the failure kind so the form can offer the right next step", () => {
+    expect(classifyAuthError(new Error("Invalid login credentials"), "x").kind).toBe("invalid_credentials");
+    expect(classifyAuthError(new TypeError("Failed to fetch"), "x").kind).toBe("network");
+    expect(classifyAuthError(new Error("Email not confirmed"), "x").kind).toBe("email_not_confirmed");
+    expect(classifyAuthError(new Error("User already registered"), "x").kind).toBe("already_registered");
+    expect(classifyAuthError(new Error("Request rate limit reached"), "x").kind).toBe("rate_limited");
+    expect(classifyAuthError(new Error("provider is not enabled"), "x").kind).toBe("provider_disabled");
+    expect(classifyAuthError(new Error("Missing Supabase environment"), "x").kind).toBe("unavailable");
+    expect(classifyAuthError(new Error("Signups not allowed"), "x").kind).toBe("unknown");
+    expect(classifyAuthError(undefined, "Sign-in failed")).toEqual({ kind: "unknown", message: "Sign-in failed" });
+  });
+
+  test("message matches describeAuthError exactly for every kind", () => {
+    for (const raw of ["Invalid login credentials", "Failed to fetch", "Email not confirmed", "whatever else"]) {
+      const err = new Error(raw);
+      expect(classifyAuthError(err, "x").message).toBe(describeAuthError(err, "x"));
+    }
+  });
+});
 
 describe("describeAuthError", () => {
   test("maps Supabase's bad-credentials string to an actionable sentence", () => {

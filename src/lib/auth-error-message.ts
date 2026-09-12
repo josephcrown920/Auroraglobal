@@ -8,8 +8,32 @@
  * shown verbatim — hiding them would hide real misconfiguration.
  */
 export function describeAuthError(err: unknown, fallback: string): string {
+  return classifyAuthError(err, fallback).message;
+}
+
+/**
+ * Coarse category of an auth failure, for UI that needs to do more than show
+ * a sentence (e.g. offer "Forgot password?" only when the password was wrong).
+ * The wording for each kind lives in `classifyAuthError`; keep the two in sync.
+ */
+export type AuthErrorKind =
+  | "network"
+  | "invalid_credentials"
+  | "email_not_confirmed"
+  | "already_registered"
+  | "rate_limited"
+  | "provider_disabled"
+  | "unavailable"
+  | "unknown";
+
+export interface ClassifiedAuthError {
+  kind: AuthErrorKind;
+  message: string;
+}
+
+export function classifyAuthError(err: unknown, fallback: string): ClassifiedAuthError {
   const raw = extractMessage(err);
-  if (!raw) return fallback;
+  if (!raw) return { kind: "unknown", message: fallback };
   const message = raw.trim();
   const lower = message.toLowerCase();
 
@@ -19,27 +43,45 @@ export function describeAuthError(err: unknown, fallback: string): string {
     ) ||
     (typeof navigator !== "undefined" && navigator.onLine === false)
   ) {
-    return "Can't reach the sign-in service right now. Check your connection and try again.";
+    return {
+      kind: "network",
+      message: "Can't reach the sign-in service right now. Check your connection and try again.",
+    };
   }
   if (lower.includes("invalid login credentials") || lower.includes("invalid_credentials")) {
-    return "Incorrect email or password. Check both and try again, or use “Forgot password?”.";
+    return {
+      kind: "invalid_credentials",
+      message: "Incorrect email or password. Check both and try again, or use “Forgot password?”.",
+    };
   }
   if (lower.includes("email not confirmed")) {
-    return "Confirm your email first — open the link we sent you, then sign in.";
+    return {
+      kind: "email_not_confirmed",
+      message: "Confirm your email first — open the link we sent you, then sign in.",
+    };
   }
   if (lower.includes("user already registered") || lower.includes("already been registered")) {
-    return "An account with this email already exists. Sign in instead, or reset your password.";
+    return {
+      kind: "already_registered",
+      message: "An account with this email already exists. Sign in instead, or reset your password.",
+    };
   }
   if (lower.includes("rate limit") || lower.includes("too many requests") || lower.includes("over_request_rate_limit")) {
-    return "Too many attempts in a row. Wait a minute, then try again.";
+    return { kind: "rate_limited", message: "Too many attempts in a row. Wait a minute, then try again." };
   }
   if (lower.includes("provider is not enabled") || lower.includes("unsupported provider")) {
-    return "That sign-in provider isn't available right now — use your email and password instead.";
+    return {
+      kind: "provider_disabled",
+      message: "That sign-in provider isn't available right now — use your email and password instead.",
+    };
   }
   if (lower.includes("missing supabase environment")) {
-    return "Sign-in isn't available on this deployment right now. Please try again later.";
+    return {
+      kind: "unavailable",
+      message: "Sign-in isn't available on this deployment right now. Please try again later.",
+    };
   }
-  return message;
+  return { kind: "unknown", message };
 }
 
 function extractMessage(err: unknown): string | undefined {
