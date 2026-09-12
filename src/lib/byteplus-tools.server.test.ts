@@ -7,6 +7,7 @@ import { BytePlusError } from "./byteplus.server";
 
 const realFetch = globalThis.fetch;
 const savedKey = process.env.BYTEPLUS_API_KEY;
+const savedArkKey = process.env.ARK_API_KEY;
 
 function response(body: string, status = 200, headers?: Record<string, string>): Response {
   return new Response(body, { status, headers });
@@ -15,6 +16,7 @@ function response(body: string, status = 200, headers?: Record<string, string>):
 describe("byteplus-tools.server", () => {
   beforeEach(() => {
     process.env.BYTEPLUS_API_KEY = "test-secret";
+    delete process.env.ARK_API_KEY;
     delete process.env.BYTEPLUS_BASE_URL;
   });
 
@@ -22,6 +24,8 @@ describe("byteplus-tools.server", () => {
     globalThis.fetch = realFetch;
     if (savedKey === undefined) delete process.env.BYTEPLUS_API_KEY;
     else process.env.BYTEPLUS_API_KEY = savedKey;
+    if (savedArkKey === undefined) delete process.env.ARK_API_KEY;
+    else process.env.ARK_API_KEY = savedArkKey;
   });
 
   it("uses the exact Dola Responses schema with tools disabled by default", async () => {
@@ -67,6 +71,26 @@ describe("byteplus-tools.server", () => {
     await expect(
       bytePlusDolaResponse({ text: "x", publicRepo: "https://example.com/private" }),
     ).rejects.toThrow(/public GitHub owner\/repository/);
+  });
+
+  it("retries Dola once with ARK_API_KEY after a rejected legacy BytePlus key", async () => {
+    process.env.BYTEPLUS_API_KEY = "legacy-key";
+    process.env.ARK_API_KEY = "working-ark-key";
+    const authorizationHeaders: string[] = [];
+    globalThis.fetch = mock(async (_input, init) => {
+      authorizationHeaders.push(new Headers(init?.headers).get("authorization") ?? "");
+      if (authorizationHeaders.length === 1) {
+        return response(JSON.stringify({ error: { code: "AuthenticationError" } }), 401);
+      }
+      return response('data: {"type":"response.output_text.delta","delta":"ok"}\n\n');
+    }) as typeof fetch;
+
+    const result = await bytePlusDolaResponse({ text: "Make a plan" });
+    expect(result.outputText).toBe("ok");
+    expect(authorizationHeaders).toEqual([
+      "Bearer legacy-key",
+      "Bearer working-ark-key",
+    ]);
   });
 
   it("posts a joint text and image input to Skylark and validates its vector", async () => {

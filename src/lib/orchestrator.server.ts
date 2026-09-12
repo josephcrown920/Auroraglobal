@@ -1387,6 +1387,26 @@ const BYTEPLUS_MAP: Record<string, BytePlusEntry> = (() => {
   return out;
 })();
 
+/** Return a ModelArk-compatible canvas for an image model and aspect ratio. */
+export function getBytePlusImageSize(modelId: string, aspectRatio?: string): string | undefined {
+  if (modelId === "seedream-4-5-251128") {
+    // Seedream 4.5 requires at least 3,686,400 pixels. The old shared
+    // 2048x1152 preset is valid for other Seed models but is rejected here.
+    return {
+      "1:1": "2048x2048",
+      "16:9": "2560x1440",
+      "9:16": "1440x2560",
+      "4:3": "2304x1728",
+      "3:4": "1728x2304",
+    }[aspectRatio ?? "1:1"] ?? "2048x2048";
+  }
+  return {
+    "1:1": "2048x2048",
+    "16:9": "2048x1152",
+    "9:16": "1152x2048",
+  }[aspectRatio ?? ""];
+}
+
 const byteplus: ProviderAdapter = {
   name: "byteplus",
   supports: (r) => {
@@ -1420,17 +1440,13 @@ const byteplus: ProviderAdapter = {
     if (m.kind === "image") {
       // Map our canonical aspect-ratio token to the WxH size the BytePlus
       // images/generations endpoint accepts (Seedream uses "NxN" not "16:9").
-      const aspectToSize: Record<string, string> = {
-        "1:1": "2048x2048",
-        "16:9": "2048x1152",
-        "9:16": "1152x2048",
-      };
       const url = await bytePlusImage({
         model: m.modelId,
         prompt: r.prompt ?? "",
         imageUrls: r.imageUrls,
-        ...(r.aspectRatio && aspectToSize[r.aspectRatio]
-          ? { size: aspectToSize[r.aspectRatio] }
+        ...(m.modelId === "dola-seedream-5-0-pro-260628" ? { timeoutMs: 120_000 } : {}),
+        ...(getBytePlusImageSize(m.modelId, r.aspectRatio)
+          ? { size: getBytePlusImageSize(m.modelId, r.aspectRatio) }
           : {}),
       });
       return { url, endpoint: `byteplus:${m.modelId}` };

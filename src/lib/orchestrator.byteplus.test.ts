@@ -73,7 +73,13 @@ mock.module("./hf.server", () => ({
   HF_ROUTER_BASE: "https://router.huggingface.co/v1",
 }));
 
-const { orchestrate, markSuccess, getCandidateModels, isProviderAllowed } = await import("./orchestrator.server");
+const {
+  orchestrate,
+  markSuccess,
+  getCandidateModels,
+  isProviderAllowed,
+  getBytePlusImageSize,
+} = await import("./orchestrator.server");
 
 function fakeResponse(opts: {
   ok?: boolean;
@@ -281,6 +287,12 @@ describe("orchestrate — ByteDance direct preference for Seed models", () => {
     expect(res.provider).toBe("byteplus");
     expect(res.endpoint).toBe("byteplus:seedream-4-5-251128");
     expect(res.url).toBe("https://byteplus/img45.png");
+  });
+
+  it("uses Seedream 4.5's minimum pixel dimensions for wide and tall images", () => {
+    expect(getBytePlusImageSize("seedream-4-5-251128", "16:9")).toBe("2560x1440");
+    expect(getBytePlusImageSize("seedream-4-5-251128", "9:16")).toBe("1440x2560");
+    expect(getBytePlusImageSize("seedream-4-0-250828", "16:9")).toBe("2048x1152");
   });
 
   it("serves the newest Seedream 5.0 model ByteDance-direct (no Replicate mapping exists)", async () => {

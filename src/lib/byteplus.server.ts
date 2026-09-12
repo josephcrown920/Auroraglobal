@@ -139,6 +139,7 @@ export async function bytePlusImage(opts: {
   imageUrls?: string[];
   size?: string;
   watermark?: boolean;
+  timeoutMs?: number;
 }): Promise<string> {
   const body: Record<string, unknown> = {
     model: opts.model,
@@ -156,7 +157,9 @@ export async function bytePlusImage(opts: {
       method: "POST",
       headers: authHeaders(key),
       body: JSON.stringify(body),
-      signal: AbortSignal.timeout(45_000),
+      signal: AbortSignal.timeout(
+        Math.max(10_000, Math.min(opts.timeoutMs ?? 45_000, 120_000)),
+      ),
     }),
   );
   if (!res.ok) {

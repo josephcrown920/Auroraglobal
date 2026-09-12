@@ -1,4 +1,9 @@
-import { BytePlusError, bytePlusBaseUrl, getBytePlusKey } from "./byteplus.server";
+import {
+  BytePlusError,
+  bytePlusBaseUrl,
+  fetchWithCredentialFallback,
+  getBytePlusKey,
+} from "./byteplus.server";
 
 const DOLA_MODEL = "dola-seed-2-1-turbo-260628";
 const SKYLARK_MODEL = "skylark-embedding-vision-250615";
@@ -19,9 +24,7 @@ export type SkylarkEmbedding = {
   usage?: unknown;
 };
 
-function authHeaders(): Record<string, string> {
-  const key = getBytePlusKey();
-  if (!key) throw new BytePlusError("BYTEPLUS_API_KEY / ARK_API_KEY missing");
+function authHeaders(key: string): Record<string, string> {
   return { Authorization: `Bearer ${key}`, "Content-Type": "application/json" };
 }
 
@@ -167,9 +170,8 @@ export async function bytePlusDolaResponse(opts: {
     });
   }
 
-  const response = await fetch(`${bytePlusBaseUrl()}/responses`, {
+  const request = {
     method: "POST",
-    headers: authHeaders(),
     body: JSON.stringify({
       model: DOLA_MODEL,
       stream: true,
@@ -177,7 +179,13 @@ export async function bytePlusDolaResponse(opts: {
       input: [{ role: "user", content: [{ type: "input_text", text }] }],
     }),
     signal: timeoutSignal(opts.timeoutMs, 45_000),
-  });
+  } satisfies RequestInit;
+  const { response } = await fetchWithCredentialFallback((key) =>
+    fetch(`${bytePlusBaseUrl()}/responses`, {
+      ...request,
+      headers: authHeaders(key),
+    }),
+  );
   const body = await readBounded(response, MAX_RESPONSE_BYTES);
   await assertOk(response, body, "responses request");
   const events = parseSse(body);
@@ -231,9 +239,8 @@ export async function bytePlusSkylarkEmbedding(opts: {
 }): Promise<SkylarkEmbedding> {
   const text = boundedText(opts.text, "Embedding text");
   const imageUrl = validatePublicImageUrl(opts.imageUrl);
-  const response = await fetch(`${bytePlusBaseUrl()}/embeddings/multimodal`, {
+  const request = {
     method: "POST",
-    headers: authHeaders(),
     body: JSON.stringify({
       model: SKYLARK_MODEL,
       input: [
@@ -242,7 +249,13 @@ export async function bytePlusSkylarkEmbedding(opts: {
       ],
     }),
     signal: timeoutSignal(opts.timeoutMs, 30_000),
-  });
+  } satisfies RequestInit;
+  const { response } = await fetchWithCredentialFallback((key) =>
+    fetch(`${bytePlusBaseUrl()}/embeddings/multimodal`, {
+      ...request,
+      headers: authHeaders(key),
+    }),
+  );
   const body = await readBounded(response, MAX_EMBEDDING_BYTES);
   await assertOk(response, body, "multimodal embedding request");
 

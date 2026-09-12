@@ -61,3 +61,19 @@ inputs and approved controls.
 **How to apply:** Keep rich native requests pinned until a backup has verified
 capability parity; follow the hybrid-agent fallback policy for approvals and
 actual-engine disclosure.
+
+## Seedream and Dola model boundaries
+
+Seedream 4.5 has a larger minimum output canvas than the older shared 2048×1152
+wide preset; use at least 2560×1440 for 16:9. Dola Seed 2.1 Turbo is a
+chat/reasoning model, not an image-generation model, while Dola Seedream 5 Pro
+is the image model.
+
+**Why:** ModelArk returns an input validation error for undersized Seedream 4.5
+canvases, and its similarly named Dola models expose different APIs. Treating
+the names as interchangeable causes false image failures or routes text models
+through the image endpoint.
+
+**How to apply:** Keep Dola Seed 2.1 in text/agent integrations, map Dola
+Seedream 5 Pro under Seedream image routing, and choose model-specific
+dimensions before calling `/images/generations`.
