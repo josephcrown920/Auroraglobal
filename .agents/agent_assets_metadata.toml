@@ -470,3 +470,45 @@ type = "unspecified"
 title = "Aurora Studio Android vc2 AAB"
 description = "Verified versionCode 2 release bundle for manual upload to Google Play Console Internal testing. SHA-256: f60c0ec1f6fc5980809c31ae5a9cd64694cc3c9f442a9400e8b527387e2eeb0f."
 logical_id = "64b26386-f960-441f-a465-8f2f738062f9"
+
+[[outputs]]
+id = "dZsFshhQ64msscEf_bR4y"
+uri = "file://attached_assets/generated_images/aurora-edge-drawer.png"
+type = "image"
+title = "Aurora Drawer A — Edge Drawer"
+description = "Compact edge-attached drawer using Aurora's dark violet glass system and persistent bottom tabs."
+logical_id = "46c93cd8-adbe-41df-a083-89626c26fcbf"
+content_hash = "sha256:cc6d3a61324cd8af8ca774a9ae9b305fc6aaea02659b3dda766f50b8a7a279df"
+size = 192702
+mtime_ms = 1789205388903
+storage_uri = "gcs://replit-rams-assets-riker/rams/assets/repl:70e0e8ce-1ee1-49b1-8d1e-35dc6c558d3d/46c93cd8-adbe-41df-a083-89626c26fcbf/b10f9cbb-b939-4c79-9e0b-b49f64f2cd05"
+storage_version_token = "1789205396028607"
+content_type = "image/png"
+
+[[outputs]]
+id = "z70lTe9DiYfQkV-yLSYlt"
+uri = "file://attached_assets/generated_images/aurora-studio-drawer.png"
+type = "image"
+title = "Aurora Drawer B — Studio Drawer"
+description = "Wider launcher drawer with a featured workflow preview, Aurora surfaces, and persistent bottom tabs."
+logical_id = "d7d80258-6d37-4cc7-9c87-da4d176edf6f"
+content_hash = "sha256:dc79f194e4b466e809a67e70b9b725898fbe04d3d7c6512bb906a264516c4ad2"
+size = 232578
+mtime_ms = 1789205389547
+storage_uri = "gcs://replit-rams-assets-riker/rams/assets/repl:70e0e8ce-1ee1-49b1-8d1e-35dc6c558d3d/d7d80258-6d37-4cc7-9c87-da4d176edf6f/88853afd-3c44-4acd-9dc3-5d61f2eda643"
+storage_version_token = "1789205396931477"
+content_type = "image/png"
+
+[[outputs]]
+id = "NVKDGA4SVhgcFK3GhcLZ5"
+uri = "file://attached_assets/generated_images/aurora-floating-glass.png"
+type = "image"
+title = "Aurora Drawer C — Floating Glass Panel"
+description = "Inset rounded glass navigation panel with workspace visible around it and persistent bottom tabs."
+logical_id = "986a1c26-1a25-4d1a-b8bd-4d01a66fa55c"
+content_hash = "sha256:cc2872faa3cb4e0ab196eae67496ddd263c579fd44e4e40955be3cba06a65a62"
+size = 193911
+mtime_ms = 1789205390015
+storage_uri = "gcs://replit-rams-assets-riker/rams/assets/repl:70e0e8ce-1ee1-49b1-8d1e-35dc6c558d3d/986a1c26-1a25-4d1a-b8bd-4d01a66fa55c/860e82e6-b9c1-4dfa-93c3-a0968f667e3a"
+storage_version_token = "1789205397682626"
+content_type = "image/png"
