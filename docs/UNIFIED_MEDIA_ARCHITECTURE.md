@@ -1,0 +1,1 @@
+Aurora Global remains the canonical application. Comfy-Manager capabilities are absorbed behind Aurora's existing TanStack Start, authentication, Supabase, orchestration, and worker boundaries. No second application shell, router, auth system, package manager, or production API server is introduced.
