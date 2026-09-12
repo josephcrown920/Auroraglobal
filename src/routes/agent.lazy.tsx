@@ -92,9 +92,7 @@ import {
   ChevronLeft,
   ChevronRight,
   ChevronDown,
-  MoreHorizontal,
   ExternalLink,
-  X,
   type LucideIcon,
 } from "lucide-react";
 
@@ -135,6 +133,8 @@ type Inspector = {
 // ── Tool definitions ──────────────────────────────────────────────────────
 
 type ToolDef = { label: string; icon: LucideIcon; prompt: string };
+type SidebarMode = "artist" | "creator";
+type SidebarSectionDef = { title: string; tools: ToolDef[] };
 
 const AVATAR_TOOLS: ToolDef[] = [
   { label: "Quick create",  icon: Wand2,       prompt: "Quick create: draft a 30-second cinematic ad concept end-to-end — logline, script, 5-shot list, and a Seedance prompt. Pick a compelling subject." },
@@ -146,21 +146,24 @@ const AVATAR_TOOLS: ToolDef[] = [
 
 const CINEMATIC_TOOLS: ToolDef[] = [
   { label: "DP Notes",          icon: Camera,       prompt: "As Director of Photography, write a full cinematography breakdown for the current scene: camera body, lens set, T-stop, filtration, sensor/ISO, white balance, and why each choice serves the story." },
-  { label: "Blocking & Staging",icon: Move3d,       prompt: "Block a 2-minute dialogue scene between 3 characters in a cramped interior. Give me actor positions, sightlines, cross-moves, and where the camera lives for each beat." },
   { label: "Camera Movement",   icon: Compass,      prompt: "Choreograph a single-take oner (~90s): describe camera movement in explicit beats (dolly, crane, gimbal drift, whip, focus rack) synced to story beats and actor blocking." },
   { label: "Lighting Diagram",  icon: Sun,          prompt: "Give me a lighting diagram in text: key, fill, rim/back, practicals, ambience, negative fill. Specify fixture, wattage/color temp, diffusion, and lighting ratio. Match the current inspector mood." },
   { label: "Anamorphic Set",    icon: Focus,        prompt: "Recommend an anamorphic lens package for a hyper-real neo-noir feature: primes, close-focus, flare character, breathing, T-stop, and how to lens each key scene type." },
   { label: "Color Grade / LUT", icon: Palette,      prompt: "Design a color grade: base LUT, secondary keys (skin, sky, neons), roll-off, halation, grain plate, and target display (Rec.709 / P3 / HDR PQ). Include reference films." },
   { label: "Aspect Reframe",    icon: Ruler,        prompt: "Reframe the current scene across 2.39:1 theatrical, 16:9 broadcast, 9:16 vertical short-form, and 1:1 square. Note what MUST stay in each safe area and what recomposes." },
-  { label: "Shot List Table",   icon: Clapperboard, prompt: "Produce a full shot list table for the current scene with columns: # / Shot / Framing / Lens / Movement / Duration / Sound / Notes. Aim for 8-14 shots, industry-realistic." },
-  { label: "Storyboard Frames", icon: BookOpen,     prompt: "Describe 6 storyboard frames for the current scene — composition, subject action, camera POV, focal length, and light direction — so a storyboard artist could draw them directly." },
-  { label: "VFX Breakdown",     icon: Sparkles,     prompt: "Break the current scene into VFX shots: what's plate, what's CG, what's comp. For each, list plate coverage, matchmove refs, cleanup, and integration notes." },
   { label: "Production Design", icon: LayersIcon,   prompt: "Design the production/art direction for the scene: palette, textures, hero props, wardrobe, set dressing, and how each element supports the story theme." },
   { label: "Location Scout",    icon: Compass,      prompt: "Scout 4 hyper-realistic real-world locations for the current scene. For each: geography, time of day sweet spot, sun path, permit reality, logistical risks." },
-  { label: "Trailer Beats",     icon: Zap,          prompt: "Cut a 60-second trailer for the project: cold open hook, act-out 1, act-out 2, title card placement, needle-drop cue points, and end-tag. Give me the beat sheet with timecodes." },
   { label: "Genre: Neo-Noir",   icon: Drama,        prompt: "Emulate the neo-noir genre: rain, neon, low-key, wide anamorphic, morally grey lead. Write a 3-scene treatment with cinematography notes for each scene." },
   { label: "Music Video",       icon: Music,        prompt: "Direct a music video: song structure to visual structure map, hero shot per section, wardrobe changes, and 3 hyper-realistic Seedance prompts for signature moments." },
   { label: "Commercial 30s",    icon: Crown,        prompt: "Direct a 30s premium commercial: brand promise, single visual metaphor, 6-shot spine, hero product moment, VO structure, and a ready-to-paste Seedance prompt for the hero shot." },
+];
+
+const STORYBOARD_TOOLS: ToolDef[] = [
+  { label: "Storyboard Frames", icon: BookOpen,     prompt: "Describe 6 storyboard frames for the current scene — composition, subject action, camera POV, focal length, and light direction — so a storyboard artist could draw them directly." },
+  { label: "Shot List Table",   icon: Clapperboard, prompt: "Produce a full shot list table for the current scene with columns: # / Shot / Framing / Lens / Movement / Duration / Sound / Notes. Aim for 8-14 shots, industry-realistic." },
+  { label: "Blocking & Staging",icon: Move3d,       prompt: "Block a 2-minute dialogue scene between 3 characters in a cramped interior. Give me actor positions, sightlines, cross-moves, and where the camera lives for each beat." },
+  { label: "VFX Breakdown",     icon: Sparkles,     prompt: "Break the current scene into VFX shots: what's plate, what's CG, what's comp. For each, list plate coverage, matchmove refs, cleanup, and integration notes." },
+  { label: "Trailer Beats",     icon: Zap,          prompt: "Cut a 60-second trailer for the project: cold open hook, act-out 1, act-out 2, title card placement, needle-drop cue points, and end-tag. Give me the beat sheet with timecodes." },
 ];
 
 const DIRECTOR_STYLES: ToolDef[] = [
