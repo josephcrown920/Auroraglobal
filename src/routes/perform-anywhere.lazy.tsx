@@ -2,11 +2,9 @@ import { createLazyFileRoute, Link } from "@tanstack/react-router";
 import { ArrowRight, Check, Crown, Sparkles, Upload, Zap } from "lucide-react";
 import { WorkflowSelectorVisual } from "@/components/performance/WorkflowVisualGuide";
 
-const MODELS = ["Seedance 5.9", "Kling", "Gemini Omni", "Grok Imagine"];
+const MODELS = ["Seedance 2.5", "Kling", "Gemini Omni", "Grok Imagine"];
 
-export const Route = createLazyFileRoute("/perform-anywhere")({
-  component: PerformAnywhere,
-});
+export const Route = createLazyFileRoute("/perform-anywhere")({ component: PerformAnywhere });
 
 function PerformAnywhere() {
   return (
@@ -36,29 +34,13 @@ function PerformAnywhere() {
       </section>
       <section className="mx-auto max-w-5xl px-5 pb-20">
         <div className="mx-auto mb-8 max-w-xl text-center"><p className="text-[11px] font-bold uppercase tracking-[0.22em] text-fuchsia-300">Guided workflows</p><h2 className="mt-3 text-3xl font-black tracking-tight sm:text-4xl">Pick a directed scene to build</h2><p className="mt-3 text-sm text-white/45">Reference examples cropped from real walkthroughs — not Aurora-generated output.</p></div>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Link to="/colors-show" search={{ mode: "anywhere", flow: "build_scene" }} className="group rounded-2xl border border-white/10 bg-white/[0.03] p-3 no-underline transition-colors hover:border-fuchsia-400/40">
-            <WorkflowSelectorVisual kind="build_scene" />
-            <h3 className="mt-1 text-base font-bold text-white">Build a Scene</h3>
-            <p className="mt-1 text-sm text-white/45">5 role references lock identity, then generate 3–5 fresh camera angles from one approved base scene.</p>
-            <span className="mt-3 inline-flex items-center gap-1 text-xs font-bold text-fuchsia-300">Start building <ArrowRight size={12} /></span>
-          </Link>
-          <Link to="/colors-show" search={{ mode: "anywhere", flow: "luxury_interior" }} className="group rounded-2xl border border-white/10 bg-white/[0.03] p-3 no-underline transition-colors hover:border-fuchsia-400/40">
-            <WorkflowSelectorVisual kind="luxury_interior" />
-            <h3 className="mt-1 text-base font-bold text-white">Luxury Interior</h3>
-            <p className="mt-1 text-sm text-white/45">3 references place a faithful seated performance inside the vehicle while preserving your face and outfit.</p>
-            <span className="mt-3 inline-flex items-center gap-1 text-xs font-bold text-fuchsia-300">Open workflow <ArrowRight size={12} /></span>
-          </Link>
+        <div className="grid gap-4 sm:grid-cols-3">
+          <Link to="/colors-show" search={{ mode: "anywhere", flow: "build_scene" }} className="group rounded-2xl border border-white/10 bg-white/[0.03] p-3 no-underline transition-colors hover:border-fuchsia-400/40"><WorkflowSelectorVisual kind="build_scene" /><h3 className="mt-1 text-base font-bold text-white">Build a Scene</h3><p className="mt-1 text-sm text-white/45">5 role references lock identity, then generate 3–5 fresh camera angles from one approved base scene.</p><span className="mt-3 inline-flex items-center gap-1 text-xs font-bold text-fuchsia-300">Start building <ArrowRight size={12} /></span></Link>
+          <Link to="/colors-show" search={{ mode: "anywhere", flow: "luxury_interior" }} className="group rounded-2xl border border-white/10 bg-white/[0.03] p-3 no-underline transition-colors hover:border-fuchsia-400/40"><WorkflowSelectorVisual kind="luxury_interior" /><h3 className="mt-1 text-base font-bold text-white">Luxury Interior</h3><p className="mt-1 text-sm text-white/45">3 references place a faithful seated performance inside the vehicle while preserving your face and outfit.</p><span className="mt-3 inline-flex items-center gap-1 text-xs font-bold text-fuchsia-300">Open workflow <ArrowRight size={12} /></span></Link>
+          <Link to="/motion" className="group rounded-2xl border border-fuchsia-400/25 bg-fuchsia-400/[0.06] p-3 no-underline transition-colors hover:border-fuchsia-400/50"><div className="flex aspect-video items-center justify-center rounded-xl border border-fuchsia-400/20 bg-gradient-to-br from-fuchsia-500/10 to-violet-500/10"><Sparkles className="text-fuchsia-300" size={32} /></div><h3 className="mt-3 text-base font-bold text-white">Get Ready With Me</h3><p className="mt-1 text-sm text-white/45">Upload your real GRWM clip, reference photos and videos, then apply a new outfit while preserving your actions and timing.</p><span className="mt-3 inline-flex items-center gap-1 text-xs font-bold text-fuchsia-300">Open GRWM <ArrowRight size={12} /></span></Link>
         </div>
       </section>
-      <section className="mx-auto max-w-6xl px-5 pb-20">
-        <div className="mx-auto mb-8 max-w-xl text-center"><p className="text-[11px] font-bold uppercase tracking-[0.22em] text-fuchsia-300">How it works</p><h2 className="mt-3 text-3xl font-black tracking-tight sm:text-4xl">Three steps. Full cinematic output.</h2></div>
-        <div className="grid gap-4 md:grid-cols-3">{[
-          ["01", "Record yourself on your phone", "30 seconds. Any room. Sing, dance, rap — no studio needed.", null],
-          ["02", "Build your scene in Scene Builder", "Pick a neon stage, luxury set, rooftop, or any world you can imagine.", "/scene-builder"],
-          ["03", "Orchestrate your final video", "Drop your phone clip and scene into Motion Control and let Aurora transfer the performance.", "/motion"],
-        ].map(([number, title, body, href]) => <div key={number} className="rounded-2xl border border-white/10 bg-white/[0.03] p-5"><div className="flex items-start justify-between"><span className="text-2xl">{number === "01" ? "📱" : number === "02" ? "🎨" : "🎬"}</span><span className="text-4xl font-black text-white/10">{number}</span></div><h3 className="mt-5 text-base font-bold">{title}</h3><p className="mt-2 text-sm leading-relaxed text-white/45">{body}</p>{href && <Link to={href} className="mt-5 inline-flex items-center gap-1 text-xs font-bold text-fuchsia-300 no-underline">Open tool <ArrowRight size={12} /></Link>}</div>)}</div>
-      </section>
+      <section className="mx-auto max-w-6xl px-5 pb-20"><div className="mx-auto mb-8 max-w-xl text-center"><p className="text-[11px] font-bold uppercase tracking-[0.22em] text-fuchsia-300">How it works</p><h2 className="mt-3 text-3xl font-black tracking-tight sm:text-4xl">Three steps. Full cinematic output.</h2></div><div className="grid gap-4 md:grid-cols-3">{[["01", "Record yourself on your phone", "30 seconds. Any room. Sing, dance, rap — no studio needed.", null],["02", "Build your scene in Scene Builder", "Pick a neon stage, luxury set, rooftop, or any world you can imagine.", "/scene-builder"],["03", "Orchestrate your final video", "Drop your phone clip and scene into Motion Control and let Aurora transfer the performance.", "/motion"] .map(([number, title, body, href]) => <div key={number} className="rounded-2xl border border-white/10 bg-white/[0.03] p-5"><div className="flex items-start justify-between"><span className="text-2xl">{number === "01" ? "📱" : number === "02" ? "🎨" : "🎬"}</span><span className="text-4xl font-black text-white/10">{number}</span></div><h3 className="mt-5 text-base font-bold">{title}</h3><p className="mt-2 text-sm leading-relaxed text-white/45">{body}</p>{href && <Link to={href} className="mt-5 inline-flex items-center gap-1 text-xs font-bold text-fuchsia-300 no-underline">Open tool <ArrowRight size={12} /></Link>}</div>)}</div></section>
       <section className="mx-auto max-w-4xl px-5 pb-24"><div className="rounded-3xl border border-fuchsia-400/25 bg-gradient-to-br from-fuchsia-400/10 to-violet-600/10 p-7 sm:p-10"><div className="grid gap-3 sm:grid-cols-2">{["Real motion transfer — no green screen", "Identity locked across every frame", "Cinematic 9:16 portrait output", "No studio. No crew. No budget.", "30-second clip is all you need", "Secure payment via Paystack"].map((item) => <div key={item} className="flex items-center gap-2.5 text-sm text-white/75"><span className="flex size-5 items-center justify-center rounded-full border border-fuchsia-400/30 bg-fuchsia-400/15"><Check size={11} className="text-fuchsia-300" /></span>{item}</div>)}</div></div></section>
       <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-white/10 px-5 py-5 text-xs text-white/40"><Link to="/" className="flex items-center gap-1.5 text-white/50 no-underline"><Sparkles size={13} className="text-fuchsia-300" /> Aurora Performance Studio</Link><div className="flex gap-4"><Link to="/motion" className="text-white/40 no-underline hover:text-white">Motion Control</Link><Link to="/scene-builder" className="text-white/40 no-underline hover:text-white">Scene Builder</Link><Link to="/colors" className="text-white/40 no-underline hover:text-white">Colors Studio</Link></div></footer>
     </main>
