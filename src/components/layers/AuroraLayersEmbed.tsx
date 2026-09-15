@@ -36,11 +36,12 @@ export function AuroraLayersEmbed() {
   const [ready, setReady] = useState(false);
   const embedSrc = useMemo(() => withHostOrigin(LAYERS_SRC), []);
   const iframeOrigin = useMemo(() => new URL(embedSrc).origin, [embedSrc]);
+  const hostOrigin = typeof window === "undefined" ? "" : window.location.origin;
 
   const sessionQuery = useQuery({
-    queryKey: ["aurora-layers-embed-session", user?.id, window.location.origin],
-    queryFn: () => getSession({ data: { origin: window.location.origin } }),
-    enabled: Boolean(user),
+    queryKey: ["aurora-layers-embed-session", user?.id, hostOrigin],
+    queryFn: () => getSession({ data: { origin: hostOrigin } }),
+    enabled: Boolean(user && hostOrigin),
     staleTime: 45_000,
     retry: false,
   });
