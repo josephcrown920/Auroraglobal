@@ -1,8 +1,19 @@
 import { describe, expect, it } from "bun:test";
-import { buildBytePlusVideoBody, requiresNativeSeedance, NATIVE_SEEDANCE_25, SEEDANCE_25_MODEL_ID } from "./byteplus-video-contract";
+import { buildBytePlusVideoBody, normalizeSeedanceModel, requiresNativeSeedance, NATIVE_SEEDANCE_25, SEEDANCE_25_MODEL_ID } from "./byteplus-video-contract";
 import { computeCost } from "./pricing";
 
 describe("Seedance 2.5 native multimodal contract", () => {
+  it("normalizes every Aurora Seedance alias to a provider model ID", () => {
+    expect(normalizeSeedanceModel("seedance-2.5")).toBe(SEEDANCE_25_MODEL_ID);
+    expect(normalizeSeedanceModel("byteplus/seedance-2.5")).toBe(SEEDANCE_25_MODEL_ID);
+    expect(normalizeSeedanceModel("seedance-2.0")).toBe("dreamina-seedance-2-0-260128");
+    expect(normalizeSeedanceModel("seedance-2.0-fast")).toBe("dreamina-seedance-2-0-fast-260128");
+    expect(normalizeSeedanceModel("seedance-2.0-mini")).toBe("dreamina-seedance-2-0-mini-260615");
+    expect(normalizeSeedanceModel("seedance-1-5-pro-251215")).toBe("seedance-1-5-pro-251215");
+    expect(normalizeSeedanceModel("seedance-1-0-pro-250528")).toBe(SEEDANCE_25_MODEL_ID);
+    expect(normalizeSeedanceModel("seedance-3.0")).toBe(SEEDANCE_25_MODEL_ID);
+  });
+
   it("preserves all inputs, roles, and top-level generation settings from the supplied guide", () => {
     const body = buildBytePlusVideoBody({
       model: SEEDANCE_25_MODEL_ID,
