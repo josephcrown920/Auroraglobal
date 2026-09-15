@@ -2,6 +2,37 @@
 export const NATIVE_SEEDANCE_25 = "byteplus/seedance-2.5";
 export const SEEDANCE_25_MODEL_ID = "dreamina-seedance-2-5-260628";
 
+/**
+ * Canonical BytePlus/ModelArk video IDs used by every Aurora video-agent path.
+ * UI labels, legacy slugs, and old agent defaults must never reach the provider
+ * unchanged; this boundary normalizes them before request construction.
+ */
+export const SEEDANCE_MODEL_ALIASES: Readonly<Record<string, string>> = {
+  "seedance-2.5": SEEDANCE_25_MODEL_ID,
+  "byteplus/seedance-2.5": SEEDANCE_25_MODEL_ID,
+  "dreamina-seedance-2-5-260628": SEEDANCE_25_MODEL_ID,
+  "seedance-2.0": "dreamina-seedance-2-0-260128",
+  "byteplus/seedance-2.0": "dreamina-seedance-2-0-260128",
+  "dreamina-seedance-2-0-260128": "dreamina-seedance-2-0-260128",
+  "seedance-2.0-fast": "dreamina-seedance-2-0-fast-260128",
+  "byteplus/seedance-2.0-fast": "dreamina-seedance-2-0-fast-260128",
+  "dreamina-seedance-2-0-fast-260128": "dreamina-seedance-2-0-fast-260128",
+  "seedance-2.0-mini": "dreamina-seedance-2-0-mini-260615",
+  "byteplus/seedance-2.0-mini": "dreamina-seedance-2-0-mini-260615",
+  "dreamina-seedance-2-0-mini-260615": "dreamina-seedance-2-0-mini-260615",
+  "seedance-1.5-pro": "seedance-1-5-pro-251215",
+  "byteplus/seedance-1.5-pro": "seedance-1-5-pro-251215",
+  // Retired/incorrect Aurora aliases are redirected to the current production
+  // Seedance checkpoint instead of reaching ModelArk as invalid model IDs.
+  "seedance-1-0-pro-250528": SEEDANCE_25_MODEL_ID,
+  "seedance-3.0": SEEDANCE_25_MODEL_ID,
+};
+
+export function normalizeSeedanceModel(model: string | null | undefined): string {
+  const trimmed = model?.trim() ?? "";
+  return SEEDANCE_MODEL_ALIASES[trimmed] ?? trimmed;
+}
+
 export type BytePlusImageRole = "first_frame" | "last_frame" | "reference_image";
 export type BytePlusVideoInput = {
   model: string;
@@ -20,6 +51,10 @@ export type BytePlusVideoInput = {
 
 /** Only the documented 2.5 checkpoint supports this expanded wire contract. */
 export function buildBytePlusVideoBody(opts: BytePlusVideoInput): Record<string, unknown> {
+  // This is the shared provider boundary, so every Video Agent, Film Studio,
+  // Comfy Manager integration, and direct BytePlus call gets the same model fix.
+  opts = { ...opts, model: normalizeSeedanceModel(opts.model) };
+
   for (const value of [opts.generateAudio, opts.watermark]) {
     if (value !== undefined && typeof value !== "boolean") {
       throw new Error("BytePlus audio and watermark controls must be booleans");
@@ -101,8 +136,9 @@ type RoutingInput = {
 
 /** Prevent fallback adapters from dropping a rich Seedance reference/control. */
 export function requiresNativeSeedance(req: RoutingInput): boolean {
-  return req.model === NATIVE_SEEDANCE_25 ||
-    (req.model === "seedance-2.5" && (
+  const model = normalizeSeedanceModel(req.model);
+  return model === SEEDANCE_25_MODEL_ID ||
+    (model === SEEDANCE_25_MODEL_ID && (
       !!req.videoUrl || !!req.audioUrl || (req.imageUrls?.length ?? 0) > 1 ||
       req.params?.imageRoles !== undefined || req.params?.generate_audio !== undefined ||
       req.params?.watermark !== undefined || req.params?.seed !== undefined
