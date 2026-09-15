@@ -2,7 +2,7 @@
 
 ## App Details
 
-**Package Name:** com.aurorastudio.app
+**Package Name:** com.auroraperformancestudio.app
 **Category:** Photography
 **Content Rating:** Not established — owner must review and submit the Play Console questionnaire
 **Price:** Free download; mobile consumes Aura credits and offers no top-ups or payment links
@@ -198,7 +198,7 @@ Suggested screenshot sequence:
 | Content rating and declarations | ⬜ Not established; owner must review and complete in the store consoles |
 | Screenshots (5 screens, 1080×1920) | ⬜ Capture on a real device — see `store/submission-guide.md` for resolutions |
 | **Android Play Store submission** | ⬜ Build a fresh vc3 AAB, then upload manually in Play Console → Testing → Internal testing (full steps in `store/submission-guide.md`) |
-| Pre-launch report checks | ⬜ Review in Play Console after internal track upload — see submission guide |
+| Pre-launch report checks | ⬜ Review in Play Console after internal track upload — see pre-launch report |
 | iOS (build + submission) | ⬜ Deferred to the Apple App Store follow-up task — not part of the Android v1 release |
 
 ---
@@ -226,7 +226,7 @@ npx eas build --platform android --profile preview
 
 ### Before submission, ensure:
 1. App icons at `assets/images/icon.png` (1024×1024)
-2. Splash screen at `assets/images/splash.png` (1242×2436)
+2. Splash screen at `assets/images/splash.png` (1284×2436)
 3. EAS project ID is set (run `npx eas init` if not set)
 4. `buildNumber` in `app.json` `ios` section is incremented for each iOS release
 5. `versionCode` in `app.json` `android` section is incremented for each Android release
