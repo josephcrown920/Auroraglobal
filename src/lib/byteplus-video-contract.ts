@@ -136,11 +136,10 @@ type RoutingInput = {
 
 /** Prevent fallback adapters from dropping a rich Seedance reference/control. */
 export function requiresNativeSeedance(req: RoutingInput): boolean {
+  const isNativeAlias = req.model === NATIVE_SEEDANCE_25;
   const model = normalizeSeedanceModel(req.model);
-  return model === SEEDANCE_25_MODEL_ID ||
-    (model === SEEDANCE_25_MODEL_ID && (
-      !!req.videoUrl || !!req.audioUrl || (req.imageUrls?.length ?? 0) > 1 ||
-      req.params?.imageRoles !== undefined || req.params?.generate_audio !== undefined ||
-      req.params?.watermark !== undefined || req.params?.seed !== undefined
-    ));
+  const hasNativeControls = !!req.videoUrl || !!req.audioUrl || (req.imageUrls?.length ?? 0) > 1 ||
+    req.params?.imageRoles !== undefined || req.params?.generate_audio !== undefined ||
+    req.params?.watermark !== undefined || req.params?.seed !== undefined;
+  return isNativeAlias || (model === SEEDANCE_25_MODEL_ID && hasNativeControls);
 }
