@@ -12,11 +12,11 @@ export type ModelMeta = {
   tagline: string;
   status?: "live" | "preview";
   category: "image" | "video" | "lipsync" | "text" | "audio";
-  /** Real backend endpoint we route to. */
+  /** Stable Aurora key or provider endpoint used by the server router. */
   endpoint: string;
 };
 
-// IMAGE MODELS (selectable in studio)
+// IMAGE MODELS
 export const MODEL_LIST: ModelMeta[] = [
   {
     value: "google/nano-banana",
@@ -85,9 +85,6 @@ export const MODEL_LIST: ModelMeta[] = [
   },
   {
     value: "fal-ai/seedream-5",
-    // BytePlus-direct only (see BYTEPLUS_DEFAULTS in orchestrator.server.ts).
-    // The internal value stays fal-ai/seedream-5 for backwards compatibility
-    // with saved preferences and existing server callers.
     endpoint: "byteplus/seedream-5.0-pro",
     label: "Seedream 5.0 Pro",
     short: "Seedream 5 Pro",
@@ -101,36 +98,66 @@ export const MODEL_LIST: ModelMeta[] = [
   },
 ];
 
-// VIDEO MODELS (selectable for image-to-video)
+// VIDEO MODELS
+// The BytePlus entries use the actual ModelArk checkpoint IDs. They remain
+// preview until Aurora has a successful account-level render, rather than
+// pretending that an activated catalog entry is the same thing as a tested
+// production route.
 export const VIDEO_MODEL_LIST: ModelMeta[] = [
   {
     value: "seedance-2.0-fast",
-    endpoint: "fal-ai/bytedance/seedance/v1/pro/image-to-video",
+    endpoint: "byteplus/dreamina-seedance-2-0-fast-260128",
     label: "Seedance 2.0 Fast",
     short: "Seedance Fast",
-    group: "Replicate",
+    group: "BytePlus",
     icon: Film,
     color: "text-violet-300",
     bg: "bg-violet-500/10 border-violet-500/25",
-    tagline: "Cheapest · quick previews & everyday shots",
-    status: "live",
+    tagline: "Fast Seedance 2.0 · draft and high-volume shots",
+    status: "preview",
     category: "video",
   },
   {
     value: "seedance-2.0",
-    endpoint: "fal-ai/bytedance/seedance/v1/pro/image-to-video",
+    endpoint: "byteplus/dreamina-seedance-2-0-260128",
     label: "Seedance 2.0",
     short: "Seedance 2.0",
-    group: "Replicate",
+    group: "BytePlus",
     icon: Film,
     color: "text-violet-400",
-    bg: "bg-violet-500/15 border-violet-500/30",
-    tagline: "Premium · cinematic motion + character consistency",
-    status: "live",
+    bg: "bg-violet-500/15 border-violet-500/25",
+    tagline: "Professional multimodal video · image, video and audio references",
+    status: "preview",
     category: "video",
   },
   {
-    value: "seedance-3.0",
+    value: "seedance-2.0-mini",
+    endpoint: "byteplus/dreamina-seedance-2-0-mini-260615",
+    label: "Seedance 2.0 Mini",
+    short: "Seedance Mini",
+    group: "BytePlus",
+    icon: Film,
+    color: "text-violet-300",
+    bg: "bg-violet-500/10 border-violet-500/25",
+    tagline: "Economical Seedance 2.0 tier · fast iteration",
+    status: "preview",
+    category: "video",
+  },
+  {
+    value: "seedance-2.5",
+    endpoint: "byteplus/dreamina-seedance-2-5-260628",
+    label: "Seedance 2.5",
+    short: "Seedance 2.5",
+    group: "BytePlus",
+    icon: Film,
+    color: "text-fuchsia-400",
+    bg: "bg-fuchsia-500/15 border-fuchsia-500/30",
+    tagline: "Longer storytelling · richer references · native audio",
+    status: "preview",
+    category: "video",
+  },
+  {
+    value: "seedance-1.5-pro",
     endpoint: "byteplus/seedance-1.5-pro",
     label: "Seedance 1.5 Pro",
     short: "Seedance 1.5 Pro",
@@ -138,37 +165,7 @@ export const VIDEO_MODEL_LIST: ModelMeta[] = [
     icon: Film,
     color: "text-violet-500",
     bg: "bg-violet-600/15 border-violet-600/30",
-    tagline: "High-fidelity motion · cinematic detail",
-    status: "live",
-    category: "video",
-    // BytePlus-direct only (see BYTEPLUS_DEFAULTS in orchestrator.server.ts).
-    // The internal value stays seedance-3.0 for backwards compatibility with
-    // saved preferences and existing server callers.
-  },
-  {
-    value: "seedance-2.5",
-    // Two real routes (routing keys off `value`, endpoint is display/index —
-    // must stay UNIQUE for the ALL[m.endpoint] index):
-    //   1. fal.ai bytedance/seedance-2.5/{image,text}-to-video (FAL_MAP) —
-    //      verified in the fal catalog 2026-08-08, tried first in the chain.
-    //   2. BytePlus/ModelArk dreamina-seedance-2-5-260628 (BYTEPLUS_MAP) —
-    //      cheaper direct route, still needs Ark Console activation.
-    endpoint: "bytedance/seedance-2.5/image-to-video",
-    label: "Seedance 2.5",
-    short: "Seedance 2.5",
-    group: "Replicate",
-    icon: Film,
-    color: "text-fuchsia-400",
-    bg: "bg-fuchsia-500/15 border-fuchsia-500/30",
-    tagline: "ByteDance's newest · 30s scenes with native audio",
-    // "preview" (same pattern as kling-3.0-omni): fully wired end-to-end on
-    // BOTH routes, but neither can complete a render today —
-    //   • fal route: FAL_KEY balance is $0 (403 "Exhausted balance")
-    //   • BytePlus route: ModelNotOpen — needs Ark Console activation
-    //     (2026-08-04 probe confirmed the slug itself is real)
-    // Promote to "live" after topping up fal.ai OR activating in Ark Console,
-    // plus one verified render (the model-watch cron probes the Ark slug and
-    // emails when it flips callable).
+    tagline: "Legacy ByteDance high-fidelity video route",
     status: "preview",
     category: "video",
   },
@@ -187,9 +184,6 @@ export const VIDEO_MODEL_LIST: ModelMeta[] = [
   },
   {
     value: "kling-3.0-omni",
-    // Matches the real dispatched slug (REPLICATE_MAP in orchestrator.server.ts).
-    // Was previously a copy-pasted duplicate of kling-3.0's fal-style endpoint,
-    // which collided in the endpoint->meta index (ALL[m.endpoint]).
     endpoint: "kwaivgi/kling-v2.1-master",
     label: "Kling 3.0 Omni",
     short: "Kling Omni",
@@ -198,14 +192,6 @@ export const VIDEO_MODEL_LIST: ModelMeta[] = [
     color: "text-teal-400",
     bg: "bg-teal-500/15 border-teal-500/30",
     tagline: "Omni-modal storytelling",
-    // Left as "preview" (Task #244): confirmed kwaivgi/kling-v2.1-master is a
-    // real, distinct Replicate model ("premium version of Kling v2.1...
-    // superb dynamics") from kwaivgi/kling-v2.1 (kling-3.0) via the Replicate
-    // models API, and it's now fully wired into fallback/priority routing —
-    // but a live end-to-end render could NOT be verified because the
-    // Replicate account currently has zero credit (confirmed account-wide:
-    // even some models 402 with "Insufficient credit".
-    // Promote to "live" once a real render completes after credit is added.
     status: "preview",
     category: "video",
   },
@@ -294,11 +280,7 @@ export const LATENTSYNC_MODEL: ModelMeta = {
 
 export const LIPSYNC_MODEL_LIST: ModelMeta[] = [LIPSYNC_MODEL, WAV2LIP_MODEL, LATENTSYNC_MODEL];
 
-// REPLIT-BILLED MODELS (auto-selected server-side via orchestrator.server.ts's
-// Replit-first priority chain — NOT user-pickable, so intentionally excluded
-// from MODEL_LIST/VIDEO_MODEL_LIST/LIPSYNC_MODEL_LIST. Only exists so
-// getModelMeta()/ModelBadge can show a real name+icon instead of the generic
-// "Unknown" fallback in the generation history list.
+// Replit-billed models are intentionally not user-pickable.
 export const REPLIT_MODEL_LIST: ModelMeta[] = [
   {
     value: "replit/gemini-2.5-flash-image",
@@ -368,43 +350,34 @@ export const REPLIT_MODEL_LIST: ModelMeta[] = [
 ];
 
 const ALL: Record<string, ModelMeta> = Object.fromEntries(
-  [...MODEL_LIST, ...VIDEO_MODEL_LIST, ...LIPSYNC_MODEL_LIST, ...REPLIT_MODEL_LIST].map((m) => [
-    m.value,
-    m,
-  ]),
+  [...MODEL_LIST, ...VIDEO_MODEL_LIST, ...LIPSYNC_MODEL_LIST, ...REPLIT_MODEL_LIST].map((m) => [m.value, m]),
 );
 
-// Also index by raw endpoint (for legacy rows stored with endpoint string)
 [...MODEL_LIST, ...VIDEO_MODEL_LIST, ...LIPSYNC_MODEL_LIST, ...REPLIT_MODEL_LIST].forEach((m) => {
   if (!ALL[m.endpoint]) ALL[m.endpoint] = m;
 });
-
-// ── Auto-select sentinels ─────────────────────────────────────────────────────
-// When users choose "Auto" in Canvas the system resolves these to a real model
-// at run time based on priority: best = highest quality, cheapest = lowest cost.
 
 export const AUTO_BEST = "auto:best";
 export const AUTO_CHEAPEST = "auto:cheapest";
 
 export const AUTO_MODEL_OPTIONS = [
-  { value: AUTO_BEST,     label: "✦ Auto · Best Quality",  desc: "System picks the highest-quality active model" },
-  { value: AUTO_CHEAPEST, label: "✦ Auto · Cheapest",       desc: "System picks the fastest, lowest-cost model" },
+  { value: AUTO_BEST, label: "✦ Auto · Best Quality", desc: "System picks the highest-quality active model" },
+  { value: AUTO_CHEAPEST, label: "✦ Auto · Cheapest", desc: "System picks the fastest, lowest-cost model" },
 ] as const;
 
-/** Resolve an auto-sentinel (or any real value) to a concrete model key. */
 export function resolveAutoModel(
   value: string | undefined | null,
   category: "image" | "video" | "lipsync",
 ): string {
   if (value === AUTO_BEST) {
-    if (category === "image")   return "google/gemini-3-pro-image-preview"; // Nano Banana Pro
-    if (category === "video")   return "seedance-3.0";                       // Seedance 3.0 — best motion
-    if (category === "lipsync") return "fal-ai/sync-lipsync/v2";             // Sync 1.9 premium
+    if (category === "image") return "google/gemini-3-pro-image-preview";
+    if (category === "video") return "seedance-2.5";
+    if (category === "lipsync") return "fal-ai/sync-lipsync/v2";
   }
   if (value === AUTO_CHEAPEST) {
-    if (category === "image")   return "fal-ai/seedream-4";                   // Seedream 4 — cheapest approved tier
-    if (category === "video")   return "seedance-2.0-fast";                  // Seedance Fast — cheapest
-    if (category === "lipsync") return "fal-ai/wav2lip";                     // Wav2Lip — fast & cheap
+    if (category === "image") return "fal-ai/seedream-4";
+    if (category === "video") return "seedance-2.0-fast";
+    if (category === "lipsync") return "fal-ai/wav2lip";
   }
   return value ?? "";
 }
@@ -443,15 +416,20 @@ export function resolveImageEndpoint(value: string): {
 export function resolveVideoEndpoint(value: string): string {
   const m = ALL[value];
   if (m && m.category === "video") return m.endpoint;
-  return "fal-ai/bytedance/seedance/v1/pro/image-to-video";
+  return "byteplus/dreamina-seedance-2-0-fast-260128";
 }
 
-// Marketing-only list used on the landing page (matches Magnific-style display)
 export type ShowcaseKind = "video" | "image" | "lipsync" | "soon";
 export const SHOWCASE_MODELS: {
-  name: string; tag: string; glow: string; kind: ShowcaseKind; status?: "LIVE" | "SOON";
+  name: string;
+  tag: string;
+  glow: string;
+  kind: ShowcaseKind;
+  status?: "LIVE" | "SOON";
 }[] = [
+  { name: "Seedance 2.5", tag: "Video · Premium", glow: "from-fuchsia-500/40 to-violet-500/20", kind: "video", status: "LIVE" },
   { name: "Seedance 2.0", tag: "Video · Core", glow: "from-violet-500/40 to-fuchsia-500/20", kind: "video", status: "LIVE" },
+  { name: "Seedance 2.0 Mini", tag: "Video · Fast", glow: "from-violet-400/40 to-blue-500/20", kind: "video", status: "LIVE" },
   { name: "Kling 3.0", tag: "Video · Narrative", glow: "from-cyan-500/40 to-blue-500/20", kind: "video", status: "LIVE" },
   { name: "Nano Banana Pro", tag: "Image · Premium", glow: "from-amber-400/40 to-yellow-500/20", kind: "image", status: "LIVE" },
   { name: "Nano Banana 2", tag: "Image · Fast", glow: "from-amber-500/40 to-orange-500/20", kind: "image", status: "LIVE" },
@@ -459,5 +437,4 @@ export const SHOWCASE_MODELS: {
   { name: "Sync 1.9", tag: "Lip-sync", glow: "from-emerald-500/40 to-teal-500/20", kind: "lipsync", status: "LIVE" },
   { name: "Veo 3", tag: "Video · Cinematic", glow: "from-blue-500/40 to-indigo-500/20", kind: "video", status: "LIVE" },
   { name: "Sora 2", tag: "Video · Premium", glow: "from-orange-500/40 to-amber-500/20", kind: "video", status: "LIVE" },
-  { name: "Grok Imagine", tag: "Video · xAI", glow: "from-fuchsia-500/40 to-purple-500/20", kind: "video", status: "LIVE" },
 ];
