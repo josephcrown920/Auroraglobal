@@ -1,8 +1,4 @@
 // ─── Stacked, resolution/length-based pricing — single source of truth ───────
-//
-// Every charge point (public /api/public/generate, the AI Router server fn, and
-// the AI Router UI preview) prices a generation through THIS module so a preview
-// can never disagree with what is actually reserved/charged.
 
 export const ONBOARDING_BONUS_AURA = 30;
 
@@ -62,12 +58,7 @@ export const LIPSYNC_TIER_AURA: Record<ModelTier, number> = {
   max: 120,
 };
 
-/**
- * Model → Aura tier. BytePlus Seedance 2.x entries are deliberately priced
- * from the direct ModelArk route now exposed by models.ts, rather than the old
- * cheaper FAL-only assumptions. Legacy aliases remain so saved jobs do not
- * become unpriceable after the registry cleanup.
- */
+/** Provider-aware model tiers. New BytePlus Seedance routes are never underpriced. */
 export const VIDEO_MODEL_TIERS: Record<string, ModelTier> = {
   "seedance-2.0-fast": "standard",
   "seedance-2.0": "ultra",
@@ -114,18 +105,15 @@ export const LIPSYNC_MODEL_TIERS: Record<string, ModelTier> = {
 export const DEFAULT_VIDEO_TIER: ModelTier = "standard";
 export const DEFAULT_LIPSYNC_TIER: ModelTier = "premium";
 
-// ─── Aurora Soul pricing ──────────────────────────────────────────────────────
-export const SOUL_IMAGE_MODEL = "seedream-soul";
-export const SOUL_VIDEO_MODEL = "seedance-soul";
-export const SOUL_IMAGE_AURA = 10;
-export const SOUL_VIDEO_AURA = 480;
-
-export function modelTierForVideo(model?: string | null): ModelTier {
-  return (model && VIDEO_MODEL_TIERS[model]) ?? DEFAULT_VIDEO_TIER;
+export function tierForModel(feature: "video" | "lipsync", model: string | null | undefined): ModelTier {
+  if (feature === "video") return (model ? VIDEO_MODEL_TIERS[model] : undefined) ?? DEFAULT_VIDEO_TIER;
+  return (model ? LIPSYNC_MODEL_TIERS[model] : undefined) ?? DEFAULT_LIPSYNC_TIER;
 }
 
-export function modelTierForLipsync(model?: string | null): ModelTier {
-  return (model && LIPSYNC_MODEL_TIERS[model]) ?? DEFAULT_LIPSYNC_TIER;
+function baseFor(feature: Feature, model: string | null | undefined): number {
+  if (feature === "video") return VIDEO_TIER_AURA[tierForModel("video", model)];
+  if (feature === "lipsync") return LIPSYNC_TIER_AURA[tierForModel("lipsync", model)];
+  return PRICING.base[feature];
 }
 
 export function computeCost(input: {
@@ -136,23 +124,23 @@ export function computeCost(input: {
 }): { total: number; breakdown: Record<string, number> } {
   const features = input.features ?? [];
   const resolution = input.resolution ?? PRICING.defaultResolution;
-  const duration = Math.max(0, input.durationSeconds ?? PRICING.referenceSeconds);
-  const lengthFactor = duration / PRICING.referenceSeconds;
+  const durationSeconds = Math.max(0, input.durationSeconds ?? PRICING.referenceSeconds);
   const resolutionFactor = PRICING.resolutionMultiplier[resolution];
+  const lengthFactor = durationSeconds / PRICING.referenceSeconds;
   const breakdown: Record<string, number> = {};
 
   for (const feature of features) {
-    let base = PRICING.base[feature];
-    if (feature === "video") base = VIDEO_TIER_AURA[modelTierForVideo(input.model)];
-    if (feature === "lipsync") base = LIPSYNC_TIER_AURA[modelTierForLipsync(input.model)];
+    const base = baseFor(feature, input.model);
     const scalesResolution = feature === "image" || feature === "video" || feature === "lipsync" || feature === "motion";
     const scalesLength = feature === "video" || feature === "lipsync" || feature === "motion";
     const value = base * (scalesResolution ? resolutionFactor : 1) * (scalesLength ? lengthFactor : 1);
     breakdown[feature] = (breakdown[feature] ?? 0) + value;
   }
 
-  const total = Math.max(1, Math.ceil(Object.values(breakdown).reduce((sum, value) => sum + value, 0)));
-  return { total, breakdown };
+  return {
+    total: Math.max(1, Math.ceil(Object.values(breakdown).reduce((sum, value) => sum + value, 0))),
+    breakdown,
+  };
 }
 
 export function detectFeatures(input: { kind?: string; model?: string | null }): Feature[] {
@@ -164,3 +152,67 @@ export function detectFeatures(input: { kind?: string; model?: string | null }):
   if (input.kind === "text") return ["text"];
   return ["image"];
 }
+
+// ─── Compatibility constants retained from the production pricing surface ────
+export const COST_UGC_AD = 280;
+export const COST_TIKTOK_REMIX_CUT = 100;
+export const COST_PRODUCT_DEMO = 320;
+export const COST_DAILY_POSTS = 100;
+export const COST_ROLLOUT_PLAN = 50;
+export const COST_SOCIAL_PACK = 80;
+export const COST_AUTOCUT = 80;
+export const TEMPLATE_VIDEO_PRESET_FEE = 50;
+
+export const LIPSYNC_ENGINE_MODEL = {
+  "sync-v2": "fal-ai/sync-lipsync/v2",
+  wav2lip: "fal-ai/wav2lip",
+  latentsync: "latentsync",
+  "xai-ugc": "xai/grok-imagine-video-1.5",
+  "heygen-photo": "heygen/photo-video",
+} as const;
+export type LipsyncEngine = keyof typeof LIPSYNC_ENGINE_MODEL;
+export const XAI_UGC_RELIP_MODEL = "fal-ai/sync-lipsync/v2";
+
+export function lipsyncEngineCost(engine: LipsyncEngine): number {
+  if (engine === "xai-ugc") {
+    return computeCost({ features: ["video"], model: LIPSYNC_ENGINE_MODEL[engine] }).total +
+      computeCost({ features: ["lipsync"], model: XAI_UGC_RELIP_MODEL }).total;
+  }
+  return computeCost({ features: ["lipsync"], model: LIPSYNC_ENGINE_MODEL[engine] }).total;
+}
+
+export const SOUL_IMAGE_MODEL = "fal/soul-lora";
+export const SOUL_VIDEO_MODEL = "seedance-soul";
+export function soulImageCost(resolution: Resolution = "720p"): number {
+  return computeCost({ features: ["image"], model: SOUL_IMAGE_MODEL, resolution }).total;
+}
+export function soulVideoCost(durationSeconds: number, resolution: Resolution = "720p"): number {
+  return computeCost({ features: ["video"], model: SOUL_VIDEO_MODEL, durationSeconds, resolution }).total;
+}
+export const SOUL_TRAINING_COST = 300;
+
+// Aura-pack value estimates used by billing UI. Keep the scenario cost derived
+// from the same computeCost path as generation charges.
+export const AURA_VALUE_SCENARIOS = [
+  {
+    id: "image",
+    label: "AI images",
+    shortLabel: "images",
+    cost: () => computeCost({ features: ["image"], resolution: "720p" }).total,
+  },
+  {
+    id: "performance",
+    label: "Perform Anywhere renders",
+    shortLabel: "performance renders",
+    cost: () => computeCost({ features: ["video", "motion"], resolution: "720p" }).total,
+  },
+] as const;
+export type AuraValueScenarioId = (typeof AURA_VALUE_SCENARIOS)[number]["id"];
+export function auraValueEstimate(balance: number, scenario: AuraValueScenarioId): { cost: number; count: number } {
+  const target = AURA_VALUE_SCENARIOS.find((item) => item.id === scenario);
+  if (!target) throw new Error(`Unknown Aura value scenario: ${scenario}`);
+  const cost = target.cost();
+  return { cost, count: Math.max(0, Math.floor(balance / cost)) };
+}
+
+export const SOUL_IMAGE_AURA = SOUL_IMAGE_MODEL;
