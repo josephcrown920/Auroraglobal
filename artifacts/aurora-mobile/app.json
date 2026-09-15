@@ -28,7 +28,7 @@
       "backgroundColor": "#0b0b14"
     },
     "android": {
-      "package": "com.aurorastudio.app",
+      "package": "com.auroraperformancestudio.app",
       "versionCode": 3,
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/icon.png",
