@@ -1,7 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { z } from "zod";
 import { routedGenerate } from "./index";
-import { freeOpenRouterFetch, FREE_OPENROUTER_BASE, modelArkTextFetch } from "./agent-routing";
+import {
+  freeOpenRouterFetch,
+  FREE_OPENROUTER_BASE,
+  modelArkTextFetch,
+  normalizeModelArkTextModel,
+} from "./agent-routing";
 import { buildProviderRegistry, resetProviderRegistry } from "./providers";
 import { resetHealthMap, recordOutcome } from "./health";
 
@@ -66,6 +71,21 @@ afterEach(() => {
   resetHealthMap();
 });
 
+describe("ModelArk model-name normalization", () => {
+  it("maps console display names to the versioned API IDs", () => {
+    expect(normalizeModelArkTextModel("DeepSeek-V4-Flash-GA")).toBe("deepseek-v4-flash-ga-260731");
+    expect(normalizeModelArkTextModel("DeepSeek-V4-Pro-GA")).toBe("deepseek-v4-pro-ga-260813");
+    expect(normalizeModelArkTextModel("Dola-Seed-2.1-turbo")).toBe("dola-seed-2-1-turbo-260628");
+    expect(normalizeModelArkTextModel("Dola-Seed-2.0-mini")).toBe("seed-2-0-mini-260428");
+    expect(normalizeModelArkTextModel("DeepSeek-V4-flash")).toBe("deepseek-v4-flash-ga-260731");
+  });
+
+  it("leaves already-versioned IDs untouched", () => {
+    expect(normalizeModelArkTextModel("deepseek-v4-flash-ga-260731")).toBe("deepseek-v4-flash-ga-260731");
+    expect(normalizeModelArkTextModel("dola-seed-2-1-turbo-260628")).toBe("dola-seed-2-1-turbo-260628");
+  });
+});
+
 describe("ModelArk then OpenRouter free agent routing", () => {
   it("uses ModelArk first, keeps conversation/schema, and reports the serving model", async () => {
     intercept(() => completion("served-modelark"));
@@ -80,6 +100,14 @@ describe("ModelArk then OpenRouter free agent routing", () => {
     expect(JSON.stringify(requests[0].body.messages)).toContain("REQUIRED API OUTPUT FORMAT");
     expect(JSON.stringify(requests[0].body.messages)).toContain("properties");
     expect(requests[0].body.response_format).toMatchObject({ type: "json_schema" });
+  });
+
+  it("normalizes a stale screenshot-era ModelArk model before sending it", async () => {
+    process.env.MODELARK_TEXT_MODEL = "DeepSeek-V4-flash";
+    intercept(() => completion("served-modelark"));
+    await routedGenerate(args, noLogs);
+    expect(requests).toHaveLength(1);
+    expect(requests[0].body.model).toBe("deepseek-v4-flash-ga-260731");
   });
 
   it("reuses alternate Ark credential only after definitive 401", async () => {
