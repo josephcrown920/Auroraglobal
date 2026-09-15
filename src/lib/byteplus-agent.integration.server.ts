@@ -1,6 +1,6 @@
 import { bytePlusVideo, getBytePlusKey } from "./byteplus.server";
 import { isUnifiedWorkflow, UNIFIED_WORKFLOWS, type UnifiedWorkflow } from "./comfy-manager.integration.server";
-import type { BytePlusVideoInput } from "./byteplus-video-contract";
+import { normalizeSeedanceModel, SEEDANCE_25_MODEL_ID, type BytePlusVideoInput } from "./byteplus-video-contract";
 
 export type VideoAgentMode = "standard" | "cinematic" | "viral";
 
@@ -57,8 +57,9 @@ export async function generateVideoAgent(input: {
 }): Promise<{ url: string; workflow: UnifiedWorkflow; mode: VideoAgentMode; preset?: string }> {
   if (!getBytePlusKey()) throw new Error("BytePlus/ModelArk credentials are not configured");
   const plan = planVideoAgent(input);
+  const requestedModel = input.model ?? process.env.BYTEPLUS_VIDEO_MODEL ?? process.env.ARK_VIDEO_MODEL ?? SEEDANCE_25_MODEL_ID;
   const video = await bytePlusVideo({
-    model: input.model ?? process.env.BYTEPLUS_VIDEO_MODEL ?? process.env.ARK_VIDEO_MODEL ?? "seedance-1-0-pro-250528",
+    model: normalizeSeedanceModel(requestedModel),
     prompt: plan.prompt,
     imageUrls: input.imageUrls,
     duration: input.duration,
