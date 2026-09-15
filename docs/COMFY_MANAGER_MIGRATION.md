@@ -1,0 +1,1 @@
+Aurora Global absorbs Comfy-Manager as capabilities, not as a second application. Existing Aurora ComfyUI Studio and GPU worker infrastructure already provides the worker boundary; the migration adds the unified capability registry and BytePlus Video Agent planning facade. Production validation remains required before merging to Main.
