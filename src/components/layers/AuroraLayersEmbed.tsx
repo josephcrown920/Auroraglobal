@@ -1,8 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { useServerFn } from "@tanstack/react-start";
 import { useAuth } from "@/hooks/use-auth";
-import { getAuroraLayersEmbedSession } from "@/lib/layers-embed.functions";
+import { supabase } from "@/integrations/supabase/client";
 
 const SOURCE = "aurora-layers" as const;
 const LAYERS_SRC =
@@ -31,20 +29,11 @@ function clampHeight(value: number, fallback = 1400, minimum = 420) {
 export function AuroraLayersEmbed() {
   const frameRef = useRef<HTMLIFrameElement>(null);
   const { user } = useAuth();
-  const getSession = useServerFn(getAuroraLayersEmbedSession);
   const [height, setHeight] = useState(1400);
   const [ready, setReady] = useState(false);
+  const [ssoError, setSsoError] = useState(false);
   const embedSrc = useMemo(() => withHostOrigin(LAYERS_SRC), []);
   const iframeOrigin = useMemo(() => new URL(embedSrc).origin, [embedSrc]);
-  const hostOrigin = typeof window === "undefined" ? "" : window.location.origin;
-
-  const sessionQuery = useQuery({
-    queryKey: ["aurora-layers-embed-session", user?.id, hostOrigin],
-    queryFn: () => getSession({ data: { origin: hostOrigin } }),
-    enabled: Boolean(user && hostOrigin),
-    staleTime: 45_000,
-    retry: false,
-  });
 
   useEffect(() => {
     const onMessage = (event: MessageEvent<EmbedMessage>) => {
@@ -60,6 +49,8 @@ export function AuroraLayersEmbed() {
         setReady(true);
       } else if (data.type === "height" && typeof data.height === "number") {
         setHeight(clampHeight(data.height));
+      } else if (data.type === "auth") {
+        setSsoError(data.status === "error");
       }
     };
 
@@ -68,14 +59,33 @@ export function AuroraLayersEmbed() {
   }, [iframeOrigin]);
 
   useEffect(() => {
-    const token = sessionQuery.data?.token;
-    if (!ready || !token || !frameRef.current?.contentWindow) return;
+    let cancelled = false;
 
-    frameRef.current.contentWindow.postMessage(
-      { source: SOURCE, type: "sso", token },
-      iframeOrigin,
-    );
-  }, [ready, sessionQuery.data?.token, iframeOrigin]);
+    const syncSession = async () => {
+      if (!ready || !user || !frameRef.current?.contentWindow) return;
+
+      const { data, error } = await supabase.auth.getSession();
+      if (cancelled || error || !data.session?.access_token) {
+        if (!cancelled && error) setSsoError(true);
+        return;
+      }
+
+      setSsoError(false);
+      frameRef.current.contentWindow.postMessage(
+        {
+          source: SOURCE,
+          type: "sso",
+          token: data.session.access_token,
+        },
+        iframeOrigin,
+      );
+    };
+
+    void syncSession();
+    return () => {
+      cancelled = true;
+    };
+  }, [ready, user, iframeOrigin]);
 
   return (
     <div className="w-full min-w-0">
@@ -89,9 +99,9 @@ export function AuroraLayersEmbed() {
         className="block w-full overflow-hidden rounded-3xl border-0 bg-[#0b0614]"
         style={{ height }}
       />
-      {sessionQuery.isError && (
+      {ssoError && (
         <p className="mt-2 px-1 text-xs text-muted-foreground">
-          Layers is open, but account SSO could not be synced. Check the Aurora Layers embed secret and allowed origins.
+          Layers opened, but your Aurora account could not be synced. You can continue in local mode.
         </p>
       )}
     </div>
