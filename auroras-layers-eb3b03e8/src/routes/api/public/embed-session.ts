@@ -51,15 +51,6 @@ export const Route = createFileRoute("/api/public/embed-session")({
 
       POST: async ({ request }) => {
         const origin = request.headers.get("origin");
-        const hostOrigin = normalizeEmbedOrigin(
-          (() => {
-            try {
-              return ((request.clone().headers.get("x-aurora-host-origin")) ?? "");
-            } catch {
-              return "";
-            }
-          })(),
-        );
 
         if (rateLimited(request)) {
           return json({ error: "Too many session requests. Try again shortly." }, 429, origin);
@@ -78,11 +69,11 @@ export const Route = createFileRoute("/api/public/embed-session")({
         }
 
         const accessToken = typeof body.token === "string" ? body.token : "";
-        const requestedHostOrigin = normalizeEmbedOrigin(body.hostOrigin) ?? hostOrigin;
+        const hostOrigin = normalizeEmbedOrigin(body.hostOrigin);
         if (accessToken.length === 0 || accessToken.length > 8192) {
           return json({ error: "A valid Aurora session token is required." }, 400, origin);
         }
-        if (!requestedHostOrigin || !isAllowedEmbedOrigin(requestedHostOrigin)) {
+        if (!hostOrigin || !isAllowedEmbedOrigin(hostOrigin)) {
           return json({ error: "This host is not approved for embed SSO." }, 403, origin);
         }
 
