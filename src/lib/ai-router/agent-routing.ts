@@ -6,10 +6,37 @@ export const AGENT_BRAIN_CHAIN = ["modelark", "openrouter-free"] as const;
 export const FREE_OPENROUTER_MODEL = "openrouter/free";
 export const FREE_OPENROUTER_BASE = "https://openrouter.ai/api/v1";
 
+/**
+ * Canonical ModelArk IDs used by the international BytePlus OpenAI-compatible
+ * endpoint. The console UI shows friendly names such as "DeepSeek-V4-Flash-GA"
+ * while the API expects the versioned model ID.
+ */
+export const MODELARK_MODEL_ALIASES: Readonly<Record<string, string>> = {
+  "DeepSeek-V4-flash": "deepseek-v4-flash-ga-260731",
+  "DeepSeek-V4-Flash": "deepseek-v4-flash-ga-260731",
+  "DeepSeek-V4-Flash-GA": "deepseek-v4-flash-ga-260731",
+  "DeepSeek-V4-pro": "deepseek-v4-pro-ga-260813",
+  "DeepSeek-V4-Pro": "deepseek-v4-pro-ga-260813",
+  "DeepSeek-V4-Pro-GA": "deepseek-v4-pro-ga-260813",
+  "Dola-Seed-2.1-turbo": "dola-seed-2-1-turbo-260628",
+  "Dola-Seed-2.0-lite": "seed-2-0-lite-260428",
+  "Dola-Seed-2.0-mini": "seed-2-0-mini-260428",
+  "Dola-Seed-2.0-pro": "seed-2-0-pro-260328",
+  "ByteDance-Seed-1.8": "seed-1-8-251228",
+  "ByteDance-Seed-1.6": "seed-1-6-250615",
+  "ByteDance-Seed-1.6-flash": "seed-1-6-flash-250715",
+};
+
+export function normalizeModelArkTextModel(value: string): string {
+  const trimmed = value.trim();
+  return MODELARK_MODEL_ALIASES[trimmed] ?? trimmed;
+}
+
 type Fetcher = NonNullable<OpenAICompatibleProviderSettings["fetch"]>;
 
 export function modelArkTextModel(): string {
-  return process.env.MODELARK_TEXT_MODEL?.trim() ?? "";
+  const configured = process.env.MODELARK_TEXT_MODEL?.trim() ?? "";
+  return configured ? normalizeModelArkTextModel(configured) : "";
 }
 
 function requestBody(input: Parameters<Fetcher>[0], init: Parameters<Fetcher>[1], endpoint: string) {
