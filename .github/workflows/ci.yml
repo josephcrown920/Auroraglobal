@@ -14,7 +14,7 @@ jobs:
   quality:
     name: Lint, types, tests, build
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -34,6 +34,16 @@ jobs:
       # exact same script means the local gate and CI can never drift.
       - name: Production gate
         run: npm run production:gate
+
+      # Aurora Performance Studio is a separate native Expo client inside the
+      # same source-of-truth repository. Validate it independently so web CI
+      # cannot go green while the mobile TypeScript graph is broken.
+      - name: Install mobile dependencies
+        working-directory: artifacts/aurora-mobile
+        run: npm install --package-lock=false --no-audit --no-fund
+      - name: Typecheck Aurora Performance Studio
+        working-directory: artifacts/aurora-mobile
+        run: npm run typecheck
 
   e2e:
     name: Playwright end-to-end
