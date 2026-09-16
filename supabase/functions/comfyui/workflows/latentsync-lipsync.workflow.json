@@ -1,0 +1,28 @@
+{
+  "1": {
+    "class_type": "LatentSyncLoader",
+    "inputs": { "model_name": "latentsync_unet.pt", "config": "default" }
+  },
+  "2": {
+    "class_type": "LoadImage",
+    "inputs": { "image": "face_input" }
+  },
+  "3": {
+    "class_type": "LoadAudio",
+    "inputs": { "audio": "voice_input" }
+  },
+  "4": {
+    "class_type": "LatentSyncInference",
+    "inputs": {
+      "latentsync_model": ["1", 0],
+      "image": ["2", 0],
+      "audio": ["3", 0],
+      "face_region_padding": 0.3,
+      "mask_type": "full"
+    }
+  },
+  "5": {
+    "class_type": "SaveVideo",
+    "inputs": { "filename_prefix": "aurora_lipsync", "video": ["4", 0] }
+  }
+}

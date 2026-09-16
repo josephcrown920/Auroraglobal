@@ -1,0 +1,35 @@
+{
+  "1": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "input.png"
+    }
+  },
+  "2": {
+    "class_type": "KreaEnhance",
+    "inputs": {
+      "image": ["1", 0],
+      "enhance_mode": "creative",
+      "creativity": 0.4,
+      "resemblance": 0.6,
+      "scale": 2.0
+    }
+  },
+  "3": {
+    "class_type": "KreaUpscale",
+    "inputs": {
+      "image": ["2", 0],
+      "target_width": 2048,
+      "target_height": 2048,
+      "tile_size": 512,
+      "overlap": 64
+    }
+  },
+  "4": {
+    "class_type": "SaveImage",
+    "inputs": {
+      "filename_prefix": "krea_enhanced",
+      "images": ["3", 0]
+    }
+  }
+}
