@@ -98,7 +98,8 @@ export async function runModelArkDirector(input: DirectorInput): Promise<ToolRes
   if (!sessionId) throw new Error("ModelArk did not return a session id.");
 
   const eventsUrl = `${baseUrl}/sessions/${encodeURIComponent(sessionId)}/events/stream`;
-  const eventPromise = streamSession(eventsUrl, apiKey, () => {});
+  const events: unknown[] = [];
+  const eventPromise = streamSession(eventsUrl, apiKey, (event) => events.push(event));
 
   await jsonFetch(`${baseUrl}/sessions/${encodeURIComponent(sessionId)}/events`, apiKey, {
     method: "POST",
@@ -110,8 +111,7 @@ export async function runModelArkDirector(input: DirectorInput): Promise<ToolRes
     }),
   });
 
-  const events: unknown[] = [];
-  await eventPromise.then(() => undefined);
+  await eventPromise;
   const finalText = events.map(extractText).filter(Boolean).join("\\n").trim();
 
   return {
