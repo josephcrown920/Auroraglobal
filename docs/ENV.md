@@ -200,3 +200,13 @@ Rotate in the platform secret manager, restart the affected workflow, and
 verify the corresponding 401/200 smoke checks. `LOVABLE_API_KEY` (if still
 present in a given environment) is the one managed exception — rotate it
 through its dedicated rotate tool rather than the generic secret UI.
+
+
+## Master director service bridge
+
+- `AURORA_MCP_TOKEN` — shared server-to-server credential for the Aurora MCP master director bridge. Keep it server-side only.
+- `MODELARK_AGENT_ID` — optional ModelArk Managed Agent identifier used by `aurora_modelark_director`.
+- `ARK_API_KEY` — server-side ModelArk credential used by the managed director adapter.
+- `ARK_BASE_URL` / `BYTEPLUS_BASE_URL` — optional ModelArk API base URL override.
+
+The director service token is accepted only for `aurora_modelark_director`; media-generation and account-scoped MCP tools still require normal user authentication.
