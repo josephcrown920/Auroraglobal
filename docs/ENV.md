@@ -80,7 +80,7 @@ deprecated.
 | `AI_INTEGRATIONS_GEMINI_API_KEY` / `AI_INTEGRATIONS_GEMINI_BASE_URL` | Replit-managed Gemini proxy (no personal key needed) |
 | `AI_INTEGRATIONS_OPENAI_API_KEY` / `AI_INTEGRATIONS_OPENAI_BASE_URL` | Replit-managed OpenAI proxy |
 
-### Media / video / image providers
+### ModelArk managed director\n\n| Secret | Purpose |\n|---|---|\n| `ARK_API_KEY` | Server-only ModelArk authentication for the Aurora master director |\n| `MODELARK_AGENT_ID` | Optional managed-agent ID override; defaults to the configured Aurora director agent |\n| `ARK_BASE_URL` | Optional ModelArk API base URL override |\n| `BYTEPLUS_API_KEY` / `BYTEPLUS_BASE_URL` | Fallback credentials/base URL when ARK-specific variables are not set |\n\n### Media / video / image providers
 
 | Secret | Provider |
 |---|---|
