@@ -27,6 +27,7 @@ import {
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { VideoLayersPanel, type VideoEditorLayer } from "@/components/video/VideoLayersPanel";
 import {
   createEditSession,
   loadEditSession,
@@ -97,6 +98,7 @@ function VideoEditorPage() {
   const [previewClipId, setPreviewClipId] = useState<string | null>(null);
   const [sourceAudioUrl, setSourceAudioUrl] = useState<string | null>(null);
   const [soundtrack, setSoundtrack] = useState<SoundtrackSettings>(DEFAULT_SOUNDTRACK);
+  const [layers, setLayers] = useState<VideoEditorLayer[]>([]);
 
   // ── Chat ───────────────────────────────────────────────────────────────────
   const [messages, setMessages]       = useState<ChatMessage[]>([]);
@@ -130,6 +132,10 @@ function VideoEditorPage() {
   // ── Init ───────────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!user) return;
+    try {
+      const stored = localStorage.getItem(`aurora-video-layers:${search.session ?? "new"}`);
+      if (stored) setLayers(JSON.parse(stored) as VideoEditorLayer[]);
+    } catch { /* ignore malformed local editor state */ }
 
     // Load Studio clip tray
     setTrayLoading(true);
@@ -180,7 +186,12 @@ function VideoEditorPage() {
     return () => { if (saveTimerRef.current) clearTimeout(saveTimerRef.current); };
   }, [clips, messages, style, musicTrackId, soundtrack, sessionId, sessionReady, saveSessionFn]);
 
-  // ── Scroll chat to bottom ──────────────────────────────────────────────────
+  useEffect(() => {
+    if (!sessionId) return;
+    try { localStorage.setItem(`aurora-video-layers:${sessionId}`, JSON.stringify(layers)); } catch { /* storage may be unavailable */ }
+  }, [layers, sessionId]);
+
+  // ── Scroll chat to bottom
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, chatBusy]);
@@ -508,6 +519,8 @@ function VideoEditorPage() {
                 />
               ))}
             </div>
+
+            <VideoLayersPanel layers={layers} onChange={setLayers} />
 
             {/* Style picker */}
             <section className="rounded-xl border border-border bg-card p-4">
