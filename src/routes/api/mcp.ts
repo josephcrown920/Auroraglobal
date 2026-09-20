@@ -50,6 +50,10 @@ async function authUserId(req: Request): Promise<RpcAuth> {
   const h = req.headers.get("authorization") || req.headers.get("Authorization");
   if (!h?.startsWith("Bearer ")) return { userId: null, bearer: null };
   const token = h.slice(7);
+  const serviceToken = process.env.AURORA_MCP_TOKEN?.trim();
+  if (serviceToken && token === serviceToken) {
+    return { userId: null, bearer: token, isAdmin: false, isService: true };
+  }
   if (token.startsWith("aurk_")) {
     const { userIdForApiKey } = await import("@/lib/cli-device.server");
     const userId = await userIdForApiKey(token);
