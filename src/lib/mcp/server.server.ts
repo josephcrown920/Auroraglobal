@@ -5,7 +5,6 @@
 
 import { z } from "zod";
 import type { ToolResult } from "./types";
-import { modelArkDirectorSchema, modelArkDirectorTool } from "./modelark-director.server";
 import { defaultHiddenKeys, type FeatureKey } from "../feature-visibility";
 import {
   generateVideoSchema, generateVideoTool,
@@ -47,12 +46,6 @@ export const TOOL_FEATURE: Readonly<Record<string, FeatureKey>> = {
 };
 
 const TOOLS: ToolDef[] = [
-  {
-    name: "aurora_modelark_director",
-    description:
-      "Run Aurora's configured ModelArk Managed Agent as the master production director. The managed agent is the orchestration layer; its configured model (Dola Seed in the current setup) provides reasoning, while Aurora's specialist media tools remain the execution layer.",
-    schema: modelArkDirectorSchema,
-  },
   {
     name: "aurora_generate_video",
     description:
@@ -192,8 +185,6 @@ export function listTools(
 
 export async function callTool(name: string, args: unknown, ctx: ToolCtx, deps: ToolDeps = defaultToolDeps): Promise<ToolResult> {
   switch (name) {
-    case "aurora_modelark_director":
-      return modelArkDirectorTool(modelArkDirectorSchema.parse(args));
     case "aurora_generate_video":
       return generateVideoTool(generateVideoSchema.parse(args), ctx, deps);
     case "aurora_bulk_generate":
@@ -235,7 +226,7 @@ export const PROTOCOL_VERSION = "2024-11-05";
 export const SERVER_INFO = { name: "aurora-mcp", version: "1.0.0" };
 
 export type RpcMessage = { jsonrpc?: string; id?: string | number | null; method?: string; params?: Record<string, unknown> };
-export type RpcAuth = { userId: string | null; bearer: string | null; isAdmin?: boolean; isService?: boolean };
+export type RpcAuth = { userId: string | null; bearer: string | null; isAdmin?: boolean };
 
 /**
  * Effective hidden feature keys for this caller. Admins/owner always see and
@@ -285,11 +276,10 @@ export async function handleRpcMessage(
       // authenticated as admin.
       return rpcResult(id, listTools(await hiddenKeysFor(auth, deps)));
     case "tools/call": {
-      const name = params?.name as string;
-      const serviceAllowed = Boolean(auth.isService && name === "aurora_modelark_director");
-      if ((!auth.userId || !auth.bearer) && !serviceAllowed) {
-        return rpcError(id, -32001, "Unauthorized: provide Authorization: Bearer <Supabase JWT, aurk_ API key, or configured Aurora MCP service token>");
+      if (!auth.userId || !auth.bearer) {
+        return rpcError(id, -32001, "Unauthorized: provide Authorization: Bearer <Supabase JWT or aurk_ API key>");
       }
+      const name = params?.name as string;
       const args = params?.arguments ?? {};
       // Direct-invocation gate: even if a client cached an older tools/list,
       // a hidden feature must fail EXPLICITLY for non-admins — never run.
@@ -307,12 +297,7 @@ export async function handleRpcMessage(
         });
       }
       try {
-        const toolResult = await callTool(
-          name,
-          args,
-          { userId: auth.userId ?? "service:modelark-director", bearer: auth.bearer, origin },
-          deps,
-        );
+        const toolResult = await callTool(name, args, { userId: auth.userId, bearer: auth.bearer, origin }, deps);
         return rpcResult(id, toolResult);
       } catch (e) {
         // Surface tool/validation failures as an MCP tool error result, not a transport error.
