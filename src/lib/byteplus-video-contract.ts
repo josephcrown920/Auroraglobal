@@ -81,10 +81,17 @@ export function buildBytePlusVideoBody(opts: BytePlusVideoInput): Record<string,
   }
 
   const images = opts.imageUrls ?? [];
-  if (images.length > 9) throw new Error("Seedance supports at most 9 reference images");
+  // Seedance 2.5 supports up to 30 multimodal reference images. Keep the
+  // 2.0/older limit at the provider boundary instead of silently truncating.
+  if (opts.model === SEEDANCE_25_MODEL_ID && images.length > 30) {
+    throw new Error("Seedance 2.5 supports at most 30 reference images");
+  }
+  if (opts.model !== SEEDANCE_25_MODEL_ID && images.length > 9) {
+    throw new Error("This Seedance checkpoint supports at most 9 reference images");
+  }
   if (opts.duration !== undefined &&
-      (!Number.isInteger(opts.duration) || opts.duration < 4 || opts.duration > 15)) {
-    throw new Error("Seedance 2.5 duration must be an integer between 4 and 15 seconds");
+      (!Number.isInteger(opts.duration) || opts.duration < 4 || opts.duration > 30)) {
+    throw new Error("Seedance 2.5 duration must be an integer between 4 and 30 seconds");
   }
   if (opts.resolution && !["480p", "720p"].includes(opts.resolution)) {
     throw new Error("Seedance 2.5 currently supports 480p or 720p in Aurora");
@@ -135,6 +142,26 @@ type RoutingInput = {
 };
 
 /** Prevent fallback adapters from dropping a rich Seedance reference/control. */
+/** LAS asset references are the approved path for real-person material. */
+export function isLasAssetReference(value: string | undefined | null): boolean {
+  return /^asset:\/\//i.test(value?.trim() ?? "");
+}
+
+/**
+ * BytePlus returns provider-specific wording for real-person review blocks.
+ * Normalize it at the shared contract boundary so all Aurora adapters can
+ * present the same remediation instead of retrying the same rejected input.
+ */
+export function isRealPersonReferenceBlock(message: string): boolean {
+  const normalized = message.toLowerCase();
+  return normalized.includes("real person") ||
+    normalized.includes("real human") ||
+    normalized.includes("real-person") ||
+    normalized.includes("真人") ||
+    normalized.includes("真实人物") ||
+    normalized.includes("may contain a real person");
+}
+
 export function requiresNativeSeedance(req: RoutingInput): boolean {
   const isNativeAlias = req.model === NATIVE_SEEDANCE_25;
   const model = normalizeSeedanceModel(req.model);
