@@ -27,8 +27,6 @@ export const OPTIONAL_ENV_GROUPS: Record<string, readonly string[]> = {
     "ANTHROPIC_API_KEY",
     "OPENROUTER_API_KEY",
     "HF_TOKEN",
-    "ARK_API_KEY",
-    "MODELARK_AGENT_ID",
   ],
   "Media/video providers": [
     "FAL_KEY",
