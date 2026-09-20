@@ -42,7 +42,7 @@ describe("Seedance 2.5 native multimodal contract", () => {
     expect((buildBytePlusVideoBody({ ...base, audioUrl: "https://example.com/a.mp3" }).content as Array<{ role: string }>)[0].role).toBe("reference_image");
   });
   it("fails rather than clamping approved values or dropping unsupported controls", () => {
-    for (const duration of [2, 3, 16, 4.5, NaN]) {
+    for (const duration of [2, 3, 31, 4.5, NaN]) {
       expect(() => buildBytePlusVideoBody({ model: SEEDANCE_25_MODEL_ID, duration })).toThrow();
     }
     expect(() => buildBytePlusVideoBody({ model: SEEDANCE_25_MODEL_ID, resolution: "1080p" })).toThrow();
@@ -57,6 +57,14 @@ describe("Seedance 2.5 native multimodal contract", () => {
     expect(() => buildBytePlusVideoBody({
       model: SEEDANCE_25_MODEL_ID, imageRoles: "first_frame" as never,
     })).toThrow();
+    expect(() => buildBytePlusVideoBody({
+      model: SEEDANCE_25_MODEL_ID, imageUrls: Array.from({ length: 31 }, (_, i) => "asset://person-" + i),
+    })).toThrow();
+    expect(() => buildBytePlusVideoBody({
+      model: SEEDANCE_25_MODEL_ID,
+      imageUrls: ["asset://authorized-person"],
+      videoUrl: "asset://reference-video",
+    })).not.toThrow();
   });
   it("requires native routing even for explicitly false controls and multiple references", () => {
     expect(requiresNativeSeedance({ model: NATIVE_SEEDANCE_25 })).toBe(true);
