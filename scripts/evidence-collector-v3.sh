@@ -4,7 +4,7 @@
 set -u
 set -o pipefail
 
-REPORT="${REPORT:-AURORA_GLOBAL_EVIDENCE_COLLECTION.md}"
+REPORT="${REPORT:-$HOME/AURORA_GLOBAL_EVIDENCE_COLLECTION.md}"
 ROOT="${ROOT:-.}"
 
 say() { printf '\n[%s] %s\n' "$1" "$2"; }
