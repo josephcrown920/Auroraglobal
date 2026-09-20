@@ -5,6 +5,7 @@
 
 import { z } from "zod";
 import type { ToolResult } from "./types";
+import { modelArkDirectorSchema, modelArkDirectorTool } from "./modelark-director.server";
 import { defaultHiddenKeys, type FeatureKey } from "../feature-visibility";
 import {
   generateVideoSchema, generateVideoTool,
@@ -46,6 +47,12 @@ export const TOOL_FEATURE: Readonly<Record<string, FeatureKey>> = {
 };
 
 const TOOLS: ToolDef[] = [
+  {
+    name: "aurora_modelark_director",
+    description:
+      "Run Aurora's configured ModelArk Managed Agent as the master production director. The managed agent is the orchestration layer; its configured model (Dola Seed in the current setup) provides reasoning, while Aurora's specialist media tools remain the execution layer.",
+    schema: modelArkDirectorSchema,
+  },
   {
     name: "aurora_generate_video",
     description:
@@ -185,6 +192,8 @@ export function listTools(
 
 export async function callTool(name: string, args: unknown, ctx: ToolCtx, deps: ToolDeps = defaultToolDeps): Promise<ToolResult> {
   switch (name) {
+    case "aurora_modelark_director":
+      return modelArkDirectorTool(modelArkDirectorSchema.parse(args));
     case "aurora_generate_video":
       return generateVideoTool(generateVideoSchema.parse(args), ctx, deps);
     case "aurora_bulk_generate":
