@@ -12,7 +12,11 @@
 // 404 slug can be corrected with a secret change, never a code change. When
 // unset, the current published defaults are used.
 
-import { buildBytePlusVideoBody, type BytePlusVideoInput } from "./byteplus-video-contract";
+import {
+  buildBytePlusVideoBody,
+  isRealPersonReferenceBlock,
+  type BytePlusVideoInput,
+} from "./byteplus-video-contract";
 
 const DEFAULT_BASE = "https://ark.ap-southeast.bytepluses.com/api/v3";
 
@@ -252,6 +256,12 @@ export async function bytePlusVideo(opts: BytePlusVideoOpts): Promise<string> {
     if (status === "failed" || status === "cancelled") {
       const msg =
         typeof pj?.error === "string" ? pj.error : (pj?.error?.message ?? "unknown error");
+      if (isRealPersonReferenceBlock(msg)) {
+        throw new BytePlusError(
+          "REAL_PERSON_REFERENCE_REQUIRES_ASSET: Seedance blocked direct real-person media. Authorize the person in the LAS material/virtual portrait library and use asset://<ASSET_ID> for the identity reference.",
+          { status: 422 },
+        );
+      }
       throw new BytePlusError(`BytePlus video ${status}: ${sanitizeProviderMessage(msg)}`);
     }
     // queued / running → keep polling.
