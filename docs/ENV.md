@@ -160,6 +160,23 @@ deprecated.
 
 ---
 
+
+### ModelArk master director
+
+| Variable | Purpose |
+|---|---|
+| `ARK_API_KEY` | Server-only credential used by the ModelArk Managed Agent director and existing Ark adapters |
+| `MODELARK_AGENT_ID` | Optional Managed Agent ID; defaults to the configured Aurora master director agent |
+| `ARK_BASE_URL` / `BYTEPLUS_BASE_URL` | Optional regional ModelArk base URL; AP defaults to `https://ark.ap-southeast.bytepluses.com/api/v3` |
+
+The managed agent is the orchestration layer, not a replacement for the media
+models. Its configured model (Dola Seed in the current Aurora setup) supplies
+the reasoning, while Aurora's Seedream/Seedance/OmniHuman/lip-sync/avatar/UGC/
+campaign/job tools remain the execution layer. The MCP tool
+`aurora_modelark_director` exposes the director to authenticated MCP clients.
+
+Never put `ARK_API_KEY` in `VITE_*`, client code, logs, Git, or chat.
+
 ## Adding a new secret
 
 1. Request it via the agent's secret-request flow, or Project Settings → Secrets.
