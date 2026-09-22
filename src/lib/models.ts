@@ -5,18 +5,18 @@ export type ModelMeta = {
   value: string;
   label: string;
   short: string;
-  group: "Lovable AI" | "Replicate" | "BytePlus" | "Sync" | "Self-hosted" | "Replit";
+  group: "Lovable AI" | "Replicate" | "Ark" | "Hugging Face" | "Sync";
   icon: LucideIcon;
   color: string;
   bg: string;
   tagline: string;
   status?: "live" | "preview";
-  category: "image" | "video" | "lipsync" | "text" | "audio";
-  /** Stable Aurora key or provider endpoint used by the server router. */
+  category: "image" | "video" | "lipsync";
+  /** Real backend endpoint we route to. */
   endpoint: string;
 };
 
-// IMAGE MODELS
+// IMAGE MODELS (selectable in studio)
 export const MODEL_LIST: ModelMeta[] = [
   {
     value: "google/nano-banana",
@@ -59,10 +59,10 @@ export const MODEL_LIST: ModelMeta[] = [
   },
   {
     value: "fal-ai/seedream-4",
-    endpoint: "byteplus/seedream-4.0",
+    endpoint: "fal-ai/bytedance/seedream/v4/edit",
     label: "Seedream 4",
     short: "Seedream",
-    group: "BytePlus",
+    group: "Replicate",
     icon: Flame,
     color: "text-rose-400",
     bg: "bg-rose-500/15 border-rose-500/30",
@@ -72,101 +72,84 @@ export const MODEL_LIST: ModelMeta[] = [
   },
   {
     value: "fal-ai/seedream-4.5",
-    endpoint: "byteplus/seedream-4.5",
+    endpoint: "fal-ai/bytedance/seedream/v4/edit",
     label: "Seedream 4.5",
     short: "Seedream 4.5",
-    group: "BytePlus",
+    group: "Replicate",
     icon: Flame,
     color: "text-pink-400",
     bg: "bg-pink-500/15 border-pink-500/30",
     tagline: "Refined cinematic edits, sharper",
+    status: "preview",
+    category: "image",
+  },
+  {
+    value: "hf/flux-schnell",
+    endpoint: "black-forest-labs/FLUX.1-schnell",
+    label: "FLUX.1 Schnell",
+    short: "FLUX",
+    group: "Hugging Face",
+    icon: Cpu,
+    color: "text-sky-400",
+    bg: "bg-sky-500/15 border-sky-500/30",
+    tagline: "Open-source, fast, free tier via HF",
     status: "live",
     category: "image",
   },
   {
-    value: "fal-ai/seedream-5",
-    endpoint: "byteplus/seedream-5.0-pro",
-    label: "Seedream 5.0 Pro",
-    short: "Seedream 5 Pro",
-    group: "BytePlus",
-    icon: Flame,
-    color: "text-fuchsia-400",
-    bg: "bg-fuchsia-500/15 border-fuchsia-500/30",
-    tagline: "Newest ByteDance image model · sharpest detail yet",
+    value: "hf/sdxl",
+    endpoint: "stabilityai/stable-diffusion-xl-base-1.0",
+    label: "SDXL Base",
+    short: "SDXL",
+    group: "Hugging Face",
+    icon: Cpu,
+    color: "text-indigo-400",
+    bg: "bg-indigo-500/15 border-indigo-500/30",
+    tagline: "Stable Diffusion XL · classic open model",
     status: "live",
     category: "image",
   },
 ];
 
-// VIDEO MODELS
-// The BytePlus entries use the actual ModelArk checkpoint IDs. They remain
-// preview until Aurora has a successful account-level render, rather than
-// pretending that an activated catalog entry is the same thing as a tested
-// production route.
+// VIDEO MODELS (selectable for image-to-video)
 export const VIDEO_MODEL_LIST: ModelMeta[] = [
   {
+    value: "seedance-2.5",
+    endpoint: "ark.ap-southeast.bytepluses.com/api/v3/contents/generations/tasks",
+    label: "Seedance 2.5",
+    short: "Seedance 2.5",
+    group: "Ark",
+    icon: Film,
+    color: "text-violet-400",
+    bg: "bg-violet-500/15 border-violet-500/25",
+    tagline: "Latest Ark motion model · reference images, video and audio",
+    status: "live",
+    category: "video",
+  },
+  {
     value: "seedance-2.0-fast",
-    endpoint: "byteplus/dreamina-seedance-2-0-fast-260128",
+    endpoint: "ark.ap-southeast.bytepluses.com/api/v3/contents/generations/tasks",
     label: "Seedance 2.0 Fast",
     short: "Seedance Fast",
-    group: "BytePlus",
+    group: "Ark",
     icon: Film,
     color: "text-violet-300",
     bg: "bg-violet-500/10 border-violet-500/25",
-    tagline: "Fast Seedance 2.0 · draft and high-volume shots",
-    status: "preview",
+    tagline: "Cheapest · quick previews & everyday shots",
+    status: "live",
     category: "video",
   },
   {
     value: "seedance-2.0",
-    endpoint: "byteplus/dreamina-seedance-2-0-260128",
+    endpoint: "ark.ap-southeast.bytepluses.com/api/v3/contents/generations/tasks",
     label: "Seedance 2.0",
     short: "Seedance 2.0",
-    group: "BytePlus",
+    group: "Ark",
     icon: Film,
     color: "text-violet-400",
-    bg: "bg-violet-500/15 border-violet-500/25",
-    tagline: "Professional multimodal video · image, video and audio references",
-    status: "preview",
-    category: "video",
-  },
-  {
-    value: "seedance-2.0-mini",
-    endpoint: "byteplus/dreamina-seedance-2-0-mini-260615",
-    label: "Seedance 2.0 Mini",
-    short: "Seedance Mini",
-    group: "BytePlus",
-    icon: Film,
-    color: "text-violet-300",
-    bg: "bg-violet-500/10 border-violet-500/25",
-    tagline: "Economical Seedance 2.0 tier · fast iteration",
-    status: "preview",
-    category: "video",
-  },
-  {
-    value: "seedance-2.5",
-    endpoint: "byteplus/dreamina-seedance-2-5-260628",
-    label: "Seedance 2.5",
-    short: "Seedance 2.5",
-    group: "BytePlus",
-    icon: Film,
-    color: "text-fuchsia-400",
-    bg: "bg-fuchsia-500/15 border-fuchsia-500/30",
-    tagline: "Longer storytelling · richer references · native audio",
-    status: "preview",
-    category: "video",
-  },
-  {
-    value: "seedance-1.5-pro",
-    endpoint: "byteplus/seedance-1.5-pro",
-    label: "Seedance 1.5 Pro",
-    short: "Seedance 1.5 Pro",
-    group: "BytePlus",
-    icon: Film,
-    color: "text-violet-500",
-    bg: "bg-violet-600/15 border-violet-600/30",
-    tagline: "Legacy ByteDance high-fidelity video route",
-    status: "preview",
+    bg: "bg-violet-500/15 border-violet-500/30",
+    tagline: "Premium · cinematic motion + character consistency",
+    status: "live",
     category: "video",
   },
   {
@@ -184,7 +167,7 @@ export const VIDEO_MODEL_LIST: ModelMeta[] = [
   },
   {
     value: "kling-3.0-omni",
-    endpoint: "kwaivgi/kling-v2.1-master",
+    endpoint: "fal-ai/kling-video/v2.1/master/image-to-video",
     label: "Kling 3.0 Omni",
     short: "Kling Omni",
     group: "Replicate",
@@ -193,6 +176,19 @@ export const VIDEO_MODEL_LIST: ModelMeta[] = [
     bg: "bg-teal-500/15 border-teal-500/30",
     tagline: "Omni-modal storytelling",
     status: "preview",
+    category: "video",
+  },
+  {
+    value: "wan-2.5",
+    endpoint: "wan-video/wan-2.5-i2v",
+    label: "WAN 2.5",
+    short: "WAN",
+    group: "Replicate",
+    icon: Sparkles,
+    color: "text-fuchsia-400",
+    bg: "bg-fuchsia-500/15 border-fuchsia-500/30",
+    tagline: "Alibaba WAN · crisp image-to-video motion",
+    status: "live",
     category: "video",
   },
   {
@@ -264,123 +260,16 @@ export const WAV2LIP_MODEL: ModelMeta = {
   category: "lipsync",
 };
 
-export const LATENTSYNC_MODEL: ModelMeta = {
-  value: "latentsync",
-  endpoint: "latentsync",
-  label: "LatentSync (self-hosted)",
-  short: "LatentSync",
-  group: "Self-hosted",
-  icon: Cpu,
-  color: "text-sky-400",
-  bg: "bg-sky-500/15 border-sky-500/30",
-  tagline: "Runs on your registered GPU worker · no hosted API",
-  status: "live",
-  category: "lipsync",
-};
-
-export const LIPSYNC_MODEL_LIST: ModelMeta[] = [LIPSYNC_MODEL, WAV2LIP_MODEL, LATENTSYNC_MODEL];
-
-// Replit-billed models are intentionally not user-pickable.
-export const REPLIT_MODEL_LIST: ModelMeta[] = [
-  {
-    value: "replit/gemini-2.5-flash-image",
-    endpoint: "replit/gemini-2.5-flash-image",
-    label: "Nano Banana (Replit)",
-    short: "Nano Banana",
-    group: "Replit",
-    icon: Banana,
-    color: "text-violet-300",
-    bg: "bg-violet-500/15 border-violet-500/30",
-    tagline: "Gemini 2.5 Flash image · billed to Replit credits",
-    status: "live",
-    category: "image",
-  },
-  {
-    value: "replit/gpt-image-1",
-    endpoint: "replit/gpt-image-1",
-    label: "GPT Image 1 (Replit)",
-    short: "GPT Image",
-    group: "Replit",
-    icon: ImageIcon,
-    color: "text-violet-300",
-    bg: "bg-violet-500/15 border-violet-500/30",
-    tagline: "OpenAI image gen · billed to Replit credits",
-    status: "live",
-    category: "image",
-  },
-  {
-    value: "replit/gpt-5-nano",
-    endpoint: "replit/gpt-5-nano",
-    label: "GPT-5 Nano (Replit)",
-    short: "GPT-5 Nano",
-    group: "Replit",
-    icon: Zap,
-    color: "text-violet-300",
-    bg: "bg-violet-500/15 border-violet-500/30",
-    tagline: "Fast OpenAI text · billed to Replit credits",
-    status: "live",
-    category: "text",
-  },
-  {
-    value: "replit/gemini-2.5-flash",
-    endpoint: "replit/gemini-2.5-flash",
-    label: "Gemini 2.5 Flash (Replit)",
-    short: "Gemini Flash",
-    group: "Replit",
-    icon: Sparkles,
-    color: "text-violet-300",
-    bg: "bg-violet-500/15 border-violet-500/30",
-    tagline: "Gemini text · billed to Replit credits",
-    status: "live",
-    category: "text",
-  },
-  {
-    value: "replit/gpt-audio-mini",
-    endpoint: "replit/gpt-audio-mini",
-    label: "GPT Audio Mini (Replit)",
-    short: "GPT Audio",
-    group: "Replit",
-    icon: Wand2,
-    color: "text-violet-300",
-    bg: "bg-violet-500/15 border-violet-500/30",
-    tagline: "OpenAI TTS · billed to Replit credits",
-    status: "live",
-    category: "audio",
-  },
-];
+export const LIPSYNC_MODEL_LIST: ModelMeta[] = [LIPSYNC_MODEL, WAV2LIP_MODEL];
 
 const ALL: Record<string, ModelMeta> = Object.fromEntries(
-  [...MODEL_LIST, ...VIDEO_MODEL_LIST, ...LIPSYNC_MODEL_LIST, ...REPLIT_MODEL_LIST].map((m) => [m.value, m]),
+  [...MODEL_LIST, ...VIDEO_MODEL_LIST, ...LIPSYNC_MODEL_LIST].map((m) => [m.value, m]),
 );
 
-[...MODEL_LIST, ...VIDEO_MODEL_LIST, ...LIPSYNC_MODEL_LIST, ...REPLIT_MODEL_LIST].forEach((m) => {
+// Also index by raw endpoint (for legacy rows stored with endpoint string)
+[...MODEL_LIST, ...VIDEO_MODEL_LIST, ...LIPSYNC_MODEL_LIST].forEach((m) => {
   if (!ALL[m.endpoint]) ALL[m.endpoint] = m;
 });
-
-export const AUTO_BEST = "auto:best";
-export const AUTO_CHEAPEST = "auto:cheapest";
-
-export const AUTO_MODEL_OPTIONS = [
-  { value: AUTO_BEST, label: "✦ Auto · Best Quality", desc: "System picks the highest-quality active model" },
-  { value: AUTO_CHEAPEST, label: "✦ Auto · Cheapest", desc: "System picks the fastest, lowest-cost model" },
-] as const;
-
-export function resolveAutoModel(
-  value: string | undefined | null,
-  category: "image" | "video" | "lipsync",
-): string {
-  if (value === AUTO_BEST) {
-    if (category === "image") return "google/gemini-3-pro-image-preview";
-    if (category === "video") return "seedance-2.5";
-    if (category === "lipsync") return "fal-ai/sync-lipsync/v2";
-  }
-  if (value === AUTO_CHEAPEST) {
-    if (category === "image") return "fal-ai/seedream-4";
-    if (category === "video") return "seedance-2.0-fast";
-    if (category === "lipsync") return "fal-ai/wav2lip";
-  }
-  return value ?? "";
-}
 
 export function getModelMeta(value?: string | null): ModelMeta {
   if (value && ALL[value]) return ALL[value];
@@ -398,16 +287,12 @@ export function getModelMeta(value?: string | null): ModelMeta {
   };
 }
 
-export function resolveImageEndpoint(value: string): {
-  endpoint: string;
-  provider: "lovable" | "replicate" | "byteplus" | "replit";
-} {
+export function resolveImageEndpoint(value: string): { endpoint: string; provider: "lovable" | "replicate" | "huggingface" } {
   const m = ALL[value];
   if (m && m.category === "image") {
     const provider =
       m.group === "Lovable AI" ? "lovable" :
-      m.group === "BytePlus" ? "byteplus" :
-      m.group === "Replit" ? "replit" : "replicate";
+      m.group === "Hugging Face" ? "huggingface" : "replicate";
     return { endpoint: m.endpoint, provider };
   }
   return { endpoint: "google/gemini-2.5-flash-image", provider: "lovable" };
@@ -416,20 +301,15 @@ export function resolveImageEndpoint(value: string): {
 export function resolveVideoEndpoint(value: string): string {
   const m = ALL[value];
   if (m && m.category === "video") return m.endpoint;
-  return "byteplus/dreamina-seedance-2-0-fast-260128";
+  return "fal-ai/bytedance/seedance/v1/pro/image-to-video";
 }
 
+// Marketing-only list used on the landing page (matches Magnific-style display)
 export type ShowcaseKind = "video" | "image" | "lipsync" | "soon";
 export const SHOWCASE_MODELS: {
-  name: string;
-  tag: string;
-  glow: string;
-  kind: ShowcaseKind;
-  status?: "LIVE" | "SOON";
+  name: string; tag: string; glow: string; kind: ShowcaseKind; status?: "LIVE" | "SOON";
 }[] = [
-  { name: "Seedance 2.5", tag: "Video · Premium", glow: "from-fuchsia-500/40 to-violet-500/20", kind: "video", status: "LIVE" },
   { name: "Seedance 2.0", tag: "Video · Core", glow: "from-violet-500/40 to-fuchsia-500/20", kind: "video", status: "LIVE" },
-  { name: "Seedance 2.0 Mini", tag: "Video · Fast", glow: "from-violet-400/40 to-blue-500/20", kind: "video", status: "LIVE" },
   { name: "Kling 3.0", tag: "Video · Narrative", glow: "from-cyan-500/40 to-blue-500/20", kind: "video", status: "LIVE" },
   { name: "Nano Banana Pro", tag: "Image · Premium", glow: "from-amber-400/40 to-yellow-500/20", kind: "image", status: "LIVE" },
   { name: "Nano Banana 2", tag: "Image · Fast", glow: "from-amber-500/40 to-orange-500/20", kind: "image", status: "LIVE" },
@@ -437,4 +317,5 @@ export const SHOWCASE_MODELS: {
   { name: "Sync 1.9", tag: "Lip-sync", glow: "from-emerald-500/40 to-teal-500/20", kind: "lipsync", status: "LIVE" },
   { name: "Veo 3", tag: "Video · Cinematic", glow: "from-blue-500/40 to-indigo-500/20", kind: "video", status: "LIVE" },
   { name: "Sora 2", tag: "Video · Premium", glow: "from-orange-500/40 to-amber-500/20", kind: "video", status: "LIVE" },
+  { name: "WAN 2.5", tag: "Video · Motion", glow: "from-fuchsia-500/40 to-purple-500/20", kind: "video", status: "LIVE" },
 ];
