@@ -99,11 +99,13 @@ describe("Seedance 2.x native multimodal contract", () => {
     })).not.toThrow();
   });
 
-  it("requires native routing for explicit 2.5 multimodal controls", () => {
+  it("requires native routing for Seedance 2.x multimodal controls", () => {
     expect(requiresNativeSeedance({ model: NATIVE_SEEDANCE_25 })).toBe(true);
     expect(requiresNativeSeedance({ model: "seedance-2.5", params: { generate_audio: false } })).toBe(true);
     expect(requiresNativeSeedance({ model: "seedance-2.5", imageUrls: ["a", "b"] })).toBe(true);
     expect(requiresNativeSeedance({ model: "seedance-2.5", videoUrl: "v" })).toBe(true);
+    expect(requiresNativeSeedance({ model: "seedance-2.0", videoUrl: "v" })).toBe(true);
+    expect(requiresNativeSeedance({ model: "seedance-2.0-fast", imageUrls: ["a", "b"] })).toBe(true);
     expect(requiresNativeSeedance({ model: "seedance-2.0" })).toBe(false);
   });
 
