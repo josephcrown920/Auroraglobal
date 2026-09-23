@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { assertOwnedReferenceImage } from "./url-guard";
-import { orchestrate, type CameraMovement, type MotionType } from "./orchestrator.server";
+import { generateModelArkMotion } from "./modelark-seedance-motion.server";
 
 const MODEL_KEYS = ["seedance-2.0-fast", "seedance-2.0", "seedance-2.5"] as const;
 const CAMERA_MOVEMENTS = [
@@ -37,9 +37,11 @@ export type SeedanceMotionInput = z.infer<typeof SeedanceMotionSchema>;
 /**
  * ModelArk-native motion control.
  *
- * The important distinction from MimicMotion is that this does NOT route to a
- * GPU/ComfyUI worker. The uploaded motion video is sent to Seedance as a
- * `reference_video` while the subject image is sent as the visual anchor.
+ * This path deliberately bypasses the generic orchestration fallback chain:
+ * motion-control requests must reach the activated Seedance model directly.
+ * The motion video is sent as `reference_video` and the subject image as
+ * `reference_image`, which is the multimodal reference contract used by
+ * Seedance 2.x.
  */
 export const generateSeedanceMotion = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -48,21 +50,18 @@ export const generateSeedanceMotion = createServerFn({ method: "POST" })
     await assertOwnedReferenceImage(data.subjectImageUrl, context.userId);
     await assertOwnedReferenceImage(data.motionVideoUrl, context.userId);
 
-    const result = await orchestrate({
-      kind: "video",
-      model: data.modelKey,
+    const result = await generateModelArkMotion({
+      modelKey: data.modelKey,
+      subjectImageUrl: data.subjectImageUrl,
+      motionVideoUrl: data.motionVideoUrl,
       prompt: data.prompt,
-      imageUrls: [data.subjectImageUrl],
-      videoUrl: data.motionVideoUrl,
       duration: data.duration,
       resolution: data.resolution,
-      cameraMovement: data.cameraMovement as CameraMovement | null | undefined,
-      motionType: data.motionType as MotionType | null | undefined,
-      userId: context.userId,
+      cameraMovement: data.cameraMovement,
     });
 
     return {
-      videoUrl: result.url,
+      videoUrl: result.videoUrl,
       provider: result.provider,
       endpoint: result.endpoint,
       latencyMs: result.latencyMs,
