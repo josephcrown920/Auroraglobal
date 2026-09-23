@@ -189,10 +189,14 @@ export function isRealPersonReferenceBlock(message: string): boolean {
 }
 
 export function requiresNativeSeedance(req: RoutingInput): boolean {
-  const isNativeAlias = req.model === NATIVE_SEEDANCE_25;
   const model = normalizeSeedanceModel(req.model);
+  const isSeedance2x =
+    model === SEEDANCE_25_MODEL_ID ||
+    model === "dreamina-seedance-2-0-260128" ||
+    model === "dreamina-seedance-2-0-fast-260128" ||
+    model === "dreamina-seedance-2-0-mini-260615";
   const hasNativeControls = !!req.videoUrl || !!req.audioUrl || (req.imageUrls?.length ?? 0) > 1 ||
     req.params?.imageRoles !== undefined || req.params?.generate_audio !== undefined ||
     req.params?.watermark !== undefined || req.params?.seed !== undefined;
-  return isNativeAlias || (model === SEEDANCE_25_MODEL_ID && hasNativeControls);
+  return req.model === NATIVE_SEEDANCE_25 || (isSeedance2x && hasNativeControls);
 }
