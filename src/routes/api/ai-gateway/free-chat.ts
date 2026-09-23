@@ -3,7 +3,9 @@ import { streamText } from "ai";
 import { FREE_AI_MODELS } from "@/lib/ai-gateway-free-models";
 
 const ALLOWED = new Set(
-  FREE_AI_MODELS.filter((model) => model.free && (model.modality === "chat" || model.modality === "reasoning" || model.modality === "vision")).map((model) => model.id),
+  FREE_AI_MODELS.filter(
+    (model) => model.free && (model.modality === "chat" || model.modality === "reasoning" || model.modality === "vision"),
+  ).map((model) => model.id),
 );
 
 type Body = {
@@ -16,8 +18,8 @@ export const Route = createFileRoute("/api/ai-gateway/free-chat")({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        if (!process.env.AI_GATEWAY_API_KEY && !process.env.OPENROUTER_API_KEY) {
-          return new Response("AI_GATEWAY_API_KEY or OPENROUTER_API_KEY is not configured", { status: 503 });
+        if (!process.env.AI_GATEWAY_API_KEY) {
+          return new Response("AI_GATEWAY_API_KEY is not configured", { status: 503 });
         }
 
         const body = (await request.json().catch(() => ({}))) as Body;
