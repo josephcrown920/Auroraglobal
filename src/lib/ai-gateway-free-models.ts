@@ -24,7 +24,7 @@ export const FREE_AI_MODELS: readonly AuroraAiModel[] = [
   {
     id: "inclusionai/ling-3.0-flash-vl-free",
     label: "Ling 3.0 Flash VL Free",
-    modality: "vision",
+    modality: "video-analysis",
     provider: "vercel-ai-gateway",
     free: true,
     notes: "Text, image and video input with text output, reasoning and tool use.",
@@ -68,9 +68,9 @@ export const FREE_CHAT_MODELS = FREE_AI_MODELS.filter(
 );
 
 export const FREE_VISION_MODELS = FREE_AI_MODELS.filter(
-  (model) => model.free && model.modality === "vision",
+  (model) => model.free && (model.modality === "vision" || model.modality === "video-analysis"),
 );
 
 export const FREE_VIDEO_ANALYSIS_MODELS = FREE_AI_MODELS.filter(
-  (model) => model.free && model.modality === "video-analysis" || model.id === "inclusionai/ling-3.0-flash-vl-free",
+  (model) => model.free && model.modality === "video-analysis",
 );
