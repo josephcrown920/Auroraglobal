@@ -11,8 +11,8 @@ Runs on any Vast.ai instance (RTX 3090/4090, A100, H100, …) and:
 Set these as environment variables in your Vast.ai instance template:
 
   Required:
-    AURORA_URL              your Aurora app URL, e.g. https://your-app.replit.app
-    AURORA_REGISTER_SECRET  same value set as AURORA_REGISTER_SECRET in Aurora's env
+    AURORA_URL              your Aurora app URL, e.g. https://your-production-aurora-domain
+    AURORA_REGISTER_SECRET  same value set as AURORA_REGISTER_SECRET in Aurora's production server environment
 
   Optional:
     AURORA_TASKS            lipsync,motion,assemble (default); motion needs ≥24 GB VRAM
@@ -53,13 +53,13 @@ if not AURORA_URL:
     raise SystemExit(
         "AURORA_URL is not set.\n"
         "Add it in your Vast.ai instance template environment variables,\n"
-        "e.g. AURORA_URL=https://your-app.replit.app"
+        "e.g. AURORA_URL=https://your-production-aurora-domain"
     )
 if not REGISTER_SECRET:
     raise SystemExit(
         "AURORA_REGISTER_SECRET is not set.\n"
         "Generate one with: openssl rand -hex 32\n"
-        "Set it BOTH here and as AURORA_REGISTER_SECRET in Aurora's Replit Secrets."
+        "Set it BOTH here and as AURORA_REGISTER_SECRET in Aurora's production server environment."
     )
 
 
@@ -212,7 +212,7 @@ def register(public_url: str) -> None:
         print(f"[register] failed {e.code}: {body_text}", flush=True)
         if e.code == 401:
             print(
-                "[register] 401 hint: the AURORA_REGISTER_SECRET here and in Aurora's env "
+                "[register] 401 hint: the AURORA_REGISTER_SECRET here and in Aurora's production server environment "
                 "must be byte-for-byte identical. Compare fingerprints in Admin → Workers → "
                 "Recent registration attempts (received fp vs expected fp).",
                 flush=True,

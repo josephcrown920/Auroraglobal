@@ -32,8 +32,8 @@ Set these in the **Environment** panel of the instance before you launch it:
 
 | variable | required | value |
 |----------|----------|-------|
-| `AURORA_URL` | ✅ | your Aurora app URL, e.g. `https://your-app.replit.app` |
-| `AURORA_REGISTER_SECRET` | ✅ | generate once: `openssl rand -hex 32` — set the **same value** as `AURORA_REGISTER_SECRET` in Aurora's Replit Secrets |
+| `AURORA_URL` | ✅ | your Aurora app URL, e.g. `https://your-production-aurora-domain` |
+| `AURORA_REGISTER_SECRET` | ✅ | generate once: `openssl rand -hex 32` — set the **same value** as `AURORA_REGISTER_SECRET` in Aurora's production server environment |
 | `AURORA_TASKS` | optional | `lipsync,motion,assemble` (default) — use `lipsync,assemble` on 16 GB cards |
 | `AURORA_WORKER_TOKEN` | optional | `openssl rand -hex 16` — if set, Aurora sends it as the `/generate` bearer |
 | `AURORA_UPLOAD` | optional | `catbox` (default, no account) or `supabase` |
@@ -43,7 +43,7 @@ Set these in the **Environment** panel of the instance before you launch it:
 > **AURORA_REGISTER_SECRET** must be identical on both sides.  
 > Generate it once: `openssl rand -hex 32`, then set it in:
 > - Vast.ai instance env vars (here)
-> - Aurora's Replit Secrets (`AURORA_REGISTER_SECRET`)
+> - Aurora's production server environment (`AURORA_REGISTER_SECRET`)
 
 ## 3 · Run the launcher
 
@@ -102,7 +102,7 @@ received vs expected fingerprint in **Admin → Workers → Recent registration 
 ```
 
 If the two 8-char hex prefixes don't match, regenerate: `openssl rand -hex 32` and
-update **both** Vast.ai env + Aurora's Replit Secrets.
+update **both** Vast.ai env + Aurora's production server environment.
 
 **Jobs stay `queued` even though worker shows Active**
 

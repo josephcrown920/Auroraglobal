@@ -5,7 +5,7 @@
 
 import { z } from "zod";
 import type { ToolResult } from "./types";
-import { defaultHiddenKeys, type FeatureKey } from "../feature-visibility";
+import { defaultHiddenKeys, type FeatureKey } from "../feature-visibility";\nimport { runModelArkDirector } from "./modelark-director.server";
 import {
   generateVideoSchema, generateVideoTool,
   bulkGenerateSchema, bulkGenerateTool,
@@ -46,6 +46,12 @@ export const TOOL_FEATURE: Readonly<Record<string, FeatureKey>> = {
 };
 
 const TOOLS: ToolDef[] = [
+  {
+    name: "aurora_modelark_director",
+    description:
+      "Send a production instruction to Aurora's central ModelArk Managed Agent director. The director plans and routes work to Aurora's specialist media and coding tools.",
+    schema: z.object({ instruction: z.string().min(1) }).passthrough(),
+  },
   {
     name: "aurora_generate_video",
     description:
@@ -185,6 +191,9 @@ export function listTools(
 
 export async function callTool(name: string, args: unknown, ctx: ToolCtx, deps: ToolDeps = defaultToolDeps): Promise<ToolResult> {
   switch (name) {
+    case "aurora_modelark_director":
+      return runModelArkDirector(args as { instruction: string; context?: Record<string, unknown> });
+
     case "aurora_generate_video":
       return generateVideoTool(generateVideoSchema.parse(args), ctx, deps);
     case "aurora_bulk_generate":

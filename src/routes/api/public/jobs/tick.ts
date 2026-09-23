@@ -1,11 +1,11 @@
 // Worker tick endpoint — the single recurring driver of the job queue.
-// Invoked by the managed Replit cron workflow. See
-// scripts/aurora-cron-daemon.sh for the scheduling contract.
+// Invoked by the production cron scheduler. The same tick also reconciles
+// demand-driven motion GPU capacity so idle Vast rentals are destroyed and
+// queued motion work can trigger a bounded fallback rental.
 //
 // Each tick: (1) records a heartbeat so a stalled scheduler is observable in
-// admin, (2) recovers jobs orphaned in `processing` by a dead worker, (3) re-
-// enqueues orphaned `failed` jobs/generations that should still be retried, then
-// (4) processes a batch of queued jobs. Auth requires the server-only
+// admin, (2) recovers orphaned jobs/reservations, (3) reconciles motion
+// autoscaling, then (4) processes queued work. Auth requires the server-only
 // CRON_SECRET — see src/lib/cron-auth.ts.
 
 import { createFileRoute } from "@tanstack/react-router";
@@ -36,44 +36,50 @@ export const Route = createFileRoute("/api/public/jobs/tick")({
         const { advanceSpinQueueAdmin } = await import("@/lib/spin.functions");
 
         try {
-          // High-value kinds (motion/performance_reskin) get a tighter reclaim
-          // window first so their bigger reservation isn't stuck for the full
-          // global window if the job never reached a worker.
           const sweptHighValue = await sweepHighValueStaleProcessingJobs();
           const swept = await sweepStaleProcessingJobs();
           const recovered = await sweepFailedJobs();
           const reconciled = await sweepStuckReservations();
+
+          // Demand-driven motion capacity. Best-effort so a temporary
+          // autoscaler/provider outage never prevents the normal queue from
+          // draining. The controller is fail-closed and only provisions
+          // when its explicit policy is enabled.
+          let motionAutoscale: unknown;
+          try {
+            const { liveMotionAutoscaler } = await import("@/lib/motion-autoscaler-live.server");
+            motionAutoscale = await liveMotionAutoscaler().reconcile();
+          } catch (e) {
+            motionAutoscale = { error: safeErrorMessage("jobs/tick:motion-autoscale", e) };
+          }
+
           const workerId = `tick:${crypto.randomUUID().slice(0, 8)}`;
           const results = await processBatch(workerId, 5);
-          // Spin (`/spin`) batches otherwise only advance while a browser tab is
-          // open polling tickSpinJob — this piggybacks on the same per-minute
-          // cron so a closed tab / lost connection never leaves a batch stuck
-          // mid-way. Best-effort: a spin render failure must never fail the tick.
+
           let spin: { jobsAdvanced: number; variantsProcessed: number } | { error: string };
           try {
             spin = await advanceSpinQueueAdmin();
           } catch (e) {
             spin = { error: safeErrorMessage("jobs/tick:spin", e) };
           }
-          // TikTok publishing is asynchronous. Continue status checks after the
-          // initiating browser closes so posts cannot remain processing forever.
+
           let tiktok: import("@/lib/tiktok-posting.server").TiktokPostSweepResult | { error: string };
           try {
             const { sweepStaleTiktokPosts } = await import("@/lib/tiktok-posting.server");
             tiktok = await sweepStaleTiktokPosts();
           } catch (e) {
-            // Best-effort: a TikTok outage must not stop render queue processing.
             tiktok = { error: safeErrorMessage("jobs/tick:tiktok", e) };
           }
+
           await recordSchedulerHeartbeat(HEARTBEAT_NAME, true);
-          return new Response(JSON.stringify({ ok: true, sweptHighValue, swept, recovered, reconciled, results, spin, tiktok }), {
+          return new Response(JSON.stringify({
+            ok: true, sweptHighValue, swept, recovered, reconciled, motionAutoscale, results, spin, tiktok,
+          }), {
             status: 200,
             headers: { "Content-Type": "application/json" },
           });
         } catch (e) {
           const msg = e instanceof Error ? e.message : String(e);
-          // Record the failure so the admin staleness banner can surface it, then
-          // return 5xx so external cron monitoring sees the breakage.
           await recordSchedulerHeartbeat(HEARTBEAT_NAME, false, msg);
           return new Response(JSON.stringify({ ok: false, error: safeErrorMessage("jobs/tick", e) }), {
             status: 500,
