@@ -58,6 +58,7 @@ export const generateSeedanceMotion = createServerFn({ method: "POST" })
       duration: data.duration,
       resolution: data.resolution,
       cameraMovement: data.cameraMovement,
+      motionType: data.motionType,
     });
 
     return {
