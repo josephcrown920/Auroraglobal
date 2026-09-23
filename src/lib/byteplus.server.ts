@@ -18,7 +18,8 @@ import {
   type BytePlusVideoInput,
 } from "./byteplus-video-contract";
 
-const DEFAULT_BASE = "https://ark.ap-southeast.bytepluses.com/api/v3";
+// ModelArk public API base for the AP Southeast BytePlus region.
+const DEFAULT_BASE = "https://ark.ap-southeast.byteplus.com/api/v3";
 
 /** The direct ByteDance key, if configured. `BYTEPLUS_API_KEY` or `ARK_API_KEY`. */
 export function getBytePlusKey(): string | undefined {
@@ -186,8 +187,8 @@ export async function bytePlusImage(opts: {
 
 // ─── Video (Seedance) — async task create + poll ─────────────────────────────
 // POST /contents/generations/tasks → { id }; then GET .../tasks/{id} until the
-// status is a terminal one. Generation knobs (resolution, duration) ride on the
-// text prompt as `--flag value` tokens, per the ModelArk content-task contract.
+// status is a terminal one. Generation knobs (resolution, duration) are sent
+// as first-class request fields by buildBytePlusVideoBody.
 type BytePlusVideoOpts = BytePlusVideoInput & {
   timeoutMs?: number;
   pollIntervalMs?: number;
@@ -226,8 +227,6 @@ export async function bytePlusVideo(opts: BytePlusVideoOpts): Promise<string> {
     await new Promise((r) => setTimeout(r, delay));
     delay = Math.min(delay + 1_000, 6_000);
     const poll = await fetch(`${base}/contents/generations/tasks/${encodeURIComponent(taskId)}`, {
-      // A task belongs to the credential that successfully created it. Do not
-      // re-resolve env preference or probe a different account while polling.
       headers: authHeaders(taskKey),
       signal: AbortSignal.timeout(20_000),
     });
