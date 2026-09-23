@@ -55,15 +55,21 @@ blob-report/
 *.sln
 *.sw?
 
-# Secrets — NEVER commit. Real values live in Lovable Cloud → Secrets.
+# Secrets — NEVER commit. Real values live in Replit Secrets / Vercel Environment Variables.
 # Only `.env.example` (template, no real values) is allowed in git.
-# Covers Kling (KLING_ACCESS_KEY / KLING_SECRET_KEY) and every other runtime
-# secret documented in docs/ENV.md and docs/KLING_SECRETS.md.
+# Covers local, development, test, production, and platform-generated env files.
 .env
 .env.*
 !.env.example
 *.env
 *.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Vercel local/project metadata
+.vercel/
+
 secrets.json
 secrets.*.json
 kling.json
