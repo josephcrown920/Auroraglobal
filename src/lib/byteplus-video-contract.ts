@@ -22,6 +22,7 @@ export const SEEDANCE_MODEL_ALIASES: Readonly<Record<string, string>> = {
   "dreamina-seedance-2-0-mini-260615": "dreamina-seedance-2-0-mini-260615",
   "seedance-1.5-pro": "seedance-1-5-pro-251215",
   "byteplus/seedance-1.5-pro": "seedance-1-5-pro-251215",
+  "seedance-1-5-pro-251215": "seedance-1-5-pro-251215",
   // Retired/incorrect Aurora aliases are redirected to the current production
   // Seedance checkpoint instead of reaching ModelArk as invalid model IDs.
   "seedance-1-0-pro-250528": SEEDANCE_25_MODEL_ID,
@@ -49,10 +50,14 @@ export type BytePlusVideoInput = {
   imageRoles?: BytePlusImageRole[];
 };
 
-/** Only the documented 2.5 checkpoint supports this expanded wire contract. */
+/**
+ * Seedance 2.x native wire contract.
+ *
+ * Current BytePlus documentation confirms that Seedance 2.0, 2.0 Fast,
+ * 2.0 Mini, and 2.5 all support multimodal reference video, including
+ * image + video combinations. This is therefore NOT a 2.5-only feature.
+ */
 export function buildBytePlusVideoBody(opts: BytePlusVideoInput): Record<string, unknown> {
-  // This is the shared provider boundary, so every Video Agent, Film Studio,
-  // Comfy Manager integration, and direct BytePlus call gets the same model fix.
   opts = { ...opts, model: normalizeSeedanceModel(opts.model) };
 
   for (const value of [opts.generateAudio, opts.watermark]) {
@@ -63,7 +68,17 @@ export function buildBytePlusVideoBody(opts: BytePlusVideoInput): Record<string,
   if (opts.imageRoles !== undefined && !Array.isArray(opts.imageRoles)) {
     throw new Error("BytePlus image roles must be an array");
   }
-  if (opts.model !== SEEDANCE_25_MODEL_ID) {
+
+  const isSeedance20 =
+    opts.model === "dreamina-seedance-2-0-260128" ||
+    opts.model === "dreamina-seedance-2-0-fast-260128" ||
+    opts.model === "dreamina-seedance-2-0-mini-260615";
+  const isSeedance25 = opts.model === SEEDANCE_25_MODEL_ID;
+  const isSeedance2x = isSeedance20 || isSeedance25;
+
+  // Preserve the older generic adapter behavior for non-2.x models, but do not
+  // pretend they support Seedance 2.x multimodal controls.
+  if (!isSeedance2x) {
     if (opts.videoUrl || opts.audioUrl || (opts.imageUrls?.length ?? 0) > 1 ||
         opts.imageRoles || opts.generateAudio !== undefined || opts.seed !== undefined ||
         opts.watermark !== undefined) {
@@ -81,46 +96,57 @@ export function buildBytePlusVideoBody(opts: BytePlusVideoInput): Record<string,
   }
 
   const images = opts.imageUrls ?? [];
-  // Seedance 2.5 supports up to 30 multimodal reference images. Keep the
-  // 2.0/older limit at the provider boundary instead of silently truncating.
-  if (opts.model === SEEDANCE_25_MODEL_ID && images.length > 30) {
-    throw new Error("Seedance 2.5 supports at most 30 reference images");
+  const maxImages = isSeedance25 ? 30 : 9;
+  if (images.length > maxImages) {
+    throw new Error(`Seedance supports at most ${maxImages} reference images for this checkpoint`);
   }
-  if (opts.model !== SEEDANCE_25_MODEL_ID && images.length > 9) {
-    throw new Error("This Seedance checkpoint supports at most 9 reference images");
-  }
+
+  const maxDuration = isSeedance25 ? 30 : 15;
   if (opts.duration !== undefined &&
-      (!Number.isInteger(opts.duration) || opts.duration < 4 || opts.duration > 30)) {
-    throw new Error("Seedance 2.5 duration must be an integer between 4 and 30 seconds");
+      (!Number.isInteger(opts.duration) || opts.duration < 4 || opts.duration > maxDuration)) {
+    throw new Error(`Seedance ${isSeedance25 ? "2.5" : "2.x"} duration is outside the supported range`);
   }
+
+  // 1080p/4K are not available for all multimodal reference scenarios.
+  // Keep Aurora's native reference-video path conservative and portable.
   if (opts.resolution && !["480p", "720p"].includes(opts.resolution)) {
-    throw new Error("Seedance 2.5 currently supports 480p or 720p in Aurora");
+    throw new Error("Seedance native multimodal motion currently supports 480p or 720p in Aurora");
   }
   if (opts.aspectRatio && !["16:9", "9:16", "1:1", "4:3", "3:4", "21:9", "adaptive"].includes(opts.aspectRatio)) {
-    throw new Error("Unsupported Seedance 2.5 aspect ratio");
+    throw new Error("Unsupported Seedance aspect ratio");
   }
   if (opts.seed !== undefined && (!Number.isInteger(opts.seed) || opts.seed < -1 || opts.seed > 4294967295)) {
     throw new Error("Invalid Seedance seed");
   }
-  if (opts.imageRoles && (opts.imageRoles.length !== images.length ||
-      opts.imageRoles.some((role) => !["first_frame", "last_frame", "reference_image"].includes(role)))) {
+
+  // A single image alone is an image-to-video first frame. Once a reference
+  // video/audio is present, the image becomes a multimodal reference image.
+  // Two images without a video remain first+last-frame conditioning.
+  const hasReferenceMedia = !!opts.videoUrl || !!opts.audioUrl;
+  const roles = opts.imageRoles ?? images.map((_, i) => {
+    if (hasReferenceMedia) return "reference_image" as const;
+    if (images.length === 2) return i === 0 ? "first_frame" as const : "last_frame" as const;
+    return "first_frame" as const;
+  });
+
+  if (roles.length !== images.length ||
+      roles.some((role) => !["first_frame", "last_frame", "reference_image"].includes(role))) {
     throw new Error("Every Seedance image must have a valid matching role");
   }
-  const roles = opts.imageRoles ?? images.map(() =>
-    images.length === 1 && !opts.videoUrl && !opts.audioUrl ? "first_frame" : "reference_image");
   if (roles.filter((r) => r === "first_frame").length > 1 ||
       roles.filter((r) => r === "last_frame").length > 1 ||
       (roles.includes("last_frame") && !roles.includes("first_frame")) ||
-      (roles.includes("reference_image") && roles.some((r) => r !== "reference_image")) ||
-      ((opts.videoUrl || opts.audioUrl) && roles.some((r) => r !== "reference_image"))) {
+      (hasReferenceMedia && roles.some((r) => r !== "reference_image"))) {
     throw new Error("Seedance frame conditioning and multimodal references cannot be mixed");
   }
+
   const content: Array<Record<string, unknown>> = [];
   if (opts.prompt?.trim()) content.push({ type: "text", text: opts.prompt.trim() });
   images.forEach((url, i) => content.push({ type: "image_url", image_url: { url }, role: roles[i] }));
   if (opts.videoUrl) content.push({ type: "video_url", video_url: { url: opts.videoUrl }, role: "reference_video" });
   if (opts.audioUrl) content.push({ type: "audio_url", audio_url: { url: opts.audioUrl }, role: "reference_audio" });
   if (!content.length) throw new Error("Seedance requires a prompt or reference");
+
   return {
     model: opts.model,
     content,
