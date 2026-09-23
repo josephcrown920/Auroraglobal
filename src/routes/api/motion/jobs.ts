@@ -14,8 +14,9 @@ export const Route = createFileRoute("/api/motion/jobs")({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        const userId = await authenticatedUserId(request);
-        if (!userId) return Response.json({ error: "Unauthorized" }, { status: 401 });
+        if (!(await authenticatedUserId(request))) {
+          return Response.json({ error: "Unauthorized" }, { status: 401 });
+        }
 
         try {
           const body = await request.json();
