@@ -8,6 +8,7 @@ const MODEL_IDS = {
 } as const;
 
 type ModelKey = keyof typeof MODEL_IDS;
+type MotionType = "faithful" | "expressive" | "subtle" | "exaggerated";
 
 type MotionRequest = {
   modelKey: ModelKey;
@@ -17,6 +18,7 @@ type MotionRequest = {
   duration: number;
   resolution: "480p" | "720p" | "1080p";
   cameraMovement?: string | null;
+  motionType?: MotionType | null;
 };
 
 type ArkTask = {
@@ -52,9 +54,12 @@ async function signStudioUrl(url: string): Promise<string> {
   return error || !data?.signedUrl ? url : data.signedUrl;
 }
 
-function addCameraDirection(prompt: string, cameraMovement?: string | null): string {
-  if (!cameraMovement || cameraMovement === "static") return prompt;
-  const hints: Record<string, string> = {
+function addMotionDirection(
+  prompt: string,
+  cameraMovement?: string | null,
+  motionType?: MotionType | null,
+): string {
+  const cameraHints: Record<string, string> = {
     push_in: "confident cinematic push-in toward the subject",
     pull_out: "graceful cinematic pull-out revealing the environment",
     orbit_cw: "cinematic clockwise orbit around the subject",
@@ -67,8 +72,21 @@ function addCameraDirection(prompt: string, cameraMovement?: string | null): str
     zoom_out: "slow smooth zoom away from the subject",
     handheld: "controlled natural handheld camera movement",
   };
-  const hint = hints[cameraMovement];
-  return hint ? `${prompt.replace(/\s+$/, "")}. ${hint}.` : prompt;
+  const motionHints: Record<MotionType, string> = {
+    faithful: "keep the subject's pose and identity faithful to the reference",
+    expressive: "use expressive natural body movement while preserving the subject's identity",
+    subtle: "use restrained minimal movement with a calm stable performance",
+    exaggerated: "use bold energetic movement while keeping the subject recognizable",
+  };
+
+  const hints = [
+    cameraMovement && cameraMovement !== "static" ? cameraHints[cameraMovement] : undefined,
+    motionType ? motionHints[motionType] : undefined,
+  ].filter(Boolean);
+
+  return hints.length
+    ? `${prompt.replace(/\s+$/, "")}. ${hints.join(". ")}.`
+    : prompt;
 }
 
 function modelId(modelKey: ModelKey): string {
@@ -92,12 +110,11 @@ export async function generateModelArkMotion(input: MotionRequest): Promise<{
   const imageUrl = await signStudioUrl(input.subjectImageUrl);
   const videoUrl = await signStudioUrl(input.motionVideoUrl);
   const model = modelId(input.modelKey);
-  const usesReferenceImage = true;
 
   const content: Array<Record<string, unknown>> = [
     {
       type: "image_url",
-      role: usesReferenceImage ? "reference_image" : "first_frame",
+      role: "reference_image",
       image_url: { url: imageUrl },
     },
     {
@@ -107,7 +124,7 @@ export async function generateModelArkMotion(input: MotionRequest): Promise<{
     },
     {
       type: "text",
-      text: addCameraDirection(input.prompt, input.cameraMovement),
+      text: addMotionDirection(input.prompt, input.cameraMovement, input.motionType),
     },
   ];
 
