@@ -59,7 +59,7 @@
     "@radix-ui/react-tooltip": "^1.2.8",
     "@revenuecat/purchases-capacitor": "^13.2.4",
     "@simplewebauthn/browser": "^10.0.0",
-    "@simplewebauthn/server": "^10.0.1",
+    "@simplewebauthn/server": "^14.0.2",
     "@simplewebauthn/types": "^10.0.0",
     "@supabase/supabase-js": "^2.108.1",
     "@tailwindcss/vite": "^4.2.1",
