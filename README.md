@@ -1,93 +1,271 @@
-# Aurora Studio
+# Auroraglobal — AI Video Studio & Viral Video Engine
 
-AI performance shots, music-video stills, lip-sync clips and UGC ads — generated from a single selfie. Aurora bundles Seedance 2.0, Kling 3.0, Nano Banana Pro, Seedream 4.5 and Sync 1.9 lip-sync into a unified credit-based studio with a node-based canvas, agent, and trending workflows.
+[![Viral Videos CI & Smoke Test](https://github.com/josephcrown920/Auroraglobal/actions/workflows/viral-videos-ci.yml/badge.svg)](https://github.com/josephcrown920/Auroraglobal/actions/workflows/viral-videos-ci.yml)
 
-## Stack
+Auroraglobal is an end-to-end AI video creation platform and automated batch generation engine. It unifies full-stack generative video tools (Seedance 2.5, Kling 3.0, Dola Seed 2.1 Turbo, fal.ai, and Sync lip-sync) with automated, multi-layer FFmpeg compositing to produce broadcast-quality viral music video clips and short-form content from reference media.
 
-- **Frontend**: React 19 + TanStack Start v1 (Vite 7, SSR-ready)
-- **Styling**: Tailwind CSS v4 via `src/styles.css` (oklch tokens)
-- **Backend**: Lovable Cloud (Supabase) — Postgres + Auth + Storage + Realtime
-- **Server logic**: TanStack `createServerFn` (no Edge Functions)
-- **AI orchestration**: Lovable AI → Gemini → OpenAI → OpenRouter fallback chain
-- **Video / media**: fal.ai (Seedance / Kling / Seedream), Kling API direct, Sync lip-sync, Inference.ai workers
-- **Payments**: Paystack (NGN)
-- **Deploy target**: Cloudflare Workers (workerd)
+---
 
-## Local setup
+## Table of Contents
+1. [Architecture & Overview](#architecture--overview)
+2. [Prerequisites & System Setup](#prerequisites--system-setup)
+3. [Required Reference Assets](#required-reference-assets)
+4. [Viral Video Plan Matrix (40 Scenes)](#viral-video-plan-matrix-40-scenes)
+5. [BytePlus ModelArk Configuration](#byteplus-modelark-configuration)
+6. [FFmpeg Compositing Engine Workflow](#ffmpeg-compositing-engine-workflow)
+7. [Running Batch Video Generation](#running-batch-video-generation)
+8. [CI/CD & Safe Smoke Testing](#cicd--safe-smoke-testing)
+9. [Secrets & Security Policy](#secrets--security-policy)
+10. [Repository Structure](#repository-structure)
+
+---
+
+## Architecture & Overview
+
+The platform operates across two complementary environments:
+1. **Interactive Web Studio**: Built on React 19 + TanStack Start, Tailwind CSS, and Lovable Cloud (Supabase). Features a node-based canvas, audio visualizers, and credit-based workflow routing.
+2. **Batch Generation Engine (`generate_videos.py`)**: A programmatic pipeline combining BytePlus ModelArk video foundation models with headless FFmpeg compositing to produce 40 unique narrative scenes with zero manual editing.
+
+Each generated video combines:
+- **Foreground Layer (Character)**: NBA Josh performing with microphone on a chroma-green backdrop, synthesized via Seedance 2.5 with audio-driven lip sync and facial identity preservation.
+- **Background Layer (Looping Scene)**: 2 Nigerian police officers on Lagos street locations, generated with Dola Seed 2.1 Turbo / Seedance 2.5, featuring idle whispering reconnaissance followed by looped high-energy sprints.
+- **Post-Processing & Audio Bed**: Multi-track FFmpeg pipeline applying chromakey green-screen extraction, depth-of-field Gaussian blur, teal/contrast color grading, subtle vignette, film grain, and 3-stage dynamic audio mixing.
+
+---
+
+## Prerequisites & System Setup
+
+### 1. System Dependencies
+- **Python**: `>= 3.10`
+- **Node / Bun**: Node 20+ or Bun 1.1+ (for web studio)
+- **FFmpeg & FFprobe**: Must be installed and present on your system `PATH` with `libx264` and `aac` support.
+
+#### macOS
+```bash
+brew install ffmpeg python
+```
+
+#### Ubuntu / Debian
+```bash
+sudo apt-get update
+sudo apt-get install -y ffmpeg python3 python3-pip python3-venv
+```
+
+#### Windows
+Install FFmpeg via [gyan.dev](https://www.gyan.dev/ffmpeg/builds/) or `winget install Gyan.FFmpeg` and ensure FFmpeg is added to your environment `PATH`.
+
+### 2. Python Environment Setup
+```bash
+# Clone the repository
+git clone https://github.com/josephcrown920/Auroraglobal.git
+cd Auroraglobal
+
+# Create and activate a virtual environment
+python3 -m venv .venv
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+
+# Install required packages
+pip install -r requirements.txt
+```
+
+`requirements.txt` includes:
+- `requests>=2.31.0` (REST API polling and asset uploads)
+- `ffmpeg-python>=0.2.0` (declarative FFmpeg filter graph construction)
+
+---
+
+## Required Reference Assets
+
+Before initiating batch video generation, place your reference audio and image assets into the `references/` folder. The generator inspects these exact relative paths:
+
+```
+references/
+├── face_primary.jpg     # REQUIRED: Clear front-facing photo of NBA Josh
+├── profile.jpg          # REQUIRED: Side/profile reference photo for walking shots
+├── hook_audio.mp3       # REQUIRED: 15–30s master hook audio for lip-sync performance
+├── street_ambience.mp3  # OPTIONAL: 5s atmospheric Lagos street noise bed
+├── whoosh.mp3           # OPTIONAL: 1s cinematic transition whoosh sound effect
+└── cops.jpg             # OPTIONAL: Reference image for uniform styling (leave empty if none)
+```
+
+### Asset Specifications
+| Asset | Format | Resolution / Bitrate | Role in Generation Pipeline |
+|---|---|---|---|
+| `face_primary.jpg` | JPG / PNG | Min 1024x1024, high detail | Preserves dreadlocks with red tips, facial tattoos, goatee, and jewelry during performance. |
+| `profile.jpg` | JPG / PNG | Min 1024x1024, side angle | Grounds the walk-in movement and lateral character silhouette. |
+| `hook_audio.mp3` | MP3 / WAV | 44.1kHz or 48kHz, stereo | Feeds ModelArk's phoneme lip-sync engine and forms the audio climax. |
+| `street_ambience.mp3`| MP3 / WAV | 48kHz stereo | Low-volume background bed during the first 5 seconds of the video. |
+| `whoosh.mp3` | MP3 / WAV | 48kHz stereo | Triggers at 5.0s mark exactly when the officers begin sprinting. |
+
+---
+
+## Viral Video Plan Matrix (40 Scenes)
+
+The repository provides 40 curated presets reflecting genuine Lagos urban, nightlife, and cultural settings. Each scene provides distinct costume combinations, authentic landmarks, lighting vibes, narrative endings, and background flairs.
+
+- **Human-readable catalog**: [`docs/VIRAL_VIDEOS_40_PLANS.md`](docs/VIRAL_VIDEOS_40_PLANS.md)
+- **Structured JSON dataset**: [`viral_video_plans.json`](viral_video_plans.json)
+- **Tabular CSV spreadsheet**: [`viral_video_plans.csv`](viral_video_plans.csv)
+
+### Preset Schema
+```json
+{
+  "id": 1,
+  "location": "Surulere, outside a suya spot",
+  "outfit": "Red/Black Zillman long sleeve jersey + black frayed stacked jeans + white striped sneakers",
+  "eatery": "Local suya restaurant",
+  "vibe": "Golden hour sunset, smoke from the suya grill in the air, danfo buses parked on the side",
+  "ending": "casually walks out of frame to the right",
+  "flair": "Suya vendor standing in the far background"
+}
+```
+
+Locations span **Surulere**, **Victoria Island**, **Ikeja**, **Lekki Phase 1**, **Yaba**, **Festac Town**, **Oniru**, **Banana Island**, **Ikoyi**, **Gbagada**, **Mushin**, **Apapa**, and more.
+
+---
+
+## BytePlus ModelArk Configuration
+
+ModelArk settings live in the `CONFIG` section of `generate_videos.py` or can be set via environment variables.
+
+```python
+MODELARK_API_KEY = os.getenv("MODELARK_API_KEY", "YOUR_MODELARK_API_KEY_HERE")
+API_BASE = "https://api.modelark.ai/v1"
+MODE = "mixed"  # Options: "seedance-2.5", "dola-seed-2.1-turbo", "mixed"
+NUM_VIDEOS = 40  # Number of scenes to generate from VIDEO_DB
+```
+
+### Generation Modes
+| Mode | Foreground Character Model | Background Officers Model | Recommendation |
+|---|---|---|---|
+| **`mixed`** *(default)* | `seedance-2.5` | `dola-seed-2.1-turbo` | **Optimal**: Highest facial fidelity & 20s lip-sync for character; fast rendering for background loop. |
+| **`seedance-2.5`** | `seedance-2.5` | `seedance-2.5` | Maximum cinematic fidelity across all layers; higher compute consumption. |
+| **`dola-seed-2.1-turbo`** | `dola-seed-2.1-turbo` | `dola-seed-2.1-turbo` | High throughput generation with 10s performance limit. |
+
+### Generation Task Flow
+1. **Asset Staging**: Character images and audio are uploaded once via `POST /assets/upload`.
+2. **Task Submission**: Asynchronous video jobs submitted via `POST /tasks/submit` with `motion_bucket`, `face_enhance=True`, and lip-sync flags.
+3. **Polling & Timeout**: Tasks poll `GET /tasks/{id}` every 5s with exponential retry (up to 3 attempts with dynamic reference strength adjustments).
+
+---
+
+## FFmpeg Compositing Engine Workflow
+
+The automated compositing pipeline stitches and layers the clips into an exported 1080p 60fps MP4:
+
+```
+[Character Walk (5s)] -> [Character Perf (10/20s)] -> [Character End (5s)]
+                           │ (Concat Foreground)
+                           ▼
+                 [Chromakey #00FF00]
+                           │
+                           ▼
+ [Cop Idle (5s)] ───► [Cop Sprint Loop] ──► [Background Blur + Teal Shift]
+                           │                              │
+                           └──────────────┬───────────────┘
+                                          ▼
+                               [FFmpeg Overlay (x=0, y=0)]
+                                          │
+                                          ▼
+                         [Vignette + Contrast + Grain]
+                                          │
+       [Ambience (0-5s)] + [Whoosh (5s)] + [Hook Audio (6s+)] ──► [Audio Amix]
+                                          │
+                                          ▼
+                        outputs/NBAJosh_LoopVideo_{id}.mp4
+```
+
+### Key Processing Stages
+1. **Clip Normalization**: Rescales all incoming videos to `1920x1080` at `60 fps` using Lanczos filtering and centered padding.
+2. **Cop Loop Generation**: Streams the 4-second sprint clip in an infinite loop (`stream_loop=-1`) cut to `total_duration - 5s`.
+3. **Chromakey Removal**: Strips `#00FF00` pure green from character footage with `similarity=0.12` and `blend=0.08`.
+4. **Cinematic Grading**:
+   - Background: `gblur=sigma=1.5`, `colorbalance=bs=0.2:rs=-0.1:gs=-0.05` (cool teal shift), contrast `1.15`.
+   - Master Grade: Vignette filter (`a=25`), global contrast boost (`1.2`), and unsharp sharpening (`lx=5:ly=5:la=0.8`).
+5. **Audio Mixing**:
+   - Track 1: Street ambience active during the opening 5-second suspense.
+   - Track 2: 1-second whoosh sound effect delayed to 5.0 seconds.
+   - Track 3: Full master hook audio mixed at 100% volume starting at 6.0 seconds.
+
+---
+
+## Running Batch Video Generation
 
 ```bash
-bun install
-bun run dev
+# 1. Export your API credentials
+export MODELARK_API_KEY="your-byteplus-modelark-api-key"
+
+# 2. Verify all references are in place
+ls -la references/
+
+# 3. Launch generation
+python generate_videos.py
 ```
 
-The `.env` is auto-generated by Lovable Cloud — do not edit it by hand. Runtime secrets are managed in Project Settings → Secrets (see `docs/ENV.md`).
+### Outputs
+- Final composited videos are saved to `outputs/NBAJosh_LoopVideo_{id}.mp4`.
+- Intermediate downloaded clips are isolated in `temp_clips/` and automatically cleaned up after successful render.
+- Every run appends timestamped status rows to `modelark_generation_log.csv`.
 
-## Pricing
+---
 
-Geo-aware: NGN for visitors detected in Nigeria (Paystack NGN), USD elsewhere (Paystack USD via international cards). Detection lives in `src/lib/geo.functions.ts`; plan tables in `src/lib/billing.plans.ts`.
+## CI/CD & Safe Smoke Testing
 
-## Canvas templates
+This repository includes continuous integration through GitHub Actions to ensure code quality and dataset integrity without exposing production secrets.
 
-Deep-link the Canvas with `?template=<id>` to auto-load a preset graph. IDs are defined in `src/components/canvas/TrendingTemplatesMenu.tsx` (`lipsync-preset`, `lipsync-blank`, `colors-preset`, `colors-blank`, plus the trending presets).
+### GitHub Actions Workflow: `.github/workflows/viral-videos-ci.yml`
+Runs automatically on:
+- Every push to `Main` or `main` touching scripts, plans, or references.
+- All pull requests.
+- Manual execution via `workflow_dispatch`.
 
-## Secrets & Kling credentials
+### Running the Smoke Test Locally
+You can run the zero-secret validation suite at any time:
 
-All runtime secrets (Kling, fal.ai, Paystack, AI providers, etc.) live in **Lovable Cloud → Project Settings → Secrets** and are injected as `process.env.*` at runtime — never in `.env`, never in the client bundle. The committed `.env` only contains public `VITE_SUPABASE_*` values.
-
-**Kling specifically** uses two secrets — `KLING_ACCESS_KEY` and `KLING_SECRET_KEY` — to sign per-request JWTs. They are loaded **only** inside `*.server.ts` files or `createServerFn().handler()` blocks. Concrete call sites:
-
-| File | Role |
-| --- | --- |
-| `src/lib/fal.server.ts` | Reads `FAL_KEY` and submits Kling jobs via fal.ai gateway (`fal-ai/kling-video/v2.1/master/image-to-video`) |
-| `src/lib/orchestrator.server.ts` | Routes `kling-3.0` / `kling-3.0-omni` model keys to the Kling endpoint |
-| `src/lib/studio.functions.ts` | Server function the Studio page calls; handles Kling `endFrameUrl` motion control |
-| `src/lib/models.ts` | Public catalogue entries for `kling-3.0` and `kling-3.0-omni` |
-| `src/routes/studio.tsx` | UI surface exposing Kling end-frame field |
-| _future_ `src/lib/kling.server.ts` | Direct Kling JWT signer — the only file that reads `KLING_ACCESS_KEY` / `KLING_SECRET_KEY` |
-
-Full policy, rotation steps, and a pre-ship checklist: **[`docs/KLING_SECRETS.md`](docs/KLING_SECRETS.md)**.
-
-Copy [`.env.example`](.env.example) to a local `.env.local` for reference — it documents every variable name and its expected shape with **no real values**. `.gitignore` blocks `.env`, `.env.*` (except `.env.example`), and common Kling credential filenames.
-
-## Documentation
-- [`UI_SNAPSHOT.md`](UI_SNAPSHOT.md) — current visual rules, including borderless decorative chips and canonical Aura pricing-copy guidance.
-
-- [`docs/KLING_SECRETS.md`](docs/KLING_SECRETS.md) — Kling credential handling, rotation, and code locations
-- [`docs/ENV.md`](docs/ENV.md) — environment variables and secrets
-- [`docs/DATABASE.md`](docs/DATABASE.md) — schema, RLS, functions, storage
-- [`docs/DB_MIGRATIONS.md`](docs/DB_MIGRATIONS.md) — migration, rollback, and scheduled-job runbook
-- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — orchestrator, fallback chain, workers
-- [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) — supported runtime and CI/release boundaries
-- [`docs/OBSERVABILITY.md`](docs/OBSERVABILITY.md) — logs, queue health, and optional Sentry reporting
-- [`docs/SECURITY_AND_SECRETS.md`](docs/SECURITY_AND_SECRETS.md) — secret ownership and rotation rules
-- [`ROADMAP.md`](ROADMAP.md) — what's shipped vs in-flight
-
-
-
-
-## Key directories
-
-```
-src/
-  routes/                file-based routes (TanStack)
-    api/public/          webhooks + cron endpoints
-  lib/
-    *.functions.ts       client-callable server functions
-    *.server.ts          server-only helpers
-    orchestrator.server.ts   provider routing
-    llm-fallback.server.ts   LLM fallback chain
-  integrations/supabase/ auto-generated Supabase clients
-supabase/
-  migrations/            SQL migrations
-  config.toml            project id only
+```bash
+python scripts/test_viral_videos_smoke.py
 ```
 
-## Scripts
+The smoke test verifies:
+1. `viral_video_plans.json` conforms to schema with all 40 scenes and non-empty required fields.
+2. `viral_video_plans.csv` contains 40 complete rows matching the scene matrix.
+3. Prompt synthesis functions (`build_walk_prompt`, `build_perf_prompt`, `build_end_prompt`, `build_cop_idle_prompt`, `build_cop_run_prompt`) produce valid cinematic instructions.
+4. Generator code syntax, dependencies, and imports pass without making external network calls.
 
-- `bun run dev` — Vite dev server
-- `bun run build` — production build
-- `bun run preview` — preview the build
+---
+
+## Secrets & Security Policy
+
+1. **Zero Hardcoded Secrets**: Never commit API keys, personal access tokens, or credentials into repository files.
+2. **Environment Variable Ingestion**: Always supply `MODELARK_API_KEY`, `FAL_KEY`, or `KLING_*` keys via environment variables or secret managers.
+3. **Git Hygiene**: `.gitignore` prevents `.env`, `temp_clips/`, `outputs/`, and `.venv/` from being pushed to remote.
+
+---
+
+## Repository Structure
+
+```
+├── .github/
+│   └── workflows/
+│       └── viral-videos-ci.yml       # GitHub Actions CI & smoke test
+├── docs/
+│   ├── VIRAL_VIDEOS_40_PLANS.md       # Complete 40-scene plan catalog
+│   ├── VIRAL_VIDEO_EXECUTION_GUIDE.md # Video execution & operations guide
+│   └── ...                           # Platform & architecture documentation
+├── references/
+│   └── README.md                     # Asset placement instructions
+├── scripts/
+│   └── test_viral_videos_smoke.py    # Zero-secret CI validation script
+├── generate_videos.py                # Main ModelArk + FFmpeg batch generator
+├── requirements.txt                  # Python runtime dependencies
+├── viral_video_plans.csv             # 40-scene spreadsheet export
+├── viral_video_plans.json            # 40-scene JSON database
+├── package.json                      # Web platform dependencies
+└── README.md                         # This documentation
+```
+
+---
 
 ## License
 
-Proprietary — © Aurora Studio.
+Proprietary — © Aurora Studio / Auroraglobal. All rights reserved.
