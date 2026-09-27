@@ -261,6 +261,17 @@ export default function AccountScreen() {
         </View>
 
         <View style={styles.section}>
+          <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>Support</Text>
+          <View style={[styles.group, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <SettingRow
+              icon="help-circle"
+              label="Contact Support"
+              onPress={() => openWeb("/contact")}
+            />
+          </View>
+        </View>
+
+        <View style={styles.section}>
           <View style={[styles.group, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <SettingRow
               icon="info"
