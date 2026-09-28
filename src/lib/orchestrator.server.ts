@@ -12,7 +12,7 @@ import { syncLipsync } from "./sync.server";
 import { hfTextToImage } from "./hf.server";
 import { isTrustedUrl } from "./url-guard";
 
-export type GenerateKind = "image" | "video" | "lipsync" | "upscale";
+export type GenerateKind = "image" | "video" | "lipsync" | "upscale" | "motion";
 export type MotionType = "faithful" | "expressive" | "subtle" | "exaggerated";
 export type CameraMovement =
   | "static"
@@ -617,10 +617,19 @@ const huggingface: ProviderAdapter = {
 };
 
 // ─── GPU worker pool ─────────────────────────────────────────────────────────
+export async function hasActiveWorkerForKind(kind: GenerateKind): Promise<boolean> {
+  const { data: workers } = await supabaseAdmin
+    .from("gpu_workers")
+    .select("id", { count: "exact", head: true })
+    .eq("status", "active")
+    .contains("capabilities", [kind]);
+  return (workers?.length ?? 0) > 0;
+}
+
 const gpuWorker: ProviderAdapter = {
   name: "runpod",
-  supports: (r) => ["image", "video", "lipsync", "upscale"].includes(r.kind),
-  estimateCost: (r) => (r.kind === "video" ? 0.05 : 0.01),
+  supports: (r) => ["image", "video", "lipsync", "upscale", "motion"].includes(r.kind),
+  estimateCost: (r) => (r.kind === "video" ? 0.05 : r.kind === "motion" ? 0.02 : 0.01),
   async run(r) {
     const { data: workers } = await supabaseAdmin
       .from("gpu_workers")
@@ -637,23 +646,81 @@ const gpuWorker: ProviderAdapter = {
       const started = Date.now();
       try {
         await supabaseAdmin.from("gpu_workers").update({ in_flight: w.in_flight + 1 }).eq("id", w.id);
-        const res = await fetch(w.endpoint_url.replace(/\/$/, "") + "/generate", {
-          method: "POST",
-          headers: {
-            "content-type": "application/json",
-            ...(w.auth_token ? { authorization: `Bearer ${w.auth_token}` } : {}),
-          },
-          body: JSON.stringify({
+        
+        const protocol = w.protocol ?? "custom";
+        let url: string | undefined;
+        
+        console.log(`[GPU Worker] Dispatching to ${w.name} (protocol: ${protocol})`);
+        
+        if (protocol === "runpod") {
+          // RunPod async dispatch: POST to /run, poll /status/{id}
+          const input = {
             kind: r.kind, prompt: r.prompt, image_urls: r.imageUrls,
             audio_url: r.audioUrl, video_url: r.videoUrl,
             model: r.model, duration: r.duration, resolution: r.resolution,
-          }),
-          signal: AbortSignal.timeout(300_000),
-        });
-        if (!res.ok) throw new Error(`worker ${w.name} -> ${res.status}`);
-        const json = (await res.json()) as { url?: string; output_url?: string };
-        const url = json.url ?? json.output_url;
-        if (!url) throw new Error(`worker ${w.name} returned no url`);
+          };
+          console.log(`[RunPod] Creating job to ${w.endpoint_url}/run with input:`, { kind: input.kind, model: input.model });
+          console.log(`[RunPod] Auth token: ${w.auth_token ? "present" : "missing"}`, w.auth_token ? `("${w.auth_token.slice(0, 10)}...")` : "");
+          const createRes = await fetch(w.endpoint_url.replace(/\/$/, "") + "/run", {
+            method: "POST",
+            headers: {
+              "content-type": "application/json",
+              ...(w.auth_token ? { authorization: `Bearer ${w.auth_token}` } : {}),
+            },
+            body: JSON.stringify({ input }),
+            signal: AbortSignal.timeout(60_000),
+          });
+          console.log(`[RunPod] Create response status: ${createRes.status}`);
+          if (!createRes.ok) throw new Error(`worker ${w.name} (create) -> ${createRes.status}`);
+          const createJson = (await createRes.json()) as { id?: string };
+          const jobId = createJson.id;
+          console.log(`[RunPod] Got job ID: ${jobId}`);
+          if (!jobId) throw new Error(`worker ${w.name} returned no job id`);
+          
+          const deadline = Date.now() + 900_000; // 15 min
+          while (Date.now() < deadline) {
+            await new Promise((s) => setTimeout(s, 3000));
+            const statusRes = await fetch(w.endpoint_url.replace(/\/$/, "") + `/status/${jobId}`, {
+              headers: w.auth_token ? { authorization: `Bearer ${w.auth_token}` } : {},
+              signal: AbortSignal.timeout(30_000),
+            });
+            if (!statusRes.ok) {
+              console.log(`[RunPod] Status poll failed with ${statusRes.status}, retrying...`);
+              continue;
+            }
+            const statusJson = (await statusRes.json()) as { status?: string; output?: Record<string, any> };
+            console.log(`[RunPod] Job status: ${statusJson.status}`);
+            if (statusJson.status === "COMPLETED") {
+              const output = statusJson.output as Record<string, any>;
+              url = output?.url ?? output?.output_url;
+              console.log(`[RunPod] Job completed, output URL: ${url}`);
+              if (!url) throw new Error(`worker ${w.name} job completed without output url`);
+              break;
+            }
+            if (statusJson.status === "FAILED") throw new Error(`worker ${w.name} job failed`);
+          }
+          if (!url) throw new Error(`worker ${w.name} poll timeout`);
+        } else {
+          // Custom / default protocol: POST to /generate with immediate response
+          const res = await fetch(w.endpoint_url.replace(/\/$/, "") + "/generate", {
+            method: "POST",
+            headers: {
+              "content-type": "application/json",
+              ...(w.auth_token ? { authorization: `Bearer ${w.auth_token}` } : {}),
+            },
+            body: JSON.stringify({
+              kind: r.kind, prompt: r.prompt, image_urls: r.imageUrls,
+              audio_url: r.audioUrl, video_url: r.videoUrl,
+              model: r.model, duration: r.duration, resolution: r.resolution,
+            }),
+            signal: AbortSignal.timeout(300_000),
+          });
+          if (!res.ok) throw new Error(`worker ${w.name} -> ${res.status}`);
+          const json = (await res.json()) as { url?: string; output_url?: string };
+          url = json.url ?? json.output_url;
+          if (!url) throw new Error(`worker ${w.name} returned no url`);
+        }
+
         await supabaseAdmin.from("worker_jobs").insert({
           worker_id: w.id, user_id: r.userId ?? null, kind: r.kind,
           status: "ok", latency_ms: Date.now() - started, ref_id: r.refId ?? null,
@@ -685,6 +752,7 @@ const PRIORITY: Record<GenerateKind, ProviderAdapter[]> = {
   video:   [arkVideo, klingDirect, replicate, gpuWorker, falFallback],
   lipsync: [sync, heygen, replicate, gpuWorker, falFallback],
   upscale: [replicate, gpuWorker, falFallback],
+  motion:  [gpuWorker],
 };
 
 // ─── Unified model registry ──────────────────────────────────────────────────
@@ -709,6 +777,8 @@ export const MODEL_REGISTRY: Record<string, ModelEntry> = (() => {
     "heygen/lipsync":                         { provider: "heygen",  kind: "lipsync", cost: 0.40 },
     // Sync.so direct lipsync
     "sync/lipsync-2":                         { provider: "sync",    kind: "lipsync", cost: 0.25 },
+    // MimicMotion (GPU worker only)
+    "mimic-motion":                           { provider: "runpod",  kind: "motion", cost: 0.02 },
   };
   for (const [k, v] of Object.entries(REPLICATE_MAP))
     out[k] = { provider: "replicate", kind: v.kind, cost: v.cost };
@@ -750,8 +820,9 @@ const FALLBACK_MODELS: Record<GenerateKind, string[]> = {
   video:   ["seedance-2.0-fast", "seedance-2.0", "seedance-2.5", "wan-2.5", "kling-3.0", "veo-3-fast", "sora-2"],
   lipsync: ["fal-ai/sync-lipsync/v2", "fal-ai/wav2lip"],
   upscale: [],
+  motion:  ["mimic-motion"],
 };
-const FALLBACK_CAP: Record<GenerateKind, number> = { image: 3, video: 2, lipsync: 2, upscale: 1 };
+const FALLBACK_CAP: Record<GenerateKind, number> = { image: 3, video: 2, lipsync: 2, upscale: 1, motion: 1 };
 
 function getCandidateModels(req: GenerateRequest): string[] {
   const base = FALLBACK_MODELS[req.kind] ?? [];
