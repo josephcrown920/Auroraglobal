@@ -1,4 +1,4 @@
-# Auroraglobal — AI Video Studio & Viral Video Engine
+# Aurora Performance Studio— AI Video Studio & Viral Video Engine
 
 [![Viral Videos CI & Smoke Test](https://github.com/josephcrown920/Auroraglobal/actions/workflows/viral-videos-ci.yml/badge.svg)](https://github.com/josephcrown920/Auroraglobal/actions/workflows/viral-videos-ci.yml)
 
