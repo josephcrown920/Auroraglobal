@@ -16,20 +16,19 @@ export const Route = createFileRoute("/edit")({
   }),
   head: () => ({
     meta: [
-      { title: "AutoCut — Aurora" },
+      { title: "Video Studio — Aurora" },
       {
         name: "description",
         content:
-          "Drop your clips, pick a style and music, and Aurora cuts a polished 9:16 short-form video for you in minutes.",
+          "Direct an AI-assisted video edit, arrange clips, and render a polished 9:16 short-form video.",
       },
-      { property: "og:title", content: "AutoCut — Aurora" },
+      { property: "og:title", content: "Video Studio — Aurora" },
       {
         property: "og:description",
-        content: "Upload clips · pick a style · get a finished 9:16 short.",
+        content: "Direct with AI · arrange clips · render with AutoCut.",
       },
       { property: "og:url", content: "https://auroraperformancestudio.com/edit" },
     ],
     links: [{ rel: "canonical", href: "https://auroraperformancestudio.com/edit" }],
   }),
 });
-
