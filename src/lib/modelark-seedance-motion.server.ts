@@ -1,4 +1,5 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { modelArkAssetUri } from "./seedance-reference-policy";
 
 const ARK_DEFAULT_BASE = "https://ark.ap-southeast.bytepluses.com";
 const MODEL_IDS = {
@@ -13,6 +14,8 @@ type MotionType = "faithful" | "expressive" | "subtle" | "exaggerated";
 type MotionRequest = {
   modelKey: ModelKey;
   subjectImageUrl: string;
+  /** Approved ModelArk/LAS identity asset. When present, use asset:// instead of raw face media. */
+  modelarkIdentityAssetId?: string | null;
   motionVideoUrl: string;
   prompt: string;
   duration: number;
@@ -107,7 +110,9 @@ export async function generateModelArkMotion(input: MotionRequest): Promise<{
   costUsd: number;
 }> {
   const started = Date.now();
-  const imageUrl = await signStudioUrl(input.subjectImageUrl);
+  const imageUrl = input.modelarkIdentityAssetId
+    ? modelArkAssetUri(input.modelarkIdentityAssetId)
+    : await signStudioUrl(input.subjectImageUrl);
   const videoUrl = await signStudioUrl(input.motionVideoUrl);
   const model = modelId(input.modelKey);
 

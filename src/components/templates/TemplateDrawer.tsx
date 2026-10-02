@@ -418,7 +418,7 @@ export function TemplateDrawer({
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-muted-foreground">
                     {template.dispatch === "spin"
-                      ? `${SPIN_PIECE_COUNT} posts · 300 Aura charged on /spin`
+                      ? `${SPIN_PIECE_COUNT} posts · ${SPIN_PIECE_COUNT * 10} Aura charged on /spin`
                       : "This render uses"}
                   </span>
                   {cost === 0 ? (
