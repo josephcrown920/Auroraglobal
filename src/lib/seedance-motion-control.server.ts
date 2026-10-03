@@ -32,8 +32,7 @@ const SeedanceMotionSchema = z.object({
   cameraMovement: z.enum(CAMERA_MOVEMENTS).optional().nullable(),
   motionType: z.enum(MOTION_TYPES).optional().nullable(),
   /** Approved ModelArk/LAS identity asset for real-person references. */
-  modelarkIdentityAssetId: z.string().trim().min(1).max(256).optional(),
-  soulId: z.string().uuid().optional(),
+  soulId: z.string().uuid(),
 });
 
 export type SeedanceMotionInput = z.infer<typeof SeedanceMotionSchema>;
@@ -57,7 +56,6 @@ export const generateSeedanceMotion = createServerFn({ method: "POST" })
     const modelarkIdentityAssetId = await resolveAuthorizedModelArkAsset({
       userId: context.userId,
       soulId: data.soulId,
-      directAssetId: data.modelarkIdentityAssetId,
     });
 
     const result = await generateModelArkMotion({
