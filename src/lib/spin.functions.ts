@@ -543,7 +543,7 @@ export async function advanceSpinQueueAdmin(
           mode === "video"
             ? SPIN_VIDEO_PIECE_COST
             : p.kind === "video"
-              ? (audioUrl ? SPIN_VIDEO_PIECE_COST : SPIN_VIDEO_COST)
+              ? (ctx.audioUrl ? SPIN_VIDEO_PIECE_COST : SPIN_VIDEO_COST)
               : COST_SPIN_PIECE;
         try {
           const { publicUrl, provider, kind } = await renderSpinPiece(ctx, p);
