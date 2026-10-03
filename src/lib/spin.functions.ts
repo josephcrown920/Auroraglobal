@@ -285,8 +285,9 @@ export const spinThirty = createServerFn({ method: "POST" })
       throw new Error("Video Mode needs either a script or a recorded/uploaded audio track.");
     }
 
-    let audioUrl: string | null = requestedAudioUrl;
-    if (!audioUrl && script) {
+    const wantsVideoContent = mode === "video" || (data.videoCount ?? 0) > 0;
+    let audioUrl: string | null = wantsVideoContent ? requestedAudioUrl : null;
+    if (wantsVideoContent && !audioUrl && script) {
       if (!process.env.HF_TOKEN) {
         throw new Error("Script-to-voice needs voice synthesis configured (missing HF_TOKEN). Contact support.");
       }
