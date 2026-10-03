@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { assertOwnedReferenceImage } from "./url-guard";
 import { generateModelArkMotion } from "./modelark-seedance-motion.server";
+import { resolveAuthorizedModelArkAsset } from "./human-reference-router.server";
 
 const MODEL_KEYS = ["seedance-2.0-fast", "seedance-2.0", "seedance-2.5"] as const;
 const CAMERA_MOVEMENTS = [
@@ -32,6 +33,7 @@ const SeedanceMotionSchema = z.object({
   motionType: z.enum(MOTION_TYPES).optional().nullable(),
   /** Approved ModelArk/LAS identity asset for real-person references. */
   modelarkIdentityAssetId: z.string().trim().min(1).max(256).optional(),
+  soulId: z.string().uuid().optional(),
 });
 
 export type SeedanceMotionInput = z.infer<typeof SeedanceMotionSchema>;
@@ -51,6 +53,12 @@ export const generateSeedanceMotion = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     await assertOwnedReferenceImage(data.subjectImageUrl, context.userId);
     await assertOwnedReferenceImage(data.motionVideoUrl, context.userId);
+
+    const modelarkIdentityAssetId = await resolveAuthorizedModelArkAsset({
+      userId: context.userId,
+      soulId: data.soulId,
+      directAssetId: data.modelarkIdentityAssetId,
+    });
 
     const result = await generateModelArkMotion({
       modelKey: data.modelKey,
