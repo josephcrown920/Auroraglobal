@@ -419,8 +419,8 @@ function SpinPage() {
           setErr("Upload a product photo to use Video Mode.");
           return;
         }
-        if (!script.trim()) {
-          setErr("Write a short script for the avatar to speak.");
+        if (!script.trim() && !audioUrl) {
+          setErr("Write a script or record/upload your voice for Video Mode.");
           return;
         }
       }
@@ -734,18 +734,36 @@ function SpinPage() {
                 </div>
                 <div className="flex flex-col gap-2">
                   <span className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-                    <Mic className="size-3" /> Script (spoken in every clip)
+                    <Mic className="size-3" /> Script or voice (spoken in every clip)
                   </span>
                   <textarea
                     value={script}
                     onChange={(e) => setScript(e.target.value)}
-                    placeholder="e.g. This is the game-changer your routine's been missing. Grab yours today."
+                    placeholder="Optional script. Or record/upload your own voice below."
                     maxLength={600}
                     rows={5}
                     disabled={active}
                     className="flex-1 resize-none rounded-xl aurora-glass px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
                   />
                   <span className="self-end text-[10px] text-muted-foreground">{script.length}/600</span>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {!recording ? (
+                      <button type="button" onClick={() => void startRecording()} disabled={active} className="inline-flex items-center gap-2 rounded-lg bg-primary/15 px-3 py-2 text-xs font-semibold text-primary hover:bg-primary/20 disabled:opacity-50">
+                        <Mic className="size-3.5" /> Record voice
+                      </button>
+                    ) : (
+                      <button type="button" onClick={stopRecording} className="inline-flex items-center gap-2 rounded-lg bg-destructive/15 px-3 py-2 text-xs font-semibold text-destructive">
+                        <span className="size-2 rounded-full bg-destructive animate-pulse" /> Stop recording
+                      </button>
+                    )}
+                    <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold text-foreground hover:bg-white/10">
+                      <Upload className="size-3.5" /> Upload audio
+                      <input type="file" accept="audio/*" hidden disabled={active} onChange={(e) => { const file = e.target.files?.[0]; if (file) void uploadAudioFile(file); e.target.value = ""; }} />
+                    </label>
+                  </div>
+                  {audioUrl && (
+                    <audio controls src={audioUrl} className="mt-2 h-8 w-full" />
+                  )}
                 </div>
               </div>
             )}
