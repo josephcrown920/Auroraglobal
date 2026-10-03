@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { assertOwnedReferenceImage } from "./url-guard";
 import { generateModelArkMotion } from "./modelark-seedance-motion.server";
+import { resolveAuthorizedModelArkAsset } from "./human-reference-router.server";
 
 const MODEL_KEYS = ["seedance-2.0-fast", "seedance-2.0", "seedance-2.5"] as const;
 const CAMERA_MOVEMENTS = [
@@ -30,6 +31,8 @@ const SeedanceMotionSchema = z.object({
   resolution: z.enum(["480p", "720p", "1080p"]).default("720p"),
   cameraMovement: z.enum(CAMERA_MOVEMENTS).optional().nullable(),
   motionType: z.enum(MOTION_TYPES).optional().nullable(),
+  /** Approved ModelArk/LAS identity asset for real-person references. */
+  soulId: z.string().uuid(),
 });
 
 export type SeedanceMotionInput = z.infer<typeof SeedanceMotionSchema>;
@@ -40,8 +43,8 @@ export type SeedanceMotionInput = z.infer<typeof SeedanceMotionSchema>;
  * This path deliberately bypasses the generic orchestration fallback chain:
  * motion-control requests must reach the activated Seedance model directly.
  * The motion video is sent as `reference_video` and the subject image as
- * `reference_image`, which is the multimodal reference contract used by
- * Seedance 2.x.
+ * `reference_image`. Real-person references must carry the approved
+ * ModelArk/LAS identity asset through the centralized human-reference router.
  */
 export const generateSeedanceMotion = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -49,6 +52,11 @@ export const generateSeedanceMotion = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     await assertOwnedReferenceImage(data.subjectImageUrl, context.userId);
     await assertOwnedReferenceImage(data.motionVideoUrl, context.userId);
+
+    const modelarkIdentityAssetId = await resolveAuthorizedModelArkAsset({
+      userId: context.userId,
+      soulId: data.soulId,
+    });
 
     const result = await generateModelArkMotion({
       modelKey: data.modelKey,
@@ -59,6 +67,7 @@ export const generateSeedanceMotion = createServerFn({ method: "POST" })
       resolution: data.resolution,
       cameraMovement: data.cameraMovement,
       motionType: data.motionType,
+      modelarkIdentityAssetId: data.modelarkIdentityAssetId,
     });
 
     return {

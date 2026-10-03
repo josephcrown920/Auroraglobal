@@ -52,6 +52,7 @@ function SeedanceMotionPage() {
   const generate = useServerFn(generateSeedanceMotion);
   const [subjectImageUrl, setSubjectImageUrl] = useState<string | null>(null);
   const [motionVideoUrl, setMotionVideoUrl] = useState<string | null>(null);
+  const [modelarkIdentityAssetId, setModelarkIdentityAssetId] = useState("");
   const [prompt, setPrompt] = useState("Transfer the motion and timing from the reference video to the subject. Preserve the subject's identity and clothing.");
   const [modelKey, setModelKey] = useState<(typeof MODELS)[number][0]>("seedance-2.0-fast");
   const [cameraMovement, setCameraMovement] = useState<(typeof CAMERAS)[number][0]>("static");
@@ -79,6 +80,7 @@ function SeedanceMotionPage() {
         data: {
           subjectImageUrl,
           motionVideoUrl,
+          modelarkIdentityAssetId: modelarkIdentityAssetId.trim() || undefined,
           prompt,
           modelKey,
           duration,
@@ -114,9 +116,22 @@ function SeedanceMotionPage() {
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
-            <UploadSlot userId={user.id} label="Subject image" hint="Upload the person/image to animate" value={subjectImageUrl} onChange={setSubjectImageUrl} />
+            <UploadSlot userId={user.id} label="Subject image" hint="Upload the authorized performer reference" value={subjectImageUrl} onChange={setSubjectImageUrl} />
             <UploadSlot userId={user.id} label="Motion reference video" hint="Upload the movement/performance to copy" accept="video/*" kind="video" value={motionVideoUrl} onChange={setMotionVideoUrl} />
           </div>
+
+          <label className="block space-y-2 text-sm">
+            <span className="font-medium">ModelArk / LAS identity asset ID</span>
+            <input
+              className="w-full rounded-xl border border-border bg-background p-3 text-sm"
+              value={modelarkIdentityAssetId}
+              onChange={(e) => setModelarkIdentityAssetId(e.target.value)}
+              placeholder="Paste the approved asset ID from Aurora Identity Vault"
+            />
+            <span className="block text-xs text-muted-foreground">
+              Required when the performer is a real person. Aurora sends the approved asset reference to Seedance and never attempts to bypass ModelArk identity restrictions.
+            </span>
+          </label>
 
           <label className="block space-y-2 text-sm">
             <span className="font-medium">Motion prompt</span>
@@ -131,7 +146,7 @@ function SeedanceMotionPage() {
           </div>
 
           <label className="block space-y-2 text-sm"><span>Duration: {duration}s</span><input className="w-full" type="range" min={4} max={modelKey === "seedance-2.5" ? 30 : 15} value={duration} onChange={(e) => setDuration(Number(e.target.value))} /></label>
-          <Button className="w-full" disabled={busy || !subjectImageUrl || !motionVideoUrl} onClick={() => void run()}>{busy ? <><Loader2 className="mr-2 size-4 animate-spin" />Rendering with Seedance…</> : "Generate motion-controlled video"}</Button>
+          <Button className="w-full" disabled={busy || !subjectImageUrl || !motionVideoUrl || !modelarkIdentityAssetId.trim()} onClick={() => void run()}>{busy ? <><Loader2 className="mr-2 size-4 animate-spin" />Rendering with Seedance…</> : "Generate motion-controlled video"}</Button>
         </div>
 
         <div className="rounded-2xl border border-border bg-card/50 p-5">
