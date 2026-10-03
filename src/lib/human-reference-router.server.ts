@@ -42,3 +42,37 @@ export function isSeedanceModel(model?: string | null): boolean {
   const value = model?.trim().toLowerCase() ?? "";
   return value.includes("seedance") || value.includes("dreamina-seedance");
 }
+
+
+import { supabaseAdmin } from "@/integrations/supabase/client.server";
+
+export async function resolveAuthorizedModelArkAsset(input: {
+  userId: string;
+  soulId?: string | null;
+  directAssetId?: string | null;
+}): Promise<string> {
+  if (input.soulId) {
+    const { data, error } = await supabaseAdmin
+      .from("souls" as never)
+      .select("id, user_id, status, modelark_identity_asset_id, modelark_verified_at" as never)
+      .eq("id" as never, input.soulId)
+      .eq("user_id" as never, input.userId)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    const row = data as {
+      id: string;
+      user_id: string;
+      status: string;
+      modelark_identity_asset_id: string | null;
+      modelark_verified_at: string | null;
+    } | null;
+    if (!row || row.status !== "ready" || !row.modelark_identity_asset_id || !row.modelark_verified_at) {
+      throw new Error(seedanceReferenceMessage());
+    }
+    return row.modelark_identity_asset_id;
+  }
+
+  const direct = input.directAssetId?.trim();
+  if (!direct) throw new Error(seedanceReferenceMessage());
+  return direct;
+}
