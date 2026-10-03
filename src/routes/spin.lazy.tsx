@@ -21,7 +21,6 @@ import {
   SPIN_VIDEO_PIECE_COST,
   SPIN_VIDEO_DURATION_SECONDS,
   SPIN_VIDEO_COST,
-  spinTotalCost,
   SPIN_TEMPLATES,
   type SpinMode,
   type SpinSpec,
