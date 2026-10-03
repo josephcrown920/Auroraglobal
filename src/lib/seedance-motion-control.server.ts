@@ -30,6 +30,8 @@ const SeedanceMotionSchema = z.object({
   resolution: z.enum(["480p", "720p", "1080p"]).default("720p"),
   cameraMovement: z.enum(CAMERA_MOVEMENTS).optional().nullable(),
   motionType: z.enum(MOTION_TYPES).optional().nullable(),
+  /** Approved ModelArk/LAS identity asset for real-person references. */
+  modelarkIdentityAssetId: z.string().trim().min(1).max(256).optional(),
 });
 
 export type SeedanceMotionInput = z.infer<typeof SeedanceMotionSchema>;
@@ -40,8 +42,8 @@ export type SeedanceMotionInput = z.infer<typeof SeedanceMotionSchema>;
  * This path deliberately bypasses the generic orchestration fallback chain:
  * motion-control requests must reach the activated Seedance model directly.
  * The motion video is sent as `reference_video` and the subject image as
- * `reference_image`, which is the multimodal reference contract used by
- * Seedance 2.x.
+ * `reference_image`. Real-person references must carry the approved
+ * ModelArk/LAS identity asset through the centralized human-reference router.
  */
 export const generateSeedanceMotion = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -59,6 +61,7 @@ export const generateSeedanceMotion = createServerFn({ method: "POST" })
       resolution: data.resolution,
       cameraMovement: data.cameraMovement,
       motionType: data.motionType,
+      modelarkIdentityAssetId: data.modelarkIdentityAssetId,
     });
 
     return {
