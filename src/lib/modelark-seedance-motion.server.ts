@@ -1,5 +1,5 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { modelArkAssetUri } from "./seedance-reference-policy";
+import { routeHumanReference } from "./human-reference-router.server";
 
 const ARK_DEFAULT_BASE = "https://ark.ap-southeast.bytepluses.com";
 const MODEL_IDS = {
@@ -110,9 +110,15 @@ export async function generateModelArkMotion(input: MotionRequest): Promise<{
   costUsd: number;
 }> {
   const started = Date.now();
-  const imageUrl = input.modelarkIdentityAssetId
-    ? modelArkAssetUri(input.modelarkIdentityAssetId)
-    : await signStudioUrl(input.subjectImageUrl);
+  const route = routeHumanReference({
+    provider: "modelark",
+    sourceUrl: input.subjectImageUrl,
+    modelarkIdentityAssetId: input.modelarkIdentityAssetId,
+    humanReference: true,
+  });
+  const imageUrl = route.referenceUri.startsWith("asset://")
+    ? route.referenceUri
+    : await signStudioUrl(route.referenceUri);
   const videoUrl = await signStudioUrl(input.motionVideoUrl);
   const model = modelId(input.modelKey);
 
