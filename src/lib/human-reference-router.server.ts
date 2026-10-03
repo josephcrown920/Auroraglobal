@@ -6,6 +6,7 @@
  * identity asset. Other providers can use their own supported identity route.
  */
 import { modelArkAssetUri, seedanceReferenceMessage } from "./seedance-reference-policy";
+import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
 export type HumanReferenceRoute = {
   provider: "modelark" | "native";
@@ -43,8 +44,6 @@ export function isSeedanceModel(model?: string | null): boolean {
   return value.includes("seedance") || value.includes("dreamina-seedance");
 }
 
-
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
 export async function resolveAuthorizedModelArkAsset(input: {
   userId: string;
