@@ -21,7 +21,6 @@ import {
   SPIN_VIDEO_PIECE_COST,
   SPIN_VIDEO_DURATION_SECONDS,
   SPIN_VIDEO_COST,
-  spinTotalCost,
   SPIN_TEMPLATES,
   type SpinMode,
   type SpinSpec,
@@ -158,6 +157,11 @@ function SpinPage() {
   // Per-variant video slider: 0–50 posts as short 5s i2v clips (budget
   // seedance-2.0-fast). Separate from the premium Product Showcase Video Mode.
   const [videoCount, setVideoCount] = useState(0);
+  // Optional voice layer for selected video posts: write a script or record/upload audio.
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [recording, setRecording] = useState(false);
+  const recorderRef = useRef<MediaRecorder | null>(null);
+  const recordChunksRef = useRef<Blob[]>([]);
 
   // Video Mode (Product Showcase only): the same avatar holds YOUR product and
   // SPEAKS a short script — 30 talking clips instead of 30 stills. Reset back
@@ -280,6 +284,75 @@ function SpinPage() {
     [user],
   );
 
+  const uploadRecordedAudio = useCallback(
+    async (blob: Blob) => {
+      if (!user) {
+        setErr("Sign in to record audio.");
+        return;
+      }
+      try {
+        const ext = blob.type.includes("mp4") ? "m4a" : "webm";
+        const path = `${user.id}/spin/audio/${crypto.randomUUID()}.${ext}`;
+        const { error } = await supabase.storage
+          .from("studio")
+          .upload(path, blob, { contentType: blob.type || "audio/webm", upsert: false });
+        if (error) throw error;
+        const { data } = supabase.storage.from("studio").getPublicUrl(path);
+        setAudioUrl(data.publicUrl);
+        toast.success("Your voice track is ready — TikTok30 will lip-sync the video posts to it.");
+      } catch (e) {
+        setErr(e instanceof Error ? e.message : "Audio upload failed");
+      }
+    },
+    [user],
+  );
+
+  const startRecording = useCallback(async () => {
+    if (!user) {
+      setErr("Sign in to record audio.");
+      return;
+    }
+    if (!("MediaRecorder" in window)) {
+      setErr("Audio recording is not supported in this browser. Upload an audio file instead.");
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mimeType = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4"].find((m) =>
+        MediaRecorder.isTypeSupported(m),
+      ) ?? "";
+      const recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
+      recordChunksRef.current = [];
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) recordChunksRef.current.push(event.data);
+      };
+      recorder.onstop = () => {
+        stream.getTracks().forEach((track) => track.stop());
+        const blob = new Blob(recordChunksRef.current, { type: recorder.mimeType || "audio/webm" });
+        setRecording(false);
+        void uploadRecordedAudio(blob);
+      };
+      recorderRef.current = recorder;
+      setRecording(true);
+      recorder.start();
+    } catch (e) {
+      setRecording(false);
+      setErr(e instanceof Error ? e.message : "Microphone permission was denied.");
+    }
+  }, [user, uploadRecordedAudio]);
+
+  const stopRecording = useCallback(() => {
+    recorderRef.current?.stop();
+    recorderRef.current = null;
+  }, []);
+
+  const uploadAudioFile = useCallback(
+    async (file: File) => {
+      await uploadRecordedAudio(file);
+    },
+    [uploadRecordedAudio],
+  );
+
   // Load saved avatars + the template catalog for the pickers.
   useEffect(() => {
     optionsFn()
@@ -346,8 +419,8 @@ function SpinPage() {
           setErr("Upload a product photo to use Video Mode.");
           return;
         }
-        if (!script.trim()) {
-          setErr("Write a short script for the avatar to speak.");
+        if (!script.trim() && !audioUrl) {
+          setErr("Write a script or record/upload your voice for Video Mode.");
           return;
         }
       }
@@ -362,7 +435,8 @@ function SpinPage() {
             faceUrl: faceUrl ?? undefined,
             templateId,
             mode,
-            script: mode === "video" ? script.trim() : undefined,
+            script: script.trim() || undefined,
+            audioUrl: audioUrl ?? undefined,
             productUrl: mode === "video" ? productUrl! : undefined,
             videoCount: mode === "video" ? 0 : videoCount,
           },
@@ -376,7 +450,7 @@ function SpinPage() {
         setErr(e instanceof Error ? e.message : "Could not start Spin");
       }
     },
-    [avatarId, faceUrl, templateId, mode, script, productUrl, videoCount, busy, planning, startFn, navigate, drive],
+    [avatarId, faceUrl, templateId, mode, script, audioUrl, productUrl, videoCount, busy, planning, startFn, navigate, drive],
   );
 
   // Resume an in-flight job from the URL (refresh / shared link).
@@ -403,6 +477,12 @@ function SpinPage() {
   const total = variants.length || SPIN_COUNT;
   const pct = Math.round(((done + errored) / total) * 100);
   const active = busy || planning;
+  const voiceEnabled = Boolean(audioUrl || script.trim());
+  const mixedVideoCost = voiceEnabled ? SPIN_VIDEO_PIECE_COST : SPIN_VIDEO_COST;
+  const batchCost =
+    mode === "video"
+      ? SPIN_COUNT * SPIN_VIDEO_PIECE_COST
+      : (SPIN_COUNT - videoCount) * SPIN_PIECE_COST + videoCount * mixedVideoCost;
 
   return (
     <main className="aurora-page-shell text-foreground">
@@ -509,9 +589,70 @@ function SpinPage() {
               className="w-full accent-primary disabled:opacity-50"
             />
             <p className="mt-2 text-[11px] text-muted-foreground leading-relaxed">
-              Selected posts render as 5-second identity-locked video clips (budget model · {SPIN_VIDEO_COST} Aura each).
-              The rest render as still images ({SPIN_PIECE_COST} Aura each).
+              Selected posts become real 9:16 videos. Add a script or your own voice below and Aurora will lip-sync those
+              video posts; otherwise they use motion-only animation. Photos remain identity-locked stills.
             </p>
+
+        {/* Optional voice layer for TikTok30 video posts */}
+        {mode !== "video" && videoCount > 0 && (
+          <div className="mt-4 rounded-xl border border-primary/20 bg-primary/5 p-4">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-primary">
+                  <Mic className="size-3.5" /> Make the videos yours
+                </div>
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  Optional: write what you want to say or record/upload your own voice. Aurora uses the same track across the selected video posts and lip-syncs each one.
+                </p>
+              </div>
+              {voiceEnabled && <span className="rounded-full bg-primary/15 px-2.5 py-1 text-[10px] font-semibold text-primary">Lip Sync ON</span>}
+            </div>
+
+            <div className="mt-4 grid gap-3 md:grid-cols-2">
+              <div className="rounded-xl border border-white/10 bg-black/10 p-3">
+                <label className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Script</label>
+                <textarea
+                  value={script}
+                  onChange={(e) => setScript(e.target.value)}
+                  placeholder="Optional: write the exact words you want the videos to say…"
+                  maxLength={600}
+                  rows={4}
+                  disabled={active || recording}
+                  className="mt-2 w-full resize-none rounded-lg aurora-glass px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
+                />
+                <span className="mt-1 block text-right text-[10px] text-muted-foreground">{script.length}/600</span>
+              </div>
+
+              <div className="rounded-xl border border-white/10 bg-black/10 p-3">
+                <div className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Your voice</div>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {!recording ? (
+                    <button type="button" onClick={() => void startRecording()} disabled={active} className="inline-flex items-center gap-2 rounded-lg bg-primary/15 px-3 py-2 text-xs font-semibold text-primary hover:bg-primary/20 disabled:opacity-50">
+                      <Mic className="size-3.5" /> Record audio
+                    </button>
+                  ) : (
+                    <button type="button" onClick={stopRecording} className="inline-flex items-center gap-2 rounded-lg bg-destructive/15 px-3 py-2 text-xs font-semibold text-destructive">
+                      <span className="size-2 rounded-full bg-destructive animate-pulse" /> Stop recording
+                    </button>
+                  )}
+                  <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold text-foreground hover:bg-white/10">
+                    <Upload className="size-3.5" /> Upload audio
+                    <input type="file" accept="audio/*" hidden disabled={active} onChange={(e) => { const file = e.target.files?.[0]; if (file) void uploadAudioFile(file); e.target.value = ""; }} />
+                  </label>
+                </div>
+                {audioUrl && (
+                  <div className="mt-3 flex items-center gap-2 rounded-lg border border-primary/20 bg-primary/5 p-2">
+                    <audio controls src={audioUrl} className="h-8 min-w-0 flex-1" />
+                    <button type="button" onClick={() => setAudioUrl(null)} disabled={active} className="rounded-md p-1 text-muted-foreground hover:text-destructive" aria-label="Remove audio">×</button>
+                  </div>
+                )}
+                <p className="mt-2 text-[10px] text-muted-foreground">
+                  {voiceEnabled ? `Selected video posts use the premium motion + lip-sync path (${SPIN_VIDEO_PIECE_COST} Aura/video).` : `Without voice, video posts use motion-only animation (${SPIN_VIDEO_COST} Aura/video).`}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
           </div>
         )}
 
@@ -593,18 +734,36 @@ function SpinPage() {
                 </div>
                 <div className="flex flex-col gap-2">
                   <span className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-                    <Mic className="size-3" /> Script (spoken in every clip)
+                    <Mic className="size-3" /> Script or voice (spoken in every clip)
                   </span>
                   <textarea
                     value={script}
                     onChange={(e) => setScript(e.target.value)}
-                    placeholder="e.g. This is the game-changer your routine's been missing. Grab yours today."
+                    placeholder="Optional script. Or record/upload your own voice below."
                     maxLength={600}
                     rows={5}
                     disabled={active}
                     className="flex-1 resize-none rounded-xl aurora-glass px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
                   />
                   <span className="self-end text-[10px] text-muted-foreground">{script.length}/600</span>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {!recording ? (
+                      <button type="button" onClick={() => void startRecording()} disabled={active} className="inline-flex items-center gap-2 rounded-lg bg-primary/15 px-3 py-2 text-xs font-semibold text-primary hover:bg-primary/20 disabled:opacity-50">
+                        <Mic className="size-3.5" /> Record voice
+                      </button>
+                    ) : (
+                      <button type="button" onClick={stopRecording} className="inline-flex items-center gap-2 rounded-lg bg-destructive/15 px-3 py-2 text-xs font-semibold text-destructive">
+                        <span className="size-2 rounded-full bg-destructive animate-pulse" /> Stop recording
+                      </button>
+                    )}
+                    <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold text-foreground hover:bg-white/10">
+                      <Upload className="size-3.5" /> Upload audio
+                      <input type="file" accept="audio/*" hidden disabled={active} onChange={(e) => { const file = e.target.files?.[0]; if (file) void uploadAudioFile(file); e.target.value = ""; }} />
+                    </label>
+                  </div>
+                  {audioUrl && (
+                    <audio controls src={audioUrl} className="mt-2 h-8 w-full" />
+                  )}
                 </div>
               </div>
             )}
@@ -712,7 +871,7 @@ function SpinPage() {
               ? "Writing campaign…"
               : mode === "video"
                 ? `Spin ${SPIN_COUNT} videos · ${SPIN_COUNT * SPIN_VIDEO_PIECE_COST} Aura`
-                : `Spin ${SPIN_COUNT} · ${spinTotalCost(SPIN_COUNT - videoCount, videoCount)} Aura`}
+                : `Spin ${SPIN_COUNT} · ${batchCost} Aura`}
           </button>
         </form>
 

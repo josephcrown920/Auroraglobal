@@ -6,7 +6,7 @@ import { z } from "zod";
 import { orchestrate } from "./orchestrator.server";
 import { fetchToBytes } from "./replicate.server";
 import { compressImageBytes } from "./compress.server";
-import { assertTrustedUrl, assertOwnedReferenceImage } from "./url-guard";
+import { assertTrustedUrl, assertOwnedReferenceImage, assertOwnStudioUpload } from "./url-guard";
 import { listAvatars } from "./mcp/avatars.server";
 import { routedGenerate } from "./ai-router";
 import { hfTextToSpeech } from "./hf.server";
@@ -21,7 +21,6 @@ import {
   SPIN_VIDEO_COST,
   SPIN_CLIP_MODEL,
   SPIN_CLIP_DURATION,
-  spinTotalCost,
   assignVideoSlots,
   VIRAL_SYSTEM_PROMPT,
   SpinPlanSchema,
@@ -231,6 +230,8 @@ const SpinInput = z.object({
   // (which controls the premium Product Showcase video pipeline). Only applies
   // when mode === "photo" — ignored for the full video mode batch.
   videoCount: z.number().int().min(0).max(SPIN_COUNT).default(0),
+  // Optional spoken content for selected video posts. Uploaded audio wins over script.
+  audioUrl: z.string().url().optional(),
 });
 
 export const spinThirty = createServerFn({ method: "POST" })
@@ -264,32 +265,30 @@ export const spinThirty = createServerFn({ method: "POST" })
       }
     }
 
-    // Video Mode is restricted to the Product Showcase template — enforced
-    // server-side (never trust the client). This mirrors the requiresHeldObject
-    // flag: a talking product-in-hand video needs the exact held-object anchor
-    // that only that template's pose bank + prompt guarantee.
     const mode: SpinMode = data.mode ?? "photo";
     if (mode === "video") {
       if (data.templateId !== "product_showcase") {
         throw new Error("Video Mode is only available for the Product Showcase template.");
       }
-      if (!data.script) throw new Error("Video Mode requires a script for the avatar to speak.");
       if (!data.productUrl) throw new Error("Video Mode requires a product photo.");
-      assertTrustedUrl(data.productUrl); // SSRF guard before this reaches any provider
+      assertTrustedUrl(data.productUrl);
     }
-    const script = mode === "video" ? (data.script as string).trim() : null;
     const productUrl = mode === "video" ? (data.productUrl as string) : null;
 
-    // Generate the spoken-audio track ONCE for the whole batch — every one of
-    // the 30 clips speaks the identical script, only the visuals vary — so we
-    // synthesize a single track up front and reuse it across every lip-sync
-    // stage at tick time, instead of paying for 30 redundant TTS calls.
-    // Failing BEFORE any credits are charged: a premium video batch must never
-    // silently degrade to a talking-but-mute clip after the user already paid.
-    let audioUrl: string | null = null;
-    if (mode === "video" && script) {
+    // TikTok30 video posts can be made specific with either a user recording or
+    // a written script. One shared track is reused across the selected clips.
+    const requestedAudioUrl = data.audioUrl?.trim() || null;
+    if (requestedAudioUrl) assertOwnStudioUpload(requestedAudioUrl, userId);
+    const script = data.script?.trim() || null;
+    if (mode === "video" && !requestedAudioUrl && !script) {
+      throw new Error("Video Mode needs either a script or a recorded/uploaded audio track.");
+    }
+
+    const wantsVideoContent = mode === "video" || (data.videoCount ?? 0) > 0;
+    let audioUrl: string | null = wantsVideoContent ? requestedAudioUrl : null;
+    if (wantsVideoContent && !audioUrl && script) {
       if (!process.env.HF_TOKEN) {
-        throw new Error("Video Mode needs voice synthesis configured (missing HF_TOKEN). Contact support.");
+        throw new Error("Script-to-voice needs voice synthesis configured (missing HF_TOKEN). Contact support.");
       }
       try {
         const tts = await hfTextToSpeech(UGC_TTS_MODEL, script);
@@ -310,11 +309,12 @@ export const spinThirty = createServerFn({ method: "POST" })
     // premium video + premium lip-sync at 15s) — see SPIN_VIDEO_PIECE_COST.
     // Slider-mode video pieces cost SPIN_VIDEO_COST each (budget i2v).
     const effectiveVideoCount = mode === "video" ? 0 : Math.min(data.videoCount ?? 0, SPIN_COUNT);
-    const costPerPiece = mode === "video" ? SPIN_VIDEO_PIECE_COST : COST_SPIN_PIECE;
+    const mixedLipSync = mode !== "video" && effectiveVideoCount > 0 && !!audioUrl;
+    const mixedVideoCost = mixedLipSync ? SPIN_VIDEO_PIECE_COST : SPIN_VIDEO_COST;
     const spinCost =
       mode === "video"
-        ? SPIN_COUNT * costPerPiece
-        : spinTotalCost(SPIN_COUNT - effectiveVideoCount, effectiveVideoCount);
+        ? SPIN_COUNT * SPIN_VIDEO_PIECE_COST
+        : (SPIN_COUNT - effectiveVideoCount) * COST_SPIN_PIECE + effectiveVideoCount * mixedVideoCost;
     const creditRef = crypto.randomUUID();
     const adminUser = await isAdmin(userId);
     if (!adminUser) {
@@ -542,7 +542,7 @@ export async function advanceSpinQueueAdmin(
           mode === "video"
             ? SPIN_VIDEO_PIECE_COST
             : p.kind === "video"
-              ? SPIN_VIDEO_COST
+              ? (ctx.audioUrl ? SPIN_VIDEO_PIECE_COST : SPIN_VIDEO_COST)
               : COST_SPIN_PIECE;
         try {
           const { publicUrl, provider, kind } = await renderSpinPiece(ctx, p);
@@ -652,8 +652,8 @@ async function renderSpinPiece(
   }
 
   if (ctx.mode !== "video" && variantKind === "video") {
-    // Slider-mode i2v: render the still first, then animate it as a short clip.
-    // No lipsync — this is the budget path (seedance-2.0-fast, 5 Aura).
+    // Mixed TikTok30 video slot. With user audio/script, use the full motion +
+    // lip-sync path; without it, keep the lower-cost motion-only clip.
     const still = await orchestrate({
       kind: "image",
       model: IMAGE_MODEL,
@@ -663,25 +663,34 @@ async function renderSpinPiece(
       userId: ctx.userId,
       refId: piece.id,
     });
+    const hasVoice = !!ctx.audioUrl;
     const clip = await orchestrate({
       kind: "video",
-      model: SPIN_CLIP_MODEL,
-      prompt: piece.spec ? `${piece.spec.motion} ${piece.spec.scene}` : `Short ${SPIN_CLIP_DURATION}s clip: ${piece.label}`,
+      model: hasVoice ? SPIN_VIDEO_MODEL : SPIN_CLIP_MODEL,
+      prompt: piece.spec ? `${piece.spec.motion} ${piece.spec.scene}` : `Short ${hasVoice ? SPIN_VIDEO_DURATION_SECONDS : SPIN_CLIP_DURATION}s clip: ${piece.label}`,
       imageUrls: [still.url],
-      duration: SPIN_CLIP_DURATION,
+      duration: hasVoice ? SPIN_VIDEO_DURATION_SECONDS : SPIN_CLIP_DURATION,
       userId: ctx.userId,
       refId: piece.id,
-      // Seedance adapters gate on forSubscriber:true — set it so the pinned
-      // model is actually eligible. pinnedModelOnly prevents silent fallback
-      // to an unrelated video provider if Seedance is temporarily unavailable.
-      forSubscriber: true,
-      pinnedModelOnly: true,
+      ...(hasVoice ? {} : { forSubscriber: true, pinnedModelOnly: true }),
     });
-    const { bytes, mime } = await fetchToBytes(clip.url);
+    const final = hasVoice
+      ? await orchestrate({
+          kind: "lipsync",
+          model: SPIN_VIDEO_LIPSYNC_MODEL,
+          videoUrl: clip.url,
+          audioUrl: ctx.audioUrl!,
+          userId: ctx.userId,
+          refId: piece.id,
+        })
+      : null;
+    const outputUrl = final?.url ?? clip.url;
+    const provider = final?.provider ?? clip.provider;
+    const { bytes, mime } = await fetchToBytes(outputUrl);
     const ext = mime.includes("webm") ? "webm" : "mp4";
     const path = `${ctx.userId}/spin/${ctx.jobId}/${piece.idx}.${ext}`;
     const publicUrl = await uploadBytesToStudio(path, bytes, mime || "video/mp4");
-    return { publicUrl, provider: clip.provider, kind: "video" };
+    return { publicUrl, provider, kind: "video" };
   }
 
   if (!ctx.audioUrl) throw new Error("video mode requires a shared script audio track");
