@@ -21,7 +21,6 @@ import {
   SPIN_VIDEO_COST,
   SPIN_CLIP_MODEL,
   SPIN_CLIP_DURATION,
-  spinTotalCost,
   assignVideoSlots,
   VIRAL_SYSTEM_PROMPT,
   SpinPlanSchema,
