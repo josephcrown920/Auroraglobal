@@ -1,7 +1,7 @@
 import type { CapacitorConfig } from "@capacitor/cli";
 
 const config: CapacitorConfig = {
-  appId: "com.auroraperformancestudio.layers",
+  appId: "com.auroraperformancestudio",
   appName: "Aurora Layers",
   webDir: "dist/client",
   bundledWebRuntime: false,
