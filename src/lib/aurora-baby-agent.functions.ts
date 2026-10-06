@@ -50,7 +50,7 @@ function runTable() {
 
 function providerAvailability() {
   return {
-    modelark: Boolean(process.env.ARK_API_KEY),
+    modelark: Boolean(process.env.ARK_API_KEY || process.env.BYTEPLUS_API_KEY),
     fal: Boolean(process.env.FAL_KEY),
     replicate: Boolean(process.env.REPLICATE_API_TOKEN),
     vast: Boolean(process.env.VAST_API_KEY || process.env.VAST_API_URL),
@@ -66,7 +66,7 @@ function assertGenerationProvider(available: Record<string, boolean>) {
 async function planBrief(brief: string, durationSeconds?: number, aspectRatio?: string): Promise<AuroraBabyPlan> {
   const output = await routedGenerate({
     system: BABY_AGENT_SYSTEM,
-    prompt: `${BABY_AGENT_ANALYSIS}\n\nUSER BRIEF:\n${brief}\n\nHard constraints: ${durationSeconds ? `duration=${durationSeconds}s` : "duration=auto"}; ${aspectRatio ? `aspect=${aspectRatio}` : "aspect=auto"}.`,
+    prompt: `${BABY_AGENT_ANALYSIS}\n\nUSER BRIEF:\n${brief}\n\nHard constraints: ${durationSeconds ? `duration=${durationSeconds}s` : "duration=auto"}; ${aspectRatio ? `aspect=${aspectRatio}` : "[...]"}`,
     schema: BabyPlanSchema,
     category: "VIDEO_DIRECTION",
   });
@@ -153,3 +153,4 @@ export const startAuroraBabyProduction = createServerFn({ method: "POST" })
     await runTable().update({ status: "queued", updated_at: new Date().toISOString() }).eq("id", runId).eq("user_id", context.userId);
     return { runId, status: "queued", plan, jobs };
   });
+
