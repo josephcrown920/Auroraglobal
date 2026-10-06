@@ -19,6 +19,7 @@ import { Route as AdultRouteImport } from './routes/adult'
 import { Route as AffiliateRouteImport } from './routes/affiliate'
 import { Route as AgentRouteImport } from './routes/agent'
 import { Route as AuroraAdultRouteImport } from './routes/aurora-adult'
+import { Route as AuroraBabyAgentRouteImport } from './routes/aurora-baby-agent'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AvatarRouteImport } from './routes/avatar'
 import { Route as BillingRouteImport } from './routes/billing'
@@ -89,6 +90,7 @@ import { Route as UgcLineRouteImport } from './routes/ugc-line'
 import { Route as VideoAgentRouteImport } from './routes/video-agent'
 import { Route as VideoAgentEditRouteImport } from './routes/video-agent-edit'
 import { Route as VideoAgentProcessRouteImport } from './routes/video-agent-process'
+import { Route as VideoAgentStudioRouteImport } from './routes/video-agent-studio'
 import { Route as VideoEditorRouteImport } from './routes/video-editor'
 import { Route as WorkflowsRouteImport } from './routes/workflows'
 import { Route as AdminAssetsRouteImport } from './routes/admin.assets'
@@ -174,6 +176,7 @@ import { Route as ApiVideoAgentFinalizeRouteImport } from './routes/api/video-ag
 import { Route as ApiVideoAgentGenerateRouteImport } from './routes/api/video-agent/generate'
 import { Route as ApiVideoAgentGenerateFrameRouteImport } from './routes/api/video-agent/generate-frame'
 import { Route as ApiVideoAgentGenerateScriptRouteImport } from './routes/api/video-agent/generate-script'
+import { Route as ApiVideoAgentStreamRouteImport } from './routes/api/video-agent/stream'
 import { Route as ApiVideoAgentSubmitRouteImport } from './routes/api/video-agent/submit'
 import { Route as SoulGenerateVideoRouteImport } from './routes/soul.generate.video'
 import { Route as ApiJobsIdStatusRouteImport } from './routes/api/jobs/$id/status'
@@ -243,6 +246,13 @@ const AuroraAdultRoute = AuroraAdultRouteImport.update({
   path: '/aurora-adult',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuroraBabyAgentRoute = AuroraBabyAgentRouteImport.update({
+  id: '/aurora-baby-agent',
+  path: '/aurora-baby-agent',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() =>
+  import('./routes/aurora-baby-agent.lazy').then((d) => d.Route),
+)
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
@@ -611,6 +621,13 @@ const VideoAgentProcessRoute = VideoAgentProcessRouteImport.update({
   getParentRoute: () => rootRouteImport,
 } as any).lazy(() =>
   import('./routes/video-agent-process.lazy').then((d) => d.Route),
+)
+const VideoAgentStudioRoute = VideoAgentStudioRouteImport.update({
+  id: '/video-agent-studio',
+  path: '/video-agent-studio',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() =>
+  import('./routes/video-agent-studio.lazy').then((d) => d.Route),
 )
 const VideoEditorRoute = VideoEditorRouteImport.update({
   id: '/video-editor',
@@ -1075,6 +1092,11 @@ const ApiVideoAgentGenerateScriptRoute =
     path: '/api/video-agent/generate-script',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiVideoAgentStreamRoute = ApiVideoAgentStreamRouteImport.update({
+  id: '/api/video-agent/stream',
+  path: '/api/video-agent/stream',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiVideoAgentSubmitRoute = ApiVideoAgentSubmitRouteImport.update({
   id: '/api/video-agent/submit',
   path: '/api/video-agent/submit',
@@ -1203,6 +1225,7 @@ export interface FileRoutesByFullPath {
   '/affiliate': typeof AffiliateRoute
   '/agent': typeof AgentRoute
   '/aurora-adult': typeof AuroraAdultRoute
+  '/aurora-baby-agent': typeof AuroraBabyAgentRoute
   '/auth': typeof AuthRoute
   '/avatar': typeof AvatarRoute
   '/billing': typeof BillingRoute
@@ -1273,6 +1296,7 @@ export interface FileRoutesByFullPath {
   '/video-agent': typeof VideoAgentRoute
   '/video-agent-edit': typeof VideoAgentEditRoute
   '/video-agent-process': typeof VideoAgentProcessRoute
+  '/video-agent-studio': typeof VideoAgentStudioRoute
   '/video-editor': typeof VideoEditorRoute
   '/workflows': typeof WorkflowsRoute
   '/beat-reel': typeof BeatReelLazyRoute
@@ -1361,6 +1385,7 @@ export interface FileRoutesByFullPath {
   '/api/video-agent/generate': typeof ApiVideoAgentGenerateRoute
   '/api/video-agent/generate-frame': typeof ApiVideoAgentGenerateFrameRoute
   '/api/video-agent/generate-script': typeof ApiVideoAgentGenerateScriptRoute
+  '/api/video-agent/stream': typeof ApiVideoAgentStreamRoute
   '/api/video-agent/submit': typeof ApiVideoAgentSubmitRoute
   '/soul/generate/video': typeof SoulGenerateVideoRoute
   '/api/jobs/$id/status': typeof ApiJobsIdStatusRoute
@@ -1392,6 +1417,7 @@ export interface FileRoutesByTo {
   '/affiliate': typeof AffiliateRoute
   '/agent': typeof AgentRoute
   '/aurora-adult': typeof AuroraAdultRoute
+  '/aurora-baby-agent': typeof AuroraBabyAgentRoute
   '/auth': typeof AuthRoute
   '/avatar': typeof AvatarRoute
   '/billing': typeof BillingRoute
@@ -1462,6 +1488,7 @@ export interface FileRoutesByTo {
   '/video-agent': typeof VideoAgentRoute
   '/video-agent-edit': typeof VideoAgentEditRoute
   '/video-agent-process': typeof VideoAgentProcessRoute
+  '/video-agent-studio': typeof VideoAgentStudioRoute
   '/video-editor': typeof VideoEditorRoute
   '/workflows': typeof WorkflowsRoute
   '/beat-reel': typeof BeatReelLazyRoute
@@ -1550,6 +1577,7 @@ export interface FileRoutesByTo {
   '/api/video-agent/generate': typeof ApiVideoAgentGenerateRoute
   '/api/video-agent/generate-frame': typeof ApiVideoAgentGenerateFrameRoute
   '/api/video-agent/generate-script': typeof ApiVideoAgentGenerateScriptRoute
+  '/api/video-agent/stream': typeof ApiVideoAgentStreamRoute
   '/api/video-agent/submit': typeof ApiVideoAgentSubmitRoute
   '/soul/generate/video': typeof SoulGenerateVideoRoute
   '/api/jobs/$id/status': typeof ApiJobsIdStatusRoute
@@ -1583,6 +1611,7 @@ export interface FileRoutesById {
   '/affiliate': typeof AffiliateRoute
   '/agent': typeof AgentRoute
   '/aurora-adult': typeof AuroraAdultRoute
+  '/aurora-baby-agent': typeof AuroraBabyAgentRoute
   '/auth': typeof AuthRoute
   '/avatar': typeof AvatarRoute
   '/billing': typeof BillingRoute
@@ -1653,6 +1682,7 @@ export interface FileRoutesById {
   '/video-agent': typeof VideoAgentRoute
   '/video-agent-edit': typeof VideoAgentEditRoute
   '/video-agent-process': typeof VideoAgentProcessRoute
+  '/video-agent-studio': typeof VideoAgentStudioRoute
   '/video-editor': typeof VideoEditorRoute
   '/workflows': typeof WorkflowsRoute
   '/beat-reel': typeof BeatReelLazyRoute
@@ -1741,6 +1771,7 @@ export interface FileRoutesById {
   '/api/video-agent/generate': typeof ApiVideoAgentGenerateRoute
   '/api/video-agent/generate-frame': typeof ApiVideoAgentGenerateFrameRoute
   '/api/video-agent/generate-script': typeof ApiVideoAgentGenerateScriptRoute
+  '/api/video-agent/stream': typeof ApiVideoAgentStreamRoute
   '/api/video-agent/submit': typeof ApiVideoAgentSubmitRoute
   '/soul/generate/video': typeof SoulGenerateVideoRoute
   '/api/jobs/$id/status': typeof ApiJobsIdStatusRoute
@@ -1775,6 +1806,7 @@ export interface FileRouteTypes {
     | '/affiliate'
     | '/agent'
     | '/aurora-adult'
+    | '/aurora-baby-agent'
     | '/auth'
     | '/avatar'
     | '/billing'
@@ -1845,6 +1877,7 @@ export interface FileRouteTypes {
     | '/video-agent'
     | '/video-agent-edit'
     | '/video-agent-process'
+    | '/video-agent-studio'
     | '/video-editor'
     | '/workflows'
     | '/beat-reel'
@@ -1933,6 +1966,7 @@ export interface FileRouteTypes {
     | '/api/video-agent/generate'
     | '/api/video-agent/generate-frame'
     | '/api/video-agent/generate-script'
+    | '/api/video-agent/stream'
     | '/api/video-agent/submit'
     | '/soul/generate/video'
     | '/api/jobs/$id/status'
@@ -1964,6 +1998,7 @@ export interface FileRouteTypes {
     | '/affiliate'
     | '/agent'
     | '/aurora-adult'
+    | '/aurora-baby-agent'
     | '/auth'
     | '/avatar'
     | '/billing'
@@ -2034,6 +2069,7 @@ export interface FileRouteTypes {
     | '/video-agent'
     | '/video-agent-edit'
     | '/video-agent-process'
+    | '/video-agent-studio'
     | '/video-editor'
     | '/workflows'
     | '/beat-reel'
@@ -2122,6 +2158,7 @@ export interface FileRouteTypes {
     | '/api/video-agent/generate'
     | '/api/video-agent/generate-frame'
     | '/api/video-agent/generate-script'
+    | '/api/video-agent/stream'
     | '/api/video-agent/submit'
     | '/soul/generate/video'
     | '/api/jobs/$id/status'
@@ -2154,6 +2191,7 @@ export interface FileRouteTypes {
     | '/affiliate'
     | '/agent'
     | '/aurora-adult'
+    | '/aurora-baby-agent'
     | '/auth'
     | '/avatar'
     | '/billing'
@@ -2224,6 +2262,7 @@ export interface FileRouteTypes {
     | '/video-agent'
     | '/video-agent-edit'
     | '/video-agent-process'
+    | '/video-agent-studio'
     | '/video-editor'
     | '/workflows'
     | '/beat-reel'
@@ -2312,6 +2351,7 @@ export interface FileRouteTypes {
     | '/api/video-agent/generate'
     | '/api/video-agent/generate-frame'
     | '/api/video-agent/generate-script'
+    | '/api/video-agent/stream'
     | '/api/video-agent/submit'
     | '/soul/generate/video'
     | '/api/jobs/$id/status'
@@ -2345,6 +2385,7 @@ export interface RootRouteChildren {
   AffiliateRoute: typeof AffiliateRoute
   AgentRoute: typeof AgentRoute
   AuroraAdultRoute: typeof AuroraAdultRoute
+  AuroraBabyAgentRoute: typeof AuroraBabyAgentRoute
   AuthRoute: typeof AuthRoute
   AvatarRoute: typeof AvatarRoute
   BillingRoute: typeof BillingRoute
@@ -2415,6 +2456,7 @@ export interface RootRouteChildren {
   VideoAgentRoute: typeof VideoAgentRoute
   VideoAgentEditRoute: typeof VideoAgentEditRoute
   VideoAgentProcessRoute: typeof VideoAgentProcessRoute
+  VideoAgentStudioRoute: typeof VideoAgentStudioRoute
   VideoEditorRoute: typeof VideoEditorRoute
   WorkflowsRoute: typeof WorkflowsRoute
   BeatReelLazyRoute: typeof BeatReelLazyRoute
@@ -2483,6 +2525,7 @@ export interface RootRouteChildren {
   ApiVideoAgentGenerateRoute: typeof ApiVideoAgentGenerateRoute
   ApiVideoAgentGenerateFrameRoute: typeof ApiVideoAgentGenerateFrameRoute
   ApiVideoAgentGenerateScriptRoute: typeof ApiVideoAgentGenerateScriptRoute
+  ApiVideoAgentStreamRoute: typeof ApiVideoAgentStreamRoute
   ApiVideoAgentSubmitRoute: typeof ApiVideoAgentSubmitRoute
   ApiJobsIdStatusRoute: typeof ApiJobsIdStatusRoute
   ApiPublicCliVastRoute: typeof ApiPublicCliVastRoute
@@ -2561,6 +2604,13 @@ declare module '@tanstack/react-router' {
       path: '/aurora-adult'
       fullPath: '/aurora-adult'
       preLoaderRoute: typeof AuroraAdultRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/aurora-baby-agent': {
+      id: '/aurora-baby-agent'
+      path: '/aurora-baby-agent'
+      fullPath: '/aurora-baby-agent'
+      preLoaderRoute: typeof AuroraBabyAgentRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/auth': {
@@ -3058,6 +3108,13 @@ declare module '@tanstack/react-router' {
       path: '/video-agent-process'
       fullPath: '/video-agent-process'
       preLoaderRoute: typeof VideoAgentProcessRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/video-agent-studio': {
+      id: '/video-agent-studio'
+      path: '/video-agent-studio'
+      fullPath: '/video-agent-studio'
+      preLoaderRoute: typeof VideoAgentStudioRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/video-editor': {
@@ -3669,6 +3726,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiVideoAgentGenerateScriptRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/video-agent/stream': {
+      id: '/api/video-agent/stream'
+      path: '/api/video-agent/stream'
+      fullPath: '/api/video-agent/stream'
+      preLoaderRoute: typeof ApiVideoAgentStreamRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/video-agent/submit': {
       id: '/api/video-agent/submit'
       path: '/api/video-agent/submit'
@@ -3915,6 +3979,7 @@ const rootRouteChildren: RootRouteChildren = {
   AffiliateRoute: AffiliateRoute,
   AgentRoute: AgentRoute,
   AuroraAdultRoute: AuroraAdultRoute,
+  AuroraBabyAgentRoute: AuroraBabyAgentRoute,
   AuthRoute: AuthRoute,
   AvatarRoute: AvatarRoute,
   BillingRoute: BillingRoute,
@@ -3985,6 +4050,7 @@ const rootRouteChildren: RootRouteChildren = {
   VideoAgentRoute: VideoAgentRoute,
   VideoAgentEditRoute: VideoAgentEditRoute,
   VideoAgentProcessRoute: VideoAgentProcessRoute,
+  VideoAgentStudioRoute: VideoAgentStudioRoute,
   VideoEditorRoute: VideoEditorRoute,
   WorkflowsRoute: WorkflowsRoute,
   BeatReelLazyRoute: BeatReelLazyRoute,
@@ -4053,6 +4119,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiVideoAgentGenerateRoute: ApiVideoAgentGenerateRoute,
   ApiVideoAgentGenerateFrameRoute: ApiVideoAgentGenerateFrameRoute,
   ApiVideoAgentGenerateScriptRoute: ApiVideoAgentGenerateScriptRoute,
+  ApiVideoAgentStreamRoute: ApiVideoAgentStreamRoute,
   ApiVideoAgentSubmitRoute: ApiVideoAgentSubmitRoute,
   ApiJobsIdStatusRoute: ApiJobsIdStatusRoute,
   ApiPublicCliVastRoute: ApiPublicCliVastRoute,
@@ -4079,11 +4146,15 @@ export const routeTree = rootRouteImport
   ._addFileTypes<FileRouteTypes>()
 
 import type { getRouter } from './router.tsx'
+
 import type { startInstance } from './start.ts'
+
 declare module '@tanstack/react-start' {
   interface Register {
     ssr: true
+
     router: Awaited<ReturnType<typeof getRouter>>
+
     config: Awaited<ReturnType<typeof startInstance.getOptions>>
   }
 }

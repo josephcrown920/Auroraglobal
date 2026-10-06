@@ -6,11 +6,22 @@ export const Route = createFileRoute("/api/public/site-images")({
   server: {
     handlers: {
       GET: async () => {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- site_images not yet in generated types.ts; cast until next type regen
-        const { data, error } = await (supabaseAdmin as any)
-          .from("site_images")
-          .select("key, url")
-          .order("key");
+        let data: Array<{ key: string; url: string }> | null = null;
+        let error: { code?: string; message: string } | null = null;
+        try {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any -- site_images not yet in generated types.ts; cast until next type regen
+          ({ data, error } = await (supabaseAdmin as any)
+            .from("site_images")
+            .select("key, url")
+            .order("key"));
+        } catch (caught) {
+          // The server-only key is not needed for public bundled images.
+          // Keep development pages usable without weakening production errors.
+          if (!import.meta.env.PROD && caught instanceof Error && /Missing Supabase environment variable/i.test(caught.message)) {
+            return new Response("[]", { headers: { "Content-Type": "application/json" } });
+          }
+          throw caught;
+        }
         // This endpoint is an optional override layer. Some environments may
         // not have received the site_images migration yet; in that case the
         // landing page must keep using its bundled defaults instead of

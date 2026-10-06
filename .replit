@@ -46,10 +46,6 @@ args = "tutorial-pdf"
 
 [[workflows.workflow.tasks]]
 task = "workflow.run"
-args = "test:e2e"
-
-[[workflows.workflow.tasks]]
-task = "workflow.run"
 args = "supabase-types"
 
 [[workflows.workflow]]

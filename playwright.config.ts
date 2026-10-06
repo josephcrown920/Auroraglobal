@@ -34,8 +34,6 @@ export default defineConfig({
   expect: { timeout: 10_000 },
   fullyParallel: false,
   workers: 1,
-  // One retry absorbs transient dev-server hiccups (vite SSR restarts, slow auth
-  // round-trips) so the validation gate reports real regressions, not infra blips.
   retries: 1,
   reporter: [["list"]],
   use: {
@@ -64,7 +62,7 @@ export default defineConfig({
     {
       // Use the same node-path-aware command as the "Start application" workflow so
       // that Playwright can boot the dev server itself when reuseExistingServer misses
-      // (e.g. the workflow hasn't started yet).  reuseExistingServer: true means this
+      // (e.g. the workflow hasn't started yet). reuseExistingServer: true means this
       // command is skipped entirely when port 8080 is already open.
       // Wrapped in bash -c so available-pid2-node-paths (which uses set -o pipefail)
       // runs under bash rather than /bin/sh which Playwright uses by default.

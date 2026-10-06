@@ -10,28 +10,36 @@ on:
 permissions:
   contents: read
 
+env:
+  # Provider credentials are supplied by GitHub Actions Secrets when present.
+  # Unit tests should not require live provider credentials unless they are
+  # explicitly exercising a provider integration.
+  HEYGEN_API_KEY: ${{ secrets.HEYGEN_API_KEY }}
+
 jobs:
   quality:
     name: Lint, types, tests, build
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
-          cache: npm
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: "1.3.6"
+      - name: Install FFmpeg
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - name: Pin npm CLI
+        run: npm install --global npm@11.19.1 --no-audit --no-fund
+      # The committed lockfile currently contains Replit's internal package
+      # firewall URLs. Generate dependencies directly from package.json until
+      # the lockfile is regenerated against the public npm registry.
       - name: Install dependencies
-        # The committed lockfile can contain Replit's internal package-firewall
-        # URLs, which are not reachable from GitHub-hosted runners.
         run: npm install --package-lock=false --no-audit --no-fund
-      # Single source of truth: the same `npm run production:gate` command
-      # developers run locally (lint → typecheck → unit tests → migration
-      # audit → worker-boundary audit → production build). Keeping CI on the
-      # exact same script means the local gate and CI can never drift.
+      - name: Generate TanStack route types
+        run: npx --yes @tanstack/router-cli generate
       - name: Production gate
         run: npm run production:gate
 
@@ -63,13 +71,15 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
-          cache: npm
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: "1.3.6"
+      - name: Pin npm CLI
+        run: npm install --global npm@11.19.1 --no-audit --no-fund
       - name: Install dependencies
-        # Keep this aligned with the quality job above.
         run: npm install --package-lock=false --no-audit --no-fund
+      - name: Generate TanStack route types
+        run: npx --yes @tanstack/router-cli generate
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
       - name: Run Playwright suite

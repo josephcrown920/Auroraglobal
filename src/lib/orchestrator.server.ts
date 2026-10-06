@@ -1,3 +1,4 @@
+import { createHmac } from "node:crypto";
 // Aurora Orchestration Layer (server-only)
 // Providers:
 //   - lovable     → Lovable AI Gateway (Gemini image/text)
@@ -273,8 +274,7 @@ function klingJwt(accessKey: string, secretKey: string): string {
   const now = Math.floor(Date.now() / 1000);
   const payload = enc({ iss: accessKey, exp: now + 1800, nbf: now - 5 });
   const data = `${header}.${payload}`;
-  const crypto = require("crypto") as typeof import("crypto");
-  const sig = crypto.createHmac("sha256", secretKey).update(data).digest("base64url");
+  const sig = createHmac("sha256", secretKey).update(data).digest("base64url");
   return `${data}.${sig}`;
 }
 
@@ -688,10 +688,10 @@ const gpuWorker: ProviderAdapter = {
               console.log(`[RunPod] Status poll failed with ${statusRes.status}, retrying...`);
               continue;
             }
-            const statusJson = (await statusRes.json()) as { status?: string; output?: Record<string, any> };
+            const statusJson = (await statusRes.json()) as { status?: string; output?: { url?: string; output_url?: string } };
             console.log(`[RunPod] Job status: ${statusJson.status}`);
             if (statusJson.status === "COMPLETED") {
-              const output = statusJson.output as Record<string, any>;
+              const output = statusJson.output;
               url = output?.url ?? output?.output_url;
               console.log(`[RunPod] Job completed, output URL: ${url}`);
               if (!url) throw new Error(`worker ${w.name} job completed without output url`);
@@ -896,4 +896,25 @@ export async function orchestrate(rawReq: GenerateRequest): Promise<GenerateResu
     throw new Error(`No provider available for ${req.kind} → ${reasons}`);
   }
   throw lastErr ?? new Error("All providers failed");
+}
+
+
+// ─── Free-GPU-only guard (build-time compatibility repair) ────────────────────
+// Kept here because studio/lipsync server functions import this guard directly.
+// Paid adapters must never be reached while free-GPU-only mode is enabled.
+import { isFreeGpuOnlyMode } from "./app-settings.server";
+
+export const FREE_MODE_NO_WORKER_MSG =
+  "Free GPU only mode is on — start a GPU worker for this operation before trying again.";
+
+export async function assertFreeModeServable(kind: GenerateKind): Promise<void> {
+  if (!(await isFreeGpuOnlyMode())) return;
+
+  // Images have the existing $0 hosted path and therefore do not require a
+  // self-hosted worker. Temporal workloads must have an active GPU worker.
+  if (kind === "image") return;
+
+  if (await hasActiveWorkerForKind(kind)) return;
+
+  throw new Error(FREE_MODE_NO_WORKER_MSG);
 }

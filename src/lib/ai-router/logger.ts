@@ -1,6 +1,6 @@
 // Aurora AI Intelligence Router — Decision Logger
 // Writes each routing decision to `ai_router_logs` in Supabase.
-// If the table is missing (dev without migration applied), logs to console only.
+// Logging is best-effort and must never make an AI request fail.
 
 import type { RequestCategory } from "./categories";
 
@@ -20,15 +20,26 @@ type LogsTable = {
 };
 
 let _adminClient: unknown = null;
+let _adminUnavailable = false;
 
 async function getAdmin() {
-  if (_adminClient) return _adminClient;
+  if (_adminClient || _adminUnavailable) return _adminClient;
+
+  // CI, local unit tests, and provider-isolation tests legitimately run without
+  // server Supabase credentials. Do not touch the lazy admin proxy in that case:
+  // merely reading a property on the proxy would throw before its caller can
+  // handle the optional logging path.
+  if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    _adminUnavailable = true;
+    return null;
+  }
+
   try {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     _adminClient = supabaseAdmin;
   } catch {
-    // client.server is not available in all environments
-    _adminClient = null;
+    _adminUnavailable = true;
+    return null;
   }
   return _adminClient;
 }

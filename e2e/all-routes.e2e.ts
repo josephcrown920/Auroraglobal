@@ -19,13 +19,8 @@ import { buildRouteVisits, type RouteVisit } from "./helpers/route-manifest";
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
-  throw new Error("all-routes.e2e.ts requires SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.");
-}
-
-const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
-  auth: { persistSession: false, autoRefreshToken: false },
-});
+const HAS_E2E_SUPABASE = !!SUPABASE_URL && !!SUPABASE_SERVICE_ROLE_KEY;
+let admin: ReturnType<typeof createClient>;
 
 const TEST_PASSWORD = "AllRoutesE2e!71";
 let testEmail = "";
@@ -35,34 +30,6 @@ const VISITS = buildRouteVisits();
 
 const FATAL_CONSOLE_PATTERN =
   /Failed to fetch dynamically imported module|ChunkLoadError|Loading chunk .* failed|Invalid hook call|Minified React error|client\.tsx.*504/i;
-
-test.beforeAll(async () => {
-  testEmail = `all-routes-${Date.now()}-${Math.random().toString(36).slice(2, 8)}@aurora-sandbox-qa.com`;
-  const { data, error } = await admin.auth.admin.createUser({
-    email: testEmail,
-    password: TEST_PASSWORD,
-    email_confirm: true,
-    user_metadata: { display_name: "All Routes E2E" },
-  });
-  if (error || !data.user) {
-    throw new Error(`Failed to provision all-routes user: ${error?.message}`);
-  }
-  testUserId = data.user.id;
-
-  const { error: roleError } = await admin
-    .from("user_roles")
-    .insert({ user_id: testUserId, role: "admin" });
-  if (roleError) {
-    await admin.auth.admin.deleteUser(testUserId).catch(() => {});
-    throw new Error(`Failed to grant all-routes admin role: ${roleError.message}`);
-  }
-});
-
-test.afterAll(async () => {
-  if (!testUserId) return;
-  await admin.from("user_roles").delete().eq("user_id", testUserId);
-  await admin.auth.admin.deleteUser(testUserId).catch(() => {});
-});
 
 async function verifyVisit(
   page: Page,
@@ -164,6 +131,40 @@ async function runPass(context: BrowserContext, opts: { signedIn: boolean }) {
 }
 
 test.describe("All routes render safely", () => {
+  test.skip(!HAS_E2E_SUPABASE, "All-routes checks require SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY");
+
+test.beforeAll(async () => {
+  admin = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+  testEmail = `all-routes-${Date.now()}-${Math.random().toString(36).slice(2, 8)}@aurora-sandbox-qa.com`;
+  const { data, error } = await admin.auth.admin.createUser({
+    email: testEmail,
+    password: TEST_PASSWORD,
+    email_confirm: true,
+    user_metadata: { display_name: "All Routes E2E" },
+  });
+  if (error || !data.user) {
+    throw new Error(`Failed to provision all-routes user: ${error?.message}`);
+  }
+  testUserId = data.user.id;
+
+  const { error: roleError } = await admin
+    .from("user_roles")
+    .insert({ user_id: testUserId, role: "admin" });
+  if (roleError) {
+    await admin.auth.admin.deleteUser(testUserId).catch(() => {});
+    throw new Error(`Failed to grant all-routes admin role: ${roleError.message}`);
+  }
+});
+
+test.afterAll(async () => {
+  if (!testUserId) return;
+  await admin.from("user_roles").delete().eq("user_id", testUserId);
+  await admin.auth.admin.deleteUser(testUserId).catch(() => {});
+});
+
+
   test("manifest discovers the full route surface", () => {
     // Sanity floor so a derivation bug can't silently shrink coverage.
     expect(VISITS.length).toBeGreaterThan(80);

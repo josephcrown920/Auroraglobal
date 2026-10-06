@@ -5,7 +5,8 @@
 
 import { z } from "zod";
 import type { ToolResult } from "./types";
-import { defaultHiddenKeys, type FeatureKey } from "../feature-visibility";\nimport { runModelArkDirector } from "./modelark-director.server";
+import { defaultHiddenKeys, type FeatureKey } from "../feature-visibility";
+import { runModelArkDirector } from "./modelark-director.server";
 import {
   generateVideoSchema, generateVideoTool,
   bulkGenerateSchema, bulkGenerateTool,

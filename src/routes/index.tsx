@@ -76,7 +76,7 @@ function Index() {
     if (typeof window === "undefined") return;
     const ref = new URLSearchParams(window.location.search).get("ref");
     if (ref) {
-      try { localStorage.setItem("aurora_ref", ref); } catch {}
+      try { localStorage.setItem("aurora_ref", ref); } catch { /* Storage may be unavailable in private browsing. */ }
       trackRef({ data: { code: ref } }).catch(() => {});
     }
     const onScroll = () => setScrolled(window.scrollY > 24);

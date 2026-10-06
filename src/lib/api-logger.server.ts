@@ -78,6 +78,10 @@ export async function logApiRequest(params: {
   request: Request;
 }): Promise<void> {
   try {
+    // Observability is optional in local preview. Avoid constructing the
+    // service-role client for every request when Supabase is not connected.
+    if (!import.meta.env.PROD && !process.env.SUPABASE_SERVICE_ROLE_KEY) return;
+
     const { endpoint, method, status, responseTimeMs, request } = params;
     const ip = extractRequestIp(request);
     const userAgent = request.headers.get("user-agent");

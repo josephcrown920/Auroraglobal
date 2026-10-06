@@ -41,10 +41,10 @@ function TemplatesPage() {
     selectedRaw && showFeature(featureKeyForTemplate(selectedRaw)) ? selectedRaw : undefined;
 
   const setCategory = (cat: TemplateCategory | null) =>
-    navigate({ search: (prev) => ({ ...prev, category: cat ?? undefined }), replace: true });
-  const openTemplate = (id: string) => navigate({ search: (prev) => ({ ...prev, open: id }) });
+    navigate({ search: { ...search, category: cat ?? undefined }, replace: true });
+  const openTemplate = (id: string) => navigate({ search: { ...search, open: id } });
   const closeDrawer = () =>
-    navigate({ search: (prev) => ({ ...prev, open: undefined }), replace: true });
+    navigate({ search: { ...search, open: undefined }, replace: true });
 
   // Artist-only gating: drop templates whose backing feature is hidden for
   // this viewer, then drop any category chip left with zero templates.

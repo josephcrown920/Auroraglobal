@@ -9,6 +9,114 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      crm_customers: {
+        Row: {
+          user_id: string
+          lifecycle_stage: string
+          source: string | null
+          company_name: string | null
+          notes: string | null
+          owner_user_id: string | null
+          first_seen_at: string
+          last_seen_at: string | null
+          last_contacted_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          user_id: string
+          lifecycle_stage?: string
+          source?: string | null
+          company_name?: string | null
+          notes?: string | null
+          owner_user_id?: string | null
+          first_seen_at?: string
+          last_seen_at?: string | null
+          last_contacted_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          user_id?: string
+          lifecycle_stage?: string
+          source?: string | null
+          company_name?: string | null
+          notes?: string | null
+          owner_user_id?: string | null
+          first_seen_at?: string
+          last_seen_at?: string | null
+          last_contacted_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      crm_activities: {
+        Row: {
+          id: string
+          user_id: string
+          activity_type: string
+          title: string
+          body: string | null
+          metadata: Json
+          created_by: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          activity_type: string
+          title: string
+          body?: string | null
+          metadata?: Json
+          created_by?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          activity_type?: string
+          title?: string
+          body?: string | null
+          metadata?: Json
+          created_by?: string | null
+          created_at?: string
+        }
+        Relationships: []
+      }
+      crm_tasks: {
+        Row: {
+          id: string
+          user_id: string
+          assigned_to: string | null
+          title: string
+          due_at: string | null
+          status: string
+          created_at: string
+          completed_at: string | null
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          assigned_to?: string | null
+          title: string
+          due_at?: string | null
+          status?: string
+          created_at?: string
+          completed_at?: string | null
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          assigned_to?: string | null
+          title?: string
+          due_at?: string | null
+          status?: string
+          created_at?: string
+          completed_at?: string | null
+        }
+        Relationships: []
+      }
       account_deletion_sweeps: {
         Row: {
           attempts: number
@@ -1283,6 +1391,9 @@ export type Database = {
       }
       events: {
         Row: {
+          category: string | null
+          entity_type: string | null
+          entity_id: string | null
           created_at: string
           id: string
           name: string
@@ -1292,6 +1403,9 @@ export type Database = {
           user_id: string | null
         }
         Insert: {
+          category?: string | null
+          entity_type?: string | null
+          entity_id?: string | null
           created_at?: string
           id?: string
           name: string
@@ -1301,6 +1415,9 @@ export type Database = {
           user_id?: string | null
         }
         Update: {
+          category?: string | null
+          entity_type?: string | null
+          entity_id?: string | null
           created_at?: string
           id?: string
           name?: string

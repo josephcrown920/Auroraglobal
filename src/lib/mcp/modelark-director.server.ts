@@ -10,7 +10,7 @@ type DirectorInput = {
 
 function config() {
   const apiKey = (process.env.ARK_API_KEY || process.env.BYTEPLUS_API_KEY || "").trim();
-  const baseUrl = (process.env.ARK_BASE_URL || process.env.BYTEPLUS_BASE_URL || DEFAULT_BASE_URL).replace(/\\/+$/, "");
+  const baseUrl = (process.env.ARK_BASE_URL || process.env.BYTEPLUS_BASE_URL || DEFAULT_BASE_URL).replace(/\/+$/, "");
   const agentId = (process.env.MODELARK_AGENT_ID || DEFAULT_AGENT_ID).trim();
   if (!apiKey) throw new Error("ModelArk director is not configured: set ARK_API_KEY or BYTEPLUS_API_KEY.");
   return { apiKey, baseUrl, agentId };

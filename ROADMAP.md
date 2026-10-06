@@ -582,3 +582,11 @@ feature-shipping view now lives, hand-maintained and always current, at the
 in-app `/roadmap` page (`src/routes/roadmap.lazy.tsx`) — this file is
 reserved for production-readiness tracking going forward and should not
 duplicate that page's content.
+
+## PR #129 integration update
+
+The CRM server functions, GPU-pool observability and readiness checks, daily-spend
+aggregate RPC, and Video Agent streaming/studio additions are included.
+The CI production gate runs Bun test files in isolated processes and preserves
+the native mobile typecheck. Historical audit results above do not certify this
+merged revision; current CI and deployment verification are still required.
