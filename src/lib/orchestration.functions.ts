@@ -293,7 +293,7 @@ export const orchestrationHealth = createServerFn({ method: "POST" })
         envKey: "GROQ_API_KEY",
         configured: has("GROQ_API_KEY"),
         free: false,
-        notes: "llama-3.3-70b-versatile",
+        notes: "openai/gpt-oss-120b (llama-3.3-70b-versatile retired by Groq)",
       },
       {
         id: "gemini-text",

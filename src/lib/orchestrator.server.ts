@@ -1,83 +1,52 @@
+import { createHmac } from "node:crypto";
 // Aurora Orchestration Layer (server-only)
 // Providers:
-//   - replit-*    → Replit AI Integrations proxy (billed to the owner's Replit
-//                   credits, no API keys needed) — FIRST choice for image/text/audio.
 //   - lovable     → Lovable AI Gateway (Gemini image/text)
-//   - replicate   → Replicate direct API (Seedream, Seedance, Kling, Wav2Lip)
+//   - replicate   → Replicate direct API (Seedream, Seedance, Kling, Flux, Wav2Lip)
+//   - huggingface → HF Inference (flux-schnell, sdxl)
 //   - sync        → Sync.so direct API (lipsync)
 //   - gpuWorker   → admin-registered HTTP workers (RunPod / vast / salad / self-hosted)
 
-import { createHmac } from "node:crypto";
-import { execSync } from "node:child_process";
-import * as nodefs from "node:fs";
-import * as nodepath from "node:path";
-import * as nodeos from "node:os";
-import OpenAI from "openai";
-import { GoogleGenAI, Modality } from "@google/genai";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { isFreeGpuOnlyMode } from "./app-settings.server";
-import { replicateRun, pickReplicateUrl, getReplicateKey, replicateProgressPct } from "./replicate.server";
-import { bytePlusImage, bytePlusVideo, getBytePlusKey } from "./byteplus.server";
+import { replicateRun, pickReplicateUrl, getReplicateKey } from "./replicate.server";
 import { syncLipsync } from "./sync.server";
+import { hfTextToImage } from "./hf.server";
 import { isTrustedUrl } from "./url-guard";
-import { normalizeWorkerBase } from "./gpu-worker-health";
-import { buildDefaultComfyWorkflow } from "./comfy-default-workflows.server";
-import {
-  callGradioSpace,
-  extractGradioUrl,
-  extractOutputUrl,
-  gradioData,
-  inferenceShInput,
-  resolveInferenceShApp,
-  runComfyWorkflow,
-  runInferenceShTask,
-} from "./inference/protocols";
-import type { InferenceInput, TaskType } from "./inference/types";
 
-export type GenerateKind =
-  | "image"
-  | "video"
-  | "lipsync"
-  | "upscale"
-  | "motion"
-  | "text"
-  | "audio"
-  // Final ffmpeg stitch/mux/mix of a multi-scene story into one MP4. Self-hosted
-  // GPU worker ONLY (Cloudflare Workers cannot run ffmpeg) — never a hosted API.
-  | "assemble"
-  // Burn caption segments (SRT-style timestamps + text) into a video via FFmpeg
-  // drawtext. Self-hosted GPU worker ONLY — no hosted provider supports this.
-  | "caption_burn"
-  // AutoCut: user-uploaded clip assembly into a 9:16 short. Internally dispatches
-  // an "assemble" sub-job (GPU worker) or falls back to a Replicate video model
-  // when no assembler is online. Registered here so credit accounting can record
-  // the canonical kind without a type-assertion escape hatch.
-  | "autocut"
-  // Lyric video: burn user-supplied, timed lyric lines over a generated
-  // background and mux with the uploaded song via FFmpeg. Self-hosted GPU
-  // worker ONLY (Cloudflare Workers cannot run ffmpeg) — no hosted provider
-  // does audio+lyrics-in / synced-video-out. Distinct from `caption_burn`
-  // (which overlays cues onto an EXISTING video) — this SYNTHESIZES the video.
-  | "lyric_video";
+export type GenerateKind = "image" | "video" | "lipsync" | "upscale" | "motion";
+export type MotionType = "faithful" | "expressive" | "subtle" | "exaggerated";
+export type CameraMovement =
+  | "static"
+  | "push_in"
+  | "pull_out"
+  | "orbit_cw"
+  | "orbit_ccw"
+  | "pan_left"
+  | "pan_right"
+  | "tilt_up"
+  | "tilt_down"
+  | "zoom_in"
+  | "zoom_out"
+  | "handheld";
 
 // ─── Studio bucket signing ───────────────────────────────────────────────────
 // The `studio` bucket is PRIVATE. When we hand a reference URL to an external
 // provider (Replicate, Kling, Gemini ref, etc.), the `/object/public/...` URL
 // returns 400. Rewrite any such URL to a short-lived signed URL before the
 // provider fetches it. Non-studio URLs pass through untouched.
-export const PUBLIC_STUDIO_RE = /\/storage\/v1\/object\/public\/studio\/(.+)$/;
-export async function signIfStudio(
-  url: string | undefined | null,
-): Promise<string | undefined | null> {
+const PUBLIC_STUDIO_RE = /\/storage\/v1\/object\/public\/studio\/(.+)$/;
+async function signIfStudio(url: string | undefined | null): Promise<string | undefined | null> {
   if (!url) return url;
   const m = url.match(PUBLIC_STUDIO_RE);
   if (!m) return url;
   const path = decodeURIComponent(m[1].split("?")[0]);
-  const { data, error } = await supabaseAdmin.storage.from("studio").createSignedUrl(path, 60 * 60); // 1 hour
+  const { data, error } = await supabaseAdmin.storage
+    .from("studio")
+    .createSignedUrl(path, 60 * 60); // 1 hour
   if (error || !data?.signedUrl) return url; // fall back; provider will surface error
   return data.signedUrl;
 }
-export async function signStudioRefs(req: GenerateRequest): Promise<GenerateRequest> {
+async function signStudioRefs(req: GenerateRequest): Promise<GenerateRequest> {
   const out: GenerateRequest = { ...req };
   if (req.imageUrls?.length) {
     out.imageUrls = await Promise.all(req.imageUrls.map(async (u) => (await signIfStudio(u)) ?? u));
@@ -96,115 +65,65 @@ export type GenerateRequest = {
   audioUrl?: string;
   videoUrl?: string;
   duration?: number;
-  resolution?: "480p" | "720p" | "1080p" | "2160p";
+  resolution?: "480p" | "720p" | "1080p";
   model?: string;
   /** Optional camera-movement preset (e.g. static, push_in, pan_left, orbit_cw). */
   cameraMovement?: string | null;
+  /** Optional motion intensity used to preserve the intended movement style. */
+  motionType?: MotionType | null;
   userId?: string | null;
   refId?: string | null;
-  /** Free-form provider/model params forwarded to the worker (seed, fps, steps, …). */
-  params?: Record<string, unknown>;
-  /** A ComfyUI prompt graph (JSON) for `comfyui`-protocol workers (wired by #13). */
-  comfyWorkflow?: unknown;
-  /** `"nodeId.inputName": value` patches applied to the ComfyUI graph. */
-  comfyInputs?: Record<string, unknown>;
-  /**
-   * Force the request onto the self-hosted GPU worker pool only (capability =
-   * `kind`), skipping every hosted provider. Set by the "self-hosted" engines
-   * (e.g. LatentSync lip-sync) so the explicit choice never silently falls back
-   * to a paid hosted API. Fails explicitly when no matching worker is online.
-   */
-  selfHostedOnly?: boolean;
-  /**
-   * Strict photo-edit mode: the request's imageUrls are an EDIT SOURCE, not a
-   * loose reference. Only edit-capable models (EDIT_CAPABLE_IMAGE_MODELS) may
-   * serve it and the GPU pool is skipped (its image capability is text-to-image)
-   * — an identity-blind fallback would silently return an unrelated generated
-   * image instead of an edit. Explicit failure beats a silent non-edit.
-   */
-  editStrict?: boolean;
-  /**
-   * Pin the request to EXACTLY the requested model — no cross-model fallback.
-   * Used by engine-explicit flows (e.g. the xAI UGC lip-sync engine) where a
-   * silent fallback to a different model would deliver something the user did
-   * not choose (and was priced for). Fails explicitly if the model's provider
-   * can't serve it.
-   */
-  pinnedModelOnly?: boolean;
-  /**
-   * Caption segments for `caption_burn` requests. Each entry is a timed text
-   * cue: the GPU worker renders them over the video via FFmpeg `drawtext`.
-   */
-  segments?: Array<{ start: number; end: number; text: string }>;
-  /**
-   * Aspect ratio for image/video generation. Supported values depend on the
-   * provider; the adapters normalise to their own enum when a value is present.
-   * Defaults: "16:9" for video, "1:1" for image.
-   * Supported: "1:1" | "16:9" | "9:16" | "4:3" | "3:4" | "21:9"
-   */
-  aspectRatio?: string;
-  /**
-   * Set to `true` ONLY for requests from verified paying subscribers.
-   * Expensive providers (Kling) check this flag and refuse to run without it,
-   * so smoke tests, internal tooling, and free-tier users can never trigger
-   * Kling billing. Must be set explicitly at the API / UI layer after
-   * confirming an active paid subscription — never assumed to be true.
-   */
-  forSubscriber?: boolean;
-  /**
-   * In-process progress observer (task #284). NEVER serialized: job payloads
-   * are JSON.stringify'd and functions are silently dropped, so this only
-   * exists when attached in the same process — e.g. the queue runner wiring
-   * real provider progress onto the job row. Adapters with a real signal call
-   * it with `pct` (0-100 of the provider's own render phase) and/or a short
-   * machine `stage` string. Observers must never throw into the render path;
-   * emit sites guard with try/catch anyway.
-   */
-  onProgress?: (u: { pct?: number; stage?: string }) => void;
 };
 
 export type GenerateResult = {
   url: string;
-  /** For the `text` modality: the generated text (no URL output). */
-  text?: string;
   provider: string;
   endpoint: string;
-  /**
-   * Which class of backend served this request: the owner's self-hosted GPU
-   * worker pool (`self-hosted`) or a paid hosted/external provider (`external`).
-   * Lets the owner confirm the GPU is being used and credits are being saved.
-   */
-  backend: "self-hosted" | "external";
   latencyMs: number;
   costUsd: number;
 };
 
+const CAMERA_HINTS: Record<string, string> = {
+  static: "locked-off static camera with no camera movement",
+  zoom_in: "slow, smooth dolly zoom toward the subject",
+  zoom_out: "slow, smooth dolly zoom away from the subject",
+  pan_left: "smooth horizontal camera pan to the left",
+  pan_right: "smooth horizontal camera pan to the right",
+  tilt_up: "smooth vertical camera tilt upward",
+  tilt_down: "smooth vertical camera tilt downward",
+  orbit_cw: "cinematic clockwise orbit around the subject",
+  orbit_ccw: "cinematic counter-clockwise orbit around the subject",
+  push_in: "confident push-in toward the subject",
+  pull_out: "graceful pull-out reveal away from the subject",
+  handheld: "subtle handheld camera movement with controlled natural sway",
+};
+
+const MOTION_HINTS: Record<MotionType, string> = {
+  faithful: "keep the subject's pose and identity faithful to the reference",
+  expressive: "use expressive, natural body movement while preserving the subject's identity",
+  subtle: "use restrained, minimal movement with a calm, stable performance",
+  exaggerated: "use bold, energetic movement while keeping the subject recognizable",
+};
+
+function addMotionDirection(req: GenerateRequest): GenerateRequest {
+  if (req.kind !== "video" || !req.prompt) return req;
+
+  const cameraHint = req.cameraMovement ? CAMERA_HINTS[req.cameraMovement] : undefined;
+  const motionHint = req.motionType ? MOTION_HINTS[req.motionType] : undefined;
+  const hints = [cameraHint, motionHint].filter(Boolean);
+  if (hints.length === 0) return req;
+
+  return {
+    ...req,
+    prompt: `${req.prompt.replace(/\s+$/, "")}. ${hints.join(". ")}.`,
+  };
+}
+
 // ─── Retry with exponential backoff ──────────────────────────────────────────
 // Wraps a single provider call. Retries on transient failures only
 // (network errors, 429, 5xx). Skips retry on 4xx auth/validation errors.
-export const TRANSIENT_RE =
-  /\b(429|5\d\d|ECONNRESET|ETIMEDOUT|EAI_AGAIN|fetch failed|network|timeout)\b/i;
-// Cap on how long we'll honor a provider's wait hint before giving up — long
-// enough for a typical single-digit-second 429 throttle to clear, short enough
-// that one request never hangs indefinitely.
-const MAX_RETRY_AFTER_MS = 30_000;
-// Extract a wait hint from a transient error: prefer a structured `retryAfterMs`
-// (set by the Replicate client on 429s), then parse a `retry_after` / `Retry-After`
-// value out of the message text for providers that only embed it there.
-function retryAfterHintMs(err: unknown): number | undefined {
-  if (err && typeof err === "object") {
-    const v = (err as { retryAfterMs?: unknown }).retryAfterMs;
-    if (typeof v === "number" && Number.isFinite(v) && v >= 0) return v;
-  }
-  const msg = err instanceof Error ? err.message : String(err);
-  const m = msg.match(/retry[_-]?after"?\s*[:=]\s*"?(\d+(?:\.\d+)?)/i);
-  if (m) {
-    const secs = Number(m[1]);
-    if (Number.isFinite(secs) && secs >= 0) return Math.round(secs * 1000);
-  }
-  return undefined;
-}
-export async function withRetry<T>(fn: () => Promise<T>, attempts = 2): Promise<T> {
+const TRANSIENT_RE = /\b(429|5\d\d|ECONNRESET|ETIMEDOUT|EAI_AGAIN|fetch failed|network|timeout)\b/i;
+async function withRetry<T>(fn: () => Promise<T>, attempts = 2): Promise<T> {
   let lastErr: unknown;
   for (let i = 0; i <= attempts; i++) {
     try {
@@ -213,81 +132,144 @@ export async function withRetry<T>(fn: () => Promise<T>, attempts = 2): Promise<
       lastErr = e;
       const msg = e instanceof Error ? e.message : String(e);
       if (i === attempts || !TRANSIENT_RE.test(msg)) break;
-      // Honor an explicit provider wait hint (e.g. a 429 Retry-After) when present,
-      // capped at a sane max; otherwise fall back to the fixed exponential backoff.
-      const hint = retryAfterHintMs(e);
-      const backoff = 400 * Math.pow(2, i) + Math.floor(Math.random() * 200);
-      const delay = hint !== undefined ? Math.min(hint, MAX_RETRY_AFTER_MS) : backoff;
+      const delay = 400 * Math.pow(2, i) + Math.floor(Math.random() * 200);
       await new Promise((r) => setTimeout(r, delay));
     }
   }
   throw lastErr instanceof Error ? lastErr : new Error(String(lastErr));
 }
 
-// Default timeout budgets for outbound provider HTTP calls that don't already
-// bound themselves via AbortSignal.timeout. Without this, an unresponsive
-// provider can hang a fetch indefinitely — withRetry/orchestrate's fallback
-// chain never gets a chance to move on, and the job can never reach a clean
-// terminal state. Poll calls get a shorter budget since a miss just means
-// "check again next loop iteration"; create/submit calls get more room since
-// some providers take longer to accept a large prompt/payload.
-const PROVIDER_CREATE_TIMEOUT_MS = 45_000;
-const PROVIDER_POLL_TIMEOUT_MS = 20_000;
-const PROVIDER_REF_FETCH_TIMEOUT_MS = 20_000;
-/** Merge an AbortSignal.timeout into a fetch RequestInit that doesn't already
- * specify one, so every outbound provider call has a hard upper bound. */
-function withTimeout(init: RequestInit = {}, ms = PROVIDER_CREATE_TIMEOUT_MS): RequestInit {
-  if (init.signal) return init;
-  return { ...init, signal: AbortSignal.timeout(ms) };
-}
-
 type ProviderAdapter = {
-  name: // Replit AI Integrations proxy — billed to the owner's Replit credits.
-    | "replit-openai-image"
-    | "replit-gemini-image"
-    | "replit-openai-text"
-    | "replit-gemini-text"
-    | "replit-openai-audio"
-    | "lovable"
-    | "gemini"
-    | "replicate"
-    | "byteplus"
-    | "sync"
-    | "runpod"
-    | "kling"
-    | "heygen"
-    | "fal"
-    // free / general-router providers
-    | "pollinations"
-    | "runway"
-    | "elevenlabs"
-    // keyed text providers
-    | "groq"
-    | "mistral"
-    | "openai"
-    | "gemini-text"
-    | "lovable-text"
-    | "hf-text"
-    | "anthropic"
-    | "xai"
-    | "gemini-video"
-    | "sora"
-    | "ltx"
-    | "inferencesh"
-    | "hf-video"
-    | "runware"
-    | "ffmpeg-free"
-    // Aurora Soul: direct Seedance API for identity-locked character video
-    // (NOT the fal.ai-hosted Seedance route — a separate provider account/key).
-    | "seedance";
+  name: "lovable" | "gemini" | "replicate" | "huggingface" | "sync" | "runpod" | "ark" | "kling" | "heygen" | "fal";
   supports: (req: GenerateRequest) => boolean;
   estimateCost: (req: GenerateRequest) => number;
-  run: (req: GenerateRequest) => Promise<{ url: string; endpoint: string; text?: string }>;
+  run: (req: GenerateRequest) => Promise<{ url: string; endpoint: string }>;
+};
+
+// ─── Ark / ModelArk video generation ─────────────────────────────────────────
+// BytePlus ModelArk uses an async task API. The base URL can be overridden for
+// a regional endpoint or an activated endpoint, while the documented public
+// endpoint is used by default.
+const ARK_DEFAULT_BASE = "https://ark.ap-southeast.bytepluses.com";
+const ARK_VIDEO_MODEL_DEFAULT = "dreamina-seedance-2-0-260128";
+const ARK_VIDEO_25_MODEL_DEFAULT = "dreamina-seedance-2-5-260628";
+
+function arkBaseUrl(): string {
+  const raw = (process.env.ARK_BASE_URL || ARK_DEFAULT_BASE).replace(/\/+$/, "");
+  return raw.endsWith("/api/v3") ? raw : `${raw}/api/v3`;
+}
+
+function arkVideoModel(modelKey: string | undefined): string {
+  if (modelKey === "seedance-2.5") {
+    return process.env.ARK_VIDEO_25_MODEL || ARK_VIDEO_25_MODEL_DEFAULT;
+  }
+  if (modelKey === "seedance-2.0-fast") {
+    return process.env.ARK_VIDEO_FAST_MODEL || process.env.ARK_VIDEO_MODEL || ARK_VIDEO_MODEL_DEFAULT;
+  }
+  return process.env.ARK_VIDEO_MODEL || ARK_VIDEO_MODEL_DEFAULT;
+}
+
+function arkHeaders(): Record<string, string> {
+  const key = process.env.ARK_API_KEY || process.env.BYTEPLUS_API_KEY;
+  if (!key) throw new Error("ARK_API_KEY missing");
+  return { "Content-Type": "application/json", Authorization: `Bearer ${key}` };
+}
+
+const arkVideo: ProviderAdapter = {
+  name: "ark",
+  supports: (r) =>
+    r.kind === "video" &&
+    !!(process.env.ARK_API_KEY || process.env.BYTEPLUS_API_KEY) &&
+    (r.model === "seedance-2.5" || r.model === "seedance-2.0" || r.model === "seedance-2.0-fast"),
+  estimateCost: (r) => (r.model === "seedance-2.0-fast" ? 0.09 : r.model === "seedance-2.5" ? 0.15 : 0.15) * (r.duration ?? 5),
+  async run(r) {
+    const content: Array<Record<string, unknown>> = [];
+    const images = r.imageUrls ?? [];
+    const usesSeedance25 = r.model === "seedance-2.5";
+    if (images[0]) {
+      content.push({
+        type: "image_url",
+        role: usesSeedance25 ? "reference_image" : "first_frame",
+        image_url: { url: images[0] },
+      });
+    }
+    if (images[1]) {
+      content.push({
+        type: "image_url",
+        role: usesSeedance25 ? "reference_image" : "last_frame",
+        image_url: { url: images[1] },
+      });
+    }
+    if (r.videoUrl) {
+      content.push({ type: "video_url", role: "reference_video", video_url: { url: r.videoUrl } });
+    }
+    if (r.audioUrl) {
+      content.push({ type: "audio_url", role: "reference_audio", audio_url: { url: r.audioUrl } });
+    }
+    if (r.prompt) content.push({ type: "text", text: r.prompt });
+    if (content.length === 0) throw new Error("Ark video requires an image or prompt");
+
+    const body: Record<string, unknown> = {
+      model: arkVideoModel(r.model),
+      content,
+      resolution: r.resolution ?? "720p",
+      duration: usesSeedance25
+        ? Math.max(4, Math.min(30, Math.round(r.duration ?? 5)))
+        : Math.max(3, Math.min(15, Math.round(r.duration ?? 5))),
+    };
+    if (r.cameraMovement === "static") body.camera_fixed = true;
+
+    const create = await fetch(`${arkBaseUrl()}/contents/generations/tasks`, {
+      method: "POST",
+      headers: arkHeaders(),
+      body: JSON.stringify(body),
+    });
+    if (!create.ok) {
+      throw new Error(`Ark create failed (${create.status}): ${(await create.text()).slice(0, 300)}`);
+    }
+
+    const created = await create.json() as { id?: string; task_id?: string; data?: { id?: string } };
+    const taskId = created.id ?? created.task_id ?? created.data?.id;
+    if (!taskId) throw new Error("Ark returned no video task ID");
+
+    const deadline = Date.now() + 10 * 60_000;
+    let delay = 3000;
+    while (Date.now() < deadline) {
+      await new Promise((resolve) => setTimeout(resolve, delay));
+      delay = Math.min(delay + 1000, 7000);
+
+      const poll = await fetch(`${arkBaseUrl()}/contents/generations/tasks/${encodeURIComponent(taskId)}`, {
+        headers: arkHeaders(),
+      });
+      if (!poll.ok) {
+        throw new Error(`Ark poll failed (${poll.status}): ${(await poll.text()).slice(0, 300)}`);
+      }
+
+      const task = await poll.json() as {
+        status?: string;
+        content?: { video_url?: string };
+        output?: { video_url?: string };
+        error?: { message?: string } | string;
+      };
+      const status = task.status?.toLowerCase();
+      if (status === "succeeded" || status === "completed") {
+        const url = task.content?.video_url ?? task.output?.video_url;
+        if (!url) throw new Error("Ark completed without a video URL");
+        return { url, endpoint: `ark:${arkVideoModel(r.model)}` };
+      }
+      if (status === "failed" || status === "canceled" || status === "cancelled") {
+        const error = typeof task.error === "string" ? task.error : task.error?.message;
+        throw new Error(`Ark ${status}: ${error ?? "unknown error"}`);
+      }
+    }
+    throw new Error("Ark video generation timed out");
+  },
 };
 
 // ─── Kling direct (JWT signed) ───────────────────────────────────────────────
 function klingJwt(accessKey: string, secretKey: string): string {
-  const enc = (o: object) => Buffer.from(JSON.stringify(o)).toString("base64url");
+  const enc = (o: object) =>
+    Buffer.from(JSON.stringify(o)).toString("base64url");
   const header = enc({ alg: "HS256", typ: "JWT" });
   const now = Math.floor(Date.now() / 1000);
   const payload = enc({ iss: accessKey, exp: now + 1800, nbf: now - 5 });
@@ -301,23 +283,8 @@ const klingDirect: ProviderAdapter = {
   name: "kling",
   // Only handle EXPLICIT Kling model requests — never hijack a Seedance/Veo/Sora
   // video request just because Kling creds happen to be set (would silently cost more).
-  // Excludes kling-3.0-omni: this adapter's `run()` always calls Kling's own
-  // "kling-v1" API model, so letting it swallow an Omni request would silently
-  // downgrade quality/pricing instead of hitting the verified
-  // kwaivgi/kling-v2.1-master slug via the Replicate adapter (Task #244).
-  // ⚠️  SUBSCRIPTION-ONLY: Kling is a paid provider ($0.30/clip).
-  // r.forSubscriber MUST be true — set only after verifying an active paid
-  // subscription at the API/UI layer. Smoke tests, internal tooling, and
-  // free-tier users must never trigger Kling charges. If forSubscriber is
-  // missing/false, this adapter silently skips, no matter which model is asked.
-  supports: (r) =>
-    r.kind === "video" &&
-    r.forSubscriber === true &&
-    (r.model?.startsWith("kling") ?? false) &&
-    r.model !== "kling-3.0-omni" &&
-    !!process.env.KLING_ACCESS_KEY &&
-    !!process.env.KLING_SECRET_KEY,
-  estimateCost: () => 0.3,
+  supports: (r) => r.kind === "video" && (r.model?.startsWith("kling") ?? false) && !!process.env.KLING_ACCESS_KEY && !!process.env.KLING_SECRET_KEY,
+  estimateCost: () => 0.30,
   async run(r) {
     const token = klingJwt(process.env.KLING_ACCESS_KEY!, process.env.KLING_SECRET_KEY!);
     const isImg2Vid = !!r.imageUrls?.[0];
@@ -326,17 +293,16 @@ const klingDirect: ProviderAdapter = {
       model_name: "kling-v1",
       prompt: r.prompt ?? "",
       duration: String(r.duration ?? 5),
-      aspect_ratio: r.aspectRatio ?? "16:9",
+      aspect_ratio: "16:9",
       mode: "std",
     };
     if (isImg2Vid) body.image = r.imageUrls![0];
-    const create = await fetch(`${KLING_BASE}${path}`, withTimeout({
+    const create = await fetch(`${KLING_BASE}${path}`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
       body: JSON.stringify(body),
-    }));
-    if (!create.ok)
-      throw new Error(`Kling ${create.status}: ${(await create.text()).slice(0, 200)}`);
+    });
+    if (!create.ok) throw new Error(`Kling ${create.status}: ${(await create.text()).slice(0, 200)}`);
     const created = await create.json();
     const taskId = created?.data?.task_id;
     if (!taskId) throw new Error("Kling returned no task_id");
@@ -344,9 +310,9 @@ const klingDirect: ProviderAdapter = {
     while (Date.now() < deadline) {
       await new Promise((s) => setTimeout(s, 6000));
       const t2 = klingJwt(process.env.KLING_ACCESS_KEY!, process.env.KLING_SECRET_KEY!);
-      const poll = await fetch(`${KLING_BASE}${path}/${taskId}`, withTimeout({
+      const poll = await fetch(`${KLING_BASE}${path}/${taskId}`, {
         headers: { Authorization: `Bearer ${t2}` },
-      }, PROVIDER_POLL_TIMEOUT_MS));
+      });
       if (!poll.ok) continue;
       const pj = await poll.json();
       const status = pj?.data?.task_status;
@@ -355,531 +321,101 @@ const klingDirect: ProviderAdapter = {
         if (!url) throw new Error("Kling: no video url");
         return { url, endpoint: `kling:${path}` };
       }
-      if (status === "failed")
-        throw new Error(`Kling failed: ${pj?.data?.task_status_msg ?? "unknown"}`);
+      if (status === "failed") throw new Error(`Kling failed: ${pj?.data?.task_status_msg ?? "unknown"}`);
     }
     throw new Error("Kling poll timeout");
   },
 };
 
-// ─── HeyGen (real v3 Lipsync API — POST /v3/lipsyncs) ───────────────────────
-// HeyGen's actual public lipsync product replaces/dubs the audio track on an
-// EXISTING video ("Lipsync — Speed"/"Lipsync — Precision", both served by the
-// same POST /v3/lipsyncs endpoint with a `mode` field). The earlier
-// "v2/video/lipsync" path used here did not exist (404) — this is the real,
-// documented one. Confirmed via developers.heygen.com docs.
+// ─── HeyGen (lipsync via video.translate; best-effort) ───────────────────────
 const heygen: ProviderAdapter = {
   name: "heygen",
-  supports: (r) => r.kind === "lipsync" && !!r.videoUrl && !!r.audioUrl && !!process.env.HEYGEN_API_KEY,
-  estimateCost: () => 0.4,
+  supports: (r) => r.kind === "lipsync" && !!process.env.HEYGEN_API_KEY,
+  estimateCost: () => 0.40,
   async run(r) {
     if (!r.videoUrl || !r.audioUrl) throw new Error("heygen: video+audio required");
     const key = process.env.HEYGEN_API_KEY!;
-
-    const create = await fetch("https://api.heygen.com/v3/lipsyncs", withTimeout({
+    const create = await fetch("https://api.heygen.com/v2/video/lipsync", {
       method: "POST",
       headers: { "Content-Type": "application/json", "X-Api-Key": key },
-      body: JSON.stringify({
-        video: { type: "url", url: r.videoUrl },
-        audio: { type: "url", url: r.audioUrl },
-        // "speed" = fast audio-only lip-sync; good default for UGC-style clips.
-        mode: "speed",
-      }),
-    }));
-    if (!create.ok)
-      throw new Error(`HeyGen ${create.status}: ${(await create.text()).slice(0, 200)}`);
+      body: JSON.stringify({ video_url: r.videoUrl, audio_url: r.audioUrl }),
+    });
+    if (!create.ok) throw new Error(`HeyGen ${create.status}: ${(await create.text()).slice(0, 200)}`);
     const cj = await create.json();
-    const lipsyncId = cj?.data?.lipsync_id;
-    if (!lipsyncId) throw new Error("HeyGen returned no lipsync_id");
-
+    const videoId = cj?.data?.video_id ?? cj?.video_id;
+    if (!videoId) throw new Error("HeyGen returned no video_id");
     const deadline = Date.now() + 10 * 60_000;
     while (Date.now() < deadline) {
       await new Promise((s) => setTimeout(s, 5000));
-      const st = await fetch(`https://api.heygen.com/v3/lipsyncs/${lipsyncId}`, withTimeout({
+      const st = await fetch(`https://api.heygen.com/v1/video_status.get?video_id=${videoId}`, {
         headers: { "X-Api-Key": key },
-      }, PROVIDER_POLL_TIMEOUT_MS));
+      });
       if (!st.ok) continue;
       const sj = await st.json();
       const status = sj?.data?.status;
       if (status === "completed") {
         const url = sj?.data?.video_url;
         if (!url) throw new Error("HeyGen: no video url");
-        return { url, endpoint: "heygen:lipsync-speed" };
+        return { url, endpoint: "heygen:lipsync" };
       }
-      if (status === "failed")
-        throw new Error(`HeyGen failed: ${sj?.data?.failure_message ?? "unknown"}`);
+      if (status === "failed") throw new Error(`HeyGen failed: ${sj?.data?.error ?? "unknown"}`);
     }
     throw new Error("HeyGen poll timeout");
   },
 };
 
-// ─── HeyGen "Video Agent" (real, documented API — POST /v2/video/generate) ──
-// HeyGen has no public "/v3/video-agents" prompt-in-video-out product — that
-// was a fabricated endpoint that always 404'd, silently falling back to a
-// worse provider (root cause of "video agent is trash"). The real HeyGen
-// avatar-video pipeline is: pick a real avatar_id (GET /v2/avatars) + its
-// matched default_voice_id, submit a scripted video (POST /v2/video/generate),
-// then poll GET /v2/videos/{video_id}. There is no "auto-pick everything from
-// a bare prompt" mode, so the prompt IS the spoken script here.
-// Verified working public avatar + English voice (permanent public preset).
-const HEYGEN_FALLBACK_AVATAR_ID = "Anna_public_3_20240108";
-const HEYGEN_FALLBACK_VOICE_ID = "6712aee5bd12487eabac2fa165ac93b9"; // Sarah Stone — verified in /v2/voices list
-async function resolveDefaultHeygenAvatar(_key: string): Promise<{ avatarId: string; voiceId: string }> {
-  // Hardcode both values as inline string literals to avoid any module
-  // initialization order / circular-import issue that could leave the
-  // module-level constants undefined when this function is first called.
-  // "Anna_public_3_20240108" is a permanent public HeyGen avatar.
-  // "6712aee5bd12487eabac2fa165ac93b9" is "Sarah Stone" — an English voice
-  // confirmed present in GET /v2/voices for this account on 2026-07-23.
-  return {
-    avatarId: "Anna_public_3_20240108",
-    voiceId: "6712aee5bd12487eabac2fa165ac93b9",
-  };
-}
-
-const heygenVideoAgent: ProviderAdapter = {
-  name: "heygen",
-  supports: (r) =>
-    r.kind === "video" &&
-    r.model === "heygen/video-agent" &&
-    !!r.prompt &&
-    !!process.env.HEYGEN_API_KEY,
-  estimateCost: () => 1.5,
-  async run(r) {
-    if (!r.prompt) throw new Error("heygen video-agent: prompt required");
-    const key = process.env.HEYGEN_API_KEY!;
-    const orientation = (r.params?.orientation as string) ?? "landscape";
-    const avatarId = (r.params?.avatarId as string) || undefined;
-    const voiceId = (r.params?.voiceId as string) || undefined;
-    const resolved = avatarId && voiceId ? { avatarId, voiceId } : await resolveDefaultHeygenAvatar(key);
-    // Belt-and-suspenders: guard against circular-import / cache edge cases
-    // that could leave resolved.voiceId as undefined or empty string.
-    const finalVoiceId = resolved.voiceId || "6712aee5bd12487eabac2fa165ac93b9";
-    const finalAvatarId = resolved.avatarId || "Anna_public_3_20240108";
-    console.log("[heygenVideoAgent] resolved:", JSON.stringify(resolved), "finalVoiceId:", finalVoiceId);
-    const dimension = orientation === "portrait" ? { width: 720, height: 1280 } : { width: 1280, height: 720 };
-
-    const create = await fetch("https://api.heygen.com/v2/video/generate", withTimeout({
-      method: "POST",
-      headers: { "Content-Type": "application/json", "X-Api-Key": key },
-      body: JSON.stringify({
-        title: "Aurora Video Agent",
-        video_inputs: [
-          {
-            character: { type: "avatar", avatar_id: finalAvatarId, avatar_style: "normal" },
-            voice: { type: "text", input_text: r.prompt, voice_id: "6712aee5bd12487eabac2fa165ac93b9" },
-          },
-        ],
-        dimension,
-      }),
-    }));
-    if (!create.ok)
-      throw new Error(`HeyGen video/generate ${create.status}: ${(await create.text()).slice(0, 200)}`);
-    const cj = await create.json();
-    const videoId = cj?.data?.video_id;
-    if (!videoId) throw new Error("HeyGen video/generate returned no video_id");
-
-    const deadline = Date.now() + 20 * 60_000;
-    while (Date.now() < deadline) {
-      await new Promise((s) => setTimeout(s, 5000));
-      const st = await fetch(`https://api.heygen.com/v2/videos/${videoId}`, withTimeout({
-        headers: { "X-Api-Key": key },
-      }, PROVIDER_POLL_TIMEOUT_MS));
-      if (!st.ok) continue;
-      const sj = await st.json();
-      const status = sj?.data?.status;
-      if (status === "completed") {
-        const url = sj?.data?.video_url;
-        if (!url) throw new Error("HeyGen video agent: no video url");
-        return { url, endpoint: "heygen:video-agent" };
-      }
-      if (status === "failed")
-        throw new Error(`HeyGen video agent failed: ${sj?.data?.error?.message ?? "unknown"}`);
-    }
-    throw new Error("HeyGen video agent poll timeout");
-  },
-};
-
-// ─── HeyGen photo-to-video (real v3 API — POST /v3/videos, type:"image") ───
-// Animates a STILL PHOTO directly from the user's own uploaded audio in one
-// call — HeyGen lip-syncs + generates the talking motion together, so unlike
-// xai-ugc there is no separate mandatory relip stage. Pinned-only: this is a
-// distinct "photo + your audio" product from the sync-v2/wav2lip "existing
-// video + audio" lipsync engines, so it must be explicitly requested by
-// model key, not silently substituted for (or substitute) another engine.
-const heygenPhotoVideo: ProviderAdapter = {
-  name: "heygen",
-  supports: (r) =>
-    r.kind === "lipsync" &&
-    r.model === "heygen/photo-video" &&
-    !!r.imageUrls?.[0] &&
-    !!r.audioUrl &&
-    !!process.env.HEYGEN_API_KEY,
-  estimateCost: () => 0.4,
-  async run(r) {
-    if (!r.imageUrls?.[0] || !r.audioUrl)
-      throw new Error("heygen photo-video: photo + audio required");
-    const key = process.env.HEYGEN_API_KEY!;
-
-    const create = await fetch("https://api.heygen.com/v3/videos", withTimeout({
-      method: "POST",
-      headers: { "Content-Type": "application/json", "X-Api-Key": key },
-      body: JSON.stringify({
-        type: "image",
-        image: { type: "url", url: r.imageUrls[0] },
-        audio_url: r.audioUrl,
-      }),
-    }));
-    if (!create.ok)
-      throw new Error(`HeyGen photo-video ${create.status}: ${(await create.text()).slice(0, 200)}`);
-    const cj = await create.json();
-    const videoId = cj?.data?.video_id;
-    if (!videoId) throw new Error("HeyGen photo-video returned no video_id");
-
-    const deadline = Date.now() + 10 * 60_000;
-    while (Date.now() < deadline) {
-      await new Promise((s) => setTimeout(s, 5000));
-      const st = await fetch(`https://api.heygen.com/v3/videos/${videoId}`, withTimeout({
-        headers: { "X-Api-Key": key },
-      }, PROVIDER_POLL_TIMEOUT_MS));
-      if (!st.ok) continue;
-      const sj = await st.json();
-      const status = sj?.data?.status;
-      if (status === "completed") {
-        const url = sj?.data?.video_url;
-        if (!url) throw new Error("HeyGen photo-video: no video url");
-        return { url, endpoint: "heygen:photo-video" };
-      }
-      if (status === "failed")
-        throw new Error(`HeyGen photo-video failed: ${sj?.data?.error ?? "unknown"}`);
-    }
-    throw new Error("HeyGen photo-video poll timeout");
-  },
-};
-
-// ─── HeyGen Avatar Template — POST /v3/videos type:"avatar" ─────────────────
-// Takes avatar_id + voice_id + script text; HeyGen handles TTS internally so
-// no audioUrl is required. Pinned-only (pinnedModelOnly:true), never a fallback.
-const heygenAvatarTemplate: ProviderAdapter = {
-  name: "heygen",
-  supports: (r) =>
-    r.kind === "lipsync" &&
-    r.model === "heygen/avatar" &&
-    typeof r.params?.avatarId === "string" &&
-    !!(r.params.avatarId as string).trim() &&
-    !!r.prompt &&
-    !!process.env.HEYGEN_API_KEY,
-  estimateCost: () => 0.4,
-  async run(r) {
-    const avatarId = (r.params?.avatarId as string | undefined)?.trim();
-    const voiceId = (r.params?.voiceId as string | undefined) ?? "m3Fp8hA8nS1Gc1Ne9FIf";
-    if (!avatarId) throw new Error("heygen avatar: avatarId required");
-    if (!r.prompt) throw new Error("heygen avatar: script/prompt required");
-    const key = process.env.HEYGEN_API_KEY!;
-
-    const create = await fetch("https://api.heygen.com/v3/videos", withTimeout({
-      method: "POST",
-      headers: { "Content-Type": "application/json", "X-Api-Key": key },
-      body: JSON.stringify({
-        type: "avatar",
-        avatar_id: avatarId,
-        voice_id: voiceId,
-        script: r.prompt,
-      }),
-    }));
-    if (!create.ok)
-      throw new Error(`HeyGen avatar ${create.status}: ${(await create.text()).slice(0, 200)}`);
-    const cj = (await create.json()) as { data?: { video_id?: string } };
-    const videoId = cj?.data?.video_id;
-    if (!videoId) throw new Error("HeyGen avatar returned no video_id");
-
-    const deadline = Date.now() + 10 * 60_000;
-    while (Date.now() < deadline) {
-      await new Promise((s) => setTimeout(s, 5000));
-      const st = await fetch(`https://api.heygen.com/v3/videos/${videoId}`, withTimeout({
-        headers: { "X-Api-Key": key },
-      }, PROVIDER_POLL_TIMEOUT_MS));
-      if (!st.ok) continue;
-      const sj = (await st.json()) as { data?: { status?: string; video_url?: string; error?: string } };
-      const status = sj?.data?.status;
-      if (status === "completed") {
-        const url = sj?.data?.video_url;
-        if (!url) throw new Error("HeyGen avatar: no video url in completed response");
-        return { url, endpoint: "heygen:avatar-template" };
-      }
-      if (status === "failed")
-        throw new Error(`HeyGen avatar failed: ${sj?.data?.error ?? "unknown"}`);
-    }
-    throw new Error("HeyGen avatar poll timeout (10 min)");
-  },
-};
-
-// ─── HeyGen Template render (Task #275 — "Aurora Template") ─────────────────
-// POST /v2/template/{template_id}/generate: renders an EXISTING HeyGen
-// template with a variables map (the Aurora Template flow swaps just the
-// character variable per run). Pinned-only, exactly like heygen/photo-video:
-// a template render is an explicit product, never a silent substitute for a
-// generic text/image-to-video request — so supports() requires the exact
-// model key AND a templateId param, and the model is NOT in FALLBACK_MODELS.
-const heygenTemplate: ProviderAdapter = {
-  name: "heygen",
-  supports: (r) =>
-    r.kind === "video" &&
-    r.model === "heygen/template" &&
-    typeof r.params?.templateId === "string" &&
-    !!(r.params.templateId as string).trim() &&
-    !!process.env.HEYGEN_API_KEY,
-  estimateCost: () => 1.5,
-  async run(r) {
-    const templateId = r.params?.templateId as string | undefined;
-    if (!templateId?.trim()) throw new Error("heygen template: templateId required");
-    const { submitHeyGenTemplateVideo, waitForHeyGenVideo, HeyGenTemplateVariablesSchema } =
-      await import("./heygen.server");
-    // Validate at the boundary — params travel as untyped JSON.
-    const variables = HeyGenTemplateVariablesSchema.parse(r.params?.variables ?? {});
-    const dimension =
-      (r.params?.orientation as string) === "portrait"
-        ? { width: 720, height: 1280 }
-        : undefined; // omit → template's own dimension
-    const { videoId } = await submitHeyGenTemplateVideo(templateId, variables, {
-      title: (r.params?.title as string) || "Aurora Template",
-      ...(dimension ? { dimension } : {}),
-    });
-    const url = await waitForHeyGenVideo(videoId);
-    return { url, endpoint: "heygen:template" };
-  },
-};
-
 // ─── Fal (LAST fallback — user prefers other providers) ──────────────────────
-const FAL_MAP: Record<
-  string,
-  {
-    path: string;
-    kind: GenerateKind;
-    cost: number;
-    /** Alternate path for prompt-only requests (no reference image). */
-    textPath?: string;
-    /** Optional input builder (mirrors REPLICATE_MAP.build); generic body otherwise. */
-    build?: (r: GenerateRequest) => Record<string, unknown>;
-  }
-> = {
-  "fal-fallback/kling-video": {
-    path: "fal-ai/kling-video/v1/standard/image-to-video",
-    kind: "video",
-    cost: 0.4,
-  },
-  "fal-fallback/sync-lipsync": { path: "fal-ai/sync-lipsync", kind: "lipsync", cost: 0.3 },
-  // First-priority video/motion: LTX Video (Lightricks) via fal.ai.
-  // T2V sentinel for unpinned video requests; cheap (~$0.06), no subscription.
-  "fal/ltx-video": { path: "fal-ai/ltx-video", kind: "video", cost: 0.06 },
-  // Motion sentinel (image-to-video): same model, separate key so FALLBACK_MODELS
-  // for "motion" has its own unambiguous candidate.
-  "fal/ltx-motion": { path: "fal-ai/ltx-video/image-to-video", kind: "motion", cost: 0.06 },
-  // Seedance 2.5 (Dreamina) — REAL fal-hosted route, verified in the fal
-  // catalog 2026-08-08 (bytedance/seedance-2.5/{image,text}-to-video).
-  // ~$0.473/s at 720p → ≈$2.37 per 5s reference clip ("max" pricing tier).
-  // ⚠️ SUBSCRIPTION-ONLY, enforced in falFallback.supports() — same rule as
-  // Seedance on Replicate/BytePlus. BytePlus direct (BYTEPLUS_MAP, ~$1.16)
-  // stays in the chain after fal and takes over once Ark-activated.
-  "seedance-2.5": {
-    path: "bytedance/seedance-2.5/image-to-video",
-    textPath: "bytedance/seedance-2.5/text-to-video",
-    kind: "video",
-    cost: 2.37,
-    build: (r) => ({
-      prompt: r.prompt ?? "",
-      ...(r.imageUrls?.[0] ? { image_url: r.imageUrls[0] } : {}),
-      resolution: "720p",
-      // duration MUST be explicit: fal's default is "auto", which lets the
-      // model run to its native 30s — a silent ~6× cost overrun per clip.
-      // The schema wants a string enum ("4".."30"), not a number.
-      duration: String(Math.min(30, Math.max(4, Math.round(r.duration ?? 5)))),
-    }),
-  },
-  // Aurora Soul: identity-locked image inference against a user's own
-  // trained face LoRA (fal-ai/flux-lora-portrait-trainer output). Pinned-only
-  // (see soul.server.ts's reserveOrchestrateRecord call) — r.params.loraUrl
-  // is REQUIRED; falSoulLoraAdapter.supports() below hard-fails without it
-  // rather than silently degrading to a generic (identity-blind) render.
-  "fal/soul-lora": {
-    path: "fal-ai/flux-2/lora",
-    kind: "image",
-    cost: 0.05,
-    build: (r) => ({
-      prompt: r.prompt ?? "",
-      loras: [{ path: r.params?.loraUrl, scale: 1 }],
-      ...(r.params?.triggerWord ? { trigger_word: r.params.triggerWord } : {}),
-      num_images: Math.max(1, Math.min(4, Number(r.params?.numOutputs) || 1)),
-      ...(r.aspectRatio ? { aspect_ratio: r.aspectRatio } : {}),
-    }),
-  },
-};
-// Identity-locked Gemini-image family → fal's *-edit endpoints, which take
-// image_urls[] (plural) and preserve the reference face. Without these entries
-// an unmapped google/* image model would silently degrade to a text-to-image
-// model and DROP the face reference — identity loss across a whole
-// Spin/bulk batch. Only used when the request actually carries a reference
-// image. Exported for tests.
-export const FAL_IDENTITY_EDITS: Record<string, string> = {
-  "google/nano-banana": "fal-ai/nano-banana/edit",
-  "google/gemini-2.5-flash-image": "fal-ai/nano-banana/edit",
-  "google/gemini-3.1-flash-image-preview": "fal-ai/nano-banana/edit",
-  "google/gemini-3-pro-image-preview": "fal-ai/nano-banana-pro/edit",
+const FAL_MAP: Record<string, { path: string; kind: GenerateKind; cost: number }> = {
+  "fal-fallback/flux-schnell": { path: "fal-ai/flux/schnell", kind: "image", cost: 0.005 },
+  "fal-fallback/kling-video":  { path: "fal-ai/kling-video/v1/standard/image-to-video", kind: "video", cost: 0.40 },
+  "fal-fallback/sync-lipsync": { path: "fal-ai/sync-lipsync", kind: "lipsync", cost: 0.30 },
 };
 const falFallback: ProviderAdapter = {
   name: "fal",
-  // Model-key gated for video/motion so an early PRIORITY slot doesn't silently
-  // intercept requests pinned to Kling/xAI/Gemini/Replicate (which have their own
-  // adapters in the chain). A request is served here when:
-  //   • kind === "image"  — permissive (identity-edit routing or generic image gen)
-  //   • kind === "lipsync" — requires both video + audio present
-  //   • kind === "video"  — only unkeyed requests OR explicit fal/* sentinel keys
-  //   • kind === "motion" — only explicit fal/* sentinel keys (no keyless motion)
-  supports(r) {
-    if (!process.env.FAL_KEY) return false;
-    if (r.kind === "image") return true;
-    if (r.kind === "lipsync") return !!r.videoUrl && !!r.audioUrl;
-    if (r.kind === "video") {
-      // Drop requests pinned to another provider's model.
-      if (r.model && !r.model.startsWith("fal/") && !FAL_MAP[r.model]) return false;
-      // ⚠️  SUBSCRIPTION-ONLY: Seedance on fal is a paid ByteDance model —
-      // same rule as the Replicate/BytePlus adapters. Never free-tier.
-      if (r.model?.startsWith("seedance") && r.forSubscriber !== true) return false;
-      return true;
-    }
-    if (r.kind === "motion") {
-      if (r.model?.startsWith("seedance") && r.forSubscriber !== true) return false;
-      // Motion requires an explicit fal/ sentinel — no keyless motion fallback.
-      return !!r.model && (r.model.startsWith("fal/") || !!FAL_MAP[r.model]);
-    }
-    return false;
-  },
-  estimateCost: (r) => {
-    // Identity-edit routes cost fal's Gemini-image prices.
-    if (r.kind === "image" && r.model && r.imageUrls?.length && FAL_IDENTITY_EDITS[r.model]) {
-      return FAL_IDENTITY_EDITS[r.model].includes("pro") ? 0.24 : 0.039;
-    }
-    // Named fal/ sentinel model keys carry their actual cost from FAL_MAP.
-    if (r.model && FAL_MAP[r.model]) return FAL_MAP[r.model].cost;
-    // Legacy defaults (fal-fallback/* keys or keyless requests).
-    return r.kind === "video" ? 0.4 : r.kind === "lipsync" ? 0.3 : 0.005;
-  },
+  // Only activates when explicitly addressed OR when nothing else handles the kind
+  supports: (r) => !!process.env.FAL_KEY,
+  estimateCost: (r) => (r.kind === "video" ? 0.40 : r.kind === "lipsync" ? 0.30 : 0.005),
   async run(r) {
     const key = process.env.FAL_KEY!;
-    // Identity-preserving route: gemini-family model + a reference image →
-    // the matching *-edit endpoint with image_urls[] so the face is kept.
-    const identityPath =
-      r.kind === "image" && r.model && r.imageUrls?.length
-        ? FAL_IDENTITY_EDITS[r.model]
-        : undefined;
-    if (identityPath) {
-      const res = await fetch(`https://fal.run/${identityPath}`, withTimeout({
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Key ${key}` },
-        body: JSON.stringify({ prompt: r.prompt ?? "", image_urls: r.imageUrls }),
-      }));
-      if (!res.ok) throw new Error(`Fal ${res.status}: ${(await res.text()).slice(0, 200)}`);
-      const j = await res.json();
-      const url = j?.images?.[0]?.url ?? j?.image?.url;
-      if (!url || typeof url !== "string") throw new Error("Fal: no output url");
-      return { url, endpoint: `fal:${identityPath}` };
-    }
     const fallback =
-      r.kind === "image"
-        ? null
-        : r.kind === "video"
-          ? "fal-ai/kling-video/v1/standard/image-to-video"
-          : r.kind === "lipsync"
-            ? "fal-ai/sync-lipsync"
-            : null;
-    const mapped = r.model ? FAL_MAP[r.model] : undefined;
-    // Prompt-only request against a model that has a dedicated t2v path →
-    // use it (the i2v path 422s without image_url).
-    const path =
-      (mapped && (!r.imageUrls?.[0] && mapped.textPath ? mapped.textPath : mapped.path)) ||
-      fallback;
+      r.kind === "image" ? "fal-ai/flux/schnell" :
+      r.kind === "video" ? "fal-ai/kling-video/v1/standard/image-to-video" :
+      r.kind === "lipsync" ? "fal-ai/sync-lipsync" : null;
+    const path = (r.model && FAL_MAP[r.model]?.path) || fallback;
     if (!path) throw new Error(`Fal: no path for kind ${r.kind}`);
-    let input: Record<string, unknown>;
-    if (mapped?.build) {
-      input = mapped.build(r);
-    } else {
-      input = {};
-      if (r.prompt) input.prompt = r.prompt;
-      if (r.imageUrls?.[0]) input.image_url = r.imageUrls[0];
-      if (r.videoUrl) input.video_url = r.videoUrl;
-      if (r.audioUrl) input.audio_url = r.audioUrl;
-      if (r.duration) input.duration = r.duration;
-      if (r.aspectRatio) input.aspect_ratio = r.aspectRatio;
-    }
-    const res = await fetch(`https://fal.run/${path}`, withTimeout({
+    const input: Record<string, unknown> = {};
+    if (r.prompt) input.prompt = r.prompt;
+    if (r.imageUrls?.[0]) input.image_url = r.imageUrls[0];
+    if (r.videoUrl) input.video_url = r.videoUrl;
+    if (r.audioUrl) input.audio_url = r.audioUrl;
+    if (r.duration) input.duration = r.duration;
+    const res = await fetch(`https://fal.run/${path}`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Key ${key}` },
       body: JSON.stringify(input),
-    }));
+    });
     if (!res.ok) throw new Error(`Fal ${res.status}: ${(await res.text()).slice(0, 200)}`);
     const j = await res.json();
-    const url = j?.video?.url ?? j?.image?.url ?? j?.images?.[0]?.url ?? j?.url ?? j?.output;
+    const url =
+      j?.video?.url ?? j?.image?.url ?? j?.images?.[0]?.url ?? j?.url ?? j?.output;
     if (!url || typeof url !== "string") throw new Error("Fal: no output url");
     return { url, endpoint: `fal:${path}` };
   },
 };
 
-// ─── Aurora Soul: direct Seedance API (character video) ──────────────────────
-// Separate from the fal.ai-hosted Seedance route above — this hits Seedance's
-// own API directly with a dedicated key, mirroring the soulmagic reference
-// product. Pinned-only (model === "seedance-soul"); explicit failure when the
-// env vars are unset rather than silently falling through to a different
-// video provider that would drop the trained character's identity.
-const seedanceSoulDirect: ProviderAdapter = {
-  name: "seedance",
-  supports: (r) => r.kind === "video" && r.model === "seedance-soul",
-  // Real cost lives in pricing.ts (soulVideoCost); this is only used for the
-  // in-memory free-adapter/health-snapshot bookkeeping.
-  estimateCost: () => 0.65,
-  async run(r) {
-    const apiUrl = process.env.SEEDANCE_API_URL;
-    const apiKey = process.env.SEEDANCE_API_KEY;
-    if (!apiUrl || !apiKey) {
-      throw new Error(
-        "Aurora Soul video is not configured: SEEDANCE_API_URL / SEEDANCE_API_KEY missing",
-      );
-    }
-    const res = await fetch(`${apiUrl.replace(/\/$/, "")}/v1/videos`, withTimeout({
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-      body: JSON.stringify({
-        model: (r.params?.seedanceModel as string) || "seedance-2.5",
-        prompt: r.prompt ?? "",
-        duration: Math.min(30, Math.max(1, Math.round(r.duration ?? 5))),
-        aspect_ratio: r.aspectRatio ?? "9:16",
-        ...(r.imageUrls?.length ? { references: r.imageUrls } : {}),
-      }),
-    }));
-    if (!res.ok) throw new Error(`Seedance ${res.status}: ${(await res.text()).slice(0, 200)}`);
-    const j = await res.json();
-    const url: string | undefined = j?.video?.url ?? j?.url ?? j?.output_url;
-    if (!url) throw new Error("Seedance: no output url");
-    return { url, endpoint: "seedance:direct", text: j?.job_id ? String(j.job_id) : undefined };
-  },
-};
-
 // ─── Health tracking ─────────────────────────────────────────────────────────
 const HEALTH = new Map<string, { failures: number; cooldownUntil: number }>();
-// Exported for unit tests (see orchestrator.fallback.test.ts). Not part of the
-// public API — callers should rely on orchestrate()/getProviderHealthSnapshot().
-export function isHealthy(p: string) {
+function isHealthy(p: string) {
   const h = HEALTH.get(p);
   return !h || Date.now() > h.cooldownUntil;
 }
-export function markFailure(p: string) {
+function markFailure(p: string) {
   const h = HEALTH.get(p) ?? { failures: 0, cooldownUntil: 0 };
   h.failures += 1;
   h.cooldownUntil = Date.now() + Math.min(120, 5 * Math.pow(3, h.failures - 1)) * 1000;
   HEALTH.set(p, h);
 }
-export function markSuccess(p: string) {
-  HEALTH.set(p, { failures: 0, cooldownUntil: 0 });
-}
+function markSuccess(p: string) { HEALTH.set(p, { failures: 0, cooldownUntil: 0 }); }
 
 /** Public snapshot of in-memory health state (used by the orchestration dashboard). */
 export function getProviderHealthSnapshot() {
@@ -895,6 +431,7 @@ export function getProviderHealthSnapshot() {
   return out;
 }
 
+
 // ─── Lovable (Gemini via gateway) — USED LAST so paid credits stay preserved ─
 const lovable: ProviderAdapter = {
   name: "lovable",
@@ -903,19 +440,14 @@ const lovable: ProviderAdapter = {
   async run(r) {
     const apiKey = process.env.LOVABLE_API_KEY;
     if (!apiKey) throw new Error("LOVABLE_API_KEY missing");
-    const endpoint =
-      r.model && r.model.startsWith("google/") ? r.model : "google/gemini-2.5-flash-image";
+    const endpoint = r.model && r.model.startsWith("google/") ? r.model : "google/gemini-2.5-flash-image";
     const content: Array<Record<string, unknown>> = [{ type: "text", text: r.prompt ?? "" }];
     for (const url of r.imageUrls ?? []) content.push({ type: "image_url", image_url: { url } });
-    const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", withTimeout({
+    const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: { "Content-Type": "application/json", "Lovable-API-Key": apiKey },
-      body: JSON.stringify({
-        model: endpoint,
-        messages: [{ role: "user", content }],
-        modalities: ["image", "text"],
-      }),
-    }));
+      body: JSON.stringify({ model: endpoint, messages: [{ role: "user", content }], modalities: ["image", "text"] }),
+    });
     if (!res.ok) throw new Error(`Lovable AI ${res.status}: ${(await res.text()).slice(0, 200)}`);
     const json = await res.json();
     const msg = json?.choices?.[0]?.message;
@@ -926,82 +458,41 @@ const lovable: ProviderAdapter = {
 };
 
 // ─── Gemini direct (GEMINI_API_KEY) — preferred before Lovable credits ───────
-// Model-aware slug map: our registry keys → LIVE Gemini API model ids. The API
-// renamed gemini-2.5-flash-image-preview → gemini-2.5-flash-image (the old
-// preview slug now 404s), so every entry here must exist in GET /v1beta/models.
-// nano-banana IS Gemini 2.5 Flash Image, so those requests can be served
-// directly when Replicate is unavailable. Exported for unit tests.
-export const GEMINI_DIRECT_SLUGS: Record<string, string> = {
-  "google/gemini-2.5-flash-image": "gemini-2.5-flash-image",
-  "google/nano-banana": "gemini-2.5-flash-image",
-  "google/gemini-3.1-flash-image-preview": "gemini-3.1-flash-image-preview",
-  "google/gemini-3-pro-image-preview": "gemini-3-pro-image-preview",
-};
-export const GEMINI_DIRECT_DEFAULT_MODEL = "gemini-2.5-flash-image";
-/** Resolve a request's model key to a direct Gemini API model id, or null when
- * this adapter must NOT serve it (e.g. seedream/flux requests — geminiDirect
- * sits early in the image chain and would otherwise hijack them). A model-less
- * image request gets the default flash-image model. */
-export function geminiDirectModelFor(model?: string | null): string | null {
-  if (!model) return GEMINI_DIRECT_DEFAULT_MODEL;
-  return GEMINI_DIRECT_SLUGS[model] ?? null;
-}
 const geminiDirect: ProviderAdapter = {
   name: "gemini",
-  supports: (r) =>
-    r.kind === "image" && !!process.env.GEMINI_API_KEY && geminiDirectModelFor(r.model) !== null,
-  // Direct-API per-image price (flash-image family ≈ $0.039). Must NOT be 0:
-  // isFreeAdapter()/Free-GPU-only mode treat a $0 estimate as "free to run" —
-  // with paid Gemini billing enabled that would silently spend real money.
-  estimateCost: () => 0.039,
+  supports: (r) => r.kind === "image" && !!process.env.GEMINI_API_KEY,
+  estimateCost: () => 0,
   async run(r) {
     const key = process.env.GEMINI_API_KEY!;
-    const model = geminiDirectModelFor(r.model);
-    if (!model) throw new Error(`Gemini direct: unsupported model ${r.model}`);
+    const model = "gemini-2.5-flash-image-preview";
     const parts: Array<Record<string, unknown>> = [{ text: r.prompt ?? "" }];
     for (const url of r.imageUrls ?? []) {
       try {
         if (!isTrustedUrl(url)) continue; // SSRF guard: skip untrusted ref hosts
-        const fetched = await fetch(url, withTimeout({}, PROVIDER_REF_FETCH_TIMEOUT_MS));
+        const fetched = await fetch(url);
         if (!fetched.ok) continue;
         const buf = Buffer.from(await fetched.arrayBuffer());
         const mime = fetched.headers.get("content-type") || "image/png";
         parts.push({ inline_data: { mime_type: mime, data: buf.toString("base64") } });
-      } catch {
-        /* skip bad ref */
-      }
+      } catch { /* skip bad ref */ }
     }
     const res = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`,
-      withTimeout({
+      {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [{ parts }],
-          generationConfig: {
-            responseModalities: ["IMAGE", "TEXT"],
-            // Forward the user's chosen ratio. Gemini flash-image supports
-            // "1:1", "16:9", "9:16" — the same set the picker restricts to.
-            ...(r.aspectRatio ? { aspectRatio: r.aspectRatio } : {}),
-          },
-        }),
-      }),
+        body: JSON.stringify({ contents: [{ parts }], generationConfig: { responseModalities: ["IMAGE", "TEXT"] } }),
+      },
     );
     if (!res.ok) throw new Error(`Gemini ${res.status}: ${(await res.text()).slice(0, 200)}`);
     const json = await res.json();
     const cParts = json?.candidates?.[0]?.content?.parts ?? [];
     const img = cParts.find((p: Record<string, unknown>) => p.inline_data || p.inlineData) as
-      | {
-          inline_data?: { data?: string; mime_type?: string };
-          inlineData?: { data?: string; mimeType?: string };
-        }
+      | { inline_data?: { data?: string; mime_type?: string }; inlineData?: { data?: string; mimeType?: string } }
       | undefined;
     const inline = img?.inline_data ?? img?.inlineData;
     if (!inline?.data) throw new Error("Gemini returned no image");
-    const mime =
-      (inline as { mime_type?: string }).mime_type ||
-      (inline as { mimeType?: string }).mimeType ||
-      "image/png";
+    const mime = (inline as { mime_type?: string }).mime_type || (inline as { mimeType?: string }).mimeType || "image/png";
     const ext = mime.split("/")[1] || "png";
     const path = `${r.userId ?? "system"}/gemini/${crypto.randomUUID()}.${ext}`;
     const { error } = await supabaseAdmin.storage
@@ -1013,74 +504,6 @@ const geminiDirect: ProviderAdapter = {
   },
 };
 
-// ─── Gemini Video (Veo 2) ────────────────────────────────────────────────────
-// Direct Gemini API for video generation via Veo 2. Handles any video or motion
-// request when GEMINI_API_KEY is present — does not require Replicate credits.
-const GEMINI_VIDEO_MODEL = "veo-3.1-fast-generate-preview";
-const geminiVideo: ProviderAdapter = {
-  name: "gemini-video",
-  supports: (r) =>
-    (r.kind === "video" || r.kind === "motion") && !!process.env.GEMINI_API_KEY,
-  estimateCost: () => 0.35,
-  async run(r) {
-    const key = process.env.GEMINI_API_KEY!;
-    const instance: Record<string, unknown> = { prompt: r.prompt ?? "" };
-    // Attach reference image for image-to-video or motion requests
-    const refUrl = r.imageUrls?.[0];
-    if (refUrl) {
-      try {
-        if (isTrustedUrl(refUrl)) {
-          const fetched = await fetch(refUrl, withTimeout({}, PROVIDER_REF_FETCH_TIMEOUT_MS));
-          if (fetched.ok) {
-            const buf = Buffer.from(await fetched.arrayBuffer());
-            const mime = fetched.headers.get("content-type") || "image/jpeg";
-            instance.image = { bytesBase64Encoded: buf.toString("base64"), mimeType: mime };
-          }
-        }
-      } catch { /* skip bad ref */ }
-    }
-    const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_VIDEO_MODEL}:predictLongRunning?key=${key}`,
-      withTimeout({
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          instances: [instance],
-          parameters: {
-            aspectRatio: r.aspectRatio ?? "16:9",
-            sampleCount: 1,
-            // veo-3.1-fast-generate-preview accepts only 4 or 8 (not 5-7 — 5 returns
-            // INVALID_ARGUMENT despite the docs claiming 4-8 inclusive).
-            // Snap ≤5s requests to 4 and everything longer to 8.
-            durationSeconds: (r.duration ?? 8) <= 5 ? 4 : 8,
-          },
-        }),
-      }),
-    );
-    if (!res.ok) throw new Error(`Gemini video ${res.status}: ${(await res.text()).slice(0, 200)}`);
-    const op = await res.json() as { name?: string };
-    const opName = op?.name;
-    if (!opName) throw new Error("Gemini video: no operation name in response");
-    // Poll the long-running operation (max 10 min)
-    const deadline = Date.now() + 10 * 60_000;
-    while (Date.now() < deadline) {
-      await new Promise((s) => setTimeout(s, 5_000));
-      const poll = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/${opName}?key=${key}`,
-        withTimeout({}, PROVIDER_POLL_TIMEOUT_MS),
-      );
-      if (!poll.ok) throw new Error(`Gemini video poll ${poll.status}: ${(await poll.text()).slice(0, 100)}`);
-      const state = await poll.json() as { done?: boolean; error?: unknown; response?: { generateVideoResponse?: { generatedSamples?: Array<{ video?: { uri?: string } }> } } };
-      if (!state.done) continue;
-      if (state.error) throw new Error(`Gemini video error: ${JSON.stringify(state.error).slice(0, 200)}`);
-      const videoUri = state.response?.generateVideoResponse?.generatedSamples?.[0]?.video?.uri;
-      if (!videoUri) throw new Error("Gemini video: no video URI in response");
-      return { url: videoUri, endpoint: `gemini-video:${GEMINI_VIDEO_MODEL}` };
-    }
-    throw new Error("Gemini video: timed out after 10 minutes");
-  },
-};
-
 // ─── Replicate ───────────────────────────────────────────────────────────────
 // Map our model keys → Replicate official model slugs (owner/name) + a per-model
 // input builder. Each Replicate model has a DIFFERENT input schema, so we build
@@ -1089,7 +512,7 @@ const geminiVideo: ProviderAdapter = {
 //   wan i2v  → image + enum duration       veo   → optional image (no duration)
 //   sora     → input_reference (no duration)  nano-banana/seedream → image_input[]
 const durEnum = (d?: number) => ((d ?? 5) >= 10 ? "10" : "5");
-const durInt = (d?: number, max = 15) => Math.max(3, Math.min(max, d ?? 5));
+const durInt = (d?: number) => Math.max(3, Math.min(12, d ?? 5));
 const firstImg = (r: GenerateRequest) => r.imageUrls?.[0];
 
 type ReplicateEntry = {
@@ -1101,154 +524,36 @@ type ReplicateEntry = {
 
 const REPLICATE_MAP: Record<string, ReplicateEntry> = {
   // ── images ──
-  "google/nano-banana": {
-    slug: "google/nano-banana",
-    kind: "image",
-    cost: 0.039,
-    build: (r) => ({
-      prompt: r.prompt ?? "",
-      ...(r.imageUrls?.length ? { image_input: r.imageUrls } : {}),
-      ...(r.aspectRatio ? { aspect_ratio: r.aspectRatio } : {}),
-    }),
-  },
-  "fal-ai/seedream-4": {
-    slug: "bytedance/seedream-4",
-    kind: "image",
-    cost: 0.04,
-    build: (r) => ({
-      prompt: r.prompt ?? "",
-      ...(r.imageUrls?.length ? { image_input: r.imageUrls } : {}),
-      ...(r.aspectRatio ? { aspect_ratio: r.aspectRatio } : {}),
-    }),
-  },
-  "fal-ai/seedream-4.5": {
-    slug: "bytedance/seedream-4",
-    kind: "image",
-    cost: 0.05,
-    build: (r) => ({
-      prompt: r.prompt ?? "",
-      ...(r.imageUrls?.length ? { image_input: r.imageUrls } : {}),
-      ...(r.aspectRatio ? { aspect_ratio: r.aspectRatio } : {}),
-    }),
-  },
+  "google/nano-banana":     { slug: "google/nano-banana",            kind: "image", cost: 0.039,
+    build: (r) => ({ prompt: r.prompt ?? "", ...(r.imageUrls?.length ? { image_input: r.imageUrls } : {}) }) },
+  "fal-ai/seedream-4":      { slug: "bytedance/seedream-4",          kind: "image", cost: 0.04,
+    build: (r) => ({ prompt: r.prompt ?? "", ...(r.imageUrls?.length ? { image_input: r.imageUrls } : {}) }) },
+  "fal-ai/seedream-4.5":    { slug: "bytedance/seedream-4",          kind: "image", cost: 0.05,
+    build: (r) => ({ prompt: r.prompt ?? "", ...(r.imageUrls?.length ? { image_input: r.imageUrls } : {}) }) },
+  "replicate/flux-schnell": { slug: "black-forest-labs/flux-schnell", kind: "image", cost: 0.003,
+    build: (r) => ({ prompt: r.prompt ?? "" }) },
   // ── video (image-to-video) ──
-  "seedance-2.0": {
-    slug: "bytedance/seedance-1-pro",
-    kind: "video",
-    cost: 0.65,
-    build: (r) => ({
-      prompt: r.prompt ?? "",
-      ...(firstImg(r) ? { image: firstImg(r) } : {}),
-      duration: durInt(r.duration),
-      ...(r.aspectRatio ? { aspect_ratio: r.aspectRatio } : {}),
-    }),
-  },
-  "seedance-2.0-fast": {
-    slug: "bytedance/seedance-1-lite",
-    kind: "video",
-    cost: 0.05,
-    build: (r) => ({
-      prompt: r.prompt ?? "",
-      ...(firstImg(r) ? { image: firstImg(r) } : {}),
-      duration: durInt(r.duration),
-      ...(r.aspectRatio ? { aspect_ratio: r.aspectRatio } : {}),
-    }),
-  },
-  "kling-3.0": {
-    slug: "kwaivgi/kling-v2.1",
-    kind: "video",
-    cost: 0.6,
-    build: (r) => ({
-      prompt: r.prompt ?? "",
-      ...(firstImg(r) ? { start_image: firstImg(r) } : {}),
-      duration: durEnum(r.duration),
-      aspect_ratio: r.aspectRatio ?? "16:9",
-      ...(r.imageUrls?.[1] ? { end_image: r.imageUrls[1] } : {}),
-    }),
-  },
-  "kling-3.0-omni": {
-    slug: "kwaivgi/kling-v2.1-master",
-    kind: "video",
-    cost: 0.7,
-    build: (r) => ({
-      prompt: r.prompt ?? "",
-      ...(firstImg(r) ? { start_image: firstImg(r) } : {}),
-      duration: durEnum(r.duration),
-      aspect_ratio: r.aspectRatio ?? "16:9",
-      ...(r.imageUrls?.[1] ? { end_image: r.imageUrls[1] } : {}),
-    }),
-  },
-  "veo-3-fast": {
-    slug: "google/veo-3-fast",
-    kind: "video",
-    cost: 0.4,
-    build: (r) => ({
-      prompt: r.prompt ?? "",
-      ...(firstImg(r) ? { image: firstImg(r) } : {}),
-      ...(r.aspectRatio ? { aspect_ratio: r.aspectRatio } : {}),
-    }),
-  },
-  "veo-3": {
-    slug: "google/veo-3",
-    kind: "video",
-    cost: 0.75,
-    build: (r) => ({
-      prompt: r.prompt ?? "",
-      ...(firstImg(r) ? { image: firstImg(r) } : {}),
-      ...(r.aspectRatio ? { aspect_ratio: r.aspectRatio } : {}),
-    }),
-  },
-  "sora-2": {
-    slug: "openai/sora-2",
-    kind: "video",
-    cost: 0.5,
-    build: (r) => ({
-      prompt: r.prompt ?? "",
-      ...(firstImg(r) ? { input_reference: firstImg(r) } : {}),
-    }),
-  },
+  "seedance-2.0":           { slug: "bytedance/seedance-1-pro",      kind: "video", cost: 0.65,
+    build: (r) => ({ prompt: r.prompt ?? "", ...(firstImg(r) ? { image: firstImg(r) } : {}), duration: durInt(r.duration) }) },
+  "seedance-2.0-fast":      { slug: "bytedance/seedance-1-lite",     kind: "video", cost: 0.05,
+    build: (r) => ({ prompt: r.prompt ?? "", ...(firstImg(r) ? { image: firstImg(r) } : {}), duration: durInt(r.duration) }) },
+  "wan-2.5":                { slug: "wan-video/wan-2.5-i2v",         kind: "video", cost: 0.45,
+    build: (r) => ({ prompt: r.prompt ?? "", ...(firstImg(r) ? { image: firstImg(r) } : {}), duration: durEnum(r.duration) }) },
+  "kling-3.0":              { slug: "kwaivgi/kling-v2.1",            kind: "video", cost: 0.60,
+    build: (r) => ({ prompt: r.prompt ?? "", ...(firstImg(r) ? { start_image: firstImg(r) } : {}), duration: durEnum(r.duration), ...(r.imageUrls?.[1] ? { end_image: r.imageUrls[1] } : {}) }) },
+  "kling-3.0-omni":         { slug: "kwaivgi/kling-v2.1-master",     kind: "video", cost: 0.70,
+    build: (r) => ({ prompt: r.prompt ?? "", ...(firstImg(r) ? { start_image: firstImg(r) } : {}), duration: durEnum(r.duration), ...(r.imageUrls?.[1] ? { end_image: r.imageUrls[1] } : {}) }) },
+  "veo-3-fast":             { slug: "google/veo-3-fast",             kind: "video", cost: 0.40,
+    build: (r) => ({ prompt: r.prompt ?? "", ...(firstImg(r) ? { image: firstImg(r) } : {}) }) },
+  "veo-3":                  { slug: "google/veo-3",                  kind: "video", cost: 0.75,
+    build: (r) => ({ prompt: r.prompt ?? "", ...(firstImg(r) ? { image: firstImg(r) } : {}) }) },
+  "sora-2":                 { slug: "openai/sora-2",                 kind: "video", cost: 0.50,
+    build: (r) => ({ prompt: r.prompt ?? "", ...(firstImg(r) ? { input_reference: firstImg(r) } : {}) }) },
   // ── lipsync (fallback after sync.so direct) ──
-  "fal-ai/sync-lipsync/v2": {
-    slug: "sync/lipsync-2",
-    kind: "lipsync",
-    cost: 0.3,
-    build: (r) => ({ video: r.videoUrl, audio: r.audioUrl }),
-  },
-  "fal-ai/wav2lip": {
-    slug: "devxpy/cog-wav2lip",
-    kind: "lipsync",
-    cost: 0.1,
-    build: (r) => ({ face: r.videoUrl, audio: r.audioUrl }),
-  },
-  // ── caption burn ──
-  // Converts the timed-segments array to SRT and submits to a Replicate
-  // subtitle-burn model. Used as fallback when no self-hosted GPU worker
-  // with "caption_burn" capability is online.
-  "zsxkib/add-subtitles-to-video": {
-    slug: "zsxkib/add-subtitles-to-video",
-    kind: "caption_burn",
-    cost: 0.02,
-    build: (r) => {
-      const toTs = (s: number) => {
-        const h = Math.floor(s / 3600);
-        const m = Math.floor((s % 3600) / 60);
-        const sec = Math.floor(s % 60);
-        const ms = Math.round((s % 1) * 1000);
-        return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(sec).padStart(2, "0")},${String(ms).padStart(3, "0")}`;
-      };
-      const srt = (r.segments ?? [])
-        .map((seg, i) => `${i + 1}\n${toTs(seg.start)} --> ${toTs(seg.end)}\n${seg.text}`)
-        .join("\n\n");
-      return {
-        video: r.videoUrl,
-        srt,
-        font_size: 24,
-        font_color: "white",
-        border: true,
-        border_color: "black",
-      };
-    },
-  },
+  "fal-ai/sync-lipsync/v2": { slug: "sync/lipsync-2",               kind: "lipsync", cost: 0.30,
+    build: (r) => ({ video: r.videoUrl, audio: r.audioUrl }) },
+  "fal-ai/wav2lip":         { slug: "devxpy/cog-wav2lip",          kind: "lipsync", cost: 0.10,
+    build: (r) => ({ face: r.videoUrl, audio: r.audioUrl }) },
 };
 
 const replicate: ProviderAdapter = {
@@ -1256,179 +561,17 @@ const replicate: ProviderAdapter = {
   supports: (r) => {
     if (!getReplicateKey()) return false;
     if (!r.model) return false;
-    // ⚠️  SUBSCRIPTION-ONLY: Seedance on Replicate is a paid provider.
-    // Must not serve free-tier requests even as a BytePlus fallback.
-    if (r.model.startsWith("seedance") && r.forSubscriber !== true) return false;
     const m = REPLICATE_MAP[r.model];
-    if (!m) return false;
-    // Seedance-only motion→video equivalence (mirrors the byteplus adapter):
-    // a pinned subscriber kind-"motion" request runs the same i2v build as
-    // video. Deliberately NARROW — widening this to every video mapping would
-    // silently change which adapter serves e.g. a "veo-2" motion candidate.
-    // !videoUrl: driving-video transfer stays self-hosted (see byteplus note).
-    if (r.kind === "motion" && r.model.startsWith("seedance"))
-      return !r.videoUrl && m.kind === "video";
-    return m.kind === r.kind;
+    return !!m && m.kind === r.kind;
   },
-  estimateCost: (r) => (r.model && REPLICATE_MAP[r.model]?.cost) || 0.1,
+  estimateCost: (r) => (r.model && REPLICATE_MAP[r.model]?.cost) || 0.10,
   async run(r) {
     const m = r.model ? REPLICATE_MAP[r.model] : null;
     if (!m) throw new Error(`No Replicate mapping for model: ${r.model}`);
     const input = m.build(r);
-    // Real progress (task #284): mine each poll's cumulative logs for a
-    // percent / step-counter marker and forward it to the in-process observer.
-    const result = await replicateRun(m.slug, input, 600_000, {
-      onPoll: (p) => {
-        const pct = replicateProgressPct(p.logs);
-        if (pct !== null) r.onProgress?.({ pct });
-      },
-    });
+    const result = await replicateRun(m.slug, input, 600_000);
     const url = pickReplicateUrl(result.output);
     return { url, endpoint: `replicate:${m.slug}` };
-  },
-};
-
-// ─── ByteDance direct (BytePlus / Volcano ModelArk) ──────────────────────────
-// Native provider for the Seed family. Maps our app model keys → the ModelArk
-// model ID. IDs are region/account-specific and ByteDance rotates the dated
-// suffix, so the whole table is overridable via a BYTEPLUS_MODEL_MAP JSON secret
-// (value = model-id string, or a { modelId, kind } object) — a stale slug is
-// fixed with a secret change, no code deploy. Defaults track the current
-// published Seed models. Preferred over Replicate/fal for these models when a
-// key is present; when it fails or the key is absent, the chain falls through to
-// Replicate/fal (explicit fallback, never a silent one).
-type BytePlusEntry = { modelId: string; kind: "image" | "video" };
-const BYTEPLUS_DEFAULTS: Record<string, BytePlusEntry> = {
-  "fal-ai/seedream-4": { modelId: "seedream-4-0-250828", kind: "image" },
-  // Confirmed live on the ModelArk catalog (2026-07-05): seedream-4-5-251128
-  // is the real Seedream 4.5 checkpoint — it used to alias seedream-4-0
-  // because 4.5 hadn't shipped yet. Now that it exists, route to it directly.
-  "fal-ai/seedream-4.5": { modelId: "seedream-4-5-251128", kind: "image" },
-  // Newest confirmed-live Seedream tier (2026-07-05 catalog pull, status
-  // absent = live, not "Retiring"/"Shutdown"). ByteDance-only for now — no
-  // verified Replicate/fal slug exists yet, so byteplus is the ONLY provider
-  // that supports this model key: with BYTEPLUS_API_KEY absent, `supports()`
-  // returns false and orchestrate() throws (no other adapter maps this key),
-  // it does not silently degrade to a different model.
-  // Screenshot-confirmed ModelArk model (ap-southeast):
-  // dola-seedream-5-0-pro-260628.
-  "fal-ai/seedream-5": { modelId: "dola-seedream-5-0-pro-260628", kind: "image" },
-  // seedance-1-0-pro-250528 (May 2025) was the original slug; the real
-  // ByteDance "Seedance 2.0" branded checkpoint is dreamina-seedance-2-0-260128
-  // (Jan 2026, confirmed present in the ModelArk catalog 2026-08-06 with
-  // status='' / live; returns ModelNotOpen until the account activates it).
-  "seedance-2.0": { modelId: "dreamina-seedance-2-0-260128", kind: "video" },
-  // The old seedance-1-0-lite-i2v/t2v (…-250428) family is fully retired on
-  // ModelArk (confirmed live: InvalidEndpointOrModel.NotFound, not just
-  // unactivated) — dreamina-seedance-2-0-fast-260128 is the current "fast"
-  // tier replacement (confirmed in catalog 2026-08-06, ModelNotOpen = slug
-  // correct, account activation pending).
-  // ⚠️ Pricing note (2026-08-10): ByteDance runs a campaign 2026-08-07 →
-  // 2026-09-07 discounting "Seedance 2.0 mini" (40% of list, ~$0.03/s @720p)
-  // and "Seedance 2.0 Lite" (75% of list, ~$0.089/s @720p). Full list for the
-  // Lite tier is ~$0.119/s ≈ $0.59 per 720p·5s — ABOVE the budget Aura pool
-  // ($0.47) that seedance-2.0-fast sits in today (its live route is Replicate
-  // seedance-1-lite at ~$0.05/clip). If this Ark slug is ever activated and
-  // becomes the serving route, retier seedance-2.0-fast to "standard" in
-  // pricing.ts FIRST — tier off FULL list price, never the promo rate.
-  "seedance-2.0-fast": { modelId: "dreamina-seedance-2-0-fast-260128", kind: "video" },
-  // Newest confirmed-live Seedance tier (2026-07-05 catalog pull). Same
-  // ByteDance-only caveat as seedream-5 above — no verified Replicate slug.
-  "seedance-3.0": { modelId: "seedance-1-5-pro-251215", kind: "video" },
-  // Seedance 2.5 (ByteDance release 2026-07-31). Slug confirmed REAL on
-  // ModelArk 2026-08-04 via live probe: the API returns ModelNotOpen
-  // ("Your account … has not activated the model — activate in the Ark
-  // Console"), NOT InvalidEndpointOrModel.NotFound (dead slug). Until the
-  // account activates it, byteplus.run() fails and orchestrate() falls
-  // through to the video fallback chain like any provider error. Unlike
-  // seedance-3.0, a REAL fal route now exists too (FAL_MAP "seedance-2.5",
-  // verified 2026-08-08) and fal sits before byteplus in the video chain —
-  // this Ark route is the cheaper fallback once activated.
-  "seedance-2.5": { modelId: "dreamina-seedance-2-5-260628", kind: "video" },
-};
-const BYTEPLUS_MAP: Record<string, BytePlusEntry> = (() => {
-  const out: Record<string, BytePlusEntry> = { ...BYTEPLUS_DEFAULTS };
-  const raw = process.env.BYTEPLUS_MODEL_MAP;
-  if (raw) {
-    try {
-      const parsed = JSON.parse(raw) as Record<string, string | Partial<BytePlusEntry>>;
-      for (const [k, v] of Object.entries(parsed)) {
-        if (typeof v === "string") {
-          const existing = out[k];
-          if (existing) out[k] = { ...existing, modelId: v };
-        } else if (
-          v &&
-          typeof v === "object" &&
-          typeof v.modelId === "string" &&
-          (v.kind === "image" || v.kind === "video")
-        ) {
-          out[k] = { modelId: v.modelId, kind: v.kind };
-        }
-      }
-    } catch {
-      // Malformed override → ignore and keep the published defaults.
-    }
-  }
-  return out;
-})();
-
-const byteplus: ProviderAdapter = {
-  name: "byteplus",
-  supports: (r) => {
-    if (!getBytePlusKey()) return false;
-    if (r.kind !== "image" && r.kind !== "video" && r.kind !== "motion") return false;
-    // ⚠️  SUBSCRIPTION-ONLY: Seedance video is a paid ByteDance provider.
-    // forSubscriber MUST be true for video/motion requests — free-tier users
-    // must never trigger Seedance charges. Image (Seedream) is unaffected.
-    if ((r.kind === "video" || r.kind === "motion") && r.forSubscriber !== true) return false;
-    if (!r.model) return false;
-    const m = BYTEPLUS_MAP[r.model];
-    if (!m) return false;
-    // Motion (animate-still i2v) rides the video mapping: a Seedance video
-    // checkpoint serves a kind-"motion" request as image+prompt i2v. Pinned-
-    // only by construction — BYTEPLUS_MAP gates on the explicit model key and
-    // no seedance key appears in FALLBACK_MODELS.motion. Driving-video motion
-    // TRANSFER is refused (!videoUrl): Seedance cannot consume a driving video,
-    // and silently discarding it would be a semantic downgrade — those requests
-    // stay on the self-hosted MimicMotion path.
-    if (r.kind === "motion") return !r.videoUrl && m.kind === "video";
-    return m.kind === r.kind;
-  },
-  // Bill the same provider cost as the Replicate route for the model so margins
-  // and logs stay consistent; direct is typically cheaper, so this is a safe
-  // upper bound.
-  estimateCost: (r) =>
-    (r.model && REPLICATE_MAP[r.model]?.cost) || (r.kind === "video" ? 0.3 : 0.03),
-  async run(r) {
-    const m = r.model ? BYTEPLUS_MAP[r.model] : null;
-    if (!m) throw new Error(`No BytePlus mapping for model: ${r.model}`);
-    if (m.kind === "image") {
-      // Map our canonical aspect-ratio token to the WxH size the BytePlus
-      // images/generations endpoint accepts (Seedream uses "NxN" not "16:9").
-      const aspectToSize: Record<string, string> = {
-        "1:1": "2048x2048",
-        "16:9": "2048x1152",
-        "9:16": "1152x2048",
-      };
-      const url = await bytePlusImage({
-        model: m.modelId,
-        prompt: r.prompt ?? "",
-        imageUrls: r.imageUrls,
-        ...(r.aspectRatio && aspectToSize[r.aspectRatio]
-          ? { size: aspectToSize[r.aspectRatio] }
-          : {}),
-      });
-      return { url, endpoint: `byteplus:${m.modelId}` };
-    }
-    const url = await bytePlusVideo({
-      model: m.modelId,
-      prompt: r.prompt,
-      imageUrls: r.imageUrls,
-      duration: r.duration,
-      resolution: r.resolution,
-      aspectRatio: r.aspectRatio,
-    });
-    return { url, endpoint: `byteplus:${m.modelId}` };
   },
 };
 
@@ -1439,1561 +582,184 @@ const sync: ProviderAdapter = {
   estimateCost: () => 0.25,
   async run(r) {
     if (!r.videoUrl || !r.audioUrl) throw new Error("sync: video+audio required");
-    const url = await syncLipsync({
-      videoUrl: r.videoUrl,
-      audioUrl: r.audioUrl,
-      model: "lipsync-2",
-    });
+    const url = await syncLipsync({ videoUrl: r.videoUrl, audioUrl: r.audioUrl, model: "lipsync-2" });
     return { url, endpoint: "sync:lipsync-2" };
   },
 };
 
-// ─── Text generation (free-first chain) ──────────────────────────────────────
-// A new `text` modality. Pollinations (no key, free) leads; keyed OpenAI-compatible
-// providers Aurora may already hold credentials for follow, cheapest first. Each
-// text model key maps to exactly one adapter, so model-level fallback walks the
-// chain provider-by-provider.
-type TextModelEntry = { adapter: ProviderAdapter["name"]; providerModel: string; cost: number };
-const TEXT_MODELS: Record<string, TextModelEntry> = {
-  "pollinations/openai": { adapter: "pollinations", providerModel: "openai", cost: 0 },
-  "groq/llama-3.3-70b": { adapter: "groq", providerModel: "llama-3.3-70b-versatile", cost: 0.001 },
-  "gemini/gemini-2.0-flash": {
-    adapter: "gemini-text",
-    providerModel: "gemini-2.0-flash",
-    cost: 0.001,
-  },
-  "mistral/mistral-small": {
-    adapter: "mistral",
-    providerModel: "mistral-small-latest",
-    cost: 0.001,
-  },
-  "openai/gpt-4o-mini": { adapter: "openai", providerModel: "gpt-4o-mini", cost: 0.002 },
-  "hf/llama-3.1-8b": {
-    adapter: "hf-text",
-    providerModel: "meta-llama/Llama-3.1-8B-Instruct",
-    cost: 0.001,
-  },
-  "lovable/gemini-2.5-flash": {
-    adapter: "lovable-text",
-    providerModel: "google/gemini-2.5-flash",
-    cost: 0.002,
-  },
-  // Anthropic direct (OpenAI-compat endpoint). Haiku for cheap fallback text,
-  // Sonnet as the premium pick in the model dropdown.
-  "anthropic/claude-haiku-4-5": {
-    adapter: "anthropic",
-    providerModel: "claude-haiku-4-5",
-    cost: 0.002,
-  },
-  "anthropic/claude-sonnet-4-5": {
-    adapter: "anthropic",
-    providerModel: "claude-sonnet-4-5",
-    cost: 0.006,
-  },
-  // Replit AI Integrations proxy (billed to the owner's Replit credits).
-  "replit/gpt-5-nano": { adapter: "replit-openai-text", providerModel: "gpt-5-nano", cost: 0.0005 },
-  "replit/gemini-2.5-flash": {
-    adapter: "replit-gemini-text",
-    providerModel: "gemini-2.5-flash",
-    cost: 0.0003,
-  },
+// ─── Hugging Face ────────────────────────────────────────────────────────────
+const HF_ENDPOINTS: Record<string, { endpoint: string; kind: GenerateKind; cost: number }> = {
+  "hf/flux-schnell": { endpoint: "black-forest-labs/FLUX.1-schnell", kind: "image", cost: 0.003 },
+  "hf/sdxl":         { endpoint: "stabilityai/stable-diffusion-xl-base-1.0", kind: "image", cost: 0.004 },
 };
-
-/** POST an OpenAI-compatible /chat/completions request and return the message text. */
-async function openAIChat(opts: {
-  url: string;
-  apiKey: string;
-  model: string;
-  prompt: string;
-  authStyle: "bearer" | "lovable";
-  imageUrls?: string[];
-}): Promise<string> {
-  const headers: Record<string, string> = { "Content-Type": "application/json" };
-  if (opts.authStyle === "lovable") headers["Lovable-API-Key"] = opts.apiKey;
-  else headers.Authorization = `Bearer ${opts.apiKey}`;
-  // Vision: only switch to the multimodal content-array shape when trusted image
-  // refs are supplied — text-only callers keep the plain-string content (no change).
-  const imgs = (opts.imageUrls ?? []).filter(isTrustedUrl);
-  const content =
-    imgs.length > 0
-      ? [
-          { type: "text", text: opts.prompt },
-          ...imgs.map((u) => ({ type: "image_url", image_url: { url: u } })),
-        ]
-      : opts.prompt;
-  const res = await fetch(opts.url, withTimeout({
-    method: "POST",
-    headers,
-    body: JSON.stringify({ model: opts.model, messages: [{ role: "user", content }] }),
-  }));
-  if (!res.ok) throw new Error(`${res.status}: ${(await res.text()).slice(0, 200)}`);
-  const j = await res.json();
-  const text: unknown = j?.choices?.[0]?.message?.content;
-  if (!text || typeof text !== "string") throw new Error("provider returned no text");
-  return text;
-}
-
-/** Build a keyed OpenAI-compatible text adapter (groq/mistral/openai/hf/lovable). */
-function makeTextAdapter(cfg: {
-  name: ProviderAdapter["name"];
-  envKey: string;
-  url: string;
-  authStyle: "bearer" | "lovable";
-}): ProviderAdapter {
-  return {
-    name: cfg.name,
-    supports: (r) =>
-      r.kind === "text" &&
-      !!process.env[cfg.envKey] &&
-      (r.model ? TEXT_MODELS[r.model]?.adapter === cfg.name : false),
-    estimateCost: (r) => (r.model ? TEXT_MODELS[r.model]?.cost : undefined) ?? 0.001,
-    async run(r) {
-      const m = r.model ? TEXT_MODELS[r.model] : null;
-      if (!m) throw new Error(`No text model mapping for "${r.model}"`);
-      const text = await openAIChat({
-        url: cfg.url,
-        apiKey: process.env[cfg.envKey]!,
-        model: m.providerModel,
-        prompt: r.prompt ?? "",
-        authStyle: cfg.authStyle,
-        imageUrls: r.imageUrls,
-      });
-      return { url: "", endpoint: `${cfg.name}:${m.providerModel}`, text };
-    },
-  };
-}
-
-const groqText = makeTextAdapter({
-  name: "groq",
-  envKey: "GROQ_API_KEY",
-  url: "https://api.groq.com/openai/v1/chat/completions",
-  authStyle: "bearer",
-});
-const mistralText = makeTextAdapter({
-  name: "mistral",
-  envKey: "MISTRAL_API_KEY",
-  url: "https://api.mistral.ai/v1/chat/completions",
-  authStyle: "bearer",
-});
-const openaiText = makeTextAdapter({
-  name: "openai",
-  envKey: "OPENAI_API_KEY",
-  url: "https://api.openai.com/v1/chat/completions",
-  authStyle: "bearer",
-});
-const hfText = makeTextAdapter({
-  name: "hf-text",
-  envKey: "HF_TOKEN",
-  url: "https://router.huggingface.co/v1/chat/completions",
-  authStyle: "bearer",
-});
-const lovableText = makeTextAdapter({
-  name: "lovable-text",
-  envKey: "LOVABLE_API_KEY",
-  url: "https://ai.gateway.lovable.dev/v1/chat/completions",
-  authStyle: "lovable",
-});
-// Anthropic's OpenAI-compatibility layer accepts a standard Bearer token on
-// /v1/chat/completions, so the shared keyed-adapter pattern applies directly.
-const anthropicText = makeTextAdapter({
-  name: "anthropic",
-  envKey: "ANTHROPIC_API_KEY",
-  url: "https://api.anthropic.com/v1/chat/completions",
-  authStyle: "bearer",
-});
-
-// Gemini uses its own generateContent API (not OpenAI-compatible).
-const geminiText: ProviderAdapter = {
-  name: "gemini-text",
-  supports: (r) =>
-    r.kind === "text" &&
-    !!process.env.GEMINI_API_KEY &&
-    (r.model ? TEXT_MODELS[r.model]?.adapter === "gemini-text" : false),
-  estimateCost: (r) => (r.model ? TEXT_MODELS[r.model]?.cost : undefined) ?? 0.001,
-  async run(r) {
-    const key = process.env.GEMINI_API_KEY!;
-    const m = r.model ? TEXT_MODELS[r.model] : null;
-    const model = m?.providerModel ?? "gemini-2.0-flash";
-    // Vision: inline any trusted image refs so the model can analyze them.
-    const parts: Array<Record<string, unknown>> = [{ text: r.prompt ?? "" }];
-    for (const url of r.imageUrls ?? []) {
-      if (!isTrustedUrl(url)) continue; // SSRF guard: skip untrusted ref hosts
-      try {
-        const resp = await fetch(url, withTimeout({}, PROVIDER_REF_FETCH_TIMEOUT_MS));
-        if (!resp.ok) continue;
-        const mime = resp.headers.get("content-type") || "image/jpeg";
-        const buf = Buffer.from(await resp.arrayBuffer());
-        parts.push({ inline_data: { mime_type: mime, data: buf.toString("base64") } });
-      } catch {
-        /* skip unreachable ref */
-      }
-    }
-    const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`,
-      withTimeout({
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ contents: [{ parts }] }),
-      }),
-    );
-    if (!res.ok) throw new Error(`Gemini text ${res.status}: ${(await res.text()).slice(0, 200)}`);
-    const j = await res.json();
-    const respParts: Array<{ text?: string }> = j?.candidates?.[0]?.content?.parts ?? [];
-    const text = respParts
-      .map((p) => p.text)
-      .filter(Boolean)
-      .join("");
-    if (!text) throw new Error("Gemini text returned empty");
-    return { url: "", endpoint: `gemini-text:${model}`, text };
-  },
-};
-
-// ─── Free image providers ────────────────────────────────────────────────────
-// Pollinations (no key, free) and Runware (keyed, cheap) handle unclaimed image
-// model keys. Both upload bytes to the studio bucket so results live where
-// every other provider's results do.
-type FreeImageEntry = { adapter: "pollinations" | "runware"; model: string; cost: number };
-const FREE_IMAGE_MODELS: Record<string, FreeImageEntry> = {
-  "pollinations/flux": { adapter: "pollinations", model: "flux", cost: 0 },
-  "runware/flux-schnell": { adapter: "runware", model: "runware:100@1", cost: 0.0006 },
-};
-
-async function uploadBytesToStudio(
-  userId: string | null | undefined,
-  folder: string,
-  bytes: Uint8Array,
-  contentType: string,
-  ext: string,
-): Promise<string> {
-  const path = `${userId ?? "system"}/${folder}/${crypto.randomUUID()}.${ext}`;
-  const { error } = await supabaseAdmin.storage
-    .from("studio")
-    .upload(path, bytes, { contentType, upsert: false });
-  if (error) throw new Error(`${folder} upload failed: ${error.message}`);
-  const { data } = supabaseAdmin.storage.from("studio").getPublicUrl(path);
-  return data.publicUrl;
-}
-
-const pollinations: ProviderAdapter = {
-  name: "pollinations",
+const huggingface: ProviderAdapter = {
+  name: "huggingface",
   supports: (r) => {
-    if (r.kind === "text")
-      return r.model ? TEXT_MODELS[r.model]?.adapter === "pollinations" : false;
-    if (r.kind === "image")
-      return r.model ? FREE_IMAGE_MODELS[r.model]?.adapter === "pollinations" : false;
-    return false;
+    if (!process.env.HF_TOKEN) return false;
+    if (!r.model) return false;
+    const m = HF_ENDPOINTS[r.model];
+    return !!m && m.kind === r.kind;
   },
-  estimateCost: () => 0,
+  estimateCost: (r) => (r.model && HF_ENDPOINTS[r.model]?.cost) || 0.005,
   async run(r) {
-    if (r.kind === "text") {
-      const m = r.model ? TEXT_MODELS[r.model] : null;
-      const model = m?.providerModel ?? "openai";
-      const res = await fetch(
-        `https://text.pollinations.ai/${encodeURIComponent(r.prompt ?? "")}?model=${encodeURIComponent(model)}`,
-        withTimeout(),
-      );
-      if (!res.ok)
-        throw new Error(`Pollinations text ${res.status}: ${(await res.text()).slice(0, 150)}`);
-      const text = await res.text();
-      if (!text) throw new Error("Pollinations returned empty text");
-      return { url: "", endpoint: `pollinations:${model}`, text };
-    }
-    const m = r.model ? FREE_IMAGE_MODELS[r.model] : null;
-    const model = m?.model ?? "flux";
-    const u = new URL(`https://image.pollinations.ai/prompt/${encodeURIComponent(r.prompt ?? "")}`);
-    u.searchParams.set("width", "1024");
-    u.searchParams.set("height", "1024");
-    u.searchParams.set("model", model);
-    u.searchParams.set("nologo", "true");
-    const res = await fetch(u.toString(), withTimeout());
-    if (!res.ok)
-      throw new Error(`Pollinations image ${res.status}: ${(await res.text()).slice(0, 150)}`);
-    const contentType = res.headers.get("content-type") || "image/jpeg";
-    const bytes = new Uint8Array(await res.arrayBuffer());
-    const url = await uploadBytesToStudio(
-      r.userId,
-      "pollinations",
-      bytes,
-      contentType,
-      contentType.split("/")[1] || "jpg",
-    );
-    return { url, endpoint: `pollinations:${model}` };
+    const m = r.model ? HF_ENDPOINTS[r.model] : null;
+    if (!m) throw new Error(`Unsupported HF model: ${r.model}`);
+    const { bytes, contentType } = await hfTextToImage(m.endpoint, r.prompt ?? "");
+    const ext = contentType.split("/")[1] || "png";
+    const path = `${r.userId ?? "system"}/hf/${crypto.randomUUID()}.${ext}`;
+    const { error } = await supabaseAdmin.storage
+      .from("studio")
+      .upload(path, new Uint8Array(bytes), { contentType, upsert: false });
+    if (error) throw new Error(`HF upload failed: ${error.message}`);
+    const { data } = supabaseAdmin.storage.from("studio").getPublicUrl(path);
+    return { url: data.publicUrl, endpoint: m.endpoint };
   },
 };
 
-const runware: ProviderAdapter = {
-  name: "runware",
-  supports: (r) =>
-    r.kind === "image" &&
-    !!process.env.RUNWARE_API_KEY &&
-    (r.model ? FREE_IMAGE_MODELS[r.model]?.adapter === "runware" : false),
-  estimateCost: (r) => (r.model ? FREE_IMAGE_MODELS[r.model]?.cost : undefined) ?? 0.001,
-  async run(r) {
-    const key = process.env.RUNWARE_API_KEY!;
-    const m = r.model ? FREE_IMAGE_MODELS[r.model] : null;
-    // Map aspect ratio to pixel dimensions; Runware uses explicit width/height.
-    const runwareDims: Record<string, { width: number; height: number }> = {
-      "1:1": { width: 1024, height: 1024 },
-      "16:9": { width: 1344, height: 768 },
-      "9:16": { width: 768, height: 1344 },
-    };
-    const dims = (r.aspectRatio ? runwareDims[r.aspectRatio] : undefined) ?? { width: 1024, height: 1024 };
-    const body = [
-      {
-        taskType: "imageInference",
-        taskUUID: crypto.randomUUID(),
-        positivePrompt: r.prompt ?? "",
-        model: m?.model ?? "runware:100@1",
-        width: dims.width,
-        height: dims.height,
-        numberResults: 1,
-      },
-    ];
-    const res = await fetch("https://api.runware.ai/v1", withTimeout({
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
-      body: JSON.stringify(body),
-    }));
-    if (!res.ok) throw new Error(`Runware ${res.status}: ${(await res.text()).slice(0, 200)}`);
-    const j = await res.json();
-    const url: unknown = j?.data?.[0]?.imageURL ?? j?.data?.[0]?.imageUrl;
-    if (!url || typeof url !== "string") throw new Error("Runware returned no image");
-    return { url, endpoint: `runware:${m?.model ?? "runware:100@1"}` };
-  },
-};
-
-// ─── inference.sh cloud (managed GPU apps) ───────────────────────────────────
-// Uses INFERENCE_SH_API_KEY from env to call inference.sh's cloud apps API
-// directly — no registered GPU worker row needed. Image defaults to the
-// built-in "infsh/flux" app; other tasks (video, lipsync, motion) require an
-// explicit INFERENCE_SH_APP_<TASK> env var to be mapped.
-//
-// Position in PRIORITY: after provider-specific adapters (replicate/byteplus/fal
-// model-gated), before last-resort lovable/falFallback. inference.sh is
-// keyed, so it's never a silent no-op: if the key is absent supports() → false
-// and the chain falls through cleanly.
-const INFERENCE_SH_BASE = process.env.INFERENCE_SH_BASE_URL ?? "https://api.inference.sh";
-
-// Map GenerateKind → inference-layer TaskType (the key sent to inference.sh).
-const ISH_KIND_TASK: Partial<Record<GenerateKind, TaskType>> = {
-  image: "image",
-  video: "video",
-  lipsync: "lipsync",
-  motion: "motion",
-  audio: "tts",
-};
-
-// inference.sh sentinel model keys — used in FALLBACK_MODELS and supports() to
-// prevent inferenceshCloud from hijacking requests explicitly pinned to another
-// provider (e.g. xai/grok-imagine-video-1.5). A request without any model key
-// (unpinned) is also routed here when the app is configured.
-const INFERENCE_SH_MODEL_KEYS = new Set([
-  "inferencesh/veo-3-1-fast",
-  "inferencesh/motion",
-  "inferencesh/lipsync",
-  "inferencesh/tts",
-]);
-
-const inferenceshCloud: ProviderAdapter = {
-  name: "inferencesh",
-  supports(r) {
-    if (!process.env.INFERENCE_SH_API_KEY) return false;
-    const task = ISH_KIND_TASK[r.kind];
-    if (!task) return false;
-    // Image always has the built-in infsh/flux default app — no extra env var.
-    // For image: support any unkeyed request or an explicit inferencesh/ key.
-    if (task === "image") {
-      return !r.model || INFERENCE_SH_MODEL_KEYS.has(r.model) || r.model.startsWith("inferencesh/");
-    }
-    // For video/motion/lipsync/tts: only run when the model is an inferencesh/
-    // sentinel OR unpinned, so we never intercept requests pinned to xAI/Gemini/etc.
-    if (r.model && !INFERENCE_SH_MODEL_KEYS.has(r.model) && !r.model.startsWith("inferencesh/")) {
-      return false;
-    }
-    // Every non-image task must have an explicit app mapped, or we'd throw at run time.
-    return !!resolveInferenceShApp(task, process.env);
-  },
-  estimateCost(r) {
-    if (r.kind === "video")   return 0.15;
-    if (r.kind === "lipsync") return 0.20;
-    if (r.kind === "motion")  return 0.20;
-    return 0.005; // infsh/flux image (~flux-schnell tier)
-  },
-  async run(r) {
-    const token = process.env.INFERENCE_SH_API_KEY;
-    if (!token) throw new Error("inference.sh: INFERENCE_SH_API_KEY not set");
-    const task = ISH_KIND_TASK[r.kind];
-    if (!task) throw new Error(`inference.sh: unsupported kind "${r.kind}"`);
-    const app = resolveInferenceShApp(task, process.env);
-    if (!app) {
-      throw new Error(
-        `inference.sh: no app mapped for task "${task}" — set INFERENCE_SH_APP_${task.toUpperCase()}`,
-      );
-    }
-    const job = toInferenceInput(r);
-    const { setup, ...params } = (job.params ?? {}) as Record<string, unknown>;
-    const result = await runInferenceShTask({
-      baseUrl: INFERENCE_SH_BASE,
-      token,
-      app,
-      input: inferenceShInput({ ...job, params }),
-      setup:
-        setup && typeof setup === "object" && !Array.isArray(setup)
-          ? (setup as Record<string, unknown>)
-          : undefined,
-    });
-    const url = extractOutputUrl(result.output) ?? extractOutputUrl(result);
-    if (!url) throw new Error("inference.sh: response missing an output URL");
-    return { url, endpoint: `inferencesh:${app}` };
-  },
-};
-
-// ─── Runway video (official REST, image-to-video) ────────────────────────────
-const RUNWAY_MODELS: Record<string, { model: string; cost: number }> = {
-  "runway/gen4-turbo": { model: "gen4_turbo", cost: 0.5 },
-  "runway/gen3a-turbo": { model: "gen3a_turbo", cost: 0.4 },
-};
-const runway: ProviderAdapter = {
-  name: "runway",
-  supports: (r) =>
-    r.kind === "video" &&
-    !!process.env.RUNWAY_API_KEY &&
-    (r.model ? !!RUNWAY_MODELS[r.model] : false),
-  estimateCost: (r) => (r.model ? RUNWAY_MODELS[r.model]?.cost : undefined) ?? 0.5,
-  async run(r) {
-    const key = process.env.RUNWAY_API_KEY!;
-    const m = r.model ? RUNWAY_MODELS[r.model] : null;
-    const img = firstImg(r);
-    if (!img) throw new Error("Runway requires a start image (image-to-video)");
-    const headers = {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${key}`,
-      "X-Runway-Version": "2024-11-06",
-    };
-    const create = await fetch("https://api.dev.runwayml.com/v1/image_to_video", withTimeout({
-      method: "POST",
-      headers,
-      body: JSON.stringify({
-        model: m?.model ?? "gen4_turbo",
-        promptImage: img,
-        promptText: r.prompt ?? "",
-        duration: r.duration ?? 5,
-        // Runway accepts "WxH" ratio strings. Map our 3 supported ratios;
-        // default to landscape 1280:720 for any unrecognised value.
-        ratio: r.aspectRatio === "9:16" ? "720:1280" : r.aspectRatio === "1:1" ? "1080:1080" : "1280:720",
-      }),
-    }));
-    if (!create.ok)
-      throw new Error(`Runway ${create.status}: ${(await create.text()).slice(0, 200)}`);
-    const cj = await create.json();
-    const id = cj?.id;
-    if (!id) throw new Error("Runway returned no task id");
-    const deadline = Date.now() + 10 * 60_000;
-    while (Date.now() < deadline) {
-      await new Promise((s) => setTimeout(s, 6000));
-      const st = await fetch(`https://api.dev.runwayml.com/v1/tasks/${id}`, withTimeout({ headers }, PROVIDER_POLL_TIMEOUT_MS));
-      if (!st.ok) continue;
-      const sj = await st.json();
-      const status = sj?.status;
-      if (status === "SUCCEEDED") {
-        const url = Array.isArray(sj?.output) ? sj.output[0] : undefined;
-        if (!url) throw new Error("Runway: no output url");
-        return { url, endpoint: `runway:${m?.model ?? "gen4_turbo"}` };
-      }
-      if (status === "FAILED")
-        throw new Error(
-          `Runway failed: ${String(sj?.failure ?? sj?.failureCode ?? "unknown").slice(0, 200)}`,
-        );
-    }
-    throw new Error("Runway poll timeout");
-  },
-};
-
-// ─── ElevenLabs (TTS / audio) ────────────────────────────────────────────────
-const elevenlabs: ProviderAdapter = {
-  name: "elevenlabs",
-  supports: (r) => r.kind === "audio" && !!process.env.ELEVENLABS_API_KEY,
-  estimateCost: () => 0.01,
-  async run(r) {
-    const key = process.env.ELEVENLABS_API_KEY!;
-    const voiceId =
-      (typeof r.params?.voiceId === "string" && r.params.voiceId) || "21m00Tcm4TlvDq8ikWAM";
-    const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, withTimeout({
-      method: "POST",
-      headers: { "Content-Type": "application/json", "xi-api-key": key },
-      body: JSON.stringify({ text: r.prompt ?? "", model_id: "eleven_multilingual_v2" }),
-    }));
-    if (!res.ok) throw new Error(`ElevenLabs ${res.status}: ${(await res.text()).slice(0, 200)}`);
-    const bytes = new Uint8Array(await res.arrayBuffer());
-    const url = await uploadBytesToStudio(r.userId, "tts", bytes, "audio/mpeg", "mp3");
-    return { url, endpoint: `elevenlabs:${voiceId}` };
-  },
-};
-
-// ─── Replit AI Integrations (billed to the owner's Replit credits) ──────────
-// FIRST choice for image/text/audio — no API keys needed, the proxy bills the
-// owner's Replit credits directly. Adapters report unavailable (supports()
-// returns false) whenever their env vars are missing so the chain falls
-// through cleanly to the GPU pool and then the rest of the existing chain.
-// Env vars are auto-provisioned by the Replit AI Integrations setup:
-//   AI_INTEGRATIONS_OPENAI_BASE_URL / AI_INTEGRATIONS_OPENAI_API_KEY
-//   AI_INTEGRATIONS_GEMINI_BASE_URL / AI_INTEGRATIONS_GEMINI_API_KEY
-// Not cached as module-level singletons: the OpenAI SDK resolves `fetch` once
-// at construction time (`options.fetch ?? getDefaultFetch()`), so a cached
-// client would freeze a stale `globalThis.fetch` reference across requests
-// (this bit us in tests — see orchestrator.replit-priority.test.ts). Client
-// construction is a cheap in-memory object, not a network call, so building
-// one per request is free.
-// maxRetries: 0 + an explicit timeout on both clients: orchestrate() already
-// wraps every adapter in withRetry(fn, 2) and circuit-breaks on failure, so the
-// SDK's own retry loop must stay off or a persistently failing proxy call can
-// fire far more billed HTTP attempts than intended (and GoogleGenAI has no
-// default timeout at all, which could otherwise stall a request for minutes
-// before falling through to the GPU/external chain).
-function getReplitOpenAI(): OpenAI {
-  return new OpenAI({
-    apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
-    baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
-    maxRetries: 0,
-    timeout: 60_000,
-  });
-}
-export function getReplitGemini(): GoogleGenAI {
-  return new GoogleGenAI({
-    apiKey: process.env.AI_INTEGRATIONS_GEMINI_API_KEY,
-    httpOptions: {
-      apiVersion: "",
-      baseUrl: process.env.AI_INTEGRATIONS_GEMINI_BASE_URL,
-      timeout: 60_000,
-    },
-  });
-}
-
-// Image: gemini-2.5-flash-image (nano banana) is the cheap default; gpt-image-1
-// is registered as a pinnable alternate. Each model key maps to exactly one
-// adapter, mirroring the FREE_IMAGE_MODELS / TEXT_MODELS pattern.
-type ReplitImageEntry = {
-  adapter: "replit-gemini-image" | "replit-openai-image";
-  model: string;
-  cost: number;
-};
-const REPLIT_IMAGE_MODELS: Record<string, ReplitImageEntry> = {
-  "replit/gemini-2.5-flash-image": {
-    adapter: "replit-gemini-image",
-    model: "gemini-2.5-flash-image",
-    cost: 0.002,
-  },
-  "replit/gpt-image-1": { adapter: "replit-openai-image", model: "gpt-image-1", cost: 0.02 },
-};
-
-const replitGeminiImage: ProviderAdapter = {
-  name: "replit-gemini-image",
-  supports: (r) =>
-    r.kind === "image" &&
-    !!process.env.AI_INTEGRATIONS_GEMINI_BASE_URL &&
-    !!process.env.AI_INTEGRATIONS_GEMINI_API_KEY &&
-    (r.model ? REPLIT_IMAGE_MODELS[r.model]?.adapter === "replit-gemini-image" : false),
-  estimateCost: (r) => (r.model ? REPLIT_IMAGE_MODELS[r.model]?.cost : undefined) ?? 0.002,
-  async run(r) {
-    const ai = getReplitGemini();
-    const m = r.model ? REPLIT_IMAGE_MODELS[r.model] : null;
-    const model = m?.model ?? "gemini-2.5-flash-image";
-    const parts: Array<Record<string, unknown>> = [{ text: r.prompt ?? "" }];
-    for (const url of r.imageUrls ?? []) {
-      if (!isTrustedUrl(url)) continue; // SSRF guard: skip untrusted ref hosts
-      try {
-        const fetched = await fetch(url, withTimeout({}, PROVIDER_REF_FETCH_TIMEOUT_MS));
-        if (!fetched.ok) continue;
-        const buf = Buffer.from(await fetched.arrayBuffer());
-        const mime = fetched.headers.get("content-type") || "image/png";
-        parts.push({ inlineData: { mimeType: mime, data: buf.toString("base64") } });
-      } catch {
-        /* skip bad ref */
-      }
-    }
-    const response = await ai.models.generateContent({
-      model,
-      contents: [{ role: "user", parts }],
-      config: { responseModalities: [Modality.TEXT, Modality.IMAGE] },
-    });
-    const candidate = response.candidates?.[0];
-    const imagePart = candidate?.content?.parts?.find(
-      (p: { inlineData?: { data?: string; mimeType?: string } }) => p.inlineData,
-    );
-    const inline = imagePart?.inlineData;
-    if (!inline?.data) throw new Error("Replit Gemini image: no image data in response");
-    const mime = inline.mimeType || "image/png";
-    const ext = mime.split("/")[1] || "png";
-    const url = await uploadBytesToStudio(
-      r.userId,
-      "replit-gemini",
-      Buffer.from(inline.data, "base64"),
-      mime,
-      ext,
-    );
-    return { url, endpoint: `replit-gemini-image:${model}` };
-  },
-};
-
-const replitOpenAIImage: ProviderAdapter = {
-  name: "replit-openai-image",
-  // gpt-image-1 via images.generate has no reference-image input — fall through
-  // to the next candidate rather than silently dropping the user's reference.
-  supports: (r) =>
-    r.kind === "image" &&
-    !r.imageUrls?.length &&
-    !!process.env.AI_INTEGRATIONS_OPENAI_BASE_URL &&
-    !!process.env.AI_INTEGRATIONS_OPENAI_API_KEY &&
-    (r.model ? REPLIT_IMAGE_MODELS[r.model]?.adapter === "replit-openai-image" : false),
-  estimateCost: (r) => (r.model ? REPLIT_IMAGE_MODELS[r.model]?.cost : undefined) ?? 0.02,
-  async run(r) {
-    const client = getReplitOpenAI();
-    const m = r.model ? REPLIT_IMAGE_MODELS[r.model] : null;
-    const model = m?.model ?? "gpt-image-1";
-    const response = await client.images.generate({
-      model,
-      prompt: r.prompt ?? "",
-      size: "1024x1024",
-    });
-    const b64 = response.data?.[0]?.b64_json;
-    if (!b64) throw new Error("Replit OpenAI image: no image data in response");
-    const url = await uploadBytesToStudio(
-      r.userId,
-      "replit-openai",
-      Buffer.from(b64, "base64"),
-      "image/png",
-      "png",
-    );
-    return { url, endpoint: `replit-openai-image:${model}` };
-  },
-};
-
-// Text: gpt-5-nano is the cheap/fast default; gemini-2.5-flash is the second
-// Replit-billed hop before the chain falls through to the GPU pool.
-const replitOpenAIText: ProviderAdapter = {
-  name: "replit-openai-text",
-  supports: (r) =>
-    r.kind === "text" &&
-    !!process.env.AI_INTEGRATIONS_OPENAI_BASE_URL &&
-    !!process.env.AI_INTEGRATIONS_OPENAI_API_KEY &&
-    (r.model ? TEXT_MODELS[r.model]?.adapter === "replit-openai-text" : false),
-  estimateCost: (r) => (r.model ? TEXT_MODELS[r.model]?.cost : undefined) ?? 0.0005,
-  async run(r) {
-    const client = getReplitOpenAI();
-    const m = r.model ? TEXT_MODELS[r.model] : null;
-    const model = m?.providerModel ?? "gpt-5-nano";
-    // Vision: only switch to the multimodal content-array shape when trusted
-    // image refs are supplied — text-only callers keep the plain-string content.
-    const imgs = (r.imageUrls ?? []).filter(isTrustedUrl);
-    const content =
-      imgs.length > 0
-        ? [
-            { type: "text" as const, text: r.prompt ?? "" },
-            ...imgs.map((u) => ({ type: "image_url" as const, image_url: { url: u } })),
-          ]
-        : (r.prompt ?? "");
-    const response = await client.chat.completions.create({
-      model,
-      messages: [{ role: "user", content: content as never }],
-    });
-    const text = response.choices?.[0]?.message?.content;
-    if (!text || typeof text !== "string")
-      throw new Error("Replit OpenAI text: provider returned no text");
-    return { url: "", endpoint: `replit-openai-text:${model}`, text };
-  },
-};
-
-const replitGeminiText: ProviderAdapter = {
-  name: "replit-gemini-text",
-  supports: (r) =>
-    r.kind === "text" &&
-    !!process.env.AI_INTEGRATIONS_GEMINI_BASE_URL &&
-    !!process.env.AI_INTEGRATIONS_GEMINI_API_KEY &&
-    (r.model ? TEXT_MODELS[r.model]?.adapter === "replit-gemini-text" : false),
-  estimateCost: (r) => (r.model ? TEXT_MODELS[r.model]?.cost : undefined) ?? 0.0003,
-  async run(r) {
-    const ai = getReplitGemini();
-    const m = r.model ? TEXT_MODELS[r.model] : null;
-    const model = m?.providerModel ?? "gemini-2.5-flash";
-    const parts: Array<Record<string, unknown>> = [{ text: r.prompt ?? "" }];
-    for (const url of r.imageUrls ?? []) {
-      if (!isTrustedUrl(url)) continue; // SSRF guard: skip untrusted ref hosts
-      try {
-        const resp = await fetch(url, withTimeout({}, PROVIDER_REF_FETCH_TIMEOUT_MS));
-        if (!resp.ok) continue;
-        const mime = resp.headers.get("content-type") || "image/jpeg";
-        const buf = Buffer.from(await resp.arrayBuffer());
-        parts.push({ inlineData: { mimeType: mime, data: buf.toString("base64") } });
-      } catch {
-        /* skip bad ref */
-      }
-    }
-    const response = await ai.models.generateContent({
-      model,
-      contents: [{ role: "user", parts }],
-    });
-    const respParts: Array<{ text?: string }> = response.candidates?.[0]?.content?.parts ?? [];
-    const text = respParts
-      .map((p) => p.text)
-      .filter(Boolean)
-      .join("");
-    if (!text) throw new Error("Replit Gemini text: returned empty");
-    return { url: "", endpoint: `replit-gemini-text:${model}`, text };
-  },
-};
-
-// Audio (TTS): only OpenAI's gpt-audio family is exposed on the proxy — Gemini
-// does not support audio generation output.
-type ReplitAudioEntry = { adapter: "replit-openai-audio"; model: string; cost: number };
-const REPLIT_AUDIO_MODELS: Record<string, ReplitAudioEntry> = {
-  "replit/gpt-audio-mini": { adapter: "replit-openai-audio", model: "gpt-audio-mini", cost: 0.015 },
-};
-const OPENAI_TTS_VOICES = new Set(["alloy", "echo", "fable", "onyx", "nova", "shimmer"]);
-const replitOpenAIAudio: ProviderAdapter = {
-  name: "replit-openai-audio",
-  supports: (r) =>
-    r.kind === "audio" &&
-    !!process.env.AI_INTEGRATIONS_OPENAI_BASE_URL &&
-    !!process.env.AI_INTEGRATIONS_OPENAI_API_KEY &&
-    (r.model ? REPLIT_AUDIO_MODELS[r.model]?.adapter === "replit-openai-audio" : false),
-  estimateCost: (r) => (r.model ? REPLIT_AUDIO_MODELS[r.model]?.cost : undefined) ?? 0.015,
-  async run(r) {
-    const client = getReplitOpenAI();
-    const m = r.model ? REPLIT_AUDIO_MODELS[r.model] : null;
-    const model = m?.model ?? "gpt-audio-mini";
-    const requested = typeof r.params?.voiceId === "string" ? r.params.voiceId : undefined;
-    const voice = (requested && OPENAI_TTS_VOICES.has(requested) ? requested : "alloy") as
-      | "alloy"
-      | "echo"
-      | "fable"
-      | "onyx"
-      | "nova"
-      | "shimmer";
-    const response = await client.chat.completions.create({
-      model,
-      modalities: ["text", "audio"],
-      audio: { voice, format: "mp3" },
-      messages: [
-        { role: "system", content: "You are an assistant that performs text-to-speech." },
-        { role: "user", content: `Repeat the following text verbatim: ${r.prompt ?? ""}` },
-      ],
-    });
-    const message = response.choices?.[0]?.message as unknown as {
-      audio?: { data?: string };
-    };
-    const audioData = message?.audio?.data;
-    if (!audioData) throw new Error("Replit OpenAI audio: no audio data in response");
-    const bytes = Buffer.from(audioData, "base64");
-    const url = await uploadBytesToStudio(r.userId, "replit-tts", bytes, "audio/mpeg", "mp3");
-    return { url, endpoint: `replit-openai-audio:${model}` };
-  },
-};
-
-// Admin-registered HTTP workers (RunPod / vast / salad / self-hosted). Each row
-// declares the request contract it speaks via `protocol`:
-//   custom  → POST {endpoint}/generate  with a flat body, returns { url } | { output_url }
-//   vast    → same flat /generate contract as custom (a Vast.ai box runs your server)
-//   runpod  → RunPod serverless: POST {endpoint}/run (async, poll GET /status/{id})
-//             or POST {endpoint}/runsync (when runpod_sync), body wrapped as { input }
-//   comfyui → POST {endpoint}/prompt with a ComfyUI graph, poll /history, /view the asset
-//   hfspace → call the Space's Gradio predict fn over the /gradio_api SSE flow
-//   inferencesh → run a mapped inference.sh app: POST {endpoint}/run, poll GET /tasks/{id}
-// Routing stays capability-based; `protocol` only changes HOW a worker is called,
-// so legacy /generate workers and the provider failover chain keep working.
-const WORKER_TIMEOUT_MS = 300_000;
-const RUNPOD_POLL_MS = 2_500;
-const RUNPOD_DONE = "COMPLETED";
-const RUNPOD_FAILED = new Set(["FAILED", "CANCELLED", "TIMED_OUT"]);
-
-export type WorkerRow = {
-  id: string;
-  name: string;
-  endpoint_url: string;
-  auth_token: string | null;
-  in_flight: number;
-  max_concurrency: number;
-  protocol: string;
-  runpod_sync: boolean;
-};
-
-// Robustly pull an output URL out of whatever shape a worker returns: a bare
-// string, an array, { url }/{ output_url }/{ image_url }/… , or nested under
-// output/result/data/images/etc. (RunPod handlers wrap results under `output`).
-export function extractWorkerUrl(payload: unknown, depth = 0): string | undefined {
-  if (payload == null || depth > 6) return undefined;
-  if (typeof payload === "string") return payload.startsWith("http") ? payload : undefined;
-  if (Array.isArray(payload)) {
-    for (const item of payload) {
-      const u = extractWorkerUrl(item, depth + 1);
-      if (u) return u;
-    }
-    return undefined;
-  }
-  if (typeof payload === "object") {
-    const o = payload as Record<string, unknown>;
-    for (const k of [
-      "url",
-      "output_url",
-      "image_url",
-      "video_url",
-      "audio_url",
-      "result_url",
-      "signed_url",
-      "delivery_url",
-      "uri",
-    ]) {
-      const v = o[k];
-      if (typeof v === "string" && v.startsWith("http")) return v;
-    }
-    for (const k of [
-      "output",
-      "result",
-      "data",
-      "response",
-      "image",
-      "video",
-      "images",
-      "videos",
-      "outputs",
-      "assets",
-    ]) {
-      if (k in o) {
-        const u = extractWorkerUrl(o[k], depth + 1);
-        if (u) return u;
-      }
-    }
-  }
-  return undefined;
-}
-
-const STALE_MS = 5 * 60_000; // 5 minutes
-
-// Flat job params shared by both contracts (runpod wraps these under `input`).
-function workerInput(r: GenerateRequest): Record<string, unknown> {
-  return {
-    kind: r.kind,
-    prompt: r.prompt,
-    // Queue-backed dispatches carry the jobs row id as refId; putting it on
-    // the wire lets the worker POST real progress back to
-    // /api/public/workers/progress (task #284). Sync-path refIds that aren't
-    // jobs rows are harmless — the progress write is fenced and no-ops.
-    ...(r.refId ? { job_id: r.refId } : {}),
-    image_urls: r.imageUrls,
-    audio_url: r.audioUrl,
-    video_url: r.videoUrl,
-    model: r.model,
-    duration: r.duration,
-    resolution: r.resolution,
-    // Structured camera-movement preset (e.g. push_in, orbit_cw) so self-hosted
-    // flat-contract workers can drive their own motion knobs, not just the
-    // prompt-text hint applied for hosted providers.
-    ...(r.cameraMovement ? { camera_movement: r.cameraMovement } : {}),
-    ...(r.segments ? { segments: r.segments } : {}),
-    ...(r.params ? { params: r.params } : {}),
-    ...(r.comfyWorkflow ? { workflow: r.comfyWorkflow } : {}),
-    ...(r.comfyInputs ? { workflow_inputs: r.comfyInputs } : {}),
-  };
-}
-
-// custom contract: flat POST /generate (legacy behaviour, unchanged on the wire).
-export async function dispatchCustom(
-  base: string,
-  w: WorkerRow,
-  r: GenerateRequest,
-  deadline: number,
-): Promise<unknown> {
-  const res = await fetch(`${base}/generate`, {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      ...(w.auth_token ? { authorization: `Bearer ${w.auth_token}` } : {}),
-    },
-    body: JSON.stringify(workerInput(r)),
-    signal: AbortSignal.timeout(Math.max(1_000, deadline - Date.now())),
-  });
-  if (!res.ok) throw new Error(`worker ${w.name} -> ${res.status}`);
-  return res.json();
-}
-
-// runpod contract: { input } to /runsync (sync) or /run + poll /status/{id} (async).
-export async function dispatchRunpod(
-  base: string,
-  w: WorkerRow,
-  r: GenerateRequest,
-  deadline: number,
-): Promise<unknown> {
-  const headers = {
-    "content-type": "application/json",
-    ...(w.auth_token ? { authorization: `Bearer ${w.auth_token}` } : {}),
-  };
-  const body = JSON.stringify({ input: workerInput(r) });
-  if (w.runpod_sync) {
-    const res = await fetch(`${base}/runsync`, {
-      method: "POST",
-      headers,
-      body,
-      signal: AbortSignal.timeout(Math.max(1_000, deadline - Date.now())),
-    });
-    if (!res.ok) throw new Error(`worker ${w.name} /runsync -> ${res.status}`);
-    const j = (await res.json()) as { status?: string; output?: unknown; error?: unknown };
-    if (RUNPOD_FAILED.has((j.status ?? "").toUpperCase()))
-      throw new Error(`worker ${w.name} ${j.status}: ${String(j.error ?? "").slice(0, 200)}`);
-    return j.output ?? j;
-  }
-  const submit = await fetch(`${base}/run`, {
-    method: "POST",
-    headers,
-    body,
-    signal: AbortSignal.timeout(Math.min(30_000, Math.max(1_000, deadline - Date.now()))),
-  });
-  if (!submit.ok) throw new Error(`worker ${w.name} /run -> ${submit.status}`);
-  const sj = (await submit.json()) as { id?: string; status?: string; output?: unknown };
-  if ((sj.status ?? "").toUpperCase() === RUNPOD_DONE && sj.output !== undefined) return sj.output;
-  const jobId = sj.id;
-  if (!jobId) throw new Error(`worker ${w.name} /run returned no job id`);
-  while (Date.now() < deadline) {
-    await new Promise((s) =>
-      setTimeout(s, Math.min(RUNPOD_POLL_MS, Math.max(0, deadline - Date.now()))),
-    );
-    if (Date.now() >= deadline) break;
-    let pj: { status?: string; output?: unknown; error?: unknown };
-    try {
-      const st = await fetch(`${base}/status/${encodeURIComponent(jobId)}`, {
-        headers,
-        signal: AbortSignal.timeout(Math.min(15_000, Math.max(1_000, deadline - Date.now()))),
-      });
-      if (!st.ok) continue;
-      pj = (await st.json()) as { status?: string; output?: unknown; error?: unknown };
-    } catch {
-      continue; // transient network/timeout polling status → keep polling the same job (don't resubmit)
-    }
-    const status = (pj.status ?? "").toUpperCase();
-    if (status === RUNPOD_DONE) return pj.output ?? pj;
-    if (RUNPOD_FAILED.has(status))
-      throw new Error(`worker ${w.name} ${status}: ${String(pj.error ?? "").slice(0, 200)}`);
-    // IN_QUEUE / IN_PROGRESS → keep polling until the deadline.
-  }
-  throw new Error(`worker ${w.name} runpod poll timeout`);
-}
-
-// Legacy custom workers may return a relative or non-http string in url/output_url;
-// preserve that exact behaviour rather than tightening it with extractWorkerUrl.
-export function legacyCustomUrl(payload: unknown): string | undefined {
-  if (payload && typeof payload === "object") {
-    const o = payload as Record<string, unknown>;
-    const v = o.url ?? o.output_url;
-    if (typeof v === "string" && v.length > 0) return v;
-  }
-  return undefined;
-}
-
-// Map a GenerateRequest onto the generalized inference job consumed by the shared
-// protocol helpers (Gradio / ComfyUI). `upscale` maps to the `image` task.
-function toInferenceInput(r: GenerateRequest): InferenceInput {
-  const task: TaskType =
-    r.kind === "upscale"
-      ? "image"
-      : r.kind === "audio"
-        ? "tts"
-        : r.kind === "text"
-          ? "image" /* never reached: text never dispatches to a GPU worker */
-          : r.kind;
-  return {
-    task,
-    prompt: r.prompt,
-    imageUrls: r.imageUrls,
-    audioUrl: r.audioUrl,
-    videoUrl: r.videoUrl,
-    params: r.params,
-    comfyWorkflow: r.comfyWorkflow,
-    comfyInputs: r.comfyInputs,
-  };
-}
-
-// comfyui contract: submit a ComfyUI graph, poll /history, resolve a /view URL.
-// A request that already carries `comfyWorkflow` (lipsync/motion, wired by their
-// builders) uses it verbatim. Otherwise — the free-GPU swarm case for plain
-// image/video requests — we build a default graph by kind so a ComfyUI worker can
-// serve them. Kinds with no default (upscale/text/audio, or lipsync/motion missing
-// their media) fail explicitly: no silent fallback.
-export async function dispatchComfyui(
-  base: string,
-  w: WorkerRow,
-  r: GenerateRequest,
-  deadline: number,
-): Promise<unknown> {
-  let workflow = r.comfyWorkflow;
-  let inputs = r.comfyInputs;
-  if (!workflow) {
-    const def = buildDefaultComfyWorkflow(r);
-    if (!def)
-      throw new Error(
-        `worker ${w.name}: comfyui protocol requires a workflow (no default graph for kind ${r.kind})`,
-      );
-    workflow = def.comfyWorkflow;
-    // Request-supplied comfyInputs win over the defaults so callers can override.
-    inputs = { ...def.comfyInputs, ...(r.comfyInputs ?? {}) };
-  }
-  const url = await runComfyWorkflow({
-    baseUrl: base,
-    token: w.auth_token ?? undefined,
-    workflow,
-    inputs,
-    deadline,
-  });
-  return { url };
-}
-
-// inferencesh contract: run a mapped inference.sh app (POST /run + poll /tasks/{id}).
-// The worker row's endpoint_url is the API base (normally https://api.inference.sh)
-// and auth_token is the "inf_..." API key. App mapping comes from the same
-// INFERENCE_SH_APP_<TASK> env vars the env-layer adapter uses — no app mapped for
-// the task means an explicit failure, never a silent fallback.
-export async function dispatchInferenceSh(
-  base: string,
-  w: WorkerRow,
-  r: GenerateRequest,
-  deadline: number,
-): Promise<unknown> {
-  if (!w.auth_token) {
-    throw new Error(`worker ${w.name}: inferencesh protocol requires the API key in auth_token`);
-  }
-  const job = toInferenceInput(r);
-  const app = resolveInferenceShApp(job.task, process.env);
-  if (!app) {
-    throw new Error(
-      `worker ${w.name}: no inference.sh app mapped for task "${job.task}" — set INFERENCE_SH_APP_${job.task.toUpperCase()}`,
-    );
-  }
-  const { setup, ...params } = (job.params ?? {}) as Record<string, unknown>;
-  const task = await runInferenceShTask({
-    baseUrl: base,
-    token: w.auth_token,
-    app,
-    input: inferenceShInput({ ...job, params }),
-    setup:
-      setup && typeof setup === "object" && !Array.isArray(setup)
-        ? (setup as Record<string, unknown>)
-        : undefined,
-    deadline,
-  });
-  return task.output ?? task;
-}
-
-// hfspace contract: call the Space's Gradio `predict` fn over the SSE flow.
-export async function dispatchHfspace(
-  base: string,
-  w: WorkerRow,
-  r: GenerateRequest,
-  deadline: number,
-): Promise<unknown> {
-  const result = await callGradioSpace(
-    base,
-    "predict",
-    w.auth_token ?? undefined,
-    gradioData(toInferenceInput(r)),
-    deadline,
-  );
-  const url = extractGradioUrl(result, base);
-  return url ? { url } : result;
-}
-
-// A GPU worker advertises capabilities by kind, except TTS audio which workers
-// declare as the `tts` capability (matching the inference-layer TaskType).
-function workerCapability(kind: GenerateKind): string {
-  return kind === "audio" ? "tts" : kind;
+// ─── GPU worker pool ─────────────────────────────────────────────────────────
+export async function hasActiveWorkerForKind(kind: GenerateKind): Promise<boolean> {
+  const { data: workers } = await supabaseAdmin
+    .from("gpu_workers")
+    .select("id", { count: "exact", head: true })
+    .eq("status", "active")
+    .contains("capabilities", [kind]);
+  return (workers?.length ?? 0) > 0;
 }
 
 const gpuWorker: ProviderAdapter = {
   name: "runpod",
-  supports: (r) =>
-    [
-      "image",
-      "video",
-      "lipsync",
-      "upscale",
-      "motion",
-      "audio",
-      "assemble",
-      "caption_burn",
-      "autocut",
-      "lyric_video",
-    ].includes(r.kind),
-  estimateCost: (r) => (r.kind === "video" || r.kind === "motion" ? 0.05 : 0.01),
+  supports: (r) => ["image", "video", "lipsync", "upscale", "motion"].includes(r.kind),
+  estimateCost: (r) => (r.kind === "video" ? 0.05 : r.kind === "motion" ? 0.02 : 0.01),
   async run(r) {
     const { data: workers } = await supabaseAdmin
       .from("gpu_workers")
       .select("*")
       .eq("status", "active")
-      .contains("capabilities", [workerCapability(r.kind)])
+      .contains("capabilities", [r.kind])
       .order("priority", { ascending: true })
       .order("in_flight", { ascending: true })
-      .limit(10);
+      .limit(5);
     if (!workers || workers.length === 0) throw new Error("No GPU workers available");
-    const now = Date.now();
     let lastErr: Error | null = null;
     for (const w of workers) {
       if (w.in_flight >= w.max_concurrency) continue;
-      // Lazy heartbeat staleness check: skip workers that haven't been pinged recently.
-      if (w.last_heartbeat && now - new Date(w.last_heartbeat).getTime() > STALE_MS) continue;
       const started = Date.now();
-      let incremented = false;
       try {
-        // The JS check above is a cheap pre-filter only — it can race with another
-        // concurrent dispatch. gpu_worker_inflight_inc re-checks in_flight < max_concurrency
-        // atomically inside the same UPDATE, and returns NULL when the worker is already
-        // full (or gone). Treat NULL as a refused reservation and move to the next candidate
-        // instead of dispatching to an over-subscribed worker.
-        const { data: newInFlight, error: incErr } = await supabaseAdmin.rpc(
-          "gpu_worker_inflight_inc",
-          { _worker: w.id },
-        );
-        if (incErr || newInFlight === null) continue;
-        incremented = true;
-        const base = normalizeWorkerBase(w.endpoint_url);
-        const deadline = started + WORKER_TIMEOUT_MS;
-        const payload =
-          w.protocol === "runpod"
-            ? await dispatchRunpod(base, w, r, deadline)
-            : w.protocol === "comfyui"
-              ? await dispatchComfyui(base, w, r, deadline)
-              : w.protocol === "hfspace"
-                ? await dispatchHfspace(base, w, r, deadline)
-                : w.protocol === "inferencesh"
-                  ? await dispatchInferenceSh(base, w, r, deadline)
-                  : await dispatchCustom(base, w, r, deadline);
-        // custom & vast workers may return a relative/non-http url; preserve it.
-        const isCustomLike =
-          w.protocol !== "runpod" &&
-          w.protocol !== "comfyui" &&
-          w.protocol !== "hfspace" &&
-          w.protocol !== "inferencesh";
-        const url =
-          extractWorkerUrl(payload) ?? (isCustomLike ? legacyCustomUrl(payload) : undefined);
-        if (!url) throw new Error(`worker ${w.name} returned no url`);
+        await supabaseAdmin.from("gpu_workers").update({ in_flight: w.in_flight + 1 }).eq("id", w.id);
+        
+        const protocol = w.protocol ?? "custom";
+        let url: string | undefined;
+        
+        console.log(`[GPU Worker] Dispatching to ${w.name} (protocol: ${protocol})`);
+        
+        if (protocol === "runpod") {
+          // RunPod async dispatch: POST to /run, poll /status/{id}
+          const input = {
+            kind: r.kind, prompt: r.prompt, image_urls: r.imageUrls,
+            audio_url: r.audioUrl, video_url: r.videoUrl,
+            model: r.model, duration: r.duration, resolution: r.resolution,
+          };
+          console.log(`[RunPod] Creating job to ${w.endpoint_url}/run with input:`, { kind: input.kind, model: input.model });
+          console.log(`[RunPod] Auth token: ${w.auth_token ? "present" : "missing"}`, w.auth_token ? `("${w.auth_token.slice(0, 10)}...")` : "");
+          const createRes = await fetch(w.endpoint_url.replace(/\/$/, "") + "/run", {
+            method: "POST",
+            headers: {
+              "content-type": "application/json",
+              ...(w.auth_token ? { authorization: `Bearer ${w.auth_token}` } : {}),
+            },
+            body: JSON.stringify({ input }),
+            signal: AbortSignal.timeout(60_000),
+          });
+          console.log(`[RunPod] Create response status: ${createRes.status}`);
+          if (!createRes.ok) throw new Error(`worker ${w.name} (create) -> ${createRes.status}`);
+          const createJson = (await createRes.json()) as { id?: string };
+          const jobId = createJson.id;
+          console.log(`[RunPod] Got job ID: ${jobId}`);
+          if (!jobId) throw new Error(`worker ${w.name} returned no job id`);
+          
+          const deadline = Date.now() + 900_000; // 15 min
+          while (Date.now() < deadline) {
+            await new Promise((s) => setTimeout(s, 3000));
+            const statusRes = await fetch(w.endpoint_url.replace(/\/$/, "") + `/status/${jobId}`, {
+              headers: w.auth_token ? { authorization: `Bearer ${w.auth_token}` } : {},
+              signal: AbortSignal.timeout(30_000),
+            });
+            if (!statusRes.ok) {
+              console.log(`[RunPod] Status poll failed with ${statusRes.status}, retrying...`);
+              continue;
+            }
+            const statusJson = (await statusRes.json()) as { status?: string; output?: { url?: string; output_url?: string } };
+            console.log(`[RunPod] Job status: ${statusJson.status}`);
+            if (statusJson.status === "COMPLETED") {
+              const output = statusJson.output;
+              url = output?.url ?? output?.output_url;
+              console.log(`[RunPod] Job completed, output URL: ${url}`);
+              if (!url) throw new Error(`worker ${w.name} job completed without output url`);
+              break;
+            }
+            if (statusJson.status === "FAILED") throw new Error(`worker ${w.name} job failed`);
+          }
+          if (!url) throw new Error(`worker ${w.name} poll timeout`);
+        } else {
+          // Custom / default protocol: POST to /generate with immediate response
+          const res = await fetch(w.endpoint_url.replace(/\/$/, "") + "/generate", {
+            method: "POST",
+            headers: {
+              "content-type": "application/json",
+              ...(w.auth_token ? { authorization: `Bearer ${w.auth_token}` } : {}),
+            },
+            body: JSON.stringify({
+              kind: r.kind, prompt: r.prompt, image_urls: r.imageUrls,
+              audio_url: r.audioUrl, video_url: r.videoUrl,
+              model: r.model, duration: r.duration, resolution: r.resolution,
+            }),
+            signal: AbortSignal.timeout(300_000),
+          });
+          if (!res.ok) throw new Error(`worker ${w.name} -> ${res.status}`);
+          const json = (await res.json()) as { url?: string; output_url?: string };
+          url = json.url ?? json.output_url;
+          if (!url) throw new Error(`worker ${w.name} returned no url`);
+        }
+
         await supabaseAdmin.from("worker_jobs").insert({
-          worker_id: w.id,
-          user_id: r.userId ?? null,
-          kind: r.kind,
-          status: "ok",
-          latency_ms: Date.now() - started,
-          ref_id: r.refId ?? null,
+          worker_id: w.id, user_id: r.userId ?? null, kind: r.kind,
+          status: "ok", latency_ms: Date.now() - started, ref_id: r.refId ?? null,
         });
         return { url, endpoint: `gpu:${w.name}` };
       } catch (e) {
         lastErr = e instanceof Error ? e : new Error(String(e));
         await supabaseAdmin.from("worker_jobs").insert({
-          worker_id: w.id,
-          user_id: r.userId ?? null,
-          kind: r.kind,
-          status: "error",
-          latency_ms: Date.now() - started,
-          error: lastErr.message.slice(0, 500),
+          worker_id: w.id, user_id: r.userId ?? null, kind: r.kind,
+          status: "error", latency_ms: Date.now() - started, error: lastErr.message.slice(0, 500),
         });
       } finally {
-        if (incremented) {
-          await supabaseAdmin.rpc("gpu_worker_inflight_dec", { _worker: w.id });
-        }
+        await supabaseAdmin.from("gpu_workers")
+          .update({ in_flight: Math.max(0, w.in_flight), last_heartbeat: new Date().toISOString() })
+          .eq("id", w.id);
       }
     }
     throw lastErr ?? new Error("All GPU workers failed");
   },
 };
 
-// ─── xAI Grok Imagine Video ──────────────────────────────────────────────────
-// Async image-to-video with built-in lip-sync. Takes a reference image + text
-// prompt and generates a talking-head UGC-style video in one API round-trip
-// (no separate TTS/lipsync stages). Poll GET /v1/videos/<request_id> until
-// video.url appears or an error object arrives.
-const XAI_VIDEO_BASE = "https://api.x.ai/v1";
-const xaiDirect: ProviderAdapter = {
-  name: "xai",
-  supports: (r) =>
-    (r.kind === "video" || r.kind === "motion") &&
-    !!process.env.XAI_API_KEY,
-  estimateCost: (r) => 0.03 * Math.max(1, r.duration ?? 8), // ~$0.03/s
-  async run(r) {
-    const key = process.env.XAI_API_KEY!;
-    const body: Record<string, unknown> = {
-      model: "grok-imagine-video-1.5",
-      prompt: r.prompt ?? "",
-      duration: Math.min(15, Math.max(3, r.duration ?? 8)),
-      resolution: r.resolution ?? "720p",
-      // xAI video API accepts "aspect_ratio" (e.g. "16:9", "9:16", "1:1").
-      aspect_ratio: r.aspectRatio ?? "16:9",
-    };
-    if (r.imageUrls?.[0]) body.image = { url: r.imageUrls[0] };
-
-    const create = await fetch(`${XAI_VIDEO_BASE}/videos/generations`, withTimeout({
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
-      body: JSON.stringify(body),
-    }));
-    if (!create.ok)
-      throw new Error(`xAI video ${create.status}: ${(await create.text()).slice(0, 300)}`);
-    const created = await create.json();
-    const requestId: string | undefined = created?.id ?? created?.request_id;
-    if (!requestId) throw new Error("xAI: no request_id in response");
-
-    const deadline = Date.now() + 15 * 60_000; // 15-min ceiling
-    while (Date.now() < deadline) {
-      await new Promise((s) => setTimeout(s, 5_000));
-      const poll = await fetch(`${XAI_VIDEO_BASE}/videos/generations/${requestId}`, withTimeout({
-        headers: { Authorization: `Bearer ${key}` },
-      }, PROVIDER_POLL_TIMEOUT_MS));
-      if (!poll.ok) {
-        if (poll.status === 429) continue; // rate-limit — retry
-        throw new Error(`xAI poll ${poll.status}: ${(await poll.text()).slice(0, 200)}`);
-      }
-      const pj = await poll.json();
-      if (pj?.error) throw new Error(`xAI error: ${pj.error.message ?? JSON.stringify(pj.error)}`);
-      const videoUrl: string | undefined =
-        pj?.video?.url ?? pj?.videos?.[0]?.url ?? pj?.result?.url;
-      if (videoUrl) return { url: videoUrl, endpoint: "xai:grok-imagine-video-1.5" };
-    }
-    throw new Error("xAI video poll timeout (15 min)");
-  },
-};
-
-// ─── Sora (OpenAI direct) ─────────────────────────────────────────────────────
-// POST /v1/video/generations creates a job; poll GET /v1/video/generations/{id}
-// until status==="completed". The account has sora-2 and sora-2-pro confirmed.
-// Sizes: 480p | 720p | 1080p. No per-second billing — flat per video.
-const SORA_SIZES: Record<string, string> = {
-  "480p": "480p",
-  "720p": "720p",
-  "1080p": "1080p",
-  hd: "720p",
-  fhd: "1080p",
-};
-const soraAdapter: ProviderAdapter = {
-  name: "sora",
-  supports: (r) =>
-    r.kind === "video" &&
-    !!process.env.OPENAI_API_KEY &&
-    (r.model === "openai/sora-2" || r.model === "sora-2" || r.model === "openai/sora-2-pro"),
-  estimateCost: () => 0.5, // ~$0.50/video at sora-2
-  async run(r) {
-    const key = process.env.OPENAI_API_KEY!;
-    const model =
-      r.model === "openai/sora-2-pro" ? "sora-2-pro" : "sora-2";
-    const size = SORA_SIZES[r.resolution ?? ""] ?? "480p";
-
-    const body: Record<string, unknown> = {
-      model,
-      prompt: r.prompt ?? "",
-      n: 1,
-      size,
-    };
-    if (r.imageUrls?.[0]) body.image = r.imageUrls[0];
-
-    const create = await fetch("https://api.openai.com/v1/video/generations", withTimeout({
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${key}`,
-      },
-      body: JSON.stringify(body),
-    }));
-    if (!create.ok)
-      throw new Error(`Sora create ${create.status}: ${(await create.text()).slice(0, 300)}`);
-    const cj = await create.json();
-    const jobId: string | undefined = cj?.id ?? cj?.job_id;
-    if (!jobId) throw new Error(`Sora: no job id — ${JSON.stringify(cj).slice(0, 200)}`);
-
-    const deadline = Date.now() + 20 * 60_000; // 20-min ceiling
-    while (Date.now() < deadline) {
-      await new Promise((s) => setTimeout(s, 8_000));
-      const poll = await fetch(`https://api.openai.com/v1/video/generations/${jobId}`, withTimeout({
-        headers: { Authorization: `Bearer ${key}` },
-      }, PROVIDER_POLL_TIMEOUT_MS));
-      if (!poll.ok) {
-        if (poll.status === 429) continue;
-        throw new Error(`Sora poll ${poll.status}: ${(await poll.text()).slice(0, 200)}`);
-      }
-      const pj = await poll.json();
-      const status: string = pj?.status ?? "";
-      if (status === "failed" || pj?.error)
-        throw new Error(`Sora failed: ${pj?.error?.message ?? pj?.error ?? "unknown"}`);
-      // completed — extract video url from data[0]
-      if (status === "completed") {
-        const videoUrl: string | undefined =
-          pj?.data?.[0]?.url ?? pj?.generations?.[0]?.url ?? pj?.url;
-        if (!videoUrl) throw new Error(`Sora completed but no url: ${JSON.stringify(pj).slice(0, 200)}`);
-        return { url: videoUrl, endpoint: `sora:${model}` };
-      }
-    }
-    throw new Error("Sora video poll timeout (20 min)");
-  },
-};
-
-// ─── LTX Video (Lightricks) ───────────────────────────────────────────────────
-// Direct REST API at api.ltxstudio.com. POST /api/v1/generate/video creates a
-// job; poll GET /api/v1/tasks/{task_id} until status==="completed".
-// Key env var: LTX_API_KEY (user confirmed they have this key).
-const ltxAdapter: ProviderAdapter = {
-  name: "ltx",
-  supports: (r) =>
-    r.kind === "video" &&
-    !!process.env.LTX_API_KEY,
-  estimateCost: () => 0.15, // LTX Video is cheaper than Sora/Kling
-  async run(r) {
-    const key = process.env.LTX_API_KEY!;
-
-    const body: Record<string, unknown> = {
-      prompt: r.prompt ?? "",
-      duration: Math.min(8, Math.max(2, r.duration ?? 5)),
-      resolution: r.resolution === "1080p" ? "1080p" : "720p",
-    };
-    if (r.imageUrls?.[0]) body.image_url = r.imageUrls[0];
-
-    const create = await fetch("https://api.ltxstudio.com/api/v1/generate/video", withTimeout({
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${key}`,
-      },
-      body: JSON.stringify(body),
-    }));
-    if (!create.ok)
-      throw new Error(`LTX create ${create.status}: ${(await create.text()).slice(0, 300)}`);
-    const cj = await create.json();
-    const taskId: string | undefined = cj?.task_id ?? cj?.id ?? cj?.generation_id;
-    if (!taskId) throw new Error(`LTX: no task_id — ${JSON.stringify(cj).slice(0, 200)}`);
-
-    const deadline = Date.now() + 15 * 60_000;
-    while (Date.now() < deadline) {
-      await new Promise((s) => setTimeout(s, 6_000));
-      const poll = await fetch(`https://api.ltxstudio.com/api/v1/tasks/${taskId}`, withTimeout({
-        headers: { Authorization: `Bearer ${key}` },
-      }, PROVIDER_POLL_TIMEOUT_MS));
-      if (!poll.ok) {
-        if (poll.status === 429) continue;
-        throw new Error(`LTX poll ${poll.status}: ${(await poll.text()).slice(0, 200)}`);
-      }
-      const pj = await poll.json();
-      const status: string = pj?.status ?? pj?.state ?? "";
-      if (status === "failed" || status === "error")
-        throw new Error(`LTX failed: ${pj?.error ?? pj?.message ?? "unknown"}`);
-      if (status === "completed" || status === "succeeded") {
-        const videoUrl: string | undefined =
-          pj?.output?.url ?? pj?.video_url ?? pj?.result?.url ?? pj?.url;
-        if (!videoUrl) throw new Error(`LTX completed but no url: ${JSON.stringify(pj).slice(0, 200)}`);
-        return { url: videoUrl, endpoint: "ltx:ltx-video" };
-      }
-    }
-    throw new Error("LTX video poll timeout (15 min)");
-  },
-};
-
-// ─── HuggingFace Serverless Inference (text-to-video) ────────────────────────
-// Free-tier / PRO HF Inference API video fallback.
-// Model: damo-vilab/text-to-video-ms-1.7b (T2V, no image conditioning).
-// Returns binary MP4 which is uploaded to the studio bucket for a stable URL.
-// Activated only when r.model === "hf/text-to-video" so it never hijacks
-// other model-keyed requests; add "hf/text-to-video" to FALLBACK_MODELS.video
-// or request it directly to engage this adapter.
-const hfVideo: ProviderAdapter = {
-  name: "hf-video",
-  // Only activates when the explicit "hf/text-to-video" model key is requested —
-  // never hijacks requests intended for other model keys (seedance, fal, etc.).
-  supports: (r) => r.kind === "video" && r.model === "hf/text-to-video" && !!process.env.HF_TOKEN,
-  estimateCost: (_r) => 0, // HF free tier
-  async run(r) {
-    const hfToken = process.env.HF_TOKEN;
-    if (!hfToken) throw new Error("HF_TOKEN not configured");
-    const MODEL = "damo-vilab/text-to-video-ms-1.7b";
-    const res = await fetch(`https://api-inference.huggingface.co/models/${MODEL}`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${hfToken}`,
-        "Content-Type": "application/json",
-        Accept: "video/mp4",
-        "X-Wait-For-Model": "true",
-      },
-      body: JSON.stringify({
-        inputs: r.prompt ?? "a performer on a concert stage, expressive movement",
-      }),
-      signal: AbortSignal.timeout(180_000), // 3 min — HF cold-start can be slow
-    });
-    if (!res.ok) throw new Error(`HF ${res.status}: ${(await res.text()).slice(0, 200)}`);
-    const buf = Buffer.from(await res.arrayBuffer());
-    // uid-prefixed via the shared helper (system/ for userless internal calls)
-    // so account deletion can discover and purge the file — the old anonymous
-    // top-level hf-video/<ts>.mp4 paths were invisible to it.
-    const url = await uploadBytesToStudio(r.userId, "hf-video", buf, "video/mp4", "mp4");
-    return { url, endpoint: `hf:${MODEL}` };
-  },
-};
-
-// ─── ffmpeg free video (last-resort, no external API, no credits needed) ─────
-// When ALL AI video providers fail (quota/balance exhausted), generates a
-// real MP4 by animating a Pollinations image (free, no key) with a Ken Burns
-// zoom-in effect via local ffmpeg. Ensures video requests always produce a
-// playable result instead of "provider unavailable." Quality: animated still
-// image — not generative AI motion. Cost $0 (server CPU + Supabase storage).
-// Placed LAST in the video PRIORITY chain so it never preempts a working
-// AI provider.
-const ffmpegFreeVideo: ProviderAdapter = {
-  name: "ffmpeg-free",
-  // EXPLICIT-ONLY (task #305): "ffmpeg-free-video" is the catalog id offered in
-  // the /orchestrate model picker. Without the model gate this adapter was a
-  // silent catch-all — any video request whose hosted providers all failed
-  // "succeeded" with a Ken Burns pan over a Pollinations still, a misleading
-  // non-AI-video result the free-GPU-only mode already refuses to serve
-  // (see isFreeAdapter). Users can still pick it deliberately; the router
-  // never falls back to it on its own.
-  supports: (r) => r.kind === "video" && !r.selfHostedOnly && r.model === "ffmpeg-free-video",
-  estimateCost: () => 0,
-  async run(r) {
-    const tmpDir = nodefs.mkdtempSync(nodepath.join(nodeos.tmpdir(), "aurora-vid-"));
-    try {
-      // Get image: prefer supplied reference image, else generate via Pollinations.
-      let imageData: Buffer;
-      const refUrl = r.imageUrls?.[0];
-      if (refUrl && isTrustedUrl(refUrl)) {
-        const res = await fetch(refUrl, { signal: AbortSignal.timeout(20_000) });
-        if (!res.ok) throw new Error(`ffmpeg-free: reference image fetch ${res.status}`);
-        imageData = Buffer.from(await res.arrayBuffer());
-      } else {
-        // Pollinations: free image generation, no API key needed.
-        const prompt = encodeURIComponent((r.prompt ?? "abstract colorful art").slice(0, 400));
-        const polUrl = `https://image.pollinations.ai/prompt/${prompt}?width=1280&height=720&nologo=true`;
-        const res = await fetch(polUrl, { signal: AbortSignal.timeout(30_000) });
-        if (!res.ok) throw new Error(`ffmpeg-free: Pollinations ${res.status}`);
-        imageData = Buffer.from(await res.arrayBuffer());
-      }
-
-      const imgPath = nodepath.join(tmpDir, "frame.jpg");
-      const outPath = nodepath.join(tmpDir, "out.mp4");
-      nodefs.writeFileSync(imgPath, imageData);
-
-      const duration = Math.min(8, Math.max(3, r.duration ?? 5));
-      const fps = 25;
-      const frames = duration * fps;
-      // Ken Burns zoom-in: 0% → 25% zoom over the full duration.
-      // zoompan filter: z starts at 1.0 and increments by 0.002 per frame,
-      // capped at 1.25. x/y keep the zoom centred on the image.
-      execSync(
-        [
-          "ffmpeg -y",
-          `-loop 1 -i "${imgPath}"`,
-          `-vf "scale=1280:720,zoompan=z='min(zoom+0.002,1.25)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=${frames}:s=1280x720:fps=${fps}"`,
-          `-c:v libx264 -t ${duration} -pix_fmt yuv420p -preset ultrafast -movflags +faststart`,
-          `"${outPath}"`,
-        ].join(" "),
-        { timeout: 90_000, stdio: "pipe" },
-      );
-
-      const videoBuf = nodefs.readFileSync(outPath);
-      const storagePath = `ffmpeg-free/${r.userId ?? "anon"}/${Date.now()}.mp4`;
-      const { error } = await supabaseAdmin.storage
-        .from("studio")
-        .upload(storagePath, videoBuf, { contentType: "video/mp4", upsert: false });
-      if (error) throw new Error(`ffmpeg-free upload: ${error.message}`);
-      const { data } = supabaseAdmin.storage.from("studio").getPublicUrl(storagePath);
-      return { url: data.publicUrl, endpoint: "ffmpeg-free:zoompan" };
-    } finally {
-      try { nodefs.rmSync(tmpDir, { recursive: true, force: true }); } catch { /* cleanup best-effort */ }
-    }
-  },
-};
-
 // ─── Priority chain per kind ─────────────────────────────────────────────────
-// GPU-FIRST for every modality: the self-hosted gpuWorker pool is always
-// tried first, full stop. When no eligible worker is up (offline, stale
-// heartbeat, at capacity, missing the capability) the adapter throws a "GPU
-// unavailable" signal that orchestrate() treats as a clean, near-instant,
-// silent skip (GPU_UNAVAILABLE_RE below) — no error log, no cooldown — and
-// the request falls straight through to the rest of the chain. This means a
-// running GPU always saves credits, and every hosted provider after it
-// (Replit-billed first for image/text/audio, then the paid external chain)
-// acts purely as a high-availability fallback. orchestrate() only fails a
-// generation once every model × every adapter in the chain has been tried
-// and failed — see the exhaustion check at the bottom of orchestrate().
+// Order matters: cheapest/free direct providers first; Lovable credits and Fal LAST.
+// User preference: avoid Fal — only used as final fallback. HuggingFace is wired
+// for free image generation. Kling direct (JWT) handles video without Replicate.
+// HeyGen handles lipsync as a quality alternative to sync.so.
 const PRIORITY: Record<GenerateKind, ProviderAdapter[]> = {
-  // GPU-first everywhere: the self-hosted pool is always tried before any paid
-  // or Replit-billed hosted provider. "No GPU workers available" is a clean,
-  // silent, near-instant skip (see GPU_UNAVAILABLE_RE below) so this costs
-  // nothing when the pool is offline — every kind still falls straight through
-  // the rest of its chain automatically instead of failing the generation.
-  image: [
-    gpuWorker,
-    replitGeminiImage,
-    replitOpenAIImage,
-    byteplus,
-    geminiDirect,
-    replicate,
-    inferenceshCloud,
-    lovable,
-    pollinations, // model-keyed (pollinations/flux) — free, last resort before fal
-    runware,      // model-keyed (runware/flux-schnell) — cheap hosted fallback
-    falFallback,
-  ],
-  video: [
-    gpuWorker,
-    seedanceSoulDirect, // Aurora Soul character video: pinned to model "seedance-soul" only
-    falFallback,     // fal.ai first: key-gated (fal/ltx-video sentinel), cheap LTX Video
-    byteplus,        // model-specific first (BYTEPLUS_MAP-gated), so seedance/seedream
-    klingDirect,     // model-specific (kling-gated) before generic catch-alls
-    xaiDirect,
-    soraAdapter,
-    ltxAdapter,
-    geminiVideo,
-    heygenVideoAgent,
-    heygenTemplate,
-    replicate,
-    runway,
-    inferenceshCloud, // inference.sh cloud: key-gated fallback after fal
-    hfVideo,
-    ffmpegFreeVideo,  // EXPLICIT pick only ("ffmpeg-free-video"): Pollinations image → ffmpeg Ken Burns MP4 — never an automatic fallback
-  ],
-  lipsync: [gpuWorker, sync, heygen, heygenPhotoVideo, heygenAvatarTemplate, replicate, inferenceshCloud, falFallback],
-  // GPU-first: a worker advertising "upscale" is tried before Replicate.
-  upscale: [gpuWorker, replicate, falFallback],
-  // Motion transfer: GPU/ComfyUI workers first (MimicMotion), then the pinned-
-  // only Seedance branch (byteplus direct before Replicate — both hard-gated on
-  // an explicit seedance model key + forSubscriber, so unpinned/free-tier
-  // requests fall straight through), then fal LTX I2V (key-gated fal/ltx-motion
-  // sentinel), then xAI image-to-video and Gemini Veo 2.
-  motion: [gpuWorker, byteplus, replicate, falFallback, inferenceshCloud, xaiDirect, geminiVideo],
-  // GPU-first, then Replit-billed (gpt-5-nano, gemini-2.5-flash), then the
-  // rest of the external text chain.
-  text: [
-    gpuWorker,
-    replitOpenAIText,
-    replitGeminiText,
-    pollinations,
-    groqText,
-    geminiText,
-    mistralText,
-    hfText,
-    openaiText,
-    anthropicText,
-    lovableText,
-  ],
-  // GPU-first (local TTS), then Replit-billed gpt-audio-mini, then ElevenLabs.
-  audio: [gpuWorker, replitOpenAIAudio, elevenlabs],
-  // Final assembly (ffmpeg): self-hosted GPU worker pool only — no hosted provider.
-  assemble: [gpuWorker],
-  // Caption burn: self-hosted GPU worker preferred (FFmpeg drawtext, fastest).
-  // Falls back to Replicate subtitle-burn model when no capable worker is online.
-  caption_burn: [gpuWorker, replicate],
-  // AutoCut: self-hosted FFmpeg assembler ONLY. A true multi-clip edit (concat +
-  // beat-synced style/music) has no hosted equivalent, so there is no provider
-  // fallback — runAutocut fails explicitly and refunds when no worker is online.
-  autocut: [gpuWorker],
-  // Lyric video: self-hosted FFmpeg synthesis ONLY (audio+lyrics-in →
-  // synced-video-out has no hosted equivalent). Preflighted via
-  // hasActiveWorkerForKind before credits are reserved.
-  lyric_video: [gpuWorker],
+  image:   [geminiDirect, huggingface, replicate, lovable, gpuWorker, falFallback],
+  video:   [arkVideo, klingDirect, replicate, gpuWorker, falFallback],
+  lipsync: [sync, heygen, replicate, gpuWorker, falFallback],
+  upscale: [replicate, gpuWorker, falFallback],
+  motion:  [gpuWorker],
 };
 
 // ─── Unified model registry ──────────────────────────────────────────────────
 // Single source of truth for model → { provider, kind, cost } lookup.
 // Use this from server fns / admin UIs instead of poking REPLICATE_MAP etc.
 // directly. Adding a new model? Add it here AND to the underlying provider map
-// (REPLICATE_MAP / FAL_MAP) — they own the slug/path mapping.
+// (REPLICATE_MAP / HF_ENDPOINTS / FAL_MAP) — they own the slug/path mapping.
 export type ModelEntry = {
   provider: ProviderAdapter["name"];
   kind: GenerateKind;
@@ -3001,87 +767,28 @@ export type ModelEntry = {
 };
 export const MODEL_REGISTRY: Record<string, ModelEntry> = (() => {
   const out: Record<string, ModelEntry> = {
-    // Gemini image family — served by the direct Gemini API adapter (the
-    // Lovable gateway needs LOVABLE_API_KEY, which this app does not have).
-    // Costs are the direct-API per-image prices: flash ≈ $0.039, pro ≈ $0.24.
-    "google/gemini-2.5-flash-image": { provider: "gemini", kind: "image", cost: 0.039 },
-    "google/gemini-3.1-flash-image-preview": { provider: "gemini", kind: "image", cost: 0.039 },
-    "google/gemini-3-pro-image-preview": { provider: "gemini", kind: "image", cost: 0.24 },
+    // Lovable AI gateway (Gemini image)
+    "google/gemini-2.5-flash-image":          { provider: "lovable", kind: "image", cost: 0.002 },
+    "google/gemini-3.1-flash-image-preview":  { provider: "lovable", kind: "image", cost: 0.002 },
+    "google/gemini-3-pro-image-preview":      { provider: "lovable", kind: "image", cost: 0.01  },
     // Kling direct (JWT)
-    "kling-v1": { provider: "kling", kind: "video", cost: 0.3 },
+    "kling-v1":                               { provider: "kling",   kind: "video", cost: 0.30 },
     // HeyGen lipsync
-    "heygen/lipsync": { provider: "heygen", kind: "lipsync", cost: 0.4 },
-    // HeyGen Video Agent — prompt-in, full-video-out (agent picks avatar/voice/layout).
-    "heygen/video-agent": { provider: "heygen", kind: "video", cost: 1.5 },
-    // HeyGen Template render (Aurora Template) — pinned-only, NOT in
-    // FALLBACK_MODELS: always requested explicitly with a templateId param.
-    "heygen/template": { provider: "heygen", kind: "video", cost: 1.5 },
-    // HuggingFace Serverless Inference — text-to-video (free tier, rate-limited).
-    // Serves as a zero-cost fallback when all paid video providers are exhausted.
-    "hf/text-to-video": { provider: "hf-video", kind: "video", cost: 0 },
+    "heygen/lipsync":                         { provider: "heygen",  kind: "lipsync", cost: 0.40 },
     // Sync.so direct lipsync
-    "sync/lipsync-2": { provider: "sync", kind: "lipsync", cost: 0.25 },
-    // Aurora Soul: identity-locked Flux LoRA inference (fal.ai) and direct
-    // Seedance character video. Both pinned-only — never in FALLBACK_MODELS,
-    // always requested explicitly by src/lib/soul.server.ts with the soul's
-    // own lora_url / reference images attached.
-    "fal/soul-lora": { provider: "fal", kind: "image", cost: 0.05 },
-    "seedance-soul": { provider: "seedance", kind: "video", cost: 0.65 },
-    // Self-hosted LatentSync — runs on the registered GPU worker pool only.
-    latentsync: { provider: gpuWorker.name, kind: "lipsync", cost: 0.01 },
-    // Runway video (official REST, image-to-video)
-    "runway/gen4-turbo": { provider: "runway", kind: "video", cost: 0.5 },
-    "runway/gen3a-turbo": { provider: "runway", kind: "video", cost: 0.4 },
-    // Seedance 1.5 Pro (historical Aurora key: seedance-3.0) — ByteDance-direct only, no verified
-    // Replicate slug, so it isn't in REPLICATE_MAP and must be registered by
-    // hand here. Cost is a conservative estimate above the existing pro tier
-    // ($0.65) pending real invoice data.
-    "seedance-3.0": { provider: "byteplus", kind: "video", cost: 0.75 },
-    // Seedance 2.5 — preview until the BytePlus account activates the slug in
-    // the Ark Console (2026-08-04 probe: ModelNotOpen). Cost is the published
-    // t2v token rate ($10.70/M ≈ $1.16 per 720p·5s) — the conservative end;
-    // with-video-input runs are cheaper (~$0.69).
-    "seedance-2.5": { provider: "byteplus", kind: "video", cost: 1.16 },
-    // Seedream 5.0 — same ByteDance-only caveat as seedance-3.0.
-    "fal-ai/seedream-5": { provider: "byteplus", kind: "image", cost: 0.06 },
-    // ElevenLabs TTS (sentinel — adapter ignores the model key, picks voice via params)
-    "elevenlabs/tts": { provider: "elevenlabs", kind: "audio", cost: 0.01 },
-    // Self-hosted ffmpeg final assembly (kids story). Sentinel model so the
-    // candidate loop runs; routed self-hosted-only to the GPU worker pool.
-    "ffmpeg-assemble": { provider: gpuWorker.name, kind: "assemble", cost: 0.005 },
-    "ffmpeg-captionburn": { provider: gpuWorker.name, kind: "caption_burn", cost: 0.005 },
-    "zsxkib/add-subtitles-to-video": { provider: "replicate", kind: "caption_burn", cost: 0.02 },
-    // Self-hosted ffmpeg lyric-video synthesis. Sentinel model so the candidate
-    // loop runs; routed self-hosted-only to the GPU worker pool (no fallback).
-    "ffmpeg-lyricvideo": { provider: gpuWorker.name, kind: "lyric_video", cost: 0.005 },
-    // fal.ai LTX Video — first-priority video/motion via fal.ai (FAL_KEY gated, cheap).
-    "fal/ltx-video":  { provider: "fal", kind: "video",  cost: 0.06 },
-    "fal/ltx-motion": { provider: "fal", kind: "motion", cost: 0.06 },
-    // inference.sh cloud (Veo 3.1 Fast via google/veo-3-1-fast app slug) — fallback.
-    "inferencesh/veo-3-1-fast": { provider: "inferencesh", kind: "video", cost: 0.15 },
-    // xAI Grok Imagine Video — general video + motion fallback (key is set).
-    "xai/grok-imagine-video-1.5": { provider: "xai", kind: "video", cost: 0.24 },
-    // LTX Video (Lightricks) — direct REST API, cheaper than Sora/Kling.
-    "ltx/ltx-video": { provider: "ltx", kind: "video", cost: 0.15 },
-    // Sora (OpenAI direct) — sora-2 and sora-2-pro via /v1/video/generations.
-    "sora-2": { provider: "sora", kind: "video", cost: 0.5 },
-    "openai/sora-2-pro": { provider: "sora", kind: "video", cost: 0.5 },
-    // Gemini Veo 2 — direct API, no Replicate credits needed.
-    "veo-2": { provider: "gemini-video", kind: "video", cost: 0.35 },
+    "sync/lipsync-2":                         { provider: "sync",    kind: "lipsync", cost: 0.25 },
+    // MimicMotion (GPU worker only)
+    "mimic-motion":                           { provider: "runpod",  kind: "motion", cost: 0.02 },
   };
   for (const [k, v] of Object.entries(REPLICATE_MAP))
     out[k] = { provider: "replicate", kind: v.kind, cost: v.cost };
+  for (const [k, v] of Object.entries(HF_ENDPOINTS))
+    out[k] = { provider: "huggingface", kind: v.kind, cost: v.cost };
   for (const [k, v] of Object.entries(FAL_MAP))
     out[k] = { provider: "fal", kind: v.kind, cost: v.cost };
-  for (const [k, v] of Object.entries(FREE_IMAGE_MODELS))
-    out[k] = { provider: v.adapter, kind: "image", cost: v.cost };
-  for (const [k, v] of Object.entries(TEXT_MODELS))
-    out[k] = { provider: v.adapter, kind: "text", cost: v.cost };
-  // Replit AI Integrations proxy (billed to the owner's Replit credits).
-  for (const [k, v] of Object.entries(REPLIT_IMAGE_MODELS))
-    out[k] = { provider: v.adapter, kind: "image", cost: v.cost };
-  for (const [k, v] of Object.entries(REPLIT_AUDIO_MODELS))
-    out[k] = { provider: v.adapter, kind: "audio", cost: v.cost };
+  out["seedance-2.0"] = { provider: "ark", kind: "video", cost: 0.15 };
+  out["seedance-2.0-fast"] = { provider: "ark", kind: "video", cost: 0.09 };
+  out["seedance-2.5"] = { provider: "ark", kind: "video", cost: 0.15 };
   return out;
 })();
 
@@ -3090,191 +797,38 @@ export function resolveModel(modelKey: string | undefined | null): ModelEntry | 
   return MODEL_REGISTRY[modelKey] ?? null;
 }
 
-// Preflight: is there at least one active GPU worker that advertises this kind?
-// Used by motion/reskin server fns + MCP tools to fail fast with a friendly
-// "no backend configured" message BEFORE reserving any credits.
-export async function hasActiveWorkerForKind(kind: GenerateKind): Promise<boolean> {
-  const { data, error } = await supabaseAdmin
-    .from("gpu_workers")
-    .select("in_flight, max_concurrency, last_heartbeat")
-    .eq("status", "active")
-    .contains("capabilities", [workerCapability(kind)])
-    // Same ordering as gpuWorker.run (lowest priority, then least-loaded first) so
-    // the limited slice surfaces the workers most likely to be dispatch-eligible.
-    .order("priority", { ascending: true })
-    .order("in_flight", { ascending: true })
-    .limit(20);
-  if (error || !data) return false;
-  // Mirror gpuWorker.run dispatch eligibility EXACTLY so this preflight predicts a
-  // real dispatch: a worker must have free capacity AND a non-stale heartbeat (a
-  // NULL heartbeat counts as fresh, same as dispatch) to actually accept the job.
-  // Checking only status+capability lets a saturated or dead-but-"active" worker
-  // pass, which would burn the whole kids pipeline only to die at the final stitch.
-  const now = Date.now();
-  return data.some((w) => {
-    if (w.in_flight >= w.max_concurrency) return false;
-    if (w.last_heartbeat && now - new Date(w.last_heartbeat).getTime() > STALE_MS) return false;
-    return true;
-  });
-}
-
 async function log(opts: {
-  provider: string;
-  endpoint: string;
-  kind: GenerateKind;
-  status: "ok" | "error";
-  latencyMs: number;
-  costUsd: number;
-  error?: string;
-  userId?: string | null;
-  refId?: string | null;
+  provider: string; endpoint: string; kind: GenerateKind;
+  status: "ok" | "error"; latencyMs: number; costUsd: number;
+  error?: string; userId?: string | null; refId?: string | null;
 }) {
   try {
     await supabaseAdmin.from("provider_logs").insert({
-      provider: opts.provider,
-      endpoint: opts.endpoint,
-      kind: opts.kind,
-      status: opts.status,
-      latency_ms: opts.latencyMs,
-      cost_usd: opts.costUsd,
-      error: opts.error ?? null,
-      user_id: opts.userId ?? null,
-      ref_id: opts.refId ?? null,
+      provider: opts.provider, endpoint: opts.endpoint, kind: opts.kind,
+      status: opts.status, latency_ms: opts.latencyMs, cost_usd: opts.costUsd,
+      error: opts.error ?? null, user_id: opts.userId ?? null, ref_id: opts.refId ?? null,
     });
-  } catch {
-    /* no-op */
-  }
+  } catch { /* no-op */ }
 }
 
 // ─── Model-level fallback ────────────────────────────────────────────────────
 // On top of provider fallback: if the requested model's providers all fail, try
 // a bounded, cheapest-first list of alternate same-kind models (all reachable on
 // the Replicate key). Capped so paid video generations never run away on cost.
-// Exported (read-only) so pricing.test.ts can assert every video/lipsync
-// candidate that can actually be dispatched is also registered in
-// MODEL_REGISTRY — a model listed here but missing from the registry would
-// silently evade the margin-guard tests below (they only walk the registry).
-export const FALLBACK_MODELS: Record<GenerateKind, string[]> = {
-  // Identity-capable models come BEFORE identity-blind last resorts.
-  // Seedream (ByteDance) is edit-capable; Replit-billed first to save cost.
-  image: [
-    "replit/gemini-2.5-flash-image",
-    "replit/gpt-image-1",
-    "google/nano-banana",
-    "fal-ai/seedream-4",
-  ],
-  video: [
-    // fal.ai LTX Video first (key-gated, cheap ~$0.06, no subscription)
-    "fal/ltx-video",
-    // inference.sh Veo 3.1 Fast — secondary cloud fallback when fal is down/depleted
-    "inferencesh/veo-3-1-fast",
-    "heygen/video-agent",
-    "hf/text-to-video",
-    "xai/grok-imagine-video-1.5",
-    "ltx/ltx-video",
-    "veo-2",
-    // "seedance-2.0-fast" and "seedance-2.0" intentionally REMOVED from fallback
-    // chain — Seedance is subscription-only (paid ByteDance/Replicate provider)
-    // and must never auto-fire for free-tier requests. Reachable only when
-    // explicitly requested with forSubscriber:true.
-    // "kling-3.0" and "kling-3.0-omni" intentionally REMOVED from fallback
-    // chain — Kling is subscription-only and must never auto-fire as a
-    // fallback during smoke tests or free-tier requests. Kling is still
-    // reachable when explicitly requested with forSubscriber:true.
-    "veo-3-fast",
-    "sora-2",
-    "openai/sora-2-pro",
-  ],
+const FALLBACK_MODELS: Record<GenerateKind, string[]> = {
+  image:   ["google/nano-banana", "replicate/flux-schnell", "fal-ai/seedream-4"],
+  video:   ["seedance-2.0-fast", "seedance-2.0", "seedance-2.5", "wan-2.5", "kling-3.0", "veo-3-fast", "sora-2"],
   lipsync: ["fal-ai/sync-lipsync/v2", "fal-ai/wav2lip"],
   upscale: [],
-  // motion sentinels: fal LTX I2V first (key-gated, cheap), then inference.sh Veo,
-  // then xAI + Gemini Veo 2.
-  // Seedance (2.0 "Lite" = seedance-2.0-fast, 2.0 full, 2.5) is a PINNED-ONLY
-  // motion branch — same rule as the video chain above: subscription-only paid
-  // providers never auto-fire as fallbacks. A subscriber request pinned to a
-  // seedance key routes BytePlus-direct first (once Ark-activated), then
-  // Replicate (seedance-1-lite, live today), then falls through to these
-  // sentinels — free-tier/pinless motion never touches Seedance. When ByteDance
-  // ships "Seedance 2.0 mini" (model-watch alerts), register it and it slots
-  // into this branch the same way.
-  motion: ["fal/ltx-motion", "inferencesh/veo-3-1-fast", "xai/grok-imagine-video-1.5", "veo-2"],
-  // Replit-billed models first (gpt-5-nano, then gemini-2.5-flash), then the
-  // existing free/keyed chain unchanged: Pollinations → Groq → Gemini → Claude
-  // → Lovable.
-  text: [
-    "replit/gpt-5-nano",
-    "replit/gemini-2.5-flash",
-    "pollinations/openai",
-    "groq/llama-3.3-70b",
-    "gemini/gemini-2.0-flash",
-    "anthropic/claude-haiku-4-5",
-    "lovable/gemini-2.5-flash",
-  ],
-  // Replit-billed gpt-audio-mini first, then the ElevenLabs sentinel (both
-  // audio adapters otherwise ignore the model key).
-  audio: ["replit/gpt-audio-mini", "elevenlabs/tts"],
-  // Assembly pins to its self-hosted sentinel model (selfHostedOnly) — no fallback.
-  assemble: [],
-  // Caption burn: GPU worker first (FFmpeg drawtext), Replicate fallback.
-  caption_burn: ["ffmpeg-captionburn", "zsxkib/add-subtitles-to-video"],
-  // AutoCut: no hosted fallback — a true multi-clip edit only runs on the
-  // self-hosted FFmpeg assembler. autocut is never routed through orchestrate()
-  // directly (runAutocut dispatches kind "assemble"), so this stays empty.
-  autocut: [],
-  // Lyric video pins to its self-hosted sentinel model — no hosted fallback.
-  lyric_video: ["ffmpeg-lyricvideo"],
+  motion:  ["mimic-motion"],
 };
-const FALLBACK_CAP: Record<GenerateKind, number> = {
-  // Requested model + 4 fallback candidates (2 Replit-billed, nano-banana,
-  // seedream-4). Cap = 5 so the cheapest fallback is always reachable.
-  image: 5,
-  video: 6, // fal/ltx-video + inferencesh/veo-3-1-fast added as sentinels
-  lipsync: 2,
-  upscale: 1,
-  motion: 4, // fal/ltx-motion + inferencesh/veo-3-1-fast + xai + veo-2
-  // 2 Replit-billed + 5 existing candidates (Pollinations → Groq → Gemini →
-  // Claude → Lovable); text calls are cheap, so the cap covers the full list.
-  text: 7,
-  // 1 Replit-billed + 1 existing (ElevenLabs) candidate.
-  audio: 2,
-  assemble: 1,
-  caption_burn: 2,
-  autocut: 1,
-  lyric_video: 1,
-};
+const FALLBACK_CAP: Record<GenerateKind, number> = { image: 3, video: 2, lipsync: 2, upscale: 1, motion: 1 };
 
-// Models that honour imageUrls as an EDIT SOURCE: Replicate nano-banana(-pro)
-// via image_input, the fal *-edit endpoints (FAL_IDENTITY_EDITS), and the direct
-// Gemini API (GEMINI_DIRECT_SLUGS). seedream and pollinations are
-// NOT here — they are text-to-image and would ignore the source photo entirely.
-// Derived from the routing maps so a newly mapped model is edit-capable
-// automatically. Exported for tests and future edit surfaces.
-export const EDIT_CAPABLE_IMAGE_MODELS: ReadonlySet<string> = new Set([
-  ...Object.keys(FAL_IDENTITY_EDITS),
-  ...Object.keys(GEMINI_DIRECT_SLUGS),
-  // Replicate-only (no fal edit endpoint), but image_input-driven all the same.
-  "google/nano-banana-pro",
-  // Replit-billed Gemini image proxy: same gemini-2.5-flash-image model as
-  // google/nano-banana, and its adapter inlines every imageUrls ref as
-  // inline_data — a true edit route. (replit/gpt-image-1 is NOT here: the
-  // images.generate path has no reference-image input.)
-  "replit/gemini-2.5-flash-image",
-]);
-
-export function getCandidateModels(req: GenerateRequest): string[] {
-  // Self-hosted requests pin to the single requested model — no cross-model
-  // fallback (the worker pool serves the kind, not a specific hosted model).
-  if (req.selfHostedOnly) return req.model ? [req.model] : [];
-  // Explicitly pinned requests (e.g. xAI UGC engine): the user chose THIS
-  // model; a silent substitute would misrepresent what they paid for.
-  if (req.pinnedModelOnly) return req.model ? [req.model] : [];
+function getCandidateModels(req: GenerateRequest): string[] {
   const base = FALLBACK_MODELS[req.kind] ?? [];
   const ordered = [req.model, ...base].filter((m): m is string => !!m);
   const cap = Math.max(1, FALLBACK_CAP[req.kind] ?? 2);
-  // Strict edits (photo editor): drop every candidate that cannot edit the
-  // source photo — failing is better than charging for an unrelated image.
-  const pool = req.editStrict ? ordered.filter((m) => EDIT_CAPABLE_IMAGE_MODELS.has(m)) : ordered;
-  return Array.from(new Set(pool)).slice(0, cap);
+  return Array.from(new Set(ordered)).slice(0, cap);
 }
 
 // Request-level problems that every provider/model would hit identically — abort
@@ -3285,94 +839,11 @@ const FATAL_RE = /url (?:host|scheme) not allowed|invalid url|not your|unsafe/i;
 // Provider-down / quota signals worth briefly circuit-breaking the provider for.
 // Model-specific input errors (e.g. 400/422) are NOT here, so one bad model never
 // blacklists a healthy provider for other requests.
-const PROVIDER_DOWN_RE =
-  /\b(429|5\d\d|402)\b|timeout|timed out|econnreset|econnrefused|etimedout|fetch failed|socket hang up|capacity|temporarily unavailable|rate limit/i;
-
-// The self-hosted GPU pool raises these exact messages when it has no eligible
-// worker to serve a request (none online with the capability, or all at capacity /
-// stale heartbeat). They mean "fall back to the external chain" — NOT "the backend
-// failed" — so orchestrate() skips them silently: no error log, no cooldown. This
-// keeps the owner's dashboard from filling with phantom "GPU down" rows whenever
-// their Colab/Kaggle session is simply offline. Genuine GPU dispatch errors
-// (timeouts, bad URLs, HTTP 5xx) do NOT match here and are handled normally.
-const GPU_UNAVAILABLE_RE = /^(No GPU workers available|All GPU workers failed)$/;
-
-// ─── Free GPU only mode ──────────────────────────────────────────────────────
-// When the global "Free GPU only" safety flag is ON, image/video/lip-sync/motion
-// (and any other modality) may run ONLY on the self-hosted GPU pool plus
-// genuinely free ($0) hosted providers (e.g. Pollinations). Every paid external
-// adapter (Replicate, Kling, HeyGen, Fal, Runway, Lovable gateway, ElevenLabs, …)
-// is filtered out at provider selection, so it is never reached and can never
-// bill. The single source of truth for "free" is the adapter's own estimateCost:
-// the GPU pool is always allowed (owner's own hardware) and any adapter that
-// estimates $0 for the request is allowed; everything else is paid → skipped.
-export const FREE_MODE_NO_WORKER_MSG =
-  "Your free GPU isn't running right now — start your Colab/Kaggle worker and try again. (Free GPU only mode is on, so paid providers are disabled.)";
-
-// ─── Video chain exhaustion (task #305) ──────────────────────────────────────
-// When an UNPINNED video request exhausts every candidate model, the user must
-// see one stable "no video provider" error — not whichever raw provider error
-// happened to come last (a stray 429 would render as "busy, wait a moment",
-// implying a retry of the same dead chain will work). Pinned and self-hosted
-// requests keep their raw errors: those surfaces have their own accurate
-// messaging (rate-limit on the deliberately chosen model, "start your worker").
-// The suffixes appended at the throw sites preserve the underlying error tokens
-// so the job queue's terminal/transient classification and ops logs behave
-// exactly as before.
-export const NO_VIDEO_PROVIDER_MSG =
-  "No video provider available right now — try again or switch model.";
-
-function isFreeAdapter(a: ProviderAdapter, r: GenerateRequest): boolean {
-  // The self-hosted pool runs on the owner's own hardware — always free of
-  // external billing — and a $0 estimate marks a genuinely free hosted provider.
-  // hf-video is an external API (HuggingFace) — not the owner's own hardware.
-  // Even though its cost estimate is $0 (free tier), it should NOT be allowed
-  // in free-GPU-only mode: that mode is for the owner's self-hosted pool and
-  // genuinely open providers (e.g. Pollinations). Keep hf-video blocked so
-  // free mode always fails fast to the "start your GPU" message for video.
-  if (a.name === "hf-video") return false;
-  // ffmpeg-free is a server-CPU/storage adapter — not a GPU worker, but also
-  // not the kind of "free hosted" that should satisfy free-GPU-only mode.
-  // Keep it blocked so free-GPU-only users still see the "start your worker"
-  // message rather than silently getting an animated still instead of AI video.
-  if (a.name === "ffmpeg-free") return false;
-  return a === gpuWorker || a.estimateCost(r) === 0;
-}
-
-/**
- * Preflight for "Free GPU only" mode, run by server fns BEFORE reserving credits.
- * No-op when the flag is off. When on, it throws the friendly "start your GPU"
- * message if there is no free way to serve this kind — i.e. no $0 hosted provider
- * exists for the kind AND no eligible self-hosted worker is online — so we never
- * charge credits for a request that can only fail.
- */
-export async function assertFreeModeServable(kind: GenerateKind): Promise<void> {
-  if (!(await isFreeGpuOnlyMode())) return;
-  // A zero-cost hosted provider (e.g. Pollinations for image/text) can always
-  // serve this kind for free, so the request is servable regardless of the pool.
-  const probe = { kind } as GenerateRequest;
-  // Exclude hf-video: it's an external API and must not count as a "free" path
-  // in free-GPU-only mode — video should fail fast to the GPU prompt when offline.
-  const hasFreeHosted = PRIORITY[kind].some(
-    (a) =>
-      a !== gpuWorker &&
-      a.name !== "hf-video" &&
-      a.name !== "ffmpeg-free" &&
-      a.estimateCost(probe) === 0,
-  );
-  if (hasFreeHosted) return;
-  // Otherwise the only free path is the self-hosted GPU pool — require one online.
-  if (await hasActiveWorkerForKind(kind)) return;
-  throw new Error(FREE_MODE_NO_WORKER_MSG);
-}
+const PROVIDER_DOWN_RE = /\b(429|5\d\d|402)\b|timeout|timed out|econnreset|econnrefused|etimedout|fetch failed|socket hang up|capacity|temporarily unavailable|rate limit/i;
 
 export async function orchestrate(rawReq: GenerateRequest): Promise<GenerateResult> {
   // Sign private-studio refs once, up front, so every adapter sees a fetchable URL.
-  const req = await signStudioRefs(rawReq);
-  // Global safety mode: when ON, restrict EVERY request to the free pool + $0
-  // providers. selfHostedOnly requests are already pool-only, so the extra read
-  // is skipped for them.
-  const freeOnly = req.selfHostedOnly ? false : await isFreeGpuOnlyMode();
+  const req = addMotionDirection(await signStudioRefs(rawReq));
   const candidates = getCandidateModels(req);
   // Snapshot provider health ONCE. Without this, a failure on the first candidate
   // model marks its provider (e.g. Replicate) unhealthy and skips it for every
@@ -3386,129 +857,64 @@ export async function orchestrate(rawReq: GenerateRequest): Promise<GenerateResu
 
   for (const modelKey of candidates) {
     const r: GenerateRequest = { ...req, model: modelKey };
-    let adapters = PRIORITY[r.kind].filter((a) => a.supports(r) && healthyAtStart.has(a.name));
-    // Self-hosted requests run ONLY on the GPU worker pool — never a hosted API.
-    if (req.selfHostedOnly) adapters = adapters.filter((a) => a === gpuWorker);
-    // Free GPU only mode: drop every paid adapter so it is never reached. Only the
-    // self-hosted pool and $0 providers survive — no paid API can ever bill.
-    else if (freeOnly) adapters = adapters.filter((a) => isFreeAdapter(a, r));
-    // Strict edits never run on the GPU pool: its image capability is a
-    // text-to-image ComfyUI graph, which would serve the "edit" identity-blind.
-    if (req.editStrict) adapters = adapters.filter((a) => a !== gpuWorker);
+    const adapters = PRIORITY[r.kind].filter((a) => a.supports(r) && healthyAtStart.has(a.name));
     if (adapters.length === 0) continue;
 
     for (const adapter of adapters) {
       triedAny = true;
-      // Real progress (task #284): a provider attempt is starting. Machine
-      // stage code only — NEVER the adapter/provider name (the string reaches
-      // the user's progress bar, and providers are an internal detail).
-      try {
-        r.onProgress?.({ stage: "generating" });
-      } catch {
-        // Observers are cosmetic; never let one break the dispatch loop.
-      }
       const start = Date.now();
       try {
-        const { url, endpoint, text } = await withRetry(() => adapter.run(r), 2);
+        const { url, endpoint } = await withRetry(() => adapter.run(r), 2);
         const latency = Date.now() - start;
         const cost = adapter.estimateCost(r);
-        // The self-hosted GPU pool is the only adapter that runs on the owner's
-        // own hardware; everything else is a paid hosted/external provider.
-        const backend: GenerateResult["backend"] =
-          adapter === gpuWorker ? "self-hosted" : "external";
         markSuccess(adapter.name);
-        await log({
-          provider: adapter.name,
-          endpoint,
-          kind: r.kind,
-          status: "ok",
-          latencyMs: latency,
-          costUsd: cost,
-          userId: r.userId,
-          refId: r.refId,
-        });
-        // Make the served-by backend obvious in the workflow/deploy logs so the
-        // owner can confirm the GPU is being used and external credits are saved.
-        console.info(
-          `[orchestrator] ${r.kind} served by ${
-            backend === "self-hosted"
-              ? `self-hosted GPU (${endpoint})`
-              : `external provider ${adapter.name} (${endpoint})`
-          }`,
-        );
-        return {
-          url,
-          provider: adapter.name,
-          endpoint,
-          backend,
-          latencyMs: latency,
-          costUsd: cost,
-          text,
-        };
+        await log({ provider: adapter.name, endpoint, kind: r.kind, status: "ok",
+          latencyMs: latency, costUsd: cost, userId: r.userId, refId: r.refId });
+        return { url, provider: adapter.name, endpoint, latencyMs: latency, costUsd: cost };
       } catch (e) {
         const latency = Date.now() - start;
         const msg = e instanceof Error ? e.message : String(e);
         lastErr = e instanceof Error ? e : new Error(msg);
-        // The self-hosted GPU pool simply having no eligible worker is the normal
-        // cue to fall back, not a provider failure — skip it silently (no error
-        // log, no cooldown) so the dashboard isn't flooded while Colab is offline.
-        if (adapter === gpuWorker && GPU_UNAVAILABLE_RE.test(msg)) continue;
         // Only back a provider off for genuine provider-down/quota signals, so a
         // single bad model never blacklists a healthy provider for other requests.
         if (PROVIDER_DOWN_RE.test(msg)) markFailure(adapter.name);
-        await log({
-          provider: adapter.name,
-          endpoint: modelKey,
-          kind: r.kind,
-          status: "error",
-          latencyMs: latency,
-          costUsd: 0,
-          error: msg.slice(0, 500),
-          userId: r.userId,
-          refId: r.refId,
-        });
+        await log({ provider: adapter.name, endpoint: modelKey, kind: r.kind,
+          status: "error", latencyMs: latency, costUsd: 0, error: msg.slice(0, 500),
+          userId: r.userId, refId: r.refId });
         if (FATAL_RE.test(msg)) throw lastErr; // bad request — every model fails the same
       }
     }
   }
 
-  // Free GPU only mode: the only thing that could have run was the self-hosted
-  // pool (and $0 providers). If nothing ran, or the only failure was the pool
-  // having no eligible worker, surface the friendly "start your GPU" message —
-  // never a confusing "no provider" dump that hints at a missing paid key.
-  if (freeOnly && (!triedAny || (lastErr && GPU_UNAVAILABLE_RE.test(lastErr.message)))) {
-    throw new Error(FREE_MODE_NO_WORKER_MSG);
-  }
-
-  // Unpinned, non-self-hosted video: the /orchestrate fallback chain itself is
-  // exhausted — surface the stable user-facing error (task #305) instead of an
-  // arbitrary last provider error or a raw reasons dump.
-  const videoChainExhausted =
-    req.kind === "video" && !req.selfHostedOnly && !req.pinnedModelOnly;
-
   if (!triedAny) {
     const all = PRIORITY[req.kind];
-    const reasons = all
-      .map((a) => {
-        if (!a.supports(req))
-          return `${a.name}: missing config/key for model "${req.model ?? "?"}"`;
-        if (!isHealthy(a.name)) return `${a.name}: cooling down after recent failure`;
-        return `${a.name}: ok`;
-      })
-      .join("; ");
-    if (videoChainExhausted) {
-      // Keep the reasons suffix: it carries "missing config/key", which the job
-      // queue's classifyJobError treats as terminal (refund) exactly as before.
-      throw new Error(`${NO_VIDEO_PROVIDER_MSG} — ${reasons}`);
-    }
+    const reasons = all.map((a) => {
+      if (!a.supports(req)) return `${a.name}: missing config/key for model "${req.model ?? "?"}"`;
+      if (!isHealthy(a.name)) return `${a.name}: cooling down after recent failure`;
+      return `${a.name}: ok`;
+    }).join("; ");
     throw new Error(`No provider available for ${req.kind} → ${reasons}`);
   }
-  if (videoChainExhausted) {
-    // Keep the last raw provider error as a suffix: ops logs stay diagnosable
-    // and the job queue's terminal/transient classification sees the same
-    // tokens (5xx → retry, 400/403 → terminal) it did when this threw lastErr.
-    const last = lastErr ? ` (last: ${lastErr.message.slice(0, 300)})` : "";
-    throw new Error(`${NO_VIDEO_PROVIDER_MSG}${last}`);
-  }
   throw lastErr ?? new Error("All providers failed");
+}
+
+
+// ─── Free-GPU-only guard (build-time compatibility repair) ────────────────────
+// Kept here because studio/lipsync server functions import this guard directly.
+// Paid adapters must never be reached while free-GPU-only mode is enabled.
+import { isFreeGpuOnlyMode } from "./app-settings.server";
+
+export const FREE_MODE_NO_WORKER_MSG =
+  "Free GPU only mode is on — start a GPU worker for this operation before trying again.";
+
+export async function assertFreeModeServable(kind: GenerateKind): Promise<void> {
+  if (!(await isFreeGpuOnlyMode())) return;
+
+  // Images have the existing $0 hosted path and therefore do not require a
+  // self-hosted worker. Temporal workloads must have an active GPU worker.
+  if (kind === "image") return;
+
+  if (await hasActiveWorkerForKind(kind)) return;
+
+  throw new Error(FREE_MODE_NO_WORKER_MSG);
 }

@@ -9,7 +9,7 @@ import { listGallery, toggleFavorite } from "@/lib/studio.functions";
 import { deleteGeneration, hideGeneration } from "@/lib/gallery.functions";
 import { ModelBadge } from "@/components/ModelBadge";
 import { VisualEditDialog } from "@/components/gallery/VisualEditDialog";
-import { Loader2, ArrowLeft, Star, Download, Film, Image as ImageIcon, Layers, Trash2, Wand2, Captions, Lock, CheckCheck, Check, EyeOff, Eye } from "lucide-react";
+import { Loader2, ArrowLeft, Star, Download, Film, Image as ImageIcon, Layers, Trash2, Wand2, Captions, Lock, CheckCheck, Check, EyeOff, Eye, Play } from "lucide-react";
 import { PageSpinner } from "@/components/PageSpinner";
 import { AuthRedirect } from "@/components/AuthRedirect";
 import { CaptionDialog } from "@/components/gallery/CaptionDialog";
@@ -18,6 +18,8 @@ import { saveAssetToDisk } from "@/lib/save";
 import { ShareMenu } from "@/components/share/ShareMenu";
 import { publishGeneration } from "@/lib/share.functions";
 import { bulkDeleteGenerations } from "@/lib/gallery.functions";
+import { listMyWorkflows } from "@/lib/workflows.functions";
+import { groupGalleryByDate } from "@/lib/workflow-gallery";
 
 export const Route = createLazyFileRoute("/gallery")({ component: GalleryPage });
 
@@ -29,7 +31,7 @@ function GalleryPage() {
   const favFn = useServerFn(toggleFavorite);
   const hideFn = useServerFn(hideGeneration);
   const publishFn = useServerFn(publishGeneration);
-  const [filter, setFilter] = useState<"all" | "favorites" | "images" | "videos" | "hidden">("all");
+  const [filter, setFilter] = useState<"all" | "favorites" | "images" | "videos" | "pipelines" | "hidden">("all");
   const [editing, setEditing] = useState<{ id: string; url: string } | null>(null);
   const [captioning, setCaptioning] = useState<{ id: string; url: string } | null>(null);
   const { highlight } = Route.useSearch();
@@ -44,6 +46,12 @@ function GalleryPage() {
   const { data, isLoading } = useQuery({
     queryKey: ["gallery", showHidden],
     queryFn: () => listFn({ data: { showHidden } }),
+    enabled: !!user,
+  });
+  const myWorkflowsFn = useServerFn(listMyWorkflows);
+  const workflowsQuery = useQuery({
+    queryKey: ["workflows", "mine"],
+    queryFn: () => myWorkflowsFn({}),
     enabled: !!user,
   });
 
@@ -118,7 +126,18 @@ function GalleryPage() {
   if (loading) return <PageSpinner />;
   if (!user) return <AuthRedirect />;
 
-  const items = (data?.items ?? []).filter((g) => {
+  type GenerationLibraryItem = { type: "generation"; created_at: string; generation: (NonNullable<typeof data> extends { items: (infer G)[] } ? G : never) };
+  type PipelineLibraryItem = {
+    type: "pipeline"; id: string; name: string; description: string | null; graph: unknown;
+    created_at: string; updated_at: string; thumbnail_url: string | null; last_output_url: string | null; last_output_kind: string | null;
+  };
+  type LibraryItem = GenerationLibraryItem | PipelineLibraryItem;
+  const items: LibraryItem[] = [
+    ...(data?.items ?? []).map((generation) => ({ type: "generation" as const, created_at: generation.created_at, generation })),
+    ...((workflowsQuery.data?.workflows ?? []) as Omit<PipelineLibraryItem, "type">[]).map((workflow) => ({ ...workflow, type: "pipeline" as const })),
+  ].filter((item) => {
+    if (item.type === "pipeline") return filter === "all" || filter === "pipelines";
+    const g = item.generation;
     if (filter === "favorites") return g.is_favorite;
     if (filter === "images") return !!g.result_image_url;
     if (filter === "videos") return !!g.result_video_url;
@@ -127,7 +146,7 @@ function GalleryPage() {
 
   const favs = (data?.items ?? []).filter((g) => g.is_favorite).length;
 
-  const groups = groupByDate(items);
+  const groups = groupGalleryByDate(items);
 
   return (
     <main className="aurora-page-shell text-foreground">
@@ -140,7 +159,7 @@ function GalleryPage() {
         </Link>
         <div className="flex items-center gap-3">
           <div className="text-sm text-muted-foreground">
-            {data?.items.length ?? 0} total · <span className="text-foreground">{favs} starred</span>
+            {items.length} library items · <span className="text-foreground">{favs} starred</span>
           </div>
           {(data?.items.length ?? 0) > 0 && (
             <button
@@ -157,7 +176,7 @@ function GalleryPage() {
       <div className="relative z-10 max-w-7xl mx-auto p-6 md:p-10 space-y-6">
         <div>
           <h1 className="text-3xl md:text-4xl font-semibold tracking-tight">Your permanent library</h1>
-          <p className="text-muted-foreground mt-1">Every generation is stored forever. Star your favourites to keep them at the top.</p>
+          <p className="text-muted-foreground mt-1">Your generations and saved Canvas pipelines live here. Star your favourite generations to keep them at the top.</p>
         </div>
 
         <div className="flex gap-2 border-b border-border">
@@ -166,6 +185,7 @@ function GalleryPage() {
             { v: "favorites", l: "★ Favourites" },
             { v: "images", l: "Photos" },
             { v: "videos", l: "Videos" },
+            { v: "pipelines", l: "Pipelines" },
             { v: "hidden", l: "Hidden" },
           ] as const).map((t) => (
             <button
@@ -178,12 +198,12 @@ function GalleryPage() {
           ))}
         </div>
 
-        {isLoading && <div className="text-sm text-muted-foreground">Loading…</div>}
+        {(isLoading || workflowsQuery.isLoading) && <div className="text-sm text-muted-foreground">Loading library…</div>}
 
-        {items.length === 0 && !isLoading && (
+        {items.length === 0 && !isLoading && !workflowsQuery.isLoading && (
           <div className="rounded-2xl border border-dashed border-border bg-card/30 p-12 text-center">
             <ImageIcon className="size-8 text-muted-foreground mx-auto mb-3" />
-            <p className="text-sm text-muted-foreground">No generations here yet. Head back to the studio.</p>
+            <p className="text-sm text-muted-foreground">No generations or saved pipelines here yet. Generate in Studio or save a Canvas pipeline.</p>
             <Link to="/studio" className="inline-block mt-4 px-4 py-2 rounded-full text-sm bg-[image:var(--gradient-hero)] shadow-[var(--shadow-glow-soft)]">Open Studio</Link>
           </div>
         )}
@@ -194,7 +214,9 @@ function GalleryPage() {
               {group.label} <span className="text-muted-foreground/50">· {group.items.length}</span>
             </h2>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-1.5">
-              {group.items.map((g) => {
+              {group.items.map((item) => {
+                if (item.type === "pipeline") return <PipelineCard key={item.id} workflow={item} />;
+                const g = item.generation;
             // watermark_display_url replaces result_image_url for free-tier items
             const isWatermarked = !!(g as { is_watermarked?: boolean }).is_watermarked;
             // Display URL: watermark proxy for Free images, raw URL for Pro images/videos.
@@ -387,14 +409,14 @@ function GalleryPage() {
             <button
               type="button"
               onClick={() => {
-                const allIds = items.map((g) => g.id);
+                const allIds = items.filter((item): item is GenerationLibraryItem => item.type === "generation").map((item) => item.generation.id);
                 const allSelected = allIds.every((id) => selectedIds.has(id));
                 setSelectedIds(allSelected ? new Set() : new Set(allIds));
               }}
               className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
             >
               <CheckCheck className="size-4" />
-              {items.every((g) => selectedIds.has(g.id)) ? "Deselect all" : `Select all (${items.length})`}
+              {items.filter((item): item is GenerationLibraryItem => item.type === "generation").every((item) => selectedIds.has(item.generation.id)) ? "Deselect all" : `Select all (${items.filter((item) => item.type === "generation").length})`}
             </button>
             <div className="w-px h-5 bg-border" />
             <button
@@ -418,31 +440,48 @@ function GalleryPage() {
   );
 }
 
-type GalleryItem = { created_at: string; [key: string]: unknown };
+type PipelineCardWorkflow = {
+  id: string; name: string; description: string | null; graph: unknown; updated_at: string;
+  thumbnail_url: string | null; last_output_url: string | null; last_output_kind: string | null;
+};
 
-function groupByDate<T extends GalleryItem>(items: T[]): { label: string; items: T[] }[] {
-  const now = new Date();
-  const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
-  const today = startOfDay(now);
-  const yesterday = today - 86_400_000;
-  const weekAgo = today - 6 * 86_400_000;
+function MiniGraph({ graph }: { graph: unknown }) {
+  const nodes = (graph as { nodes?: { id: string; position?: { x: number; y: number }; data?: { kind?: string } }[] })?.nodes ?? [];
+  const edges = (graph as { edges?: { source: string; target: string }[] })?.edges ?? [];
+  const points = new Map(nodes.map((node, index) => [node.id, {
+    x: 15 + (node.position?.x ?? index * 90) / 10,
+    y: 18 + (node.position?.y ?? (index % 2) * 70) / 10,
+    kind: node.data?.kind ?? "step",
+  }]));
+  return <svg aria-label="Pipeline graph preview" viewBox="0 0 120 80" className="h-full w-full bg-[radial-gradient(circle_at_30%_20%,oklch(0.65_0.2_295/0.25),transparent_55%)]">
+    {edges.map((edge, index) => {
+      const from = points.get(edge.source); const to = points.get(edge.target);
+      return from && to ? <line key={index} x1={from.x} y1={from.y} x2={to.x} y2={to.y} stroke="oklch(0.75 0.2 295 / .7)" strokeWidth="1.3" /> : null;
+    })}
+    {[...points.entries()].map(([id, point]) => <g key={id}><circle cx={point.x} cy={point.y} r="6" fill="oklch(0.18 0.03 295)" stroke="oklch(0.72 0.2 295)" /><text x={point.x} y={point.y + 1.5} textAnchor="middle" fontSize="3.4" fill="white">{point.kind.slice(0, 5)}</text></g>)}
+  </svg>;
+}
 
-  const buckets: Record<string, T[]> = {
-    Today: [],
-    Yesterday: [],
-    "This week": [],
-    Older: [],
-  };
-
-  for (const item of items) {
-    const day = startOfDay(new Date(item.created_at));
-    if (day === today) buckets.Today.push(item);
-    else if (day === yesterday) buckets.Yesterday.push(item);
-    else if (day >= weekAgo) buckets["This week"].push(item);
-    else buckets.Older.push(item);
-  }
-
-  return Object.entries(buckets)
-    .filter(([, list]) => list.length > 0)
-    .map(([label, list]) => ({ label, items: list }));
+function PipelineCard({ workflow }: { workflow: PipelineCardWorkflow }) {
+  const mediaUrl = workflow.thumbnail_url ?? workflow.last_output_url;
+  const video = workflow.last_output_kind === "video";
+  return <article className="group overflow-hidden rounded-xl border border-primary/25 bg-card shadow-[var(--shadow-glow-soft)]">
+    <div className="relative aspect-[4/5] bg-background/50">
+      {mediaUrl ? video
+        ? <AutoplayVideo src={mediaUrl} className="h-full w-full object-cover" muted autoPlay playsInline preload="metadata" />
+        : <img src={mediaUrl} alt={`${workflow.name} output`} className="h-full w-full object-cover" loading="lazy" />
+        : <MiniGraph graph={workflow.graph} />}
+      <span className="absolute left-2 top-2 rounded-full border border-primary/40 bg-background/75 px-2 py-1 text-[9px] font-semibold uppercase tracking-wide text-primary backdrop-blur">Pipeline</span>
+    </div>
+    <div className="space-y-1.5 p-3">
+      <h3 className="truncate text-sm font-semibold">{workflow.name}</h3>
+      <p className="line-clamp-2 text-xs text-muted-foreground">{workflow.description || "Saved Canvas pipeline"}</p>
+      <div className="flex items-center justify-between gap-2 pt-1 text-[10px] text-muted-foreground">
+        <span>{mediaUrl ? "Output saved" : "Ready to run"}</span><span>{new Date(workflow.updated_at).toLocaleDateString()}</span>
+      </div>
+      <Link to="/canvas" search={{ workflow: workflow.id, run: true }} className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-lg bg-[image:var(--gradient-hero)] px-2 py-2 text-xs font-semibold text-primary-foreground">
+        <Play className="size-3" /> Load &amp; Run
+      </Link>
+    </div>
+  </article>;
 }

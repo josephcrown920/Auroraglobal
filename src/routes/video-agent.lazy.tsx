@@ -11,11 +11,8 @@ import {
   ChevronUp,
   Clock,
   Film,
-  Clapperboard,
-  Layers3,
   Loader2,
   Plus,
-  ImagePlus,
   Sparkles,
   XCircle,
 } from "lucide-react";
@@ -52,26 +49,6 @@ const EXAMPLE_PROMPTS = [
   "Launch reveal for an AI productivity app",
   "How coffee quietly changed modern civilization",
 ];
-
-const AGENT_REFERENCE_IMAGE = "/landing/step-reference.jpg";
-
-const CREATIVE_STARTERS = [
-  {
-    id: "product",
-    label: "Product launch",
-    prompt: "Create a 30-second premium product-launch film. Open on a tight visual detail, reveal the product in a clean hero shot, then build to a confident call to action. Smooth camera movement, precise sound design, polished violet-and-chrome lighting.",
-  },
-  {
-    id: "artist",
-    label: "Artist visual",
-    prompt: "Create a 60-second cinematic artist visual. Begin intimate and restrained, then rise into a high-energy performance sequence with moving light, handheld momentum, and an unforgettable final frame.",
-  },
-  {
-    id: "story",
-    label: "Brand story",
-    prompt: "Create a 60-second documentary-style brand story. Start with a human problem, show the craft behind the solution, and finish with a warm, honest invitation to join the movement.",
-  },
-] as const;
 
 function greetingForHour(hour: number) {
   if (hour < 12) return "Good morning,";
@@ -158,7 +135,6 @@ function VideoAgentHome() {
   const [campaignCount, setCampaignCount] = useState(1);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [voice, setVoice] = useState<VideoVoice>("narrator-warm");
-  const [creativeStarter, setCreativeStarter] = useState<(typeof CREATIVE_STARTERS)[number]["id"]>("product");
 
   useEffect(() => {
     if (!authLoading && !user) void navigate({ to: "/auth", search: authNextSearch() });
@@ -170,15 +146,6 @@ function VideoAgentHome() {
     enabled: !!user,
   });
   const projects = projectsQuery.data ?? [];
-  const selectedStarter = CREATIVE_STARTERS.find((starter) => starter.id === creativeStarter) ?? CREATIVE_STARTERS[0];
-
-  function applyCreativeStarter(id: (typeof CREATIVE_STARTERS)[number]["id"]) {
-    const starter = CREATIVE_STARTERS.find((item) => item.id === id);
-    if (!starter) return;
-    setCreativeStarter(starter.id);
-    setPrompt(starter.prompt);
-  }
-
   async function handleCreate() {
     const trimmed = prompt.trim();
     if (!trimmed) return toast.error("Describe your video first");
@@ -256,88 +223,6 @@ function VideoAgentHome() {
           <p className="video-agent-greeting-muted">what shall we create?</p>
         </div>
 
-        <section className="mb-3 overflow-hidden rounded-2xl border border-primary/25 bg-gradient-to-r from-primary/[0.13] via-card/60 to-fuchsia-950/20 p-3" aria-label="Reference image context">
-          <div className="flex gap-3">
-            <img src={AGENT_REFERENCE_IMAGE} alt="Example visual reference for an Aurora video brief" className="h-24 w-20 rounded-xl border border-white/10 object-cover" />
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-primary">
-                <ImagePlus className="size-3.5" /> Visual reference context
-              </div>
-              <p className="mt-1 text-sm font-medium">Tell Aurora what this image should become.</p>
-              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                Start with a direction, then fine-tune the camera, movement, story, and sound in your brief.
-              </p>
-              <div className="mt-2 flex flex-wrap gap-1.5">
-                {CREATIVE_STARTERS.map((starter) => (
-                  <button
-                    key={starter.id}
-                    type="button"
-                    onClick={() => applyCreativeStarter(starter.id)}
-                    aria-pressed={creativeStarter === starter.id}
-                    className={`rounded-full border px-2.5 py-1 text-[10px] font-semibold transition ${
-                      creativeStarter === starter.id
-                        ? "border-primary/60 bg-primary/15 text-primary"
-                        : "border-border/50 bg-card/40 text-muted-foreground hover:border-primary/40 hover:text-foreground"
-                    }`}
-                  >
-                    {starter.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-          <div className="mt-3 grid grid-cols-3 gap-2 border-t border-white/10 pt-3">
-            <BriefStep icon={Layers3} label="Plan" detail="Script + shots" />
-            <BriefStep icon={Clapperboard} label="Build" detail="Storyboard + frames" />
-            <BriefStep icon={Film} label="Finish" detail="Edit + final MP4" />
-          </div>
-        </section>
-
-        <section className="mb-5 overflow-hidden rounded-2xl border border-primary/30 bg-card/60" aria-label="Looping Officers production template">
-          <img
-            src="/josh/looping-officers-hero.png"
-            alt="NBA Josh stands calm beneath a hanging microphone as officers run behind him in rain and neon police lights"
-            className="aspect-video w-full object-cover"
-            loading="lazy"
-          />
-          <div className="space-y-3 p-4">
-            <div>
-              <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-primary">Production template</p>
-              <h2 className="mt-1 text-base font-semibold">NBA Josh — Looping Officers</h2>
-              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                Build 15–30 second performance plates while officers run at full speed but never close the distance. Every campaign draft can have its own artist, outfit, scene, and review path.
-              </p>
-            </div>
-            <div className="flex gap-2">
-              <label className="flex min-w-0 flex-1 items-center justify-between gap-2 rounded-lg border border-border bg-background/60 px-3 py-2 text-xs text-muted-foreground">
-                Campaign drafts
-                <select
-                  value={campaignCount}
-                  onChange={(event) => setCampaignCount(Number(event.target.value))}
-                  disabled={loading}
-                  aria-label="Number of The One campaign drafts"
-                  className="bg-transparent font-semibold text-foreground outline-none"
-                >
-                  <option value={1}>1 video</option>
-                  <option value={5}>5 videos</option>
-                  <option value={10}>10 videos</option>
-                  <option value={25}>25 videos</option>
-                  <option value={50}>50 videos</option>
-                </select>
-              </label>
-              <button
-                type="button"
-                onClick={() => void handleCreateNbaJoshCampaign()}
-                disabled={loading}
-                className="flex min-w-[11rem] items-center justify-center gap-2 rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90 disabled:opacity-60"
-              >
-                {loading ? <Loader2 className="size-4 animate-spin" /> : <Clapperboard className="size-4" />}
-                {campaignCount === 1 ? "Open production plan" : `Create ${campaignCount} drafts`}
-              </button>
-            </div>
-          </div>
-        </section>
-
         <form className="video-agent-composer" onSubmit={(event) => { event.preventDefault(); void handleCreate(); }}>
           <Textarea
             value={prompt}
@@ -360,6 +245,8 @@ function VideoAgentHome() {
           </div>
         </form>
 
+        <p className="mt-3 text-center text-xs text-muted-foreground">Aurora handles the script, shots, storyboard, and render for you.</p>
+
         <div className="mt-3 flex flex-wrap gap-1.5" aria-label="Example ideas">
           {EXAMPLE_PROMPTS.map((example) => (
             <button
@@ -372,10 +259,6 @@ function VideoAgentHome() {
             </button>
           ))}
         </div>
-
-        <p className="mt-2 text-[11px] text-muted-foreground">
-          Selected direction: <span className="font-medium text-foreground">{selectedStarter.label}</span>. The image above is a creative reference preview; project rendering currently follows the text brief you submit.
-        </p>
 
         <details
           className="video-agent-settings"
@@ -444,22 +327,3 @@ function VideoAgentHome() {
   );
 }
 
-function BriefStep({
-  icon: Icon,
-  label,
-  detail,
-}: {
-  icon: typeof Film;
-  label: string;
-  detail: string;
-}) {
-  return (
-    <div className="flex items-center gap-2 rounded-lg bg-background/30 px-2 py-2">
-      <span className="grid size-6 place-items-center rounded-md bg-primary/10 text-primary"><Icon className="size-3.5" /></span>
-      <span className="min-w-0">
-        <span className="block text-[10px] font-semibold text-foreground">{label}</span>
-        <span className="block truncate text-[9px] text-muted-foreground">{detail}</span>
-      </span>
-    </div>
-  );
-}

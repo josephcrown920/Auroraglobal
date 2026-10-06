@@ -1,7 +1,7 @@
 torch>=2.13.0
 torchvision
 diffusers>=0.38.0
-transformers>=5.5.0
+transformers>=5.10.0
 accelerate>=0.33.0
 huggingface_hub>=0.24.0
 Pillow>=12.3.0

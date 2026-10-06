@@ -28,6 +28,7 @@ export const OPTIONAL_ENV_GROUPS: Record<string, readonly string[]> = {
     "OPENROUTER_API_KEY",
     "HF_TOKEN",
   ],
+  "ModelArk managed director": ["ARK_API_KEY", "BYTEPLUS_API_KEY", "MODELARK_AGENT_ID", "ARK_BASE_URL", "BYTEPLUS_BASE_URL"],
   "Media/video providers": [
     "FAL_KEY",
     "KLING_ACCESS_KEY",

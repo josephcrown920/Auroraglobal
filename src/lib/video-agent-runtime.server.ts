@@ -13,7 +13,7 @@ export type VideoRuntimeRequest = {
   model?: string;
   imageUrls?: string[];
   duration?: number;
-  resolution?: "480p" | "720p" | "1080p" | "2160p";
+  resolution?: GenerateRequest["resolution"];
   aspectRatio?: string;
 };
 
@@ -40,11 +40,10 @@ function buildRequest(req: VideoRuntimeRequest, kind: GenerateRequest["kind"]): 
   return {
     kind,
     model: resolveModel(req, kind),
-    prompt: `${p.promptContext}\n\n${p.instruction}`,
+    prompt: `${p.promptContext}\n\n${p.instruction}${req.aspectRatio ? `\nAspect ratio: ${req.aspectRatio}` : ""}`,
     imageUrls: req.imageUrls,
     duration: req.duration,
     resolution: req.resolution,
-    aspectRatio: req.aspectRatio,
   };
 }
 

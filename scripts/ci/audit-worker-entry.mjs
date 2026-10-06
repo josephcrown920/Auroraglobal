@@ -31,6 +31,7 @@ const explicitlyNodeOnly = new Set([
   "src/routes/api/public/watermark-video.ts",
   "src/routes/api/public/workers/files/$name.ts",
   "src/routes/api/public/github-sync-monitor.ts",
+  "src/routes/api/public/watchdog.ts",
   "src/lib/github-sync-health.functions.ts",
 ]);
 

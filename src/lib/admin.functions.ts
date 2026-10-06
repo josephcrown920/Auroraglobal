@@ -186,6 +186,93 @@ export const adminGrantCredits = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+export type AdminStuckReservation = {
+  job_id: string;
+  user_id: string;
+  email: string | null;
+  display_name: string | null;
+  credits_reserved: number;
+  status: "succeeded" | "failed";
+  updated_at: string;
+};
+
+export const adminListStuckReservations = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertAdmin(context.userId);
+
+    const cutoff = new Date(Date.now() - 60 * 60_000).toISOString();
+    const { data, error } = await supabaseAdmin
+      .from("jobs")
+      .select("id, user_id, credits_reserved, status, updated_at")
+      .in("status", ["succeeded", "failed"])
+      .gt("credits_reserved", 0)
+      .is("credits_settled_at", null)
+      .lt("updated_at", cutoff)
+      .order("updated_at", { ascending: true })
+      .limit(200);
+
+    if (error) throw new Error(error.message);
+    const jobs = data ?? [];
+    const userIds = [...new Set(jobs.map((job) => job.user_id))];
+    const { data: profiles, error: profilesError } = userIds.length
+      ? await supabaseAdmin
+          .from("profiles")
+          .select("user_id, email, display_name")
+          .in("user_id", userIds)
+      : { data: [], error: null };
+    if (profilesError) throw new Error(profilesError.message);
+
+    const profilesByUser = new Map((profiles ?? []).map((profile) => [profile.user_id, profile]));
+    return jobs.map((job) => {
+      const profile = profilesByUser.get(job.user_id);
+      return {
+        job_id: job.id,
+        user_id: job.user_id,
+        email: profile?.email ?? null,
+        display_name: profile?.display_name ?? null,
+        credits_reserved: job.credits_reserved,
+        status: job.status as "succeeded" | "failed",
+        updated_at: job.updated_at,
+      };
+    }) satisfies AdminStuckReservation[];
+  });
+
+export const adminReleaseStuckReservation = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        jobId: z.string().uuid(),
+        userId: z.string().uuid(),
+        expectedAmount: z.number().int().positive().max(2_147_483_647),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context.userId);
+
+    // The generated client types intentionally lag additive admin RPCs.
+    const { data: outcome, error } = await supabaseAdmin.rpc(
+      "admin_reconcile_stuck_reservation" as never,
+      {
+        _job: data.jobId,
+        _user: data.userId,
+        _expected_amount: data.expectedAmount,
+        _actor: context.userId,
+      } as never,
+    );
+    if (error) throw new Error(error.message);
+    if (outcome !== "released" && outcome !== "committed") {
+      throw new Error(
+        outcome === "changed"
+          ? "Reservation changed or was already resolved. Refresh before trying again."
+          : "Reservation could not be released.",
+      );
+    }
+    return { ok: true, outcome };
+  });
+
 const EARNINGS_RANGES = { "7d": 7, "30d": 30, "90d": 90, all: null } as const;
 type EarningsRange = keyof typeof EARNINGS_RANGES;
 

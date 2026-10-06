@@ -9,6 +9,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { isAdmin } from "@/lib/admin.server";
 
 export type GenerationHealthRow = {
   kind: string;
@@ -25,10 +26,12 @@ export type GenerationHealthRow = {
 /** Returns all rows from generation_health_state ordered by kind. */
 export const getGenerationHealth = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async () => {
-    // Admin-only: only the admin UI calls this, and the admin gate is enforced
-    // client-side (unlocked state) + supabase session. No additional role
-    // check needed for a read-only monitoring query.
+  .handler(async ({ context }) => {
+    // Admin-only operational data (provider error summaries, alert state).
+    // The client-side /admin gate is a UI convenience only — this server
+    // function enforces the admin role itself, like every other admin entry
+    // point, because any signed-in account can invoke it directly.
+    if (!(await isAdmin(context.userId))) throw new Error("Admin access required");
     const { data, error } = await supabaseAdmin
       .from("generation_health_state")
       .select("*")

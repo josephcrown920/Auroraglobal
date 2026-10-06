@@ -80,7 +80,7 @@ deprecated.
 | `AI_INTEGRATIONS_GEMINI_API_KEY` / `AI_INTEGRATIONS_GEMINI_BASE_URL` | Replit-managed Gemini proxy (no personal key needed) |
 | `AI_INTEGRATIONS_OPENAI_API_KEY` / `AI_INTEGRATIONS_OPENAI_BASE_URL` | Replit-managed OpenAI proxy |
 
-### Media / video / image providers
+### ModelArk managed director\n\n| Secret | Purpose |\n|---|---|\n| `ARK_API_KEY` | Server-only ModelArk authentication for the Aurora master director |\n| `MODELARK_AGENT_ID` | Optional managed-agent ID override; defaults to the configured Aurora director agent |\n| `ARK_BASE_URL` | Optional ModelArk API base URL override |\n| `BYTEPLUS_API_KEY` / `BYTEPLUS_BASE_URL` | Fallback credentials/base URL when ARK-specific variables are not set |\n\n### Media / video / image providers
 
 | Secret | Provider |
 |---|---|
@@ -108,7 +108,7 @@ deprecated.
 |---|---|
 | `AURORA_REGISTER_SECRET` | Worker self-registration (`apikey` header, anon-key scoped) |
 | `RUNPOD_API_KEY` / `RUNPOD_ENDPOINT_ID` | RunPod adapter |
-| `VASTAI_API_KEY` / `VAST_INFERENCE_URL` / `VAST_INFERENCE_TOKEN` | Vast.ai adapter + lifecycle management |
+| `VASTAI_API_KEY` / `VAST_INFERENCE_URL` / `VAST_INFERENCE_TOKEN` | Vast.ai adapter + lifecycle management; the workspace `vastai` CLI/SDK reads the same key through the `usercustomize.py` hook (see `docs/VAST_TOOLS.md`) |
 | `COMFYUI_URL` / `COMFYUI_TOKEN` / `COMFYUI_EDITOR_URL` | Self-hosted ComfyUI backend |
 | `COMFY_STUDIO_URL` / `COMFY_API_KEY` | ComfyUI Studio (second backend, gated separately) |
 | `HF_SPACE_URL` / `HF_FN_NAME` | Hugging Face Space worker |

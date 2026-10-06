@@ -31,7 +31,7 @@ const DEFAULT_ITEMS: Omit<SiteMapItem, "id" | "archived_at" | "updated_at">[] = 
   { title: "Aurora Video Agent", path: "/video-agent", kind: "internal", description: "Creator video planning and production workspace.", flow_order: 70 },
   { title: "Admin Overview", path: "/admin", kind: "admin", description: "Operator dashboard and controls.", flow_order: 80 },
   { title: "Site Images", path: "/admin/site-images", kind: "admin", description: "Landing image swap controls.", flow_order: 90 },
-  { title: "Adult Center", path: "/aurora-adult/", kind: "admin", description: "Separate 18+ artifact; retains its own gate.", flow_order: 100 },
+  { title: "Adult Center", path: "/adult", kind: "admin", description: "Private 18+ identity-locked editorial studio.", flow_order: 100 },
 ];
 
 async function assertAdmin(userId: string) {

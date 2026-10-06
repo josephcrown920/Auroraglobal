@@ -73,7 +73,13 @@ mock.module("./hf.server", () => ({
   HF_ROUTER_BASE: "https://router.huggingface.co/v1",
 }));
 
-const { orchestrate, markSuccess } = await import("./orchestrator.server");
+const {
+  orchestrate,
+  markSuccess,
+  getCandidateModels,
+  isProviderAllowed,
+  getBytePlusImageSize,
+} = await import("./orchestrator.server");
 
 function fakeResponse(opts: {
   ok?: boolean;
@@ -159,6 +165,49 @@ describe("orchestrate — ByteDance direct preference for Seed models", () => {
     expect(calls.some((c) => c.url.includes(BYTEPLUS_HOST))).toBe(true);
   });
 
+  it("pins native Seedance and rich legacy requests to BytePlus instead of losing controls in fallback", () => {
+    for (const req of [
+      { kind: "video" as const, model: "byteplus/seedance-2.5" },
+      { kind: "video" as const, model: "seedance-2.5", audioUrl: "https://example.com/music.mp3" },
+      { kind: "motion" as const, model: "seedance-2.5", videoUrl: "https://example.com/motion.mp4" },
+      { kind: "video" as const, model: "seedance-2.5", imageUrls: ["a", "b"] },
+    ]) {
+      expect(getCandidateModels(req)).toEqual([req.model]);
+      expect(isProviderAllowed(req, "byteplus")).toBe(true);
+      for (const provider of ["runpod", "fal", "replicate", "gemini-video"]) {
+        expect(isProviderAllowed(req, provider)).toBe(false);
+      }
+    }
+    expect(getCandidateModels({
+      kind: "video", model: "byteplus/seedance-2.5", allowedModels: ["other"],
+    })).toEqual([]);
+  });
+
+  it("native 2.5 forwards every reference through the real adapter", async () => {
+    installFastClock();
+    process.env.BYTEPLUS_API_KEY = "bp";
+    let body: Record<string, unknown> | undefined;
+    globalThis.fetch = (async (input, init) => {
+      expect(String(input)).toContain(BYTEPLUS_HOST);
+      if (init?.method === "POST") {
+        body = JSON.parse(init.body as string);
+        return fakeResponse({ json: { id: "native" } });
+      }
+      return fakeResponse({ json: { status: "succeeded", content: { video_url: "https://example.com/native.mp4" } } });
+    }) as typeof fetch;
+    const result = await orchestrate({
+      kind: "video", model: "byteplus/seedance-2.5", forSubscriber: true,
+      prompt: "Keep the supplied references", duration: 11, resolution: "720p",
+      imageUrls: ["https://example.com/a.png", "https://example.com/b.png"],
+      videoUrl: "https://example.com/v.mp4", audioUrl: "https://example.com/a.mp3",
+      params: { generate_audio: true, watermark: false, seed: 123 },
+    });
+    expect(result.provider).toBe("byteplus");
+    expect(result.endpoint).toBe("byteplus:dreamina-seedance-2-5-260628");
+    expect(body?.content).toHaveLength(5);
+    expect(body).toMatchObject({ duration: 11, resolution: "720p", generate_audio: true, watermark: false, seed: 123 });
+  });
+
   it("falls back to Replicate when the direct call fails (explicit fallback, no silent hide)", async () => {
     process.env.BYTEPLUS_API_KEY = "bp";
     process.env.REPLICATE_API_KEY = "r8";
@@ -238,6 +287,12 @@ describe("orchestrate — ByteDance direct preference for Seed models", () => {
     expect(res.provider).toBe("byteplus");
     expect(res.endpoint).toBe("byteplus:seedream-4-5-251128");
     expect(res.url).toBe("https://byteplus/img45.png");
+  });
+
+  it("uses Seedream 4.5's minimum pixel dimensions for wide and tall images", () => {
+    expect(getBytePlusImageSize("seedream-4-5-251128", "16:9")).toBe("2560x1440");
+    expect(getBytePlusImageSize("seedream-4-5-251128", "9:16")).toBe("1440x2560");
+    expect(getBytePlusImageSize("seedream-4-0-250828", "16:9")).toBe("2048x1152");
   });
 
   it("serves the newest Seedream 5.0 model ByteDance-direct (no Replicate mapping exists)", async () => {

@@ -1,7 +1,16 @@
 ---
 name: BytePlus/ModelArk live verification findings
-description: How to distinguish a wrong model slug from an unactivated one on ModelArk, and how orchestrator fallback behaves for each.
+description: Distinguish catalog visibility, regional credentials, model activation, quota, and actual completed generation.
 ---
+
+
+## Activation status must be checked per model
+
+The user confirmed on 2026-09-10 that ModelArk works. The exact working model was not specified; do not treat the historical activation failures below as its current account-wide status.
+
+**Why:** Model activation changes over time and working text access does not establish access to every image or video model.
+
+**How to apply:** Preserve ModelArk as a provider option. Verify the particular model needed before claiming it is available or asking the user to activate it.
 
 Verified 2026-07-04 against the live BytePlus ModelArk API (`ark.ap-southeast.bytepluses.com`) with a real `BYTEPLUS_API_KEY`.
 
@@ -14,26 +23,57 @@ Verified 2026-07-04 against the live BytePlus ModelArk API (`ark.ap-southeast.by
 - Re-verified 2026-07-05: the catalog gains new dated Seed checkpoints over time (e.g. seedream-4-5, seedream-5-0, seedance-1-5-pro all went live between the 07-04 and 07-05 pulls). Re-pull `GET /api/v3/models` periodically rather than assuming last session's snapshot is current — a mapping that reused an older sibling's model ID (e.g. seedream-4.5 aliasing seedream-4.0's ID before 4.5 existed) needs updating once the real checkpoint appears.
 - A brand-new Seed model with no verified Replicate/fal slug yet must be BytePlus-only: add it to `BYTEPLUS_DEFAULTS` + a hand-written `MODEL_REGISTRY` entry (it won't auto-populate from `REPLICATE_MAP`), but do NOT invent a guessed Replicate slug — that would silently violate the "no unverifiable marketing SKUs" rule and could route to a wrong/nonexistent model on fallback.
 
-## Re-verification 2026-08-06 (account 3003324153)
+## Catalog access is not render readiness
 
-All Seed model slugs in BYTEPLUS_DEFAULTS are confirmed **present in the ModelArk catalog** (status='' = live, not Retiring/Shutdown) but **none are activated** on account 3003324153 — every live call returns `ModelNotOpen`. Generation still falls through to Replicate/fal correctly.
+Check authentication, model identity, account entitlement, and completed output
+separately. A successful catalog response does not certify generation.
 
-**Updated slug mappings** (via catalog pull 2026-08-06):
-- `seedance-2.0` app key → changed from `seedance-1-0-pro-250528` to `dreamina-seedance-2-0-260128` (the real ByteDance "Seedance 2.0" branded checkpoint, Jan 2026).
-- `seedance-2.0-fast` app key → changed from `seedance-1-0-pro-fast-251015` to `dreamina-seedance-2-0-fast-260128` (Jan 2026 fast tier).
+**Why:** ModelArk can list a model even when generation is blocked by account
+billing. Parameter validation can also precede entitlement checks, so an invalid
+request reaching validation is not proof that a valid render will succeed.
 
-**New catalog entries confirmed ModelNotOpen (not dead):**
-- `dreamina-seedance-2-0-mini-260615` — a new "mini" tier not yet in BYTEPLUS_DEFAULTS.
-- `dola-seedream-5-0-pro-260628` — Seedream 5 Pro not yet in BYTEPLUS_DEFAULTS.
+**How to apply:** Report metadata checks as metadata only. Do not automatically
+retry ambiguous paid submissions. Keep native rollout gates closed until scoped
+permissions checks and an approved real render succeed.
 
-**What the account owner still needs to do** (in BytePlus Ark Console):
-- Activate `seedream-4-0-250828` (Seedream 4.0 image)
-- Activate `seedream-4-5-251128` (Seedream 4.5 image)
-- Activate `seedream-5-0-260128` (Seedream 5 image)
-- Activate `dreamina-seedance-2-0-260128` (Seedance 2.0 video — updated slug)
-- Activate `dreamina-seedance-2-0-fast-260128` (Seedance 2.0 Fast video — updated slug)
-- Activate `seedance-1-5-pro-251215` (Seedance 3.0 video)
-- Activate `dreamina-seedance-2-5-260628` (Seedance 2.5 video)
-- Optionally: `dreamina-seedance-2-0-mini-260615` and `dola-seedream-5-0-pro-260628` for new tiers.
+## Region and error distinctions
 
-Once activated, re-run: `curl -X POST https://ark.ap-southeast.bytepluses.com/api/v3/images/generations -H "Authorization: Bearer $BYTEPLUS_API_KEY" -H "Content-Type: application/json" -d '{"model":"seedream-4-0-250828","prompt":"a red apple","size":"512x512","response_format":"url","watermark":false}'` — should return `{"data":[{"url":"..."}]}` not a `ModelNotOpen` error.
+Keep the verified Southeast Asia BytePlus host unless there is contrary evidence.
+Distinguish `ModelNotOpen` from `InvalidEndpointOrModel.NotFound`.
+
+**Why:** A BytePlus-issued key rejected by the mainland Volcano host is not
+necessarily invalid. `ModelNotOpen` identifies missing account activation;
+`NotFound` can instead identify a retired or incorrect model ID.
+
+**How to apply:** Verify host and credential separately, then consult the
+paginated models catalog before changing a dated model mapping. Route
+account-activation and billing failures to account repair rather than inventing
+replacement slugs.
+
+## Verify compatible fallback models
+
+Do not assume a new native model has an equivalent fal or Replicate endpoint.
+
+**Why:** Catalog additions have preceded verified alternate-provider slugs.
+Guessing an endpoint can silently substitute a different model or lose reference
+inputs and approved controls.
+
+**How to apply:** Keep rich native requests pinned until a backup has verified
+capability parity; follow the hybrid-agent fallback policy for approvals and
+actual-engine disclosure.
+
+## Seedream and Dola model boundaries
+
+Seedream 4.5 has a larger minimum output canvas than the older shared 2048×1152
+wide preset; use at least 2560×1440 for 16:9. Dola Seed 2.1 Turbo is a
+chat/reasoning model, not an image-generation model, while Dola Seedream 5 Pro
+is the image model.
+
+**Why:** ModelArk returns an input validation error for undersized Seedream 4.5
+canvases, and its similarly named Dola models expose different APIs. Treating
+the names as interchangeable causes false image failures or routes text models
+through the image endpoint.
+
+**How to apply:** Keep Dola Seed 2.1 in text/agent integrations, map Dola
+Seedream 5 Pro under Seedream image routing, and choose model-specific
+dimensions before calling `/images/generations`.

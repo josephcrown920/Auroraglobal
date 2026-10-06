@@ -9,6 +9,20 @@ Bun's `mock.module(path, factory)` is **process-global and persistent** for the 
 
 **How to apply:** Never `mock.module(...)` a module another test file exercises real. Instead make the consumer **dependency-inject** that collaborator (thread it as a param with a `defaultDeps` fallback to the real import) and pass a fake from the test. Module-level shared state in the real module (e.g. orchestrator's `HEALTH` Map keyed by `Date.now()` cooldowns) is likewise shared across all suites in the run — reset it in `beforeEach` if a test depends on it. If a full-suite failure can't be reproduced by running the file alone, suspect cross-file `mock.module`/global state, not the file under test.
 
+Concurrent suites can also race through a shared provider registry even after
+the module mock is removed. If a compatibility test needs a custom registry,
+inject that map into the consumer rather than calling a global
+`setProviderRegistryForTest`; per-test dependency injection keeps parallel
+files from changing each other's provider order or model IDs.
+
+**Why:** The wrapper and routing suites passed alone but failed together when
+the wrapper's singleton registry replaced the live routing registry during a
+parallel test.
+
+**How to apply:** Prefer injected provider registries and transport functions
+for router compatibility tests; reserve global registry seams for tests that
+run in isolation.
+
 ## Corollary: incomplete stubs are latent bombs (2026-08-12)
 A `mock.module("./x", ...)` stub that omits some of x's real exports doesn't just affect its own suite — when it leaks, any OTHER suite whose import graph pulls the missing export dies at link time with `SyntaxError: Export named 'Y' not found`, order-dependently (green one run, red the next). Adding a NEW test file that imports a heavy server module for real can trip stubs that sat harmless for months in unrelated suites.
 **How to apply:** when stubbing a shared module, cover EVERY export that any transitive importer touches (grep the real module's `export` list); when a full-suite run shows a missing-export SyntaxError that an isolated run doesn't, hunt for the incomplete stub in OTHER files instead of debugging the named module.

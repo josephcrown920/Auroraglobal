@@ -175,6 +175,7 @@ export const redeemPromoCode = createServerFn({ method: "POST" })
       _amount: row.bonus_credits!,
       _reason: "promo_code",
       _ref: row.id,
+      _actor: null,
     });
 
     return { credits: row.bonus_credits, success: true };

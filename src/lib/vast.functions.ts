@@ -5,6 +5,8 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { z } from "zod";
+import { assertAdmin } from "@/lib/admin.functions";
 
 export type VastManagedView = {
   id: string;
@@ -63,3 +65,32 @@ export const listVastManaged = createServerFn({ method: "POST" }).middleware([re
     };
   },
 );
+
+export const getMotionAutoscaleStatus = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertAdmin(context.userId);
+    const { liveMotionAutoscaler } = await import("./motion-autoscaler-live.server");
+    return liveMotionAutoscaler().status();
+  });
+
+// This is an intentional operator opt-in only. It carries no offer, endpoint,
+// price, or arbitrary configuration from the browser, and does not clear a
+// cooldown: disabling and re-enabling cannot turn an outage into spend retries.
+export const setMotionAutoscaleEnabled = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({ enabled: z.boolean() }).parse(input))
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context.userId);
+    const db = supabaseAdmin as unknown as {
+      from(t: string): {
+        update(patch: Record<string, unknown>): { eq(c: string, value: boolean): Promise<{ error: { message: string } | null }> };
+      };
+    };
+    const { error } = await db
+      .from("motion_autoscale_state")
+      .update({ enabled: data.enabled, updated_at: new Date().toISOString() })
+      .eq("singleton", true);
+    if (error) throw new Error(`motion autoscale policy: ${error.message}`);
+    return { ok: true, enabled: data.enabled };
+  });

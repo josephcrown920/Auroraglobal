@@ -2,7 +2,7 @@
  * Cron endpoint: sends lifecycle + engagement emails.
  *
  * Triggered types:
- *   - re_engagement       — quiet users (no gen in 14d), cooldown 30d
+ *   - re_engagement       — older users who have never generated, cooldown 30d
  *   - first_purchase_nudge — never bought, account 3-45d old, one-time
  *   - onboarding_resume   — opened onboarding but never finished, 2h–14d window
  *   - weekly_digest       — users with ≥1 generation, not sent in 6d
@@ -21,9 +21,11 @@ import {
   sendReEngagementEmail,
   sendFirstPurchaseNudgeEmail,
   sendOnboardingResumeEmail,
+  sendOnboardingDoneEmail,
   sendWeeklyDigest,
   sendDailyTipEmail,
 } from "@/lib/emails.server";
+import { shouldSendFirstPurchaseNudge, shouldSendReEngagement } from "@/lib/email-lifecycle";
 
 const RE_ENGAGEMENT_INACTIVE_DAYS = 14;
 const RE_ENGAGEMENT_COOLDOWN_DAYS = 30;
@@ -58,12 +60,11 @@ async function collectReEngagementTargets(): Promise<string[]> {
     .limit(2000);
   if (!candidates || candidates.length === 0) return [];
 
-  const { data: recentGens } = await supabaseAdmin
+  const { data: generations } = await supabaseAdmin
     .from("generations")
     .select("user_id")
-    .gte("created_at", inactiveSince)
     .limit(5000);
-  const activeUserIds = new Set((recentGens ?? []).map((g) => g.user_id));
+  const generatedUserIds = new Set((generations ?? []).map((g) => g.user_id));
 
   const { data: recentEmails } = await supabaseAdmin
     .from("email_log")
@@ -74,7 +75,10 @@ async function collectReEngagementTargets(): Promise<string[]> {
   const recentlyEmailed = new Set((recentEmails ?? []).map((e) => e.user_id).filter((id): id is string => id != null));
 
   return candidates
-    .filter((p) => !activeUserIds.has(p.user_id) && !recentlyEmailed.has(p.user_id))
+    .filter((p) => shouldSendReEngagement({
+      hasGenerated: generatedUserIds.has(p.user_id),
+      recentlyEmailed: recentlyEmailed.has(p.user_id),
+    }))
     .map((p) => p.user_id);
 }
 
@@ -95,7 +99,12 @@ async function collectFirstPurchaseNudgeTargets(): Promise<string[]> {
     .eq("template", "first_purchase_nudge")
     .limit(5000);
   const sentSet = new Set((alreadySent ?? []).map((e) => e.user_id).filter((id): id is string => id != null));
-  return candidates.filter((p) => !sentSet.has(p.user_id)).map((p) => p.user_id);
+  return candidates
+    .filter((p) => shouldSendFirstPurchaseNudge({
+      lifetimeCreditsPurchased: p.lifetime_credits_purchased,
+      alreadySent: sentSet.has(p.user_id),
+    }))
+    .map((p) => p.user_id);
 }
 
 async function collectOnboardingAbandonedTargets(): Promise<string[]> {
@@ -113,13 +122,21 @@ async function collectOnboardingAbandonedTargets(): Promise<string[]> {
   if (!startedEvents || startedEvents.length === 0) return [];
 
   const startedUserIds = [...new Set(startedEvents.map((e) => e.user_id as string))];
+  const { data: completedEvents } = await supabaseAdmin
+    .from("events")
+    .select("user_id")
+    .in("name", ["onboarding_complete", "onboarding_completed"])
+    .in("user_id", startedUserIds)
+    .limit(5000);
+  const completedUserIds = new Set((completedEvents ?? []).map((e) => e.user_id));
+
   const { data: bonusGranted } = await supabaseAdmin
     .from("profiles")
     .select("user_id, email, onboarding_bonus_granted")
     .in("user_id", startedUserIds)
     .not("email", "is", null);
   const unfinished = ((bonusGranted ?? []) as Array<{ user_id: string; email: string; onboarding_bonus_granted: boolean }>)
-    .filter((p) => !p.onboarding_bonus_granted);
+    .filter((p) => !p.onboarding_bonus_granted && !completedUserIds.has(p.user_id));
   if (unfinished.length === 0) return [];
 
   const { data: alreadySent } = await supabaseAdmin
@@ -129,6 +146,32 @@ async function collectOnboardingAbandonedTargets(): Promise<string[]> {
     .limit(5000);
   const sentSet = new Set((alreadySent ?? []).map((e) => e.user_id).filter((id): id is string => id != null));
   return unfinished.filter((p) => !sentSet.has(p.user_id)).map((p) => p.user_id);
+}
+
+async function collectOnboardingDoneTargets(): Promise<string[]> {
+  const { data: completedEvents } = await supabaseAdmin
+    .from("events")
+    .select("user_id")
+    .eq("name", "onboarding_complete")
+    .not("user_id", "is", null)
+    .limit(5000);
+  const completedUserIds = [...new Set((completedEvents ?? []).map((e) => e.user_id as string))];
+  if (completedUserIds.length === 0) return [];
+
+  const [{ data: profiles }, { data: alreadySent }] = await Promise.all([
+    supabaseAdmin
+      .from("profiles")
+      .select("user_id")
+      .in("user_id", completedUserIds)
+      .not("email", "is", null),
+    supabaseAdmin
+      .from("email_log")
+      .select("user_id")
+      .eq("template", "onboarding_done")
+      .limit(5000),
+  ]);
+  const sentSet = new Set((alreadySent ?? []).map((e) => e.user_id).filter((id): id is string => id != null));
+  return (profiles ?? []).map((p) => p.user_id).filter((userId) => !sentSet.has(userId));
 }
 
 /** Users who generated something this week and haven't had a weekly digest in 6 days. */
@@ -244,12 +287,14 @@ export const Route = createFileRoute("/api/public/lifecycle-emails")({
             reEngagementTargets,
             firstPurchaseTargets,
             onboardingAbandonedTargets,
+            onboardingDoneTargets,
             weeklyDigestTargets,
             dailyTipTargets,
           ] = await Promise.all([
             collectReEngagementTargets(),
             collectFirstPurchaseNudgeTargets(),
             collectOnboardingAbandonedTargets(),
+            collectOnboardingDoneTargets(),
             collectWeeklyDigestTargets(),
             collectDailyTipTargets(),
           ]);
@@ -258,6 +303,7 @@ export const Route = createFileRoute("/api/public/lifecycle-emails")({
             ...reEngagementTargets,
             ...firstPurchaseTargets,
             ...onboardingAbandonedTargets,
+            ...onboardingDoneTargets,
             ...weeklyDigestTargets,
             ...dailyTipTargets,
           ]);
@@ -266,6 +312,7 @@ export const Route = createFileRoute("/api/public/lifecycle-emails")({
           const validReEngagementTargets = existing(reEngagementTargets);
           const validFirstPurchaseTargets = existing(firstPurchaseTargets);
           const validOnboardingTargets = existing(onboardingAbandonedTargets);
+          const validOnboardingDoneTargets = existing(onboardingDoneTargets);
           const validWeeklyDigestTargets = existing(weeklyDigestTargets);
           const validDailyTipTargets = existing(dailyTipTargets);
 
@@ -287,6 +334,12 @@ export const Route = createFileRoute("/api/public/lifecycle-emails")({
             if (res?.success) onboardingResumeSent++;
           }
 
+          let onboardingDoneSent = 0;
+          for (const userId of validOnboardingDoneTargets.slice(0, MAX_SENDS_PER_RUN)) {
+            const res = await safeSend(sendOnboardingDoneEmail, userId);
+            if (res?.success) onboardingDoneSent++;
+          }
+
           let weeklyDigestSent = 0;
           for (const userId of validWeeklyDigestTargets.slice(0, MAX_SENDS_PER_RUN)) {
             const res = await safeSend(sendWeeklyDigest, userId);
@@ -303,6 +356,7 @@ export const Route = createFileRoute("/api/public/lifecycle-emails")({
             `[lifecycle-emails] re_engagement:${reEngagementSent}/${reEngagementTargets.length}` +
             ` first_purchase:${firstPurchaseSent}/${firstPurchaseTargets.length}` +
             ` onboarding_resume:${onboardingResumeSent}/${onboardingAbandonedTargets.length}` +
+            ` onboarding_done:${onboardingDoneSent}/${onboardingDoneTargets.length}` +
             ` weekly_digest:${weeklyDigestSent}/${weeklyDigestTargets.length}` +
             ` daily_tip:${dailyTipSent}/${dailyTipTargets.length}` +
             ` skipped_orphaned_profiles:${allTargets.skipped}`,
@@ -314,6 +368,7 @@ export const Route = createFileRoute("/api/public/lifecycle-emails")({
               reEngagement: { candidates: reEngagementTargets.length, sent: reEngagementSent },
               firstPurchaseNudge: { candidates: firstPurchaseTargets.length, sent: firstPurchaseSent },
               onboardingResume: { candidates: onboardingAbandonedTargets.length, sent: onboardingResumeSent },
+              onboardingDone: { candidates: onboardingDoneTargets.length, sent: onboardingDoneSent },
               weeklyDigest: { candidates: weeklyDigestTargets.length, sent: weeklyDigestSent },
               dailyTip: { candidates: dailyTipTargets.length, sent: dailyTipSent },
               skippedOrphanedProfiles: allTargets.skipped,

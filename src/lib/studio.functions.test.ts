@@ -1,5 +1,12 @@
 import { describe, expect, it } from "bun:test";
-import { _enqueuePerformanceShot, COST_IMAGE, isDemoSelfieUrl } from "./studio.functions";
+import {
+  _enqueuePerformanceShot,
+  _enqueueVideoFromImage,
+  COST_IMAGE,
+  isDemoSelfieUrl,
+  isSubscriberGatedVideoModel,
+} from "./studio.functions";
+import { assertOwnedReferenceImage } from "./url-guard";
 
 // The reference-image ownership guard was moved INTO _enqueuePerformanceShot so
 // that every caller — the generatePerformanceShot server fn, runSmokeStudioChain,
@@ -156,5 +163,133 @@ describe("demo-selfie labelling — persists a 'demo' marker for gallery badges"
       deps,
     );
     expect(demoMarked).toHaveLength(0);
+  });
+});
+
+describe("_enqueueVideoFromImage — reference ownership guard runs before any gate or charge", () => {
+  const base = {
+    prompt: "animate this still",
+    duration: 5,
+    resolution: "720p" as const,
+    modelKey: "seedance-2.0-fast",
+    cameraMovement: null,
+    endFrameUrl: null,
+    confirmPreviewId: null,
+    templateId: null,
+  };
+
+  it("rejects a foreign start frame with the ownership error and never proceeds", async () => {
+    const checked: string[] = [];
+    await expect(
+      _enqueueVideoFromImage(
+        "user-1",
+        { ...base, imageUrl: `${STUDIO}user-2/uploads/portrait.jpg` },
+        {
+          assertOwned: async (url) => {
+            checked.push(url);
+            throw new Error(OWNERSHIP_ERR);
+          },
+        },
+      ),
+    ).rejects.toThrow(OWNERSHIP_ERR);
+    expect(checked).toEqual([`${STUDIO}user-2/uploads/portrait.jpg`]);
+  });
+
+  it("checks the end frame too, after the start frame", async () => {
+    const checked: string[] = [];
+    await expect(
+      _enqueueVideoFromImage(
+        "user-1",
+        {
+          ...base,
+          imageUrl: `${STUDIO}user-1/uploads/start.jpg`,
+          endFrameUrl: `${STUDIO}user-2/uploads/end.jpg`,
+        },
+        {
+          assertOwned: async (url) => {
+            checked.push(url);
+            if (url.includes("user-2")) throw new Error(OWNERSHIP_ERR);
+          },
+        },
+      ),
+    ).rejects.toThrow(OWNERSHIP_ERR);
+    expect(checked).toEqual([`${STUDIO}user-1/uploads/start.jpg`, `${STUDIO}user-2/uploads/end.jpg`]);
+  });
+
+  it("accepts caller-owned start and end frames before entering billing", async () => {
+    const startFrame = `${STUDIO}user-1/uploads/start.jpg`;
+    const endFrame = `${STUDIO}user-1/uploads/end.jpg`;
+    const data = { ...base, imageUrl: startFrame, endFrameUrl: endFrame };
+
+    // Stop immediately after the two ownership checks. This keeps the positive
+    // path free of preview, credit, and provider calls while proving the real
+    // guard accepts both caller-owned references.
+    Object.defineProperty(data, "prompt", {
+      get: () => {
+        throw new Error("guard-only test stop");
+      },
+    });
+    data.modelKey = "veo-3-fast";
+    await expect(
+      _enqueueVideoFromImage(
+        "user-1",
+        data,
+        { assertOwned: assertOwnedReferenceImage },
+      ),
+    ).rejects.toThrow("guard-only test stop");
+  });
+});
+
+describe("subscriber-gated video routing", () => {
+  const seedanceBase = {
+    prompt: "animate this still",
+    duration: 5,
+    resolution: "720p" as const,
+    modelKey: "seedance-2.0-fast",
+    cameraMovement: null,
+    endFrameUrl: null,
+    confirmPreviewId: null,
+    templateId: null,
+  };
+
+  it("recognizes Seedance, Kling, and native Seedance keys", () => {
+    expect(isSubscriberGatedVideoModel("seedance-2.0-fast")).toBe(true);
+    expect(isSubscriberGatedVideoModel("kling-3.0")).toBe(true);
+    expect(isSubscriberGatedVideoModel("byteplus/seedance-2.5")).toBe(true);
+    expect(isSubscriberGatedVideoModel("veo-3-fast")).toBe(false);
+  });
+
+  it("persists the subscriber and pinned fences for a Pro Seedance preview", async () => {
+    const reserveCalls: Array<Record<string, unknown>> = [];
+    const out = await _enqueueVideoFromImage(
+      "user-1",
+      {
+        ...seedanceBase,
+        imageUrl: `${STUDIO}user-1/uploads/start.jpg`,
+      },
+      {
+        assertOwned: async () => {},
+        getTier: async () => "pro",
+        resolveGate: async () => ({ confirmed: false }),
+        reserve: async (_userId, _kind, _prompt, _amount, payload) => {
+          reserveCalls.push(payload);
+          return { jobId: "job-video", generationId: "gen-video" };
+        },
+        markPreview: async () => {},
+        track: async () => {},
+      },
+    );
+
+    expect(out).toEqual({
+      jobId: "job-video",
+      generationId: "gen-video",
+      preview: true,
+    });
+    expect(reserveCalls[0]).toMatchObject({
+      model: "seedance-2.0-fast",
+      forSubscriber: true,
+      pinnedModelOnly: true,
+      previewOnly: true,
+    });
   });
 });

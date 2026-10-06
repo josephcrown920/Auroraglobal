@@ -156,3 +156,139 @@ export function buildEvenLyricSegments(durationSeconds: number, rawLines: string
     text,
   }));
 }
+
+export type LyricBeatGate = "no-audio" | "pending" | "ready";
+
+/**
+ * Decide whether lyric-video generation may be submitted. Beat detection
+ * auto-starts as soon as a song is uploaded; while it is pending the user
+ * must NOT be able to generate, or they would silently get the even-split
+ * timing this feature replaced. Once detection settles — done (with or
+ * without usable beats) or failed — generation opens, with the even split
+ * as the explicit fallback. "idle" with an uploaded song means the analysis
+ * effect hasn't run yet, which is still pending.
+ */
+export function lyricBeatGate(opts: {
+  hasAudio: boolean;
+  beatStatus: "idle" | "analyzing" | "done" | "error";
+  analysisFailed: boolean;
+}): LyricBeatGate {
+  if (!opts.hasAudio) return "no-audio";
+  if (opts.analysisFailed) return "ready";
+  if (opts.beatStatus === "done" || opts.beatStatus === "error") return "ready";
+  return "pending";
+}
+
+/**
+ * Marker bookkeeping for the lyric auto-analysis effect's cleanup. The
+ * per-URL marker is cleared whenever its effect is cancelled. Leaving Lyric
+ * mode or swapping songs must invalidate the prior detector run right away:
+ * otherwise returning while a download is pending can permanently skip
+ * analysis for that track and submit unaligned timing.
+ */
+export function lyricAnalysisMarkerAfterCleanup(
+  marker: string | null,
+  url: string,
+): string | null {
+  if (marker !== url) return marker;
+  return null;
+}
+
+/**
+ * The exact timing contract submitted by both Lyric Video entry points.
+ * Supplying an empty/no beat grid deliberately uses the documented even
+ * fallback only after the UI's analysis gate has settled.
+ */
+export function buildLyricVideoSegments(
+  durationSeconds: number | null,
+  rawLines: string[],
+  beatTimestamps: number[] | null,
+): LyricSegment[] {
+  if (!durationSeconds) return [];
+  return beatTimestamps && beatTimestamps.length > 0
+    ? buildBeatAlignedSegments(durationSeconds, rawLines, beatTimestamps)
+    : buildEvenLyricSegments(durationSeconds, rawLines);
+}
+
+const MIN_LINE_GAP_SECONDS = 0.4;
+
+/**
+ * Snap lyric lines onto detected beat timestamps. Each line's ideal start is
+ * its even-split position (i * duration / lineCount); that start is moved to
+ * the nearest beat within half a slot of the ideal (a beat further away says
+ * nothing about when the line is sung, so the line keeps its even start).
+ * Two invariants are enforced for every line: its start is at least
+ * min(minGap, slot) after the previous line's start, and enough room is
+ * reserved for every remaining line — so starts are strictly increasing and
+ * no segment can collapse onto the end of the track. No usable beats →
+ * identical to buildEvenLyricSegments.
+ */
+export function buildBeatAlignedSegments(
+  durationSeconds: number,
+  rawLines: string[],
+  beatTimestamps: number[],
+): LyricSegment[] {
+  const lines = rawLines.map((l) => l.trim()).filter(Boolean);
+  if (lines.length === 0 || !Number.isFinite(durationSeconds) || durationSeconds <= 0) return [];
+
+  const beats = beatTimestamps
+    .filter((t) => Number.isFinite(t) && t >= 0 && t < durationSeconds)
+    .sort((a, b) => a - b);
+  if (beats.length === 0) return buildEvenLyricSegments(durationSeconds, lines);
+
+  const segLen = durationSeconds / lines.length;
+  // Segment boundaries are rounded to centiseconds. When a line's slot is
+  // shorter than 0.01s, strictly increasing boundaries are mathematically
+  // impossible at that precision — keep the even split's behavior for such
+  // inputs rather than emitting a half-beat-aligned half-collapsed hybrid.
+  if (segLen < 0.01) return buildEvenLyricSegments(durationSeconds, lines);
+  const minGap = Math.min(MIN_LINE_GAP_SECONDS, segLen);
+  const n = lines.length;
+  const starts: number[] = [];
+  let beatIdx = 0;
+
+  for (let i = 0; i < n; i++) {
+    const ideal = i * segLen;
+    const earliest = i === 0 ? 0 : starts[i - 1] + minGap;
+    // Reserve room for the remaining lines (this one included) so a late
+    // beat can never collapse the tail into zero-length segments.
+    const latest = durationSeconds - minGap * (n - i);
+    // Only consider beats near this line's even position.
+    const lower = Math.max(earliest, ideal - segLen / 2);
+    const upper = Math.min(latest, ideal + segLen / 2);
+    while (beatIdx < beats.length && beats[beatIdx] < lower) beatIdx++;
+    // Walk to the beat nearest the ideal position, staying inside the window.
+    while (
+      beatIdx + 1 < beats.length &&
+      beats[beatIdx + 1] <= upper &&
+      Math.abs(beats[beatIdx + 1] - ideal) <= Math.abs(beats[beatIdx] - ideal)
+    ) {
+      beatIdx++;
+    }
+    let start: number;
+    if (beatIdx < beats.length && beats[beatIdx] <= upper) {
+      start = beats[beatIdx];
+      beatIdx++;
+    } else {
+      start = Math.min(Math.max(ideal, earliest), latest);
+    }
+    starts.push(start);
+  }
+
+  const r2 = (x: number) => Math.round(x * 100) / 100;
+  const segments: LyricSegment[] = [];
+  for (let i = 0; i < n; i++) {
+    let start = r2(starts[i]);
+    if (i > 0 && start <= segments[i - 1].start) {
+      // Sub-0.01s per-line slices can round onto each other; nudge forward
+      // so rounded boundaries stay monotonic like the even split's.
+      start = Math.min(r2(segments[i - 1].start + 0.01), r2(durationSeconds));
+    }
+    segments.push({ start, end: start, text: lines[i] });
+  }
+  for (let i = 0; i < n; i++) {
+    segments[i].end = i + 1 < n ? segments[i + 1].start : r2(durationSeconds);
+    if (segments[i].end < segments[i].start) segments[i].end = segments[i].start;
+  }
+  return segments;
+}

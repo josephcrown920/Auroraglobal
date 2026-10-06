@@ -3,7 +3,6 @@ import { createLazyFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
-import { AdminGate, useAdminAutoUnlock } from "@/components/AdminGate";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
@@ -32,8 +31,6 @@ function AdminDesignPage() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
   const qc = useQueryClient();
-  const [unlocked, setUnlocked] = useAdminAutoUnlock(!!user);
-
   const [name, setName] = useState("My skin");
   const [tokens, setTokens] = useState<SkinTokens>({ ...DEFAULT_TOKENS });
   const [previewing, setPreviewing] = useState(false);
@@ -56,7 +53,8 @@ function AdminDesignPage() {
   const { data, isLoading } = useQuery({
     queryKey: ["admin-design-skins"],
     queryFn: fetchSkins,
-    enabled: !!user && unlocked,
+    enabled: !!user,
+    staleTime: 5 * 60_000,
   });
   const skins = data?.skins ?? [];
   const activeSlug = data?.activeSlug ?? "";
@@ -104,8 +102,6 @@ function AdminDesignPage() {
       </div>
     );
   }
-  if (!unlocked) return <AdminGate onUnlocked={() => setUnlocked(true)} />;
-
   const set = (key: string, value: string) => setTokens((t) => ({ ...t, [key]: value }));
 
   return (

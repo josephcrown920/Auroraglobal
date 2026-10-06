@@ -35,13 +35,14 @@ type RouteTool = {
   kind: "route";
   label: string;
   icon: LucideIcon;
-  to: "/edit" | "/canvas" | "/scene-weaver" | "/photo-edit" | "/puremix" | "/video-agent" | "/agent";
+  to: "/edit" | "/canvas" | "/scene-weaver" | "/photo-edit" | "/puremix" | "/video-agent" | "/agent" | "/layers";
 };
 
 const PLANNING_TOOLS: Array<PanelTool | RouteTool> = [
   { kind: "panel", id: "wardrobe", label: "Wardrobe", icon: Camera, tab: "characters" },
   { kind: "panel", id: "scenes", label: "Scenes", icon: Clapperboard, tab: "canvas" },
   { kind: "panel", id: "layers", label: "Layers", icon: Layers3, tab: "canvas" },
+  { kind: "route", label: "Layers Studio", icon: Layers3, to: "/layers" },
   { kind: "route", label: "AutoCut", icon: Scissors, to: "/edit" },
   { kind: "panel", id: "storyboard", label: "Storyboard", icon: Grid2X2, tab: "canvas" },
   { kind: "panel", id: "moodboard", label: "Moodboard", icon: Palette, tab: "canvas" },

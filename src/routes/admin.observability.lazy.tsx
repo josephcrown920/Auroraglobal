@@ -5,7 +5,6 @@ import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { adminObservability } from "@/lib/admin-observability.functions";
-import { AdminGate, useAdminAutoUnlock } from "@/components/AdminGate";
 import { ArrowLeft, Activity, AlertTriangle, Gauge, Loader2, RefreshCw, Bot, Server, Users, Cpu } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import type { ReactNode } from "react";
@@ -15,7 +14,6 @@ export const Route = createLazyFileRoute("/admin/observability")({ component: Ob
 function ObservabilityDashboard() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
-  const [unlocked, setUnlocked] = useAdminAutoUnlock(!!user);
 
   useEffect(() => {
     if (!loading && !user) navigate({ to: "/auth", search: authNextSearch() });
@@ -25,12 +23,11 @@ function ObservabilityDashboard() {
   const { data, isLoading, error, refetch, isFetching } = useQuery({
     queryKey: ["admin-observability"],
     queryFn: () => observabilityFn(),
-    enabled: !!user && unlocked,
+    enabled: !!user,
     refetchInterval: 60_000,
-    staleTime: 30_000,
+    staleTime: 0,
   });
 
-  if (!unlocked) return <AdminGate onUnlocked={() => setUnlocked(true)} />;
 
   const gpu = data?.gpuPool;
   const gpuAvailability = gpu ? gpu.healthy_workers + gpu.degraded_workers : 0;

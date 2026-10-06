@@ -97,7 +97,7 @@ const MODELS: Record<Modality, ModelOption[]> = {
   ],
   text: [
     { key: "pollinations/openai", label: "Pollinations · OpenAI", free: true },
-    { key: "groq/llama-3.3-70b", label: "Groq · Llama 3.3 70B" },
+    { key: "groq/llama-3.3-70b", label: "Groq · GPT-OSS 120B" },
     { key: "gemini/gemini-2.0-flash", label: "Gemini · 2.0 Flash" },
     { key: "openai/gpt-4o-mini", label: "OpenAI · GPT-4o mini" },
     { key: "anthropic/claude-sonnet-4-5", label: "Claude · Sonnet 4.5" },

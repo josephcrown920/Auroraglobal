@@ -149,6 +149,7 @@ function GuideRunner() {
   const { data, isLoading, error } = useQuery({
     queryKey: ["guided-workflow", slug],
     queryFn: () => getFn({ data: { slug } }),
+    staleTime: 5 * 60_000,
   });
   const workflow = data?.workflow;
 

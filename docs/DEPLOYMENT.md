@@ -15,6 +15,18 @@ NODE_OPTIONS=--max-old-space-size=4608 \
 Do not deploy the development server or the `node_modules/.nitro` working
 directory directly.
 
+## Build protection (snapshots, health gate, auto-restore)
+
+Production builds go through `node scripts/build.js` (the deployer's cached
+build command; `artifacts/web`'s `production.build` and the `prod-build`
+workflow both delegate to it): every successful build is snapshotted under
+`.build-snapshots/`, health-gated by booting the snapshot and probing
+`/api/health`, and only then becomes the `last-known-good` restore target.
+The production run command is `scripts/start-prod.sh`, which boot-probes the
+current build and transparently serves the last-known-good snapshot if the
+current build can't boot. Full layer documentation, RPO/RTO targets, and the
+automated recovery drill live in `docs/BACKUP_AND_DR.md`.
+
 ## Cloudflare compatibility
 
 `wrangler.jsonc` and the Cloudflare Vite plugin remain available for

@@ -84,7 +84,7 @@ mock.module("./hf.server", () => ({
   HF_ROUTER_BASE: "https://router.huggingface.co/v1",
 }));
 
-const { orchestrate, getCandidateModels, resolveModel, markSuccess } =
+const { orchestrate, getCandidateModels, isProviderAllowed, resolveModel, markSuccess } =
   await import("./orchestrator.server");
 
 // ─── fetch + clock helpers (same pattern as orchestrator.fallback.test.ts) ────
@@ -225,6 +225,32 @@ describe("getCandidateModels", () => {
     expect(candidates).toContain("pollinations/openai");
     expect(candidates).toContain("lovable/gemini-2.5-flash");
     expect(candidates).toContain("anthropic/claude-haiku-4-5");
+  });
+
+  it("constrains transparent fallback to the caller's compatible model set", () => {
+    const candidates = getCandidateModels({
+      kind: "image",
+      prompt: "owned-reference edit",
+      model: "fal-ai/seedream-5",
+      editStrict: true,
+      allowedModels: [
+        "fal-ai/seedream-5",
+        "google/gemini-3.1-flash-image-preview",
+        "google/nano-banana",
+      ],
+    });
+    expect(candidates).toEqual(["google/nano-banana"]);
+    expect(candidates).not.toContain("pollinations/flux");
+  });
+
+  it("excludes generic GPU adapters from a strict provider fence", () => {
+    const request = {
+      kind: "image" as const,
+      prompt: "strict Google",
+      allowedProviders: ["gemini"],
+    };
+    expect(isProviderAllowed(request, "gemini")).toBe(true);
+    expect(isProviderAllowed(request, "runpod")).toBe(false);
   });
 });
 

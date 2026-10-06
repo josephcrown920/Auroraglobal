@@ -19,3 +19,11 @@ Three independent failures had to be fixed, in order:
 **Why:** each layer produced a different cryptic error, and any future `npm install` in the artifact dir re-poisons the lockfile with firewall URLs.
 
 **How to apply:** run `bash scripts/eas-preflight.sh` before any EAS build/upload — it checks (a) no bun.lock anywhere, (b) root .easignore includes the lockfile, and (c) auto-rewrites firewall URLs out of the mobile lockfile. Use `EAS_NO_VCS=1` always (eas-cli's git archiving is blocked in the agent sandbox). Verify upload contents locally with `eas build:inspect --stage archive`. EAS build logs are brotli-compressed JSONL (`brotli -d`).
+
+## Android capability and preview checks
+
+Do not conflate the iOS-only Expo Launch submission flow with Android build availability. Consult the current official Android upload guide before telling the user Android builds are unavailable: https://docs.replit.com/build/mobile-upload-android.
+
+**Why:** Android builds authenticated successfully from this workspace even when older guidance described mobile publishing as iOS-only. Google Play upload remains a separate user-controlled step.
+
+**How to apply:** Verify the build capability independently of store submission. The Expo-host screenshot URL can fail despite a healthy local Metro server; the shared `/aurora-mobile/` proxy can also load HTML but miss root-relative bundles. A direct local Playwright capture distinguishes those preview-routing failures from an actual app crash; it does not prove native-device behavior.

@@ -77,7 +77,7 @@ export const beginPasskeyRegistration = createServerFn({ method: "POST" })
     // Label the passkey with the user's email so the OS passkey manager shows
     // something recognisable instead of a raw UUID.
     const { data: userRecord } = await supabaseAdmin.auth.admin.getUserById(userId);
-    const accountLabel = userRecord?.user?.email ?? "Aurora Studio account";
+    const accountLabel = userRecord?.user?.email ?? "Aurora Performance Studio account";
 
     const options = await generateRegistrationOptions({
       rpName,

@@ -1,0 +1,16 @@
+# This file marks the cleanup branch
+# The following have been removed from this branch:
+# - exports/aurora-video-agent/ (duplicate video-agent implementation)
+# - ROADMAP.md (historical documentation)
+# - docs/PRODUCTION_AUDIT_2026-09-01.md
+# - docs/RELEASE_READINESS.md
+# - docs/VIDEO_AGENT_UPGRADE.md
+# - docs/VIDEO_AGENT_ITERATION_AUDIT_2026-09-02.md
+# - attached_assets/Pasted-*.txt (pasted artifacts)
+# - .agents/memory/video-skill-pack-2026-09.md (skills documentation)
+# - package-lock.json (regenerate with npm install)
+# - artifacts/aurora-mobile/package-lock.json
+# - src/routeTree.gen.ts (generated, will be rebuilt)
+#
+# All canonical source remains in src/lib/ and src/routes/
+# All production features (CI, guardrails, readiness, migrations) are intact.

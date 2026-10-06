@@ -1,6 +1,6 @@
 # UI Snapshot — Aurora Studio
 
-**Date:** 2026-08-07
+**Date:** 2026-09-04
 **Status:** Current appearance reference. Use this to verify the UI matches when importing/syncing the project into another workspace.
 
 ---
@@ -18,6 +18,8 @@
 - Full-screen chrome uses the `.phone-*` helper classes.
 - Page shells: `aurora-page-shell` + ambient background layers (`pointer-events-none`) + content wrapped in `relative z-10`.
 - Buttons: shadcn `Button` with custom `premium` and `glass` variants; `aurora-*` utility classes for cards/glows.
+- Decorative pills, badges, and suggestion chips are borderless. Use tonal fills, text contrast, and a visible focus ring for selected/keyboard states; keep borders on cards, media frames, forms, and action buttons.
+- User-visible generation prices and pack-value examples derive from `src/lib/pricing.ts` and `src/lib/billing.plans.ts`. Do not duplicate Aura amounts in page copy.
 
 ## Key surfaces
 

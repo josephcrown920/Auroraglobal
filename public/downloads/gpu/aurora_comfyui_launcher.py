@@ -65,11 +65,15 @@ CONFIG_KEYS = [
 # Core nodes (KSampler, CheckpointLoaderSimple, SVD_img2vid_Conditioning, …) ship
 # with ComfyUI itself, so only the non-core packs are listed per capability.
 CAP_NODE_PACKS = {
-    "image": [],  # SDXL uses only core nodes.
+    "image": [
+        "https://github.com/sipherxyz/comfyui-art-venture",  # LoadImageFromUrl (Flux.2 edit)
+    ],
     "video": [
         "https://github.com/Kosinkadink/ComfyUI-VideoHelperSuite",  # VHS_VideoCombine
         "https://github.com/Kosinkadink/ComfyUI-AnimateDiff-Evolved",  # ADE_AnimateDiffLoaderGen1
         "https://github.com/sipherxyz/comfyui-art-venture",  # LoadImageFromUrl (SVD i2v)
+        "https://github.com/Lightricks/ComfyUI-LTXVideo",  # LTX-2.3 nodes
+        "https://github.com/kijai/ComfyUI-WanVideoWrapper",  # Wan 2.2 nodes
     ],
     "lipsync": [
         "https://github.com/Kosinkadink/ComfyUI-VideoHelperSuite",  # VideoCombine / Load*FromUrl
@@ -90,10 +94,44 @@ CAP_NODE_PACKS = {
 # the packs above self-download most on first run; we verify presence below.
 CAP_MODELS = {
     "image": [
+        ("models/diffusion_models/flux2_dev_fp8mixed.safetensors",
+         "Comfy-Org/flux2-dev", "flux2_dev_fp8mixed.safetensors"),
+        ("models/text_encoders/mistral_3_small_flux2_bf16.safetensors",
+         "Comfy-Org/flux2-dev", "mistral_3_small_flux2_bf16.safetensors"),
+        ("models/vae/full_encoder_small_decoder.safetensors",
+         "black-forest-labs/FLUX.2-small-decoder", "full_encoder_small_decoder.safetensors"),
         ("models/checkpoints/sd_xl_base_1.0.safetensors",
          "stabilityai/stable-diffusion-xl-base-1.0", "sd_xl_base_1.0.safetensors"),
     ],
     "video": [
+        ("models/checkpoints/ltx-2.3-22b-dev-fp8.safetensors",
+         "Lightricks/LTX-2.3-fp8", "ltx-2.3-22b-dev-fp8.safetensors"),
+        ("models/text_encoders/gemma_3_12B_it_fp4_mixed.safetensors",
+         "Comfy-Org/ltx-2", "gemma_3_12B_it_fp4_mixed.safetensors"),
+        ("models/loras/ltx-2.3-22b-distilled-lora-384.safetensors",
+         "Lightricks/LTX-2.3", "ltx-2.3-22b-distilled-lora-384.safetensors"),
+        ("models/upscale_models/ltx-2.3-spatial-upscaler-x2-1.1.safetensors",
+         "Lightricks/LTX-2.3", "ltx-2.3-spatial-upscaler-x2-1.1.safetensors"),
+        ("models/diffusion_models/wan2.2_t2v_high_noise_14B_fp8_scaled.safetensors",
+         "Comfy-Org/Wan_2.2_ComfyUI_Repackaged", "wan2.2_t2v_high_noise_14B_fp8_scaled.safetensors"),
+        ("models/diffusion_models/wan2.2_t2v_low_noise_14B_fp8_scaled.safetensors",
+         "Comfy-Org/Wan_2.2_ComfyUI_Repackaged", "wan2.2_t2v_low_noise_14B_fp8_scaled.safetensors"),
+        ("models/diffusion_models/wan2.2_i2v_high_noise_14B_fp8_scaled.safetensors",
+         "Comfy-Org/Wan_2.2_ComfyUI_Repackaged", "wan2.2_i2v_high_noise_14B_fp8_scaled.safetensors"),
+        ("models/diffusion_models/wan2.2_i2v_low_noise_14B_fp8_scaled.safetensors",
+         "Comfy-Org/Wan_2.2_ComfyUI_Repackaged", "wan2.2_i2v_low_noise_14B_fp8_scaled.safetensors"),
+        ("models/loras/wan2.2_t2v_lightx2v_4steps_lora_v1.1_high_noise.safetensors",
+         "Comfy-Org/Wan_2.2_ComfyUI_Repackaged", "wan2.2_t2v_lightx2v_4steps_lora_v1.1_high_noise.safetensors"),
+        ("models/loras/wan2.2_t2v_lightx2v_4steps_lora_v1.1_low_noise.safetensors",
+         "Comfy-Org/Wan_2.2_ComfyUI_Repackaged", "wan2.2_t2v_lightx2v_4steps_lora_v1.1_low_noise.safetensors"),
+        ("models/loras/wan2.2_i2v_lightx2v_4steps_lora_v1_high_noise.safetensors",
+         "Comfy-Org/Wan_2.2_ComfyUI_Repackaged", "wan2.2_i2v_lightx2v_4steps_lora_v1_high_noise.safetensors"),
+        ("models/loras/wan2.2_i2v_lightx2v_4steps_lora_v1_low_noise.safetensors",
+         "Comfy-Org/Wan_2.2_ComfyUI_Repackaged", "wan2.2_i2v_lightx2v_4steps_lora_v1_low_noise.safetensors"),
+        ("models/text_encoders/umt5_xxl_fp8_e4m3fn_scaled.safetensors",
+         "Comfy-Org/Wan_2.1_ComfyUI_repackaged", "umt5_xxl_fp8_e4m3fn_scaled.safetensors"),
+        ("models/vae/wan_2.1_vae.safetensors",
+         "Comfy-Org/Wan_2.2_ComfyUI_Repackaged", "wan_2.1_vae.safetensors"),
         # Filename MUST match the SVD graph's ckpt_name (svd-image-to-video.workflow.json).
         ("models/checkpoints/svd_xt_1_1.safetensors",
          "stabilityai/stable-video-diffusion-img2vid-xt-1-1", "svd_xt_1_1.safetensors"),
@@ -109,15 +147,87 @@ CAP_MODELS = {
     "motion": [],
 }
 
+# A capability can be served by one complete provision set. This preserves the
+# legacy SDXL/SVD/AnimateDiff path while letting new workers advertise Flux.2,
+# LTX-2.3, or Wan 2.2 only when their own graph's files and nodes are ready.
+CAP_MODEL_SETS = {
+    "image": [
+        [x for x in CAP_MODELS["image"] if x[0].split("/")[-1] in {
+            "flux2_dev_fp8mixed.safetensors",
+            "mistral_3_small_flux2_bf16.safetensors",
+            "full_encoder_small_decoder.safetensors",
+        }],
+        [x for x in CAP_MODELS["image"] if x[0].split("/")[-1] == "sd_xl_base_1.0.safetensors"],
+    ],
+    "video": [
+        [x for x in CAP_MODELS["video"] if x[0].split("/")[-1] in {
+            "ltx-2.3-22b-dev-fp8.safetensors",
+            "gemma_3_12B_it_fp4_mixed.safetensors",
+        }],
+        [x for x in CAP_MODELS["video"] if x[0].split("/")[-1] in {
+            "wan2.2_t2v_high_noise_14B_fp8_scaled.safetensors",
+            "wan2.2_t2v_low_noise_14B_fp8_scaled.safetensors",
+            "wan2.2_i2v_high_noise_14B_fp8_scaled.safetensors",
+            "wan2.2_i2v_low_noise_14B_fp8_scaled.safetensors",
+            "wan2.2_t2v_lightx2v_4steps_lora_v1.1_high_noise.safetensors",
+            "wan2.2_t2v_lightx2v_4steps_lora_v1.1_low_noise.safetensors",
+            "wan2.2_i2v_lightx2v_4steps_lora_v1_high_noise.safetensors",
+            "wan2.2_i2v_lightx2v_4steps_lora_v1_low_noise.safetensors",
+            "umt5_xxl_fp8_e4m3fn_scaled.safetensors",
+            "wan_2.1_vae.safetensors",
+        }],
+        [x for x in CAP_MODELS["video"] if x[0].split("/")[-1] in {
+            "svd_xt_1_1.safetensors",
+        }],
+        [x for x in CAP_MODELS["video"] if x[0].split("/")[-1] in {
+            "v1-5-pruned-emaonly.safetensors",
+            "mm_sd_v15_v2.ckpt",
+        }],
+    ],
+}
+
 # Custom node classes each default graph references (workers/comfyui/*.json). Core
 # nodes (KSampler, CheckpointLoaderSimple, SVD_img2vid_Conditioning, EmptyLatentImage,
 # VAEDecode, CLIPTextEncode, SaveImage, …) ship with ComfyUI, so are not listed. A
 # cap is advertised only when every class below is present in ComfyUI's loaded set.
 CAP_NODE_CLASSES = {
     "image": [],
-    "video": ["VHS_VideoCombine", "ADE_AnimateDiffLoaderGen1", "LoadImageFromUrl"],
+    "video": [
+        "VHS_VideoCombine", "ADE_AnimateDiffLoaderGen1", "LoadImageFromUrl",
+        "LTXAVTextEncoderLoader", "LTXVAudioVAELoader", "LTXVConditioning",
+        "LTXVEmptyLatentAudio", "LTXVConcatAVLatent", "LTXVSeparateAVLatent",
+        "LTXVAudioVAEDecode", "LTXVPreprocess", "LTXVImgToVideoInplace",
+        "EmptyLTXVLatentVideo",
+        "ResizeImagesByLongerEdge", "WanImageToVideo", "EmptyHunyuanLatentVideo",
+    ],
     "lipsync": ["LatentSyncSampler", "LoadVideoFromUrl", "LoadAudioFromUrl", "VideoCombine", "SaveVideo"],
     "motion": ["MimicMotionSampler", "LoadImageFromUrl", "LoadVideoFromUrl", "VideoCombine", "SaveVideo"],
+}
+
+CAP_NODE_SETS = {
+    "image": [[], []],
+    "video": [
+        ["LoadImageFromUrl", "LTXAVTextEncoderLoader", "LTXVAudioVAELoader", "LTXVConditioning", "LTXVEmptyLatentAudio", "LTXVConcatAVLatent", "LTXVSeparateAVLatent", "LTXVAudioVAEDecode", "LTXVPreprocess", "LTXVImgToVideoInplace", "EmptyLTXVLatentVideo"],
+        ["LoadImageFromUrl", "WanImageToVideo", "EmptyHunyuanLatentVideo"],
+        ["VHS_VideoCombine", "LoadImageFromUrl"],
+        ["VHS_VideoCombine", "ADE_AnimateDiffLoaderGen1", "LoadImageFromUrl"],
+    ],
+}
+
+CAP_VARIANTS = {
+    "image": {
+        "flux2_t2i": "comfy:image:flux2:t2i",
+        "flux2_edit": "comfy:image:flux2:edit",
+        "legacy_t2i": "comfy:image:legacy:t2i",
+    },
+    "video": {
+        "ltx_t2v": "comfy:video:ltx:t2v",
+        "ltx_i2v": "comfy:video:ltx:i2v",
+        "wan_t2v": "comfy:video:wan:t2v",
+        "wan_i2v": "comfy:video:wan:i2v",
+        "legacy_t2v": "comfy:video:legacy:t2v",
+        "legacy_i2v": "comfy:video:legacy:i2v",
+    },
 }
 
 
@@ -331,7 +441,12 @@ def download_models(caps: list[str]):
     from huggingface_hub import hf_hub_download  # type: ignore
 
     for cap in caps:
-        for dest_rel, repo, fname in CAP_MODELS.get(cap, []):
+        # Download the first (modern) provision set. Legacy workers can still
+        # register with pre-existing SDXL/SVD files; a fresh launcher boots the
+        # new graphs by default instead of downloading every model family.
+        model_sets = CAP_MODEL_SETS.get(cap)
+        models = model_sets[0] if model_sets else CAP_MODELS.get(cap, [])
+        for dest_rel, repo, fname in models:
             dest = os.path.join(COMFY_DIR, dest_rel)
             if os.path.exists(dest):
                 continue
@@ -360,26 +475,51 @@ def fetch_node_classes() -> set[str]:
 
 
 def servable_caps(caps: list[str], available_classes: set[str]) -> list[str]:
-    """Keep only caps whose model files AND required node classes are present.
+    """Keep only caps with one complete model/node provision set.
 
     Fail closed: advertising a cap we can't serve would let Aurora route a job that
-    errors. Model files are checked on disk; node classes against ComfyUI's loaded
-    set (/object_info), matching the exact class names in workers/comfyui/*.json.
+    errors. Modern and legacy graphs are alternatives, so a worker only needs all
+    weights and nodes for one complete set.
     """
     ok: list[str] = []
     for cap in caps:
-        missing_models = [
-            rel for rel, _, _ in CAP_MODELS.get(cap, [])
-            if not os.path.exists(os.path.join(COMFY_DIR, rel))
-        ]
-        missing_nodes = [c for c in CAP_NODE_CLASSES.get(cap, []) if c not in available_classes]
-        if missing_models:
-            print(f"[caps] dropping '{cap}' — missing weights: {missing_models}", flush=True)
-            continue
-        if missing_nodes:
-            print(f"[caps] dropping '{cap}' — missing nodes: {missing_nodes}", flush=True)
+        model_sets = CAP_MODEL_SETS.get(cap, [CAP_MODELS.get(cap, [])])
+        node_sets = CAP_NODE_SETS.get(cap, [CAP_NODE_CLASSES.get(cap, [])])
+        provisioned = []
+        missing_descriptions = []
+        for index, model_set in enumerate(model_sets):
+            missing_models = [
+                rel for rel, _, _ in model_set
+                if not os.path.exists(os.path.join(COMFY_DIR, rel))
+            ]
+            required_nodes = node_sets[index] if index < len(node_sets) else []
+            missing_nodes = [c for c in required_nodes if c not in available_classes]
+            if not missing_models and not missing_nodes:
+                provisioned.append(index)
+            missing_descriptions.append(
+                f"set {index + 1}: weights={missing_models}, nodes={missing_nodes}"
+            )
+        if not provisioned:
+            print(f"[caps] dropping '{cap}' — no complete provision set ({'; '.join(missing_descriptions)})", flush=True)
             continue
         ok.append(cap)
+        variants = CAP_VARIANTS.get(cap, {})
+        if cap == "image":
+            if 0 in provisioned:
+                ok.extend([variants["flux2_t2i"]])
+                if "LoadImageFromUrl" in available_classes:
+                    ok.append(variants["flux2_edit"])
+            if 1 in provisioned:
+                ok.append(variants["legacy_t2i"])
+        elif cap == "video":
+            if 0 in provisioned:
+                ok.extend([variants["ltx_t2v"], variants["ltx_i2v"]])
+            if 1 in provisioned:
+                ok.extend([variants["wan_t2v"], variants["wan_i2v"]])
+            if 2 in provisioned:
+                ok.append(variants["legacy_i2v"])
+            if 3 in provisioned:
+                ok.append(variants["legacy_t2v"])
     return ok
 
 

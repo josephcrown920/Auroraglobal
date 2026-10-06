@@ -359,6 +359,9 @@ function MotionPreviewPlayer({
           </div>
         )}
       </div>
+      <p className="text-[11px] text-muted-foreground">
+        Actually served: <span className="font-mono text-foreground">{outfit.videoServingModel ?? "Provider result pending"}</span>
+      </p>
       {isPreview && (
         <Button
           size="sm"
@@ -630,6 +633,18 @@ function OutfitCard({
                 Video model&nbsp;
                 <span className="text-foreground font-mono">{outfit.videoModel}</span>
               </span>
+              {outfit.stillServingModels.length > 0 && (
+                <span className="text-muted-foreground">
+                  Stills served by&nbsp;
+                  <span className="text-foreground font-mono">{Array.from(new Set(outfit.stillServingModels)).join(", ")}</span>
+                </span>
+              )}
+              {outfit.videoServingModel && (
+                <span className="text-muted-foreground">
+                  Video served by&nbsp;
+                  <span className="text-foreground font-mono">{outfit.videoServingModel}</span>
+                </span>
+              )}
             </div>
 
             {/* Approvals */}

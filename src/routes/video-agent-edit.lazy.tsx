@@ -1,6 +1,6 @@
 import { authNextSearch } from "@/lib/auth-return-path";
 import { createLazyFileRoute, useNavigate, useSearch } from "@tanstack/react-router";
-import { useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -11,12 +11,13 @@ import {
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
-import { NbaJoshProductionStudio, NbaJoshProductionStudioSkeleton } from "@/components/video-agent/NbaJoshProductionStudio";
 import { useAuth } from "@/hooks/use-auth";
 import {
   getVideoAgentProject,
   updateVideoAgentProject,
   enqueueVideoAgentRender,
+  approveFilmStudioRender,
+  generateVideoAgentPrevisPlate,
   upgradeVideoAgentPlate,
   VIDEO_AGENT_RENDER_COST,
   PREVIS_PLATE_COST,
@@ -28,8 +29,21 @@ export const Route = createLazyFileRoute("/video-agent-edit")({
   component: VideoEditor,
 });
 
+const NbaJoshProductionStudio = lazy(async () => {
+  const module = await import("@/components/video-agent/NbaJoshProductionStudio");
+  return { default: module.NbaJoshProductionStudio };
+});
+
 type SceneDraft = VideoAgentProjectDto["scenes"][number];
 type Draft = { title: string; scenes: SceneDraft[] };
+
+function NbaJoshStudioLoading() {
+  return (
+    <div className="flex min-h-[60vh] items-center justify-center">
+      <Loader2 className="size-5 animate-spin text-muted-foreground" aria-label="Loading production studio" />
+    </div>
+  );
+}
 
 function sceneProblem(scenes: SceneDraft[]): string | null {
   if (!scenes.length) return "Add at least one scene before rendering";
@@ -60,29 +74,49 @@ function VideoEditor() {
   const getProject = useServerFn(getVideoAgentProject);
   const updateProject = useServerFn(updateVideoAgentProject);
   const enqueueRender = useServerFn(enqueueVideoAgentRender);
+  const approveFilmRender = useServerFn(approveFilmStudioRender);
   const upgradePlate = useServerFn(upgradeVideoAgentPlate);
+  const generatePlate = useServerFn(generateVideoAgentPrevisPlate);
 
   const [draft, setDraft] = useState<Draft | null>(null);
   const [selectedIdx, setSelectedIdx] = useState(0);
   const [activeTab, setActiveTab] = useState<"preview" | "edit">("preview");
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "blocked" | "error">("idle");
   const [rendering, setRendering] = useState(false);
+  const [approvingRender, setApprovingRender] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [regenId, setRegenId] = useState<string | null>(null);
   const [upgradeId, setUpgradeId] = useState<string | null>(null);
   const dirtyRef = useRef(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const sessionRef = useRef(0);
+  const projectQueryKey = ["video-agent-project", user?.id, id] as const;
 
   useEffect(() => {
     if (!authLoading && !user) void navigate({ to: "/auth", search: authNextSearch() });
   }, [authLoading, user, navigate]);
 
+  useEffect(() => {
+    sessionRef.current++;
+    abortRef.current?.abort();
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    dirtyRef.current = false;
+    setDraft(null);
+    setSelectedIdx(0);
+    setSaveState("idle");
+    setRendering(false);
+    setApprovingRender(false);
+    setRegenId(null);
+    setUpgradeId(null);
+  }, [user?.id, id]);
+
   const projectQuery = useQuery({
-    queryKey: ["video-agent-project", id],
-    queryFn: () => getProject({ data: { id: id! } }),
+    queryKey: projectQueryKey,
+    queryFn: () => getProject({ data: { id } }),
     enabled: !!user && !!id,
     retry: false,
+    staleTime: 0,
     refetchInterval: (query) => {
       const status = query.state.data?.status;
       return status === "queued" || status === "processing" ? 4000 : false;
@@ -108,6 +142,7 @@ function VideoEditor() {
   }, []);
 
   async function persistDraft(next: Draft): Promise<VideoAgentProjectDto | null> {
+    const session = sessionRef.current;
     if (sceneProblem(next.scenes)) {
       setSaveState("blocked");
       return null;
@@ -119,10 +154,12 @@ function VideoEditor() {
           id,
           title: next.title.trim().slice(0, 160) || "Untitled Video",
           scenes: sanitizeForSave(next.scenes),
+          expectedVersion: project?.version,
         },
       });
+      if (sessionRef.current !== session) return null;
       dirtyRef.current = false;
-      queryClient.setQueryData(["video-agent-project", id], saved);
+      queryClient.setQueryData(projectQueryKey, saved);
       setSaveState("saved");
       return saved;
     } catch (err) {
@@ -142,8 +179,21 @@ function VideoEditor() {
     }, 800);
   }
 
+  function clearScriptAttributionForEdit() {
+    const current = queryClient.getQueryData<VideoAgentProjectDto>(projectQueryKey);
+    if (current?.scriptAttribution) {
+      queryClient.setQueryData(projectQueryKey, {
+        ...current,
+        scriptAttribution: null,
+      });
+    }
+  }
+
   function updateScene(sceneId: string, patch: Partial<SceneDraft>) {
     if (!draft || renderActive) return;
+    if (["title", "script", "description", "duration"].some((key) => key in patch)) {
+      clearScriptAttributionForEdit();
+    }
     scheduleSave({
       ...draft,
       scenes: draft.scenes.map((s) => (s.id === sceneId ? { ...s, ...patch } : s)),
@@ -152,12 +202,14 @@ function VideoEditor() {
 
   function updateTitle(title: string) {
     if (!draft || renderActive) return;
+    clearScriptAttributionForEdit();
     scheduleSave({ ...draft, title });
   }
 
   function addScene() {
     if (!draft || renderActive) return;
     if (draft.scenes.length >= 12) return toast.error("A video can have at most 12 scenes");
+    clearScriptAttributionForEdit();
     const scene: SceneDraft = {
       id: vaUid(),
       index: draft.scenes.length,
@@ -175,6 +227,7 @@ function VideoEditor() {
   function removeScene(sceneId: string) {
     if (!draft || renderActive) return;
     if (draft.scenes.length <= 1) return toast.error("A video needs at least one scene");
+    clearScriptAttributionForEdit();
     scheduleSave({
       ...draft,
       scenes: draft.scenes.filter((s) => s.id !== sceneId).map((s, i) => ({ ...s, index: i })),
@@ -183,42 +236,34 @@ function VideoEditor() {
   }
 
   async function regenFrame(scene: SceneDraft) {
+    const session = sessionRef.current;
     if (renderActive) return;
     if (!scene.description.trim()) return toast.error("Add a visual description first");
     setRegenId(scene.id);
-    abortRef.current = new AbortController();
     updateScene(scene.id, { frameStatus: "loading" });
 
-    const styleHints: Record<string, string> = {
-      cinematic: "cinematic anamorphic, 35mm film grain",
-      minimal: "clean minimal, soft light",
-      vibrant: "vibrant, bold, energetic",
-      documentary: "natural light, candid",
-    };
-    const styleHint = styleHints[project?.style ?? "cinematic"] ?? "cinematic";
-
     try {
-      const frameRes = await fetch("/api/video-agent/generate-frame", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt: `${scene.description}. Style: ${styleHint}. Cinematic keyframe.` }),
-        signal: abortRef.current.signal,
-      });
-      if (!frameRes.ok) throw new Error(`Frame generation failed: ${frameRes.status}`);
-      const { url } = (await frameRes.json()) as { url: string };
-      updateScene(scene.id, { frame: url, frameStatus: "done" });
+      if (draft && dirtyRef.current) {
+        if (saveTimer.current) clearTimeout(saveTimer.current);
+        const saved = await persistDraft(draft);
+        if (!saved) return;
+      }
+      await generatePlate({ data: { id, sceneId: scene.id } });
+      if (sessionRef.current !== session) return;
+      dirtyRef.current = false;
+      await projectQuery.refetch();
       toast.success("Frame regenerated");
     } catch (err) {
-      if ((err as Error).name !== "AbortError") {
-        toast.error((err as Error).message);
-        updateScene(scene.id, { frameStatus: "error" });
-      }
+      if (sessionRef.current !== session) return;
+      toast.error((err as Error).message);
+      updateScene(scene.id, { frameStatus: "error" });
     } finally {
-      setRegenId(null);
+      if (sessionRef.current === session) setRegenId(null);
     }
   }
 
   async function upgradePlateNow(scene: SceneDraft) {
+    const session = sessionRef.current;
     if (renderActive || upgradeId) return;
     if (!scene.description.trim()) return toast.error("Add a visual description first");
     // Flush any pending edits so the server upgrades the current description.
@@ -231,11 +276,13 @@ function VideoEditor() {
     updateScene(scene.id, { frameStatus: "loading" });
     try {
       const res = await upgradePlate({ data: { id, sceneId: scene.id } });
+      if (sessionRef.current !== session) return;
       updateScene(scene.id, { frame: res.url, frameStatus: "done" });
       dirtyRef.current = false;
       await projectQuery.refetch();
       toast.success(`Premium plate rendered — ${res.cost} Aura`);
     } catch (err) {
+      if (sessionRef.current !== session) return;
       const msg = (err as Error).message;
       updateScene(scene.id, { frameStatus: "error" });
       if (/aura|credit/i.test(msg)) {
@@ -244,11 +291,12 @@ function VideoEditor() {
         toast.error(msg);
       }
     } finally {
-      setUpgradeId(null);
+      if (sessionRef.current === session) setUpgradeId(null);
     }
   }
 
   async function startRender() {
+    const session = sessionRef.current;
     if (!draft || renderActive || rendering) return;
     const problem = sceneProblem(draft.scenes);
     if (problem) return toast.error(problem);
@@ -260,9 +308,11 @@ function VideoEditor() {
         if (!saved) throw new Error("Fix the storyboard before rendering");
       }
       const res = await enqueueRender({ data: { id } });
+      if (sessionRef.current !== session) return;
       toast.success(`Render started — ${res.cost} Aura reserved. Safe to close this page.`);
       await projectQuery.refetch();
     } catch (err) {
+      if (sessionRef.current !== session) return;
       const msg = (err as Error).message;
       if (/aura|credit/i.test(msg)) {
         toast.error(msg, {
@@ -272,7 +322,30 @@ function VideoEditor() {
         toast.error(msg);
       }
     } finally {
-      setRendering(false);
+      if (sessionRef.current === session) setRendering(false);
+    }
+  }
+
+  async function approveCurrentFilmRender() {
+    const session = sessionRef.current;
+    if (!draft || !project?.filmPlan || renderActive || approvingRender) return;
+    setApprovingRender(true);
+    try {
+      if (saveTimer.current) clearTimeout(saveTimer.current);
+      const current = dirtyRef.current ? await persistDraft(draft) : project;
+      if (!current) throw new Error("Save the storyboard before approving it");
+      const approved = await approveFilmRender({
+        data: { id, expectedVersion: current.version },
+      });
+      if (sessionRef.current !== session) return;
+      queryClient.setQueryData(projectQueryKey, approved);
+      toast.success("Current storyboard and continuity fingerprint approved");
+    } catch (err) {
+      if (sessionRef.current !== session) return;
+      toast.error(err instanceof Error ? err.message : "Could not approve render plan");
+      await projectQuery.refetch();
+    } finally {
+      if (sessionRef.current === session) setApprovingRender(false);
     }
   }
 
@@ -311,12 +384,12 @@ function VideoEditor() {
   if (authLoading || !user || projectQuery.isLoading) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
-        {projectQuery.isLoading ? <NbaJoshProductionStudioSkeleton /> : <Loader2 className="size-5 animate-spin text-muted-foreground" />}
+        {projectQuery.isLoading ? <NbaJoshStudioLoading /> : <Loader2 className="size-5 animate-spin text-muted-foreground" />}
       </div>
     );
   }
 
-  if (projectQuery.isError || !project || (!draft && !project.production)) {
+  if (projectQuery.isError || !project || (!draft && !project.production && !project.scenes.length)) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
         <div className="glass rounded-xl p-10 text-center max-w-sm">
@@ -335,16 +408,18 @@ function VideoEditor() {
 
   if (project.production?.template === "nba-josh-looping-officers") {
     return (
-      <NbaJoshProductionStudio
-        project={project}
-        production={project.production}
-        onProjectUpdated={(updated) => {
-          if (updated.id === project.id) {
-            queryClient.setQueryData(["video-agent-project", project.id], updated);
-          }
-          void projectQuery.refetch();
-        }}
-      />
+      <Suspense fallback={<NbaJoshStudioLoading />}>
+        <NbaJoshProductionStudio
+          project={project}
+          production={project.production}
+          onProjectUpdated={(updated) => {
+            if (updated.id === project.id) {
+              queryClient.setQueryData(projectQueryKey, updated);
+            }
+            void projectQuery.refetch();
+          }}
+        />
+      </Suspense>
     );
   }
 
@@ -378,6 +453,15 @@ function VideoEditor() {
           disabled={renderActive}
           className="h-7 w-52 text-sm font-medium glass border-transparent focus:border-border"
         />
+        {project.scriptAttribution && (
+          <span
+            className="hidden max-w-[280px] truncate text-[11px] text-primary/80 md:block"
+            title={`Generated script · ${project.scriptAttribution.provider}${project.scriptAttribution.model ? ` · ${project.scriptAttribution.model}` : ""}`}
+          >
+            Script served by {project.scriptAttribution.provider}
+            {project.scriptAttribution.model ? ` · ${project.scriptAttribution.model}` : ""}
+          </span>
+        )}
         <div className="flex-1" />
         {saveLabel && (
           <span className={`text-[11px] hidden md:block ${saveState === "blocked" || saveState === "error" ? "text-destructive" : "text-muted-foreground"}`}>
@@ -385,11 +469,23 @@ function VideoEditor() {
           </span>
         )}
         <div className="w-px h-4 bg-border hidden sm:block" />
+        {project.filmPlan && !project.filmPlan.renderApproval?.approved && (
+          <Button
+            size="sm"
+            variant="secondary"
+            className="h-7 gap-1.5 text-xs"
+            onClick={() => void approveCurrentFilmRender()}
+            disabled={renderActive || approvingRender}
+          >
+            {approvingRender ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
+            Approve render plan
+          </Button>
+        )}
         <Button
           size="sm"
           className="h-7 gap-1.5 text-xs"
           onClick={startRender}
-          disabled={renderActive || rendering}
+          disabled={renderActive || rendering || (!!project.filmPlan && !project.filmPlan.renderApproval?.approved)}
         >
           {renderActive || rendering ? (
             <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -452,6 +548,28 @@ function VideoEditor() {
               </Button>
             </div>
           </div>
+           {project.renderEngine && (
+             <details className="mt-2 text-[11px] text-muted-foreground">
+               <summary className="cursor-pointer font-medium text-foreground/80">
+                 Render engines · {project.renderEngine.scenes.length} scene{project.renderEngine.scenes.length === 1 ? "" : "s"}
+               </summary>
+               <div className="mt-1 space-y-0.5">
+                 {project.renderEngine.scenes.map((engine) => (
+                   <div key={`${engine.sceneId}-${engine.index}`}>
+                     Scene {engine.index + 1}:{" "}
+                     {engine.image.source === "reused"
+                       ? `plate reused${engine.image.plateQuality ? ` (${engine.image.plateQuality})` : ""}`
+                       : `image ${engine.image.provider} · ${engine.image.endpoint}`}
+                     {" → "}
+                     video {engine.video.provider} · {engine.video.endpoint}
+                   </div>
+                 ))}
+                 <div>
+                   Assembly: {project.renderEngine.assembler.provider} · {project.renderEngine.assembler.endpoint}
+                 </div>
+               </div>
+             </details>
+           )}
         </div>
       )}
 
@@ -635,13 +753,18 @@ function VideoEditor() {
                 New video
               </Button>
               <Button size="sm" className="flex-1 gap-1.5 text-xs"
-                onClick={startRender} disabled={renderActive || rendering}>
+                onClick={project.filmPlan && !project.filmPlan.renderApproval?.approved ? () => void approveCurrentFilmRender() : startRender}
+                disabled={renderActive || rendering || approvingRender}>
                 {renderActive || rendering ? (
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
                 ) : (
                   <Sparkles className="h-3.5 w-3.5" />
                 )}
-                {renderActive ? "Rendering…" : `Render · ${VIDEO_AGENT_RENDER_COST}✦`}
+                {renderActive
+                  ? "Rendering…"
+                  : project.filmPlan && !project.filmPlan.renderApproval?.approved
+                    ? "Approve render plan"
+                    : `Render · ${VIDEO_AGENT_RENDER_COST}✦`}
               </Button>
             </div>
           </div>

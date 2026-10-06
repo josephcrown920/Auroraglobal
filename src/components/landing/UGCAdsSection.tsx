@@ -5,6 +5,7 @@
 import { Link } from "@tanstack/react-router";
 import { ArrowUpRight, Megaphone, Zap, Camera, TrendingUp } from "lucide-react";
 import { track } from "@/lib/tracking";
+import { COST_UGC_AD } from "@/lib/pricing";
 
 const FEATURES = [
   { icon: Camera,     label: "Drop a product photo" },
@@ -25,7 +26,7 @@ export function UGCAdsSection() {
       <div className="relative grid gap-10 md:grid-cols-2 md:items-center">
         {/* Left — copy */}
         <div>
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-400/25 bg-amber-400/[0.07] px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-amber-300">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-400/[0.07] px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-amber-300">
             <Megaphone className="size-3.5" /> UGC Ads
           </span>
 
@@ -84,8 +85,8 @@ export function UGCAdsSection() {
           />
           <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
           <div className="absolute bottom-4 left-4 right-4">
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-black/60 px-3 py-1.5 text-xs font-semibold text-amber-300 backdrop-blur-sm border border-amber-400/20">
-              <Zap className="size-3" /> From 15 Aura
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-black/60 px-3 py-1.5 text-xs font-semibold text-amber-300 backdrop-blur-sm">
+              <Zap className="size-3" /> {COST_UGC_AD} Aura
             </span>
           </div>
         </div>

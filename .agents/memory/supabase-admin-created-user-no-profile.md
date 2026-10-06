@@ -18,6 +18,14 @@ Regardless of how the row was created, always query/update `profiles` by
 NOT `profiles.id` (the profile's own PK). Querying by `.eq("id", userId)`
 silently returns the wrong/no row.
 
+One live schema revision has an additional grant-specific trap: its
+`grant_credits` RPC updates `profiles` by `id` but writes the ledger by
+`user_id`. When those UUIDs differ, the RPC can return success and record a
+positive ledger delta while leaving the wallet unchanged. Always re-read the
+balance after an admin grant; until that function is corrected by migration,
+apply the balance update by `user_id` and preserve the matching audited ledger
+entry.
+
 **Why:** a direct-invocation test script (see
 [Direct-invocation testing](direct-invocation-testing.md)) that skips the
 browser/HTTP layer still benefits from this trigger, so a fresh admin-created

@@ -5,7 +5,7 @@ export type EmbedSsoStatus = "idle" | "pending" | "authenticated" | "error";
 
 const SSO_ENDPOINT = "/api/public/embed-session";
 
-/** Reads the SSO token from the embed URL (?sso=... or #sso=...). */
+/** Reads the short-lived Supabase access token from the embed URL when supplied. */
 export function readSsoTokenFromUrl(): string | null {
   if (typeof window === "undefined") return null;
   const search = new URLSearchParams(window.location.search);
@@ -25,8 +25,8 @@ export function scrubSsoTokenFromUrl() {
 }
 
 /**
- * Exchanges a host-signed SSO token for a real session inside the embed.
- * Returns true when the embed ends up authenticated.
+ * Exchanges a Supabase access token issued by the shared Aurora auth project
+ * for a one-time magic-link token hash. No shared HMAC secret is required.
  */
 export async function signInWithEmbedToken(token: string): Promise<boolean> {
   const hostOrigin = getEmbedHostOrigin();

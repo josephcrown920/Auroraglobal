@@ -58,7 +58,7 @@ const COPY_SCHEMA: CopySection[] = [
       { key: "landing_hero_1_eyebrow", label: "Eyebrow",    default: "BY ARTISTS, FOR ARTISTS" },
       { key: "landing_hero_1_headline",label: "Headline",   default: "Direct Your Visual Identity." },
       { key: "landing_hero_1_sub",     label: "Body text",  default: "The AI performance studio built by artists, for artists. Drop your references, direct the shoot in plain language, and ship studio-grade covers, promo, and cinematic performance reels in seconds, not weeks.", multiline: true },
-      { key: "landing_hero_1_cta",     label: "CTA button", default: "Start Creating →" },
+      { key: "landing_hero_1_cta",     label: "CTA button", default: "Explore the studio →" },
     ],
   },
   {
@@ -137,6 +137,14 @@ const COPY_SCHEMA: CopySection[] = [
       { key: "landing_tools_heading",    label: "Heading",    default: "The full studio." },
       { key: "landing_tools_subheading", label: "Subheading", default: "Pay only for what you make." },
       { key: "landing_tools_blurb",      label: "Blurb",      default: "Every feature is credit based. No subscriptions required to start. 5 free Aura on signup.", multiline: true },
+    ],
+  },
+  {
+    section: "Collaborators strip",
+    fields: [
+      { key: "landing_collaborators_eyebrow", label: "Eyebrow",    default: "Collaborators" },
+      { key: "landing_collaborators_sub",     label: "Subheading", default: "Aurora plugs into the platforms where your music already lives." },
+      { key: "landing_collaborators_cta",     label: "Link text",  default: "See your stats in one place" },
     ],
   },
 ];

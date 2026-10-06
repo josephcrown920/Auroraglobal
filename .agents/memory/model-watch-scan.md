@@ -26,5 +26,11 @@ Limited-time ModelArk billing discount: "2.0 mini" at 40% of list (~$0.075/s ful
 ## Anticipated-probe rule
 ARK_ANTICIPATED must probe the exact slugs `BYTEPLUS_DEFAULTS` dispatches — an "activated" flip is only meaningful if the app's own slug became serviceable (legacy sibling slugs can exist and activate without helping Aurora).
 
+## Credential fallback rule
+
+ModelArk probes must use the same bounded 401 credential fallback as live video calls; if a probe unexpectedly creates a task, cancellation must use the credential that created it.
+
+**Why:** deployments may retain an invalid legacy BytePlus key alongside a working Ark key; preferring only the legacy key makes the watcher report false outages.
+
 ## Registration parity rule
 A new BytePlus video model touches FOUR places: `VIDEO_MODEL_LIST` (models.ts), `VIDEO_MODEL_TIERS` (pricing.ts), `BYTEPLUS_DEFAULTS` AND `MODEL_REGISTRY` (orchestrator.server.ts) — the registry entry is easy to miss (review caught it for seedance-2.5).

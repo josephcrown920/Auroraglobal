@@ -24,7 +24,7 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { useServerFn } from "@tanstack/react-start";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import {
   usePerformanceShotJobFn,
@@ -32,7 +32,8 @@ import {
   useLipSyncJobFn,
   pollComfyRunUntilDone,
 } from "@/lib/use-job-polling";
-import { listWorkflows, saveWorkflow, getWorkflow } from "@/lib/workflows.functions";
+import { listWorkflows, saveWorkflow, getWorkflow, updateWorkflowOutput } from "@/lib/workflows.functions";
+import { selectTerminalOutput } from "@/lib/workflow-gallery";
 import {
   getMarketplaceTemplateForCanvas,
   chargeMarketplaceTemplateRun,
@@ -87,6 +88,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { OutputGallery } from "@/components/visual/OutputGallery";
+import { DEMO_ASSETS } from "@/lib/demo-assets";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import {
   DropdownMenu,
@@ -1317,6 +1320,8 @@ function ExportShareDock({ nodes, edges }: { nodes: Node<NodeData>[]; edges: Edg
 function CanvasPage() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
+  const qc = useQueryClient();
+  const search = Route.useSearch();
   useEffect(() => { if (!loading && !user) navigate({ to: "/auth", search: authNextSearch() }); }, [user, loading, navigate]);
 
   // Deep-link: /canvas?template=<id> or ?marketplaceTemplateId=<uuid> auto-loads once.
@@ -1337,6 +1342,7 @@ function CanvasPage() {
         .then((result) => {
           const g = result.graph;
           if (g && Array.isArray(g.nodes) && Array.isArray(g.edges)) {
+            setWfId(undefined);
             setNodes(g.nodes as Node<NodeData>[]);
             setEdges(g.edges as Edge[]);
             setCoachTplName(g.name ?? "Marketplace template");
@@ -1355,6 +1361,7 @@ function CanvasPage() {
     if (!id) return;
     const g = getTemplateById(id);
     if (g) {
+      setWfId(undefined);
       setNodes(g.nodes as Node<NodeData>[]);
       setEdges(g.edges);
       setCoachTplName(g.name);
@@ -1372,7 +1379,15 @@ function CanvasPage() {
 
   const [nodes, setNodes, onNodesChange] = useNodesState<Node<NodeData>>(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>(initialEdges);
+  const [wfId, setWfId] = useState<string | undefined>(undefined);
+  const [pendingAutoRun, setPendingAutoRun] = useState(false);
+  const autoRunConsumedRef = useRef(false);
+  // Synchronous gates close races between an async workflow fetch, React commits,
+  // and user/Strict-Mode initiated run requests.
+  const runActiveRef = useRef(false);
+  const loadInFlightRef = useRef(false);
   const [agentOpen, setAgentOpen] = useState(false);
+  const [examplesOpen, setExamplesOpen] = useState(false);
   const [coachTplName, setCoachTplName] = useState<string | null>(null);
   const [lastTemplateId, setLastTemplateId] = useState<string | null>(null);
   const [lastTemplateGraph, setLastTemplateGraph] = useState<TemplateGraph | null>(null);
@@ -1446,6 +1461,7 @@ function CanvasPage() {
   const resetTemplate = useCallback(() => {
     const g = lastTemplateGraph ?? (lastTemplateId ? getTemplateById(lastTemplateId) : null);
     if (!g) { toast.error("Load a template first"); return; }
+    setWfId(undefined);
     setNodes(g.nodes as Node<NodeData>[]);
     setEdges(g.edges);
     toast.success(`Reset "${g.name}"`);
@@ -1454,6 +1470,7 @@ function CanvasPage() {
   const onConnect = useCallback((p: Connection) => setEdges((es) => addEdge({ ...p, animated: true }, es)), [setEdges]);
 
   const mktLoadFn = useServerFn(getMarketplaceTemplateForCanvas);
+  const workflowOutputFn = useServerFn(updateWorkflowOutput);
   const mktChargeFn = useServerFn(chargeMarketplaceTemplateRun);
   // ID of a marketplace template currently loaded in this session (if any).
   // Set to null whenever the user loads a non-marketplace template/workflow so
@@ -1470,6 +1487,7 @@ function CanvasPage() {
     queryKey: ["comfy-templates-canvas"],
     enabled: !!user,
     queryFn: () => comfyListFn({}),
+    staleTime: 5 * 60_000,
   });
   const comfyTemplates = (comfyTplQuery.data?.templates ?? []) as unknown as ComfyTemplate[];
 
@@ -1479,6 +1497,7 @@ function CanvasPage() {
     queryKey: ["aurora-templates-canvas"],
     enabled: !!user,
     queryFn: () => auroraListFn({}),
+    staleTime: 5 * 60_000,
   });
   const auroraTemplates = (auroraTemplatesQuery.data ?? []) as AuroraTemplateRow[];
 
@@ -1499,9 +1518,18 @@ function CanvasPage() {
     }));
   }, [setNodes]);
 
+  // Storage keys are built from user-supplied filenames — reduce to a safe
+  // basename so a crafted name (path separators, "..") can never escape the
+  // user's own folder.
+  const safeStorageFileName = (name: string): string => {
+    const base = name.split(/[\\/]/).pop() ?? "upload";
+    const cleaned = base.replace(/\.\./g, "").replace(/[^A-Za-z0-9._-]/g, "_").slice(0, 80);
+    return cleaned || "upload";
+  };
+
   const onFile = useCallback(async (id: string, file: File) => {
     if (!user) return;
-    const path = `${user.id}/canvas/${Date.now()}-${file.name}`;
+    const path = `${user.id}/canvas/${Date.now()}-${safeStorageFileName(file.name)}`;
     const { error } = await supabase.storage.from("studio").upload(path, file, { upsert: true, contentType: file.type });
     if (error) { toast.error(error.message); return; }
     const { data: signed, error: signErr } = await supabase.storage
@@ -1512,7 +1540,7 @@ function CanvasPage() {
 
   const onOutfitFile = useCallback(async (id: string, file: File) => {
     if (!user) return;
-    const path = `${user.id}/canvas/outfit-${Date.now()}-${file.name}`;
+    const path = `${user.id}/canvas/outfit-${Date.now()}-${safeStorageFileName(file.name)}`;
     const { error } = await supabase.storage.from("studio").upload(path, file, { upsert: true, contentType: file.type });
     if (error) { toast.error(error.message); return; }
     const { data: signed, error: signErr } = await supabase.storage
@@ -1549,7 +1577,7 @@ function CanvasPage() {
   }, [nodes, edges]);
 
   const runMut = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (_variables: { workflowId?: string }) => {
       if (!user) throw new Error("Sign in");
 
       // Charge marketplace template fee on every Run (per-run model).
@@ -1801,10 +1829,45 @@ function CanvasPage() {
           throw e;
         }
       }
+      // Return a deterministic output snapshot rather than relying on React state
+      // that may still be batched when the mutation completes.
+      const completedNodes = nodes.map((node) => {
+        const result = resolved.get(node.id);
+        return result
+          ? {
+              id: node.id,
+              data: {
+                ...node.data,
+                status: "done",
+                url: result.url,
+                // Preserve resolved media type for pass-through leaves and Comfy.
+                outputKind: result.kind === "video" || result.kind === "image" ? result.kind : node.data.outputKind,
+              },
+            }
+          : node;
+      });
+      return { terminalOutput: selectTerminalOutput(completedNodes, edges) };
     },
-    onSuccess: () => toast.success("Pipeline complete"),
+    onSuccess: (result, variables) => {
+      toast.success("Pipeline complete");
+      const id = variables.workflowId;
+      const output = result?.terminalOutput;
+      if (!id || !output) return;
+      workflowOutputFn({ data: {
+        id, last_output_url: output.url, last_output_kind: output.kind, thumbnail_url: output.url,
+      } }).then(() => qc.invalidateQueries({ queryKey: ["workflows"] }))
+        .catch((error: unknown) => toast.error(error instanceof Error ? error.message : "Could not save pipeline output"));
+    },
     onError: (e) => handleGenerationError(e),
+    onSettled: () => { runActiveRef.current = false; },
   });
+
+  const startRun = useCallback((workflowId: string | undefined): boolean => {
+    if (runActiveRef.current) return false;
+    runActiveRef.current = true; // Must precede mutation launch to close same-tick races.
+    runMut.mutate({ workflowId });
+    return true;
+  }, [runMut]);
 
   const addNode = (kind: NodeKind) => {
     const id = `${kind}-${Date.now()}`;
@@ -1845,34 +1908,90 @@ function CanvasPage() {
   const listFn = useServerFn(listWorkflows);
   const loadFn = useServerFn(getWorkflow);
   const [wfName, setWfName] = useState("Untitled pipeline");
-  const [wfId, setWfId] = useState<string | undefined>(undefined);
   const [saveOpen, setSaveOpen] = useState(false);
   const [loadOpen, setLoadOpen] = useState(false);
   const wfList = useQuery({
     queryKey: ["workflows"], enabled: !!user && loadOpen,
     queryFn: () => listFn({}),
+    staleTime: 5 * 60_000,
   });
   const saveMut = useMutation({
     mutationFn: async () => {
       const graph = { nodes, edges } as Record<string, unknown>;
+      const output = selectTerminalOutput(nodes, edges);
       const res = await saveFn({ data: { id: wfId, name: wfName, graph, is_public: false } });
+      if (res.id && output) {
+        await workflowOutputFn({ data: {
+          id: res.id, last_output_url: output.url, last_output_kind: output.kind, thumbnail_url: output.url,
+        } });
+      }
       return res;
     },
-    onSuccess: (r) => { if (r?.id) setWfId(r.id); setSaveOpen(false); toast.success("Workflow saved"); },
+    onSuccess: (r) => {
+      if (r?.id) setWfId(r.id);
+      qc.invalidateQueries({ queryKey: ["workflows"] });
+      setSaveOpen(false); toast.success("Workflow saved");
+    },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Save failed"),
   });
-  const handleLoad = async (id: string) => {
+  const handleLoad = async (id: string, shouldRun = false): Promise<boolean> => {
+    if (runActiveRef.current || loadInFlightRef.current) {
+      toast.info("Please wait for the current run to finish before loading another pipeline.");
+      return false;
+    }
+    loadInFlightRef.current = true;
     try {
       const wf = await loadFn({ data: { id } });
       const g = wf.graph as { nodes?: Node<NodeData>[]; edges?: Edge[] };
-      if (g.nodes) setNodes(g.nodes);
-      if (g.edges) setEdges(g.edges);
+      if (!Array.isArray(g.nodes) || !Array.isArray(g.edges)) throw new Error("Saved workflow graph is invalid");
+      // A run can start while the request is pending. Never overwrite its graph.
+      if (runActiveRef.current) {
+        toast.info("Please wait for the current run to finish before loading another pipeline.");
+        return false;
+      }
+      setNodes(g.nodes);
+      setEdges(g.edges);
       setWfId(wf.id); setWfName(wf.name);
       setMarketplaceTemplateId(null);
       setLoadOpen(false);
       toast.success(`Loaded ${wf.name}`);
-    } catch (e) { toast.error(e instanceof Error ? e.message : "Load failed"); }
+      if (shouldRun) {
+        autoRunConsumedRef.current = false;
+        setPendingAutoRun(true);
+      }
+      return true;
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Load failed");
+      return false;
+    } finally {
+      loadInFlightRef.current = false;
+    }
   };
+
+  // A queued run is consumed only after the loaded graph and workflow id have
+  // committed to React. This avoids executing the prior render's closure.
+  useEffect(() => {
+    if (!pendingAutoRun || !wfId || autoRunConsumedRef.current || runMut.isPending) return;
+    autoRunConsumedRef.current = true; // Strict Mode-safe: mark before mutate.
+    setPendingAutoRun(false);
+    startRun(wfId);
+  }, [pendingAutoRun, wfId, nodes, edges, runMut, startRun]);
+
+  const deepLinkHandledRef = useRef(false);
+  useEffect(() => {
+    if (!user || !search.workflow || deepLinkHandledRef.current) return;
+    deepLinkHandledRef.current = true; // Set before async work: Strict Mode-safe.
+    navigate({ to: "/canvas", search: { template: search.template, marketplaceTemplateId: search.marketplaceTemplateId }, replace: true });
+    (async () => {
+      try {
+        await handleLoad(search.workflow!, search.run);
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "Load failed");
+      }
+    })();
+  // This intentional one-shot only responds to the initially parsed deep link.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search.workflow]);
 
   if (loading) return <PageSpinner />;
   if (!user) return <AuthRedirect />;
@@ -1898,9 +2017,17 @@ function CanvasPage() {
           </Button>
           <Button
             size="sm"
+            variant="outline"
+            onClick={() => setExamplesOpen(true)}
+            className="h-8 border-white/10 bg-white/5 text-xs"
+          >
+            Examples
+          </Button>
+          <Button
+            size="sm"
             onClick={() => {
               if (graphWarnings.length) { toast.error(graphWarnings[0]); return; }
-              runMut.mutate();
+              startRun(wfId);
             }}
             disabled={runMut.isPending}
             title={graphWarnings.length ? graphWarnings[0] : undefined}
@@ -2013,6 +2140,7 @@ function CanvasPage() {
         <div className="absolute top-3 left-3 z-20 flex items-center gap-1.5 rounded-full border border-white/10 bg-[oklch(0.13_0.02_295/0.85)] backdrop-blur-xl shadow-lg p-1.5">
           <TrendingTemplatesMenu
             onPick={(g: TemplateGraph & { id?: string }) => {
+              setWfId(undefined);
               setNodes(g.nodes as Node<NodeData>[]);
               setEdges(g.edges);
               setCoachTplName(g.name);
@@ -2023,9 +2151,11 @@ function CanvasPage() {
           />
           <FinishedWorkflowsGallery
             directLoad
+            onLoadSaved={handleLoad}
             onLoad={(id) => {
               const g = getTemplateById(id) ?? defaultGraphFor(id);
               if (g) {
+                setWfId(undefined);
                 setNodes(g.nodes as Node<NodeData>[]);
                 setEdges(g.edges);
                 setCoachTplName(g.name);
@@ -2080,7 +2210,7 @@ function CanvasPage() {
           <button
             onClick={() => {
               if (graphWarnings.length) { toast.error(graphWarnings[0]); return; }
-              runMut.mutate();
+              startRun(wfId);
             }}
             disabled={runMut.isPending}
             title={graphWarnings.length ? graphWarnings[0] : undefined}
@@ -2096,10 +2226,24 @@ function CanvasPage() {
           fixed toggle/panel isn't trapped under the header by the canvas area's z-0 stacking context */}
       <GeneratedAssetGallery />
 
+      <Dialog open={examplesOpen} onOpenChange={setExamplesOpen}>
+        <DialogContent className="max-w-4xl border-white/10 bg-zinc-950">
+          <DialogHeader>
+            <DialogTitle>Canvas references, scene cards, and final motion</DialogTitle>
+          </DialogHeader>
+          <OutputGallery
+            items={DEMO_ASSETS.canvas.gallery}
+            kicker="Canvas proof"
+            title="Start with a visual, connect the workflow, finish in motion."
+            subtitle="These real Aurora outputs show the kind of direction a canvas can carry."
+          />
+        </DialogContent>
+      </Dialog>
+
       <AuroraAgentPanel
         open={agentOpen}
         onClose={() => setAgentOpen(false)}
-        onSendToCanvas={(g) => { setNodes(g.nodes as Node<NodeData>[]); setEdges(g.edges); setMarketplaceTemplateId(null); }}
+        onSendToCanvas={(g) => { setWfId(undefined); setNodes(g.nodes as Node<NodeData>[]); setEdges(g.edges); setMarketplaceTemplateId(null); }}
       />
     </main>
   );

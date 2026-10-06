@@ -1,14 +1,21 @@
 import { createLazyFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { parseAuthReturnPath } from "@/lib/auth-return-path";
+import { classifyAuthError, describeAuthError, type ClassifiedAuthError } from "@/lib/auth-error-message";
 import { useAuth } from "@/hooks/use-auth";
+import { hasBackendEnv } from "@/integrations/backend-config";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Github, MailCheck, Fingerprint, Loader2, Eye, EyeOff, KeyRound, Mic2, Clapperboard, Sparkles } from "lucide-react";
+import { useServerFn } from "@tanstack/react-start";
+import { triggerLifecycleEmail } from "@/lib/emails.functions";
 
 /** Asked once, on the signup form. Decides which side of the studio opens by
  *  default and how tools are ranked. Stored on profiles.persona. */
+const AUTH_UNAVAILABLE_MESSAGE =
+  "Sign-in isn't available on this deployment right now. Please try again later.";
+
 const PERSONA_OPTIONS = [
   { id: "artist" as const,  label: "Artist",  blurb: "Music, performance, visuals.", Icon: Mic2 },
   { id: "creator" as const, label: "Creator", blurb: "UGC, short-form, ads.",        Icon: Clapperboard },
@@ -33,7 +40,7 @@ function GoogleIcon({ className }: { className?: string }) {
     </svg>
   );
 }
-import {useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { trackSignUp } from "@/lib/gtm";
 import {
@@ -51,6 +58,7 @@ import { useBiometricSupport, useEmbeddedBrowser } from "@/hooks/use-biometric-s
 
 function AuthPage() {
   const navigate = useNavigate();
+  const sendSignupWelcome = useServerFn(triggerLifecycleEmail);
   const { session, loading } = useAuth();
   const search = Route.useSearch();
   const [hydrated, setHydrated] = useState(false);
@@ -74,6 +82,18 @@ function AuthPage() {
   const [bioBusy, setBioBusy] = useState(false);
   const [confirmSent, setConfirmSent] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  // Last email/password failure, rendered inline under the password field.
+  // Toasts alone were missed on phones (hidden under the keyboard / auto-
+  // dismissed), which made a wrong password look like the form did nothing.
+  const [formError, setFormError] = useState<ClassifiedAuthError | null>(null);
+  // Bumped whenever the form changes (field edit, mode switch, resubmit). A
+  // submit that started under an older value must not paint its error over a
+  // form the user has since edited.
+  const formRevision = useRef(0);
+  const clearFormError = useCallback(() => {
+    formRevision.current += 1;
+    setFormError(null);
+  }, []);
   const [resetBusy, setResetBusy] = useState(false);
   const [recoveryMode, setRecoveryMode] = useState(false);
   const [newPassword, setNewPassword] = useState("");
@@ -81,6 +101,9 @@ function AuthPage() {
   const [recoveryBusy, setRecoveryBusy] = useState(false);
   const biometricSupported = useBiometricSupport();
   const embeddedBrowser = useEmbeddedBrowser();
+  // The Supabase client throws on first use when its env is missing. Rather
+  // than crash the page (or let the form spin), say so up front.
+  const authAvailable = hasBackendEnv();
   // Passkeys only work in a real browser tab — in-app/embedded webviews deny
   // the Face ID prompt before we can authenticate.
   const canUsePasskeys = biometricSupported && !embeddedBrowser;
@@ -122,11 +145,12 @@ function AuthPage() {
     if (typeof window !== "undefined" && window.location.hash.includes("type=recovery")) {
       setRecoveryMode(true);
     }
+    if (!authAvailable) return;
     const { data: sub } = supabase.auth.onAuthStateChange((event) => {
       if (event === "PASSWORD_RECOVERY") setRecoveryMode(true);
     });
     return () => sub.subscription.unsubscribe();
-  }, []);
+  }, [authAvailable]);
 
   // OAuth providers and Supabase's own auth server report failures (denied
   // consent, expired/invalid code, misconfigured provider, etc.) by
@@ -191,7 +215,7 @@ function AuthPage() {
       if (error) throw error;
       toast.success("Password reset email sent — check your inbox");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Could not send reset email");
+      toast.error(describeAuthError(err, "Could not send reset email"));
     } finally {
       setResetBusy(false);
     }
@@ -211,7 +235,7 @@ function AuthPage() {
       setRecoveryMode(false);
       navigateToReturnPath();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Could not update password");
+      toast.error(describeAuthError(err, "Could not update password"));
     } finally {
       setRecoveryBusy(false);
     }
@@ -219,6 +243,13 @@ function AuthPage() {
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
+    clearFormError();
+    const revision = formRevision.current;
+    if (!authAvailable) {
+      toast.error(AUTH_UNAVAILABLE_MESSAGE);
+      setFormError({ kind: "unavailable", message: AUTH_UNAVAILABLE_MESSAGE });
+      return;
+    }
     setBusy(true);
     try {
       if (mode === "signup") {
@@ -240,6 +271,10 @@ function AuthPage() {
         }
         trackSignUp("email");
         if (data.session) {
+          // Send the welcome message immediately for signups that do not
+          // require an email-confirmation round trip. The server-side dedupe
+          // guard makes retries harmless.
+          void sendSignupWelcome({ data: { template: "signup_welcome" } }).catch(() => {});
           toast.success(`Welcome, ${name}!`);
           // After signup, offer to register a passkey
           if (canUsePasskeys) {
@@ -255,7 +290,12 @@ function AuthPage() {
         navigateToReturnPath();
       }
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Auth failed");
+      const classified = classifyAuthError(
+        err,
+        mode === "signup" ? "Could not create your account" : "Sign-in failed",
+      );
+      toast.error(classified.message);
+      if (formRevision.current === revision) setFormError(classified);
     } finally {
       setBusy(false);
     }
@@ -266,6 +306,10 @@ function AuthPage() {
     provider: "google" | "github" | "apple",
     setBusy: (v: boolean) => void,
   ) => {
+    if (!authAvailable) {
+      toast.error(AUTH_UNAVAILABLE_MESSAGE);
+      return;
+    }
     setBusy(true);
     try {
       if (mode === "signup" && typeof window !== "undefined") {
@@ -289,7 +333,7 @@ function AuthPage() {
       }
     } catch (err) {
       const label = provider === "google" ? "Google" : provider === "apple" ? "Apple" : "GitHub";
-      toast.error(err instanceof Error ? err.message : `${label} sign-in failed`);
+      toast.error(describeAuthError(err, `${label} sign-in failed`));
     } finally {
       setBusy(false);
     }
@@ -501,7 +545,7 @@ function AuthPage() {
         <div className="flex rounded-xl bg-white/[0.05] border border-white/5 p-1 mb-6">
           <button
             type="button"
-            onClick={() => setMode("signin")}
+            onClick={() => { setMode("signin"); clearFormError(); }}
             className={`flex-1 rounded-lg py-2 text-sm font-medium transition-all ${
               mode === "signin"
                 ? "bg-white/[0.1] text-foreground shadow"
@@ -512,7 +556,7 @@ function AuthPage() {
           </button>
           <button
             type="button"
-            onClick={() => setMode("signup")}
+            onClick={() => { setMode("signup"); clearFormError(); }}
             className={`flex-1 rounded-lg py-2 text-sm font-medium transition-all ${
               mode === "signup"
                 ? "bg-white/[0.1] text-foreground shadow"
@@ -561,6 +605,15 @@ function AuthPage() {
           </Button>
         )}
 
+        {!authAvailable && (
+          <div
+            role="alert"
+            className="mb-4 rounded-xl border border-destructive/40 bg-destructive/10 px-3.5 py-3 text-xs leading-snug text-foreground"
+          >
+            {AUTH_UNAVAILABLE_MESSAGE}
+          </div>
+        )}
+
         <form
           onSubmit={submit}
           data-auth-form="password"
@@ -579,7 +632,7 @@ function AuthPage() {
                       key={opt.id}
                       type="button"
                       aria-pressed={active}
-                      onClick={() => setPersona(opt.id)}
+                      onClick={() => { setPersona(opt.id); clearFormError(); }}
                       className={`rounded-xl border p-3 text-left transition-all ${
                         active
                           ? "border-primary bg-primary/10"
@@ -606,14 +659,23 @@ function AuthPage() {
                 type="text"
                 required
                 value={displayName}
-                onChange={(e) => setDisplayName(e.target.value)}
+                onChange={(e) => { setDisplayName(e.target.value); clearFormError(); }}
                 placeholder="Your first name or stage name"
               />
             </div>
           )}
           <div className="space-y-2">
             <Label htmlFor="email">Email</Label>
-            <Input id="email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
+            <Input
+              id="email"
+              type="email"
+              required
+              value={email}
+              onChange={(e) => {
+                setEmail(e.target.value);
+                clearFormError();
+              }}
+            />
           </div>
           <div className="space-y-2">
             <Label htmlFor="password">Password</Label>
@@ -625,7 +687,12 @@ function AuthPage() {
                 minLength={6}
                 autoComplete={mode === "signup" ? "new-password" : "current-password"}
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  clearFormError();
+                }}
+                aria-invalid={formError ? true : undefined}
+                aria-describedby={formError ? "auth-form-error-message" : undefined}
                 className="pr-12 [&::-ms-reveal]:hidden [&::-webkit-contacts-auto-fill-button]:hidden"
               />
               {/* 44×44 touch target so the toggle is reliably tappable on mobile */}
@@ -640,13 +707,39 @@ function AuthPage() {
               </button>
             </div>
           </div>
+          {/* Persistent inline failure — stays until a field is edited or the
+              form is resubmitted. role=alert is itself an assertive live
+              region, so no extra aria-live wrapper (it would announce twice). */}
+          {formError && (
+            <div
+              id="auth-form-error"
+              role="alert"
+              data-auth-error={formError.kind}
+              className="rounded-xl border border-red-400/40 bg-red-500/10 px-3 py-2.5 text-sm leading-snug text-red-100"
+            >
+              <p id="auth-form-error-message">{formError.message}</p>
+              {formError.kind === "invalid_credentials" && (
+                <button
+                  type="button"
+                  disabled={resetBusy}
+                  onClick={handleForgotPassword}
+                  className="mt-1.5 inline-flex min-h-9 items-center gap-1.5 font-semibold text-white underline underline-offset-2 disabled:opacity-60 touch-manipulation"
+                >
+                  {resetBusy && <Loader2 className="size-3.5 animate-spin" />}
+                  {resetBusy ? "Sending reset email…" : "Forgot password? Email me a reset link"}
+                </button>
+              )}
+            </div>
+          )}
           <Button
             type="submit"
-            disabled={busy || (mode === "signup" && !persona)}
+            disabled={!hydrated || busy || !authAvailable || (mode === "signup" && !persona)}
             className="w-full h-11 rounded-xl text-base font-semibold text-white border-0 hover:opacity-90"
             style={{ background: "var(--gradient-hero)" }}
           >
-            {busy
+            {!hydrated
+              ? "Loading…"
+              : busy
               ? "Working…"
               : mode === "signup"
                 ? persona

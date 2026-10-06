@@ -16,6 +16,7 @@
  */
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useMemo,
@@ -26,9 +27,11 @@ import { useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { amIAdmin } from "@/lib/admin.functions";
 import { getAdminToken } from "@/components/AdminGate";
-import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/use-auth";
 import { hasBackendEnv } from "@/integrations/backend-config";
 import {
+  currentAdminVerdict,
+  type AdminVerdict,
   defaultHiddenKeys,
   isFeatureKey,
   type FeatureKey,
@@ -41,10 +44,23 @@ type FeatureVisibilityContextValue = {
   hidden: ReadonlySet<FeatureKey>;
   /** True once the live override state has been fetched (or failed → defaults). */
   loaded: boolean;
-  /** Viewer is an admin (passcode token or Supabase admin role). */
+  /**
+   * Viewer is a SERVER-VERIFIED admin: either the stored passcode token was
+   * accepted by the admin API, or the signed-in Supabase account holds the
+   * `admin` role. Never derived from the mere presence of client state.
+   */
   isAdmin: boolean;
-  /** True once the admin check has settled (needed by route guards). */
+  /** True once the admin check has settled for the CURRENT session (needed by route guards). */
   adminChecked: boolean;
+  /**
+   * The subject the settled check was verified for: the Supabase user id, or
+   * null for a signed-out viewer. `undefined` while unchecked. Route guards
+   * that hold their own session state compare this against their user so a
+   * verdict is never applied to a different account than it was issued for.
+   */
+  adminSubject: string | null | undefined;
+  /** Re-run the admin check (e.g. right after the owner passcode gate stores a token). */
+  refreshAdminStatus: () => void;
 };
 
 const defaultValue: FeatureVisibilityContextValue = {
@@ -52,6 +68,8 @@ const defaultValue: FeatureVisibilityContextValue = {
   loaded: false,
   isAdmin: false,
   adminChecked: false,
+  adminSubject: undefined,
+  refreshAdminStatus: () => {},
 };
 
 const FeatureVisibilityContext = createContext<FeatureVisibilityContextValue>(defaultValue);
@@ -59,9 +77,25 @@ const FeatureVisibilityContext = createContext<FeatureVisibilityContextValue>(de
 export function FeatureVisibilityProvider({ children }: { children: ReactNode }) {
   const [hidden, setHidden] = useState<ReadonlySet<FeatureKey>>(defaultValue.hidden);
   const [loaded, setLoaded] = useState(false);
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [adminChecked, setAdminChecked] = useState(false);
+  // The last settled admin check, stamped with the subject + refresh
+  // generation it answered for. Exposed values are DERIVED from it below, so
+  // the moment the session changes (or a refresh is requested) the provider
+  // reports "unchecked" in the very same render — there is no window in which
+  // a previous session's verdict is presented as the current viewer's.
+  const [verdict, setVerdict] = useState<AdminVerdict | null>(null);
+  const [adminCheckNonce, setAdminCheckNonce] = useState(0);
   const amIAdminFn = useServerFn(amIAdmin);
+  // Keyed on the resolved session so the check re-runs when the viewer signs
+  // in or out mid-session (a one-shot mount check would leave an admin who
+  // signs in via the SPA flow reported as a regular user until a full reload,
+  // and a signed-out admin reported as admin).
+  const { user, loading: authLoading } = useAuth();
+  const userId = user?.id ?? null;
+  const refreshAdminStatus = useCallback(() => setAdminCheckNonce((n) => n + 1), []);
+  const current = currentAdminVerdict(verdict, { authLoading, userId, nonce: adminCheckNonce });
+  const isAdmin = current?.isAdmin ?? false;
+  const adminChecked = current !== null;
+  const adminSubject = current ? current.subject : undefined;
 
   // Live hidden-set fetch. Fail-safe: any error keeps the seeded defaults.
   useEffect(() => {
@@ -92,20 +126,23 @@ export function FeatureVisibilityProvider({ children }: { children: ReactNode })
   // token is only trusted after the admin API accepts it (a fabricated
   // sessionStorage value gets a 403 and grants nothing), and the Supabase
   // path checks the real `admin` role via amIAdmin. Presence of a token is
-  // never sufficient on its own.
+  // never sufficient on its own. The answer is stamped with the subject and
+  // refresh generation it was computed for (see currentAdminVerdict), so a
+  // late response from a superseded run can never be applied to the viewer
+  // who is signed in now.
   useEffect(() => {
+    if (authLoading) return; // wait for the persisted session to resolve
     let cancelled = false;
+    const subject = userId;
+    const nonce = adminCheckNonce;
     const settle = (admin: boolean) => {
       if (cancelled) return;
-      setIsAdmin(admin);
-      setAdminChecked(true);
+      setVerdict({ subject, nonce, isAdmin: admin });
     };
 
     const checkSupabaseRole = async () => {
-      if (!hasBackendEnv()) return settle(false);
+      if (!hasBackendEnv() || !userId) return settle(false);
       try {
-        const { data } = await supabase.auth.getSession();
-        if (!data.session) return settle(false);
         const res = await amIAdminFn();
         settle(res.isAdmin);
       } catch {
@@ -134,11 +171,11 @@ export function FeatureVisibilityProvider({ children }: { children: ReactNode })
     return () => {
       cancelled = true;
     };
-  }, [amIAdminFn]);
+  }, [amIAdminFn, authLoading, userId, adminCheckNonce]);
 
   const value = useMemo(
-    () => ({ hidden, loaded, isAdmin, adminChecked }),
-    [hidden, loaded, isAdmin, adminChecked],
+    () => ({ hidden, loaded, isAdmin, adminChecked, adminSubject, refreshAdminStatus }),
+    [hidden, loaded, isAdmin, adminChecked, adminSubject, refreshAdminStatus],
   );
 
   return (

@@ -9,6 +9,114 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      crm_customers: {
+        Row: {
+          user_id: string
+          lifecycle_stage: string
+          source: string | null
+          company_name: string | null
+          notes: string | null
+          owner_user_id: string | null
+          first_seen_at: string
+          last_seen_at: string | null
+          last_contacted_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          user_id: string
+          lifecycle_stage?: string
+          source?: string | null
+          company_name?: string | null
+          notes?: string | null
+          owner_user_id?: string | null
+          first_seen_at?: string
+          last_seen_at?: string | null
+          last_contacted_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          user_id?: string
+          lifecycle_stage?: string
+          source?: string | null
+          company_name?: string | null
+          notes?: string | null
+          owner_user_id?: string | null
+          first_seen_at?: string
+          last_seen_at?: string | null
+          last_contacted_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      crm_activities: {
+        Row: {
+          id: string
+          user_id: string
+          activity_type: string
+          title: string
+          body: string | null
+          metadata: Json
+          created_by: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          activity_type: string
+          title: string
+          body?: string | null
+          metadata?: Json
+          created_by?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          activity_type?: string
+          title?: string
+          body?: string | null
+          metadata?: Json
+          created_by?: string | null
+          created_at?: string
+        }
+        Relationships: []
+      }
+      crm_tasks: {
+        Row: {
+          id: string
+          user_id: string
+          assigned_to: string | null
+          title: string
+          due_at: string | null
+          status: string
+          created_at: string
+          completed_at: string | null
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          assigned_to?: string | null
+          title: string
+          due_at?: string | null
+          status?: string
+          created_at?: string
+          completed_at?: string | null
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          assigned_to?: string | null
+          title?: string
+          due_at?: string | null
+          status?: string
+          created_at?: string
+          completed_at?: string | null
+        }
+        Relationships: []
+      }
       account_deletion_sweeps: {
         Row: {
           attempts: number
@@ -357,6 +465,84 @@ export type Database = {
           key?: string
           updated_at?: string
           value?: Json
+        }
+        Relationships: []
+      }
+      artist_platform_links: {
+        Row: {
+          created_at: string
+          detail: Json
+          display_name: string | null
+          external_id: string | null
+          id: string
+          image_url: string | null
+          last_error: string | null
+          last_synced_at: string | null
+          platform: string
+          profile_url: string
+          sweep_seq: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          detail?: Json
+          display_name?: string | null
+          external_id?: string | null
+          id?: string
+          image_url?: string | null
+          last_error?: string | null
+          last_synced_at?: string | null
+          platform: string
+          profile_url: string
+          sweep_seq?: never
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          detail?: Json
+          display_name?: string | null
+          external_id?: string | null
+          id?: string
+          image_url?: string | null
+          last_error?: string | null
+          last_synced_at?: string | null
+          platform?: string
+          profile_url?: string
+          sweep_seq?: never
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      artist_platform_snapshots: {
+        Row: {
+          created_at: string
+          day: string
+          id: string
+          metrics: Json
+          platform: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          day: string
+          id?: string
+          metrics?: Json
+          platform: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          day?: string
+          id?: string
+          metrics?: Json
+          platform?: string
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -984,6 +1170,45 @@ export type Database = {
         }
         Relationships: []
       }
+      comments: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          post_id: string
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          post_id: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          post_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "comments_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "comments_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       consent_logs: {
         Row: {
           consented_at: string
@@ -1078,7 +1303,14 @@ export type Database = {
           created_at: string
           id: string
           music_track_id: string | null
+          result_path: string | null
           result_url: string | null
+          soundtrack_mode: string
+          soundtrack_offset_sec: number
+          soundtrack_trim_end_sec: number
+          soundtrack_trim_start_sec: number
+          soundtrack_volume: number
+          source_audio_path: string | null
           status: string
           style: string
           title: string
@@ -1091,7 +1323,14 @@ export type Database = {
           created_at?: string
           id?: string
           music_track_id?: string | null
+          result_path?: string | null
           result_url?: string | null
+          soundtrack_mode?: string
+          soundtrack_offset_sec?: number
+          soundtrack_trim_end_sec?: number
+          soundtrack_trim_start_sec?: number
+          soundtrack_volume?: number
+          source_audio_path?: string | null
           status?: string
           style?: string
           title?: string
@@ -1104,7 +1343,14 @@ export type Database = {
           created_at?: string
           id?: string
           music_track_id?: string | null
+          result_path?: string | null
           result_url?: string | null
+          soundtrack_mode?: string
+          soundtrack_offset_sec?: number
+          soundtrack_trim_end_sec?: number
+          soundtrack_trim_start_sec?: number
+          soundtrack_volume?: number
+          source_audio_path?: string | null
           status?: string
           style?: string
           title?: string
@@ -1145,6 +1391,9 @@ export type Database = {
       }
       events: {
         Row: {
+          category: string | null
+          entity_type: string | null
+          entity_id: string | null
           created_at: string
           id: string
           name: string
@@ -1154,6 +1403,9 @@ export type Database = {
           user_id: string | null
         }
         Insert: {
+          category?: string | null
+          entity_type?: string | null
+          entity_id?: string | null
           created_at?: string
           id?: string
           name: string
@@ -1163,6 +1415,9 @@ export type Database = {
           user_id?: string | null
         }
         Update: {
+          category?: string | null
+          entity_type?: string | null
+          entity_id?: string | null
           created_at?: string
           id?: string
           name?: string
@@ -1268,7 +1523,9 @@ export type Database = {
           kind: string
           mode: string
           model: string | null
+          motion_seed: number | null
           motion_video_url: string | null
+          preview_fingerprint: string | null
           prompt: string
           result_image_url: string | null
           result_text: string | null
@@ -1296,7 +1553,9 @@ export type Database = {
           kind?: string
           mode?: string
           model?: string | null
+          motion_seed?: number | null
           motion_video_url?: string | null
+          preview_fingerprint?: string | null
           prompt: string
           result_image_url?: string | null
           result_text?: string | null
@@ -1324,7 +1583,9 @@ export type Database = {
           kind?: string
           mode?: string
           model?: string | null
+          motion_seed?: number | null
           motion_video_url?: string | null
+          preview_fingerprint?: string | null
           prompt?: string
           result_image_url?: string | null
           result_text?: string | null
@@ -1974,6 +2235,206 @@ export type Database = {
         }
         Relationships: []
       }
+      multishot_projects: {
+        Row: {
+          aspect_ratio: string
+          audio_reference_url: string | null
+          created_at: string
+          id: string
+          identity_anchor: string
+          reference_urls: Json
+          revision: number
+          strict_google_only: boolean
+          style: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          aspect_ratio?: string
+          audio_reference_url?: string | null
+          created_at?: string
+          id?: string
+          identity_anchor?: string
+          reference_urls?: Json
+          revision?: number
+          strict_google_only?: boolean
+          style?: string
+          title?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          aspect_ratio?: string
+          audio_reference_url?: string | null
+          created_at?: string
+          id?: string
+          identity_anchor?: string
+          reference_urls?: Json
+          revision?: number
+          strict_google_only?: boolean
+          style?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      multishot_shots: {
+        Row: {
+          approval_digest: string | null
+          approved_at: string | null
+          created_at: string
+          engine: string
+          fallback_used: boolean
+          final_error: string | null
+          final_lease_until: string | null
+          final_operation_token: string | null
+          final_status: string
+          id: string
+          input_digest: string | null
+          position: number
+          preview_error: string | null
+          preview_generation_id: string | null
+          preview_lease_until: string | null
+          preview_operation_token: string | null
+          preview_status: string
+          preview_url: string | null
+          project_id: string
+          promoted_generation_id: string | null
+          promoted_model: string | null
+          promoted_url: string | null
+          prompt: string
+          requested_model: string | null
+          revision: number
+          selected: boolean
+          serving_model: string | null
+          temporal_approval_digest: string | null
+          temporal_approved_at: string | null
+          temporal_error: string | null
+          temporal_generation_id: string | null
+          temporal_input_digest: string | null
+          temporal_lease_until: string | null
+          temporal_operation_token: string | null
+          temporal_serving_model: string | null
+          temporal_status: string
+          temporal_url: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          approval_digest?: string | null
+          approved_at?: string | null
+          created_at?: string
+          engine: string
+          fallback_used?: boolean
+          final_error?: string | null
+          final_lease_until?: string | null
+          final_operation_token?: string | null
+          final_status?: string
+          id?: string
+          input_digest?: string | null
+          position: number
+          preview_error?: string | null
+          preview_generation_id?: string | null
+          preview_lease_until?: string | null
+          preview_operation_token?: string | null
+          preview_status?: string
+          preview_url?: string | null
+          project_id: string
+          promoted_generation_id?: string | null
+          promoted_model?: string | null
+          promoted_url?: string | null
+          prompt: string
+          requested_model?: string | null
+          revision?: number
+          selected?: boolean
+          serving_model?: string | null
+          temporal_approval_digest?: string | null
+          temporal_approved_at?: string | null
+          temporal_error?: string | null
+          temporal_generation_id?: string | null
+          temporal_input_digest?: string | null
+          temporal_lease_until?: string | null
+          temporal_operation_token?: string | null
+          temporal_serving_model?: string | null
+          temporal_status?: string
+          temporal_url?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          approval_digest?: string | null
+          approved_at?: string | null
+          created_at?: string
+          engine?: string
+          fallback_used?: boolean
+          final_error?: string | null
+          final_lease_until?: string | null
+          final_operation_token?: string | null
+          final_status?: string
+          id?: string
+          input_digest?: string | null
+          position?: number
+          preview_error?: string | null
+          preview_generation_id?: string | null
+          preview_lease_until?: string | null
+          preview_operation_token?: string | null
+          preview_status?: string
+          preview_url?: string | null
+          project_id?: string
+          promoted_generation_id?: string | null
+          promoted_model?: string | null
+          promoted_url?: string | null
+          prompt?: string
+          requested_model?: string | null
+          revision?: number
+          selected?: boolean
+          serving_model?: string | null
+          temporal_approval_digest?: string | null
+          temporal_approved_at?: string | null
+          temporal_error?: string | null
+          temporal_generation_id?: string | null
+          temporal_input_digest?: string | null
+          temporal_lease_until?: string | null
+          temporal_operation_token?: string | null
+          temporal_serving_model?: string | null
+          temporal_status?: string
+          temporal_url?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "multishot_shots_preview_generation_id_fkey"
+            columns: ["preview_generation_id"]
+            isOneToOne: false
+            referencedRelation: "generations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "multishot_shots_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "multishot_projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "multishot_shots_promoted_generation_id_fkey"
+            columns: ["promoted_generation_id"]
+            isOneToOne: false
+            referencedRelation: "generations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "multishot_shots_temporal_generation_id_fkey"
+            columns: ["temporal_generation_id"]
+            isOneToOne: false
+            referencedRelation: "generations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       owner_withdrawals: {
         Row: {
           amount_minor: number
@@ -2078,6 +2539,98 @@ export type Database = {
             columns: ["promo_code_id"]
             isOneToOne: false
             referencedRelation: "promo_codes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      performance_variant_drafts: {
+        Row: {
+          created_at: string
+          mode: string
+          payload: Json
+          revision: number
+          updated_at: string
+          user_id: string
+          workflow_kind: string
+        }
+        Insert: {
+          created_at?: string
+          mode: string
+          payload: Json
+          revision?: number
+          updated_at?: string
+          user_id: string
+          workflow_kind: string
+        }
+        Update: {
+          created_at?: string
+          mode?: string
+          payload?: Json
+          revision?: number
+          updated_at?: string
+          user_id?: string
+          workflow_kind?: string
+        }
+        Relationships: []
+      }
+      performance_workflow_drafts: {
+        Row: {
+          created_at: string
+          mode: string
+          payload: Json
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          mode: string
+          payload: Json
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          mode?: string
+          payload?: Json
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      posts: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          published_at: string | null
+          slug: string
+          title: string
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          published_at?: string | null
+          slug: string
+          title: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          published_at?: string | null
+          slug?: string
+          title?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "posts_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
             referencedColumns: ["id"]
           },
         ]
@@ -2237,6 +2790,57 @@ export type Database = {
           note?: string | null
           percent_off?: number | null
           redemption_count?: number
+        }
+        Relationships: []
+      }
+      promotion_sweep_state: {
+        Row: {
+          day: string
+          failed: number
+          lease_expires: string | null
+          lease_owner: string | null
+          link_cursor: number
+          links_done: boolean
+          retried_today: boolean
+          retry: Json
+          retry_overflow: number
+          skipped: number
+          synced: number
+          tiktok_cursor: string
+          tiktok_done: boolean
+          updated_at: string
+        }
+        Insert: {
+          day: string
+          failed?: number
+          lease_expires?: string | null
+          lease_owner?: string | null
+          link_cursor?: number
+          links_done?: boolean
+          retried_today?: boolean
+          retry?: Json
+          retry_overflow?: number
+          skipped?: number
+          synced?: number
+          tiktok_cursor?: string
+          tiktok_done?: boolean
+          updated_at?: string
+        }
+        Update: {
+          day?: string
+          failed?: number
+          lease_expires?: string | null
+          lease_owner?: string | null
+          link_cursor?: number
+          links_done?: boolean
+          retried_today?: boolean
+          retry?: Json
+          retry_overflow?: number
+          skipped?: number
+          synced?: number
+          tiktok_cursor?: string
+          tiktok_done?: boolean
+          updated_at?: string
         }
         Relationships: []
       }
@@ -2879,6 +3483,7 @@ export type Database = {
           created_at: string
           display_name: string | null
           id: string
+          oauth_return_to: string | null
           oauth_state: string | null
           oauth_state_at: string | null
           open_id: string
@@ -2896,6 +3501,7 @@ export type Database = {
           created_at?: string
           display_name?: string | null
           id?: string
+          oauth_return_to?: string | null
           oauth_state?: string | null
           oauth_state_at?: string | null
           open_id: string
@@ -2913,6 +3519,7 @@ export type Database = {
           created_at?: string
           display_name?: string | null
           id?: string
+          oauth_return_to?: string | null
           oauth_state?: string | null
           oauth_state_at?: string | null
           open_id?: string
@@ -2942,6 +3549,7 @@ export type Database = {
           id: string
           posted_at: string | null
           publish_id: string | null
+          retry_count: number
           status: string
           title: string | null
           updated_at: string
@@ -2955,6 +3563,7 @@ export type Database = {
           id?: string
           posted_at?: string | null
           publish_id?: string | null
+          retry_count?: number
           status?: string
           title?: string | null
           updated_at?: string
@@ -2968,6 +3577,7 @@ export type Database = {
           id?: string
           posted_at?: string | null
           publish_id?: string | null
+          retry_count?: number
           status?: string
           title?: string | null
           updated_at?: string
@@ -3206,6 +3816,27 @@ export type Database = {
         }
         Relationships: []
       }
+      users: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+          name: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
       vast_managed_instances: {
         Row: {
           adopted: boolean
@@ -3303,6 +3934,7 @@ export type Database = {
           generation_id: string | null
           id: string
           job_id: string | null
+          production: Json | null
           prompt: string
           scenes: Json
           status: string
@@ -3322,6 +3954,7 @@ export type Database = {
           generation_id?: string | null
           id?: string
           job_id?: string | null
+          production?: Json | null
           prompt: string
           scenes?: Json
           status?: string
@@ -3341,6 +3974,7 @@ export type Database = {
           generation_id?: string | null
           id?: string
           job_id?: string | null
+          production?: Json | null
           prompt?: string
           scenes?: Json
           status?: string
@@ -3427,6 +4061,81 @@ export type Database = {
           label?: string
           storage_path?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      watchdog_actions: {
+        Row: {
+          action: string
+          after_state: Json | null
+          before_state: Json | null
+          created_at: string
+          id: string
+          result: string
+          subsystem: string
+        }
+        Insert: {
+          action: string
+          after_state?: Json | null
+          before_state?: Json | null
+          created_at?: string
+          id?: string
+          result: string
+          subsystem: string
+        }
+        Update: {
+          action?: string
+          after_state?: Json | null
+          before_state?: Json | null
+          created_at?: string
+          id?: string
+          result?: string
+          subsystem?: string
+        }
+        Relationships: []
+      }
+      watchdog_state: {
+        Row: {
+          alert_sent_at: string | null
+          consecutive_failures: number
+          detail: string | null
+          last_action: string | null
+          last_action_at: string | null
+          last_check_at: string | null
+          last_ok_at: string | null
+          recovery_sent_at: string | null
+          status: string
+          subsystem: string
+          transition_gen: number
+          updated_at: string
+        }
+        Insert: {
+          alert_sent_at?: string | null
+          consecutive_failures?: number
+          detail?: string | null
+          last_action?: string | null
+          last_action_at?: string | null
+          last_check_at?: string | null
+          last_ok_at?: string | null
+          recovery_sent_at?: string | null
+          status?: string
+          subsystem: string
+          transition_gen?: number
+          updated_at?: string
+        }
+        Update: {
+          alert_sent_at?: string | null
+          consecutive_failures?: number
+          detail?: string | null
+          last_action?: string | null
+          last_action_at?: string | null
+          last_check_at?: string | null
+          last_ok_at?: string | null
+          recovery_sent_at?: string | null
+          status?: string
+          subsystem?: string
+          transition_gen?: number
+          updated_at?: string
         }
         Relationships: []
       }
@@ -3541,7 +4250,10 @@ export type Database = {
           graph: Json
           id: string
           is_public: boolean
+          last_output_kind: string | null
+          last_output_url: string | null
           name: string
+          thumbnail_url: string | null
           updated_at: string
           user_id: string
         }
@@ -3551,7 +4263,10 @@ export type Database = {
           graph?: Json
           id?: string
           is_public?: boolean
+          last_output_kind?: string | null
+          last_output_url?: string | null
           name: string
+          thumbnail_url?: string | null
           updated_at?: string
           user_id: string
         }
@@ -3561,7 +4276,10 @@ export type Database = {
           graph?: Json
           id?: string
           is_public?: boolean
+          last_output_kind?: string | null
+          last_output_url?: string | null
           name?: string
+          thumbnail_url?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -3575,6 +4293,19 @@ export type Database = {
       activate_pro_subscription: {
         Args: { _expires_at: string; _sub_code: string; _user: string }
         Returns: undefined
+      }
+      claim_multishot_operation: {
+        Args: {
+          _expected_revision: number
+          _expected_status: string
+          _expected_token: string
+          _kind: string
+          _lease_seconds?: number
+          _new_token: string
+          _shot_id: string
+          _user_id: string
+        }
+        Returns: boolean
       }
       claim_next_job: {
         Args: { _worker: string }
@@ -3652,6 +4383,34 @@ export type Database = {
         Args: { _amount: number; _user: string }
         Returns: boolean
       }
+      claim_tiktok_retry: {
+        Args: {
+          p_cooldown_ms: number
+          p_max_attempts: number
+          p_post_id: string
+          p_user_id: string
+        }
+        Returns: {
+          created_at: string
+          error_msg: string | null
+          generation_id: string | null
+          id: string
+          posted_at: string | null
+          publish_id: string | null
+          retry_count: number
+          status: string
+          title: string | null
+          updated_at: string
+          user_id: string
+          video_url: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "tiktok_posts"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       commit_reservation: {
         Args: { _amount: number; _reason: string; _ref: string; _user: string }
         Returns: undefined
@@ -3660,6 +4419,18 @@ export type Database = {
         Args: {
           _amount: number
           _kind: string
+          _payload: Json
+          _prompt: string
+          _user: string
+        }
+        Returns: {
+          generation_id: string
+          job_id: string
+        }[]
+      }
+      create_motion_generation_and_reserve: {
+        Args: {
+          _amount: number
           _payload: Json
           _prompt: string
           _user: string
@@ -3725,6 +4496,10 @@ export type Database = {
           _user_id: string
         }
         Returns: string
+      }
+      get_daily_spend: {
+        Args: { _day_start: string; _user: string }
+        Returns: number
       }
       gpu_worker_inflight_dec: { Args: { _worker: string }; Returns: number }
       gpu_worker_inflight_inc: { Args: { _worker: string }; Returns: number }
@@ -3807,6 +4582,30 @@ export type Database = {
           _max_age_seconds: number
         }
         Returns: number
+      }
+      watchdog_claim_transition: {
+        Args: { p_kind: string; p_now: string; p_subsystem: string }
+        Returns: Json
+      }
+      watchdog_record_state: {
+        Args: {
+          p_degraded: boolean
+          p_detail: string
+          p_now: string
+          p_status: string
+          p_subsystem: string
+        }
+        Returns: undefined
+      }
+      watchdog_restore_transition: {
+        Args: {
+          p_claim_gen: number
+          p_kind: string
+          p_prev_alert: string
+          p_prev_recovery: string
+          p_subsystem: string
+        }
+        Returns: Json
       }
     }
     Enums: {

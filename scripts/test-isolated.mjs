@@ -9,7 +9,7 @@
  * suite a clean module registry and environment while preserving the same
  * test files and assertions.
  */
-import { readdirSync, statSync } from "node:fs";
+import { readdirSync } from "node:fs";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
 

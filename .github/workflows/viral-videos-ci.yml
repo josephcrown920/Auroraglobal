@@ -1,0 +1,58 @@
+name: Viral Videos CI & Smoke Test
+
+on:
+  push:
+    branches:
+      - Main
+      - main
+    paths:
+      - 'generate_videos.py'
+      - 'viral_video_plans.*'
+      - 'requirements.txt'
+      - 'references/**'
+      - 'docs/VIRAL_VIDEOS_*'
+      - 'scripts/test_viral_videos_smoke.py'
+      - '.github/workflows/viral-videos-ci.yml'
+  pull_request:
+    branches:
+      - Main
+      - main
+  workflow_dispatch:
+
+jobs:
+  validate-and-smoke-test:
+    name: Validate Plans & Safe Generator Smoke Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install FFmpeg
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then
+            pip install -r requirements.txt
+          fi
+
+      - name: Validate Plan Files & Run Safe Smoke Test
+        run: |
+          python scripts/test_viral_videos_smoke.py
+
+      - name: Verify Documentation & Schema Existence
+        run: |
+          test -f docs/VIRAL_VIDEOS_40_PLANS.md || (echo "Missing docs/VIRAL_VIDEOS_40_PLANS.md" && exit 1)
+          test -f docs/VIRAL_VIDEO_EXECUTION_GUIDE.md || (echo "Missing docs/VIRAL_VIDEO_EXECUTION_GUIDE.md" && exit 1)
+          test -f references/README.md || (echo "Missing references/README.md" && exit 1)
+          echo "All required documentation and reference specs are in place."

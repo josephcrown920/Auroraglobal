@@ -88,7 +88,6 @@ export const Route = createFileRoute("/api/ready")({
             } else {
               const pool = gpuPoolReadiness((workers ?? []) as GpuWorkerReadinessRow[]);
               checks.gpu_pool = {
-                ok: pool.ok,
                 ms: Date.now() - gpuStart,
                 ...pool,
               };

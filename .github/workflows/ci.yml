@@ -41,7 +41,17 @@ jobs:
       - name: Generate TanStack route types
         run: npx --yes @tanstack/router-cli generate
       - name: Production gate
-        run: npm run lint && npm run typecheck && node scripts/test-isolated.mjs && bash scripts/check-migrations.sh && node scripts/ci/audit-worker-entry.mjs && npm run build
+        run: npm run production:gate
+
+      # Aurora Performance Studio is a separate native Expo client inside the
+      # same source-of-truth repository. Validate it independently so web CI
+      # cannot go green while the mobile TypeScript graph is broken.
+      - name: Install mobile dependencies
+        working-directory: artifacts/aurora-mobile
+        run: npm install --package-lock=false --no-audit --no-fund
+      - name: Typecheck Aurora Performance Studio
+        working-directory: artifacts/aurora-mobile
+        run: npm run typecheck
 
   e2e:
     name: Playwright end-to-end

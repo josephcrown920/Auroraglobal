@@ -9,6 +9,9 @@ export default tseslint.config(
     ignores: [
       "dist",
       ".output",
+      // Build-protection snapshot farm (hardlinked copies of .output) —
+      // bundled files carry eslint directives for plugins we don't load.
+      ".build-snapshots",
       ".vinxi",
       "artifacts",
       ".local",

@@ -8,9 +8,17 @@ pnpm-debug.log*
 lerna-debug.log*
 
 node_modules
+# Publishing does not need the repository history. Keeping this out of the
+# publish input avoids shipping several gigabytes of Git/LFS objects.
+.git
 dist
 dist-ssr
 .output
+.build-snapshots
+.cache/
+.pythonlibs/
+.scaffold-backup/
+attached_assets/
 .vinxi
 .tanstack/**
 .nitro
@@ -47,15 +55,21 @@ blob-report/
 *.sln
 *.sw?
 
-# Secrets — NEVER commit. Real values live in Lovable Cloud → Secrets.
+# Secrets — NEVER commit. Real values live in Replit Secrets / Vercel Environment Variables.
 # Only `.env.example` (template, no real values) is allowed in git.
-# Covers Kling (KLING_ACCESS_KEY / KLING_SECRET_KEY) and every other runtime
-# secret documented in docs/ENV.md and docs/KLING_SECRETS.md.
+# Covers local, development, test, production, and platform-generated env files.
 .env
 .env.*
 !.env.example
 *.env
 *.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Vercel local/project metadata
+.vercel/
+
 secrets.json
 secrets.*.json
 kling.json
@@ -74,6 +88,11 @@ attached_assets/Motion_transfer_studio*.zip
 attached_assets/*.zip
 notebooks/*.zip
 *.zip
+
+# Dev-only dependencies and store exports inside auxiliary artifacts.
+artifacts/*/node_modules/
+artifacts/*/.expo/
+artifacts/aurora-mobile/store/builds/
 
 # Raw generated media staging area. Generated clips/images land here first,
 # then get copied into their permanent home (e.g. src/assets/kids/,

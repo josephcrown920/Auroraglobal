@@ -96,6 +96,7 @@ function CreatorDashboardPage() {
     queryKey: ["my-marketplace-templates"],
     queryFn: () => listFn(),
     enabled: !!user,
+    staleTime: 5 * 60_000,
   });
 
   const { data: earnings } = useQuery({

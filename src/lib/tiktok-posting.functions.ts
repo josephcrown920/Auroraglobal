@@ -42,6 +42,9 @@ export const getMyTiktokAccount = createServerFn({ method: "GET" })
       scope: string | null;
     };
     const sessionExpired = new Date(d.refresh_expires_at).getTime() < Date.now();
+    const granted = new Set((d.scope ?? "").split(/[,\s]+/).filter(Boolean));
+    const hasStatsScopes =
+      granted.has("user.info.stats") && granted.has("video.list");
     return {
       connected: true as const,
       openId: d.open_id,
@@ -50,13 +53,19 @@ export const getMyTiktokAccount = createServerFn({ method: "GET" })
       avatarUrl: d.avatar_url,
       scope: d.scope,
       sessionExpired,
+      hasStatsScopes,
     };
   });
 
-/** Returns the TikTok OAuth authorization URL to redirect the user to. */
+/** Returns the TikTok OAuth authorization URL to redirect the user to.
+ *  `returnTo` ("/settings" | "/promotion") decides where the callback lands. */
 export const initTiktokConnect = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
+  .inputValidator((data: unknown) => {
+    const d = (data ?? {}) as { returnTo?: unknown };
+    return { returnTo: d.returnTo === "/promotion" ? "/promotion" : "/settings" };
+  })
+  .handler(async ({ context, data }) => {
     if (!tiktokConfigured()) {
       throw new Error(
         "TikTok integration is not enabled on this server. The owner needs to add TIKTOK_CLIENT_KEY and TIKTOK_CLIENT_SECRET in the secrets panel.",
@@ -64,7 +73,7 @@ export const initTiktokConnect = createServerFn({ method: "POST" })
     }
     const { userId } = context;
     const origin = getOrigin();
-    const authUrl = await initiateTiktokOAuth(userId, origin);
+    const authUrl = await initiateTiktokOAuth(userId, origin, data.returnTo);
     return { authUrl };
   });
 
@@ -141,7 +150,86 @@ export const postToTiktok = createServerFn({ method: "POST" })
     return { postId, publishId };
   });
 
+const RetryInput = z.object({ postId: z.string().uuid() });
+
+/** Retry policy: per-post cooldown and a durable cap on total retry attempts. */
+const RETRY_COOLDOWN_MS = 60_000;
+const MAX_RETRY_ATTEMPTS = 5;
+
+/**
+ * Retry a failed TikTok post, in place. The claim is a single atomic UPDATE
+ * inside the claim_tiktok_retry RPC: it only matches a row owned by the
+ * caller, currently failed, past the cooldown, and under the attempt cap —
+ * and Postgres holds the row lock while evaluating it, so concurrent retries
+ * of the same post see zero rows and stop. retry_count is incremented in the
+ * same statement, making the attempt cap durable across sessions. Only the
+ * row's stored video_url/title/generation_id are reused — nothing
+ * client-supplied is trusted.
+ */
+export const retryTiktokPost = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => RetryInput.parse(d))
+  .handler(async ({ data, context }) => {
+    const { userId } = context;
+    if (!tiktokConfigured()) throw new Error("TikTok integration is not configured on this server.");
+
+    const { data: claimedRows, error: claimErr } = await supabaseAdmin.rpc("claim_tiktok_retry", {
+      p_post_id: data.postId,
+      p_user_id: userId,
+      p_cooldown_ms: RETRY_COOLDOWN_MS,
+      p_max_attempts: MAX_RETRY_ATTEMPTS,
+    });
+    if (claimErr) throw new Error("Couldn't retry the post right now.");
+    const claimedRow = (claimedRows ?? [])[0] as unknown as
+      | { id: string; generation_id: string | null; video_url: string; title: string | null }
+      | undefined;
+
+    if (!claimedRow) {
+      // Claim lost — re-read the row to give a precise reason.
+      const { data: existing } = await supabaseAdmin
+        .from("tiktok_posts")
+        .select("status, updated_at, retry_count")
+        .eq("id", data.postId)
+        .eq("user_id", userId)
+        .maybeSingle();
+      if (!existing) throw new Error("Post not found.");
+      const e = existing as unknown as { status: string; updated_at: string; retry_count: number };
+      if (e.status !== "failed" && e.status !== "publish_from_creator_fail") {
+        throw new Error("Only failed posts can be retried.");
+      }
+      if (e.retry_count >= MAX_RETRY_ATTEMPTS) {
+        throw new Error("This post has been retried too many times. Re-share it from your gallery instead.");
+      }
+      throw new Error("Please wait a minute before retrying this video again.");
+    }
+
+    try {
+      const accessToken = await ensureFreshToken(userId);
+      const publishId = await initiatePost(accessToken, {
+        videoUrl: claimedRow.video_url,
+        title: claimedRow.title ?? undefined,
+        privacyLevel: "SELF_ONLY",
+      });
+      await supabaseAdmin
+        .from("tiktok_posts")
+        .update({ publish_id: publishId, status: "processing_upload", updated_at: new Date().toISOString() })
+        .eq("id", data.postId);
+      return { postId: data.postId, publishId };
+    } catch (e) {
+      // Token refresh failures land here too — never strand the row as pending.
+      const errorMsg = e instanceof Error ? e.message : String(e);
+      await supabaseAdmin
+        .from("tiktok_posts")
+        .update({ status: "failed", error_msg: errorMsg, updated_at: new Date().toISOString() })
+        .eq("id", data.postId);
+      throw new Error(`TikTok post failed: ${errorMsg}`);
+    }
+  });
+
 const PollInput = z.object({ postId: z.string().uuid() });
+
+/** Minimum time between TikTok status API calls for the same post. */
+const POLL_COOLDOWN_MS = 15_000;
 
 /** Refresh the status of a tiktok_posts row from TikTok's API. */
 export const pollTiktokPostStatus = createServerFn({ method: "POST" })
@@ -152,13 +240,13 @@ export const pollTiktokPostStatus = createServerFn({ method: "POST" })
 
     const { data: postRow } = await supabaseAdmin
       .from("tiktok_posts")
-      .select("publish_id, status, error_msg")
+      .select("publish_id, status, error_msg, updated_at")
       .eq("id", data.postId)
       .eq("user_id", userId)
       .maybeSingle();
 
     if (!postRow) throw new Error("Post not found.");
-    const p = postRow as unknown as { publish_id: string | null; status: string; error_msg: string | null };
+    const p = postRow as unknown as { publish_id: string | null; status: string; error_msg: string | null; updated_at: string };
 
     // Terminal states — no need to hit TikTok.
     const TERMINAL_STATUSES = ["publish_complete", "failed", "publish_from_creator_fail"];
@@ -167,6 +255,23 @@ export const pollTiktokPostStatus = createServerFn({ method: "POST" })
     }
 
     if (!p.publish_id) {
+      return { status: p.status, errorMsg: p.error_msg };
+    }
+
+    // Server-side throttle: at most one TikTok status call per post per 15s.
+    // The reservation is an atomic conditional UPDATE — Postgres holds the row
+    // lock while evaluating it, so whoever wins may call TikTok and concurrent
+    // or duplicate polls (auto refresh, manual Check, other devices) lose the
+    // race and get the stored status. updated_at doubles as last-checked.
+    const reservationCutoff = new Date(Date.now() - POLL_COOLDOWN_MS).toISOString();
+    const { data: reservation } = await supabaseAdmin
+      .from("tiktok_posts")
+      .update({ updated_at: new Date().toISOString() })
+      .eq("id", data.postId)
+      .eq("user_id", userId)
+      .lt("updated_at", reservationCutoff)
+      .select("id");
+    if (!(reservation ?? []).length) {
       return { status: p.status, errorMsg: p.error_msg };
     }
 
@@ -185,12 +290,49 @@ export const pollTiktokPostStatus = createServerFn({ method: "POST" })
       .update({
         status,
         error_msg: failReason ?? null,
+        updated_at: new Date().toISOString(),
         ...(status === "publish_complete" ? { posted_at: new Date().toISOString() } : {}),
       })
       .eq("id", data.postId);
 
     void isTerminal;
     return { status, errorMsg: failReason ?? null };
+  });
+
+/** List the current user's TikTok post history (newest first, max 50). */
+export const listMyTiktokPosts = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { userId } = context;
+    const { data, error } = await supabaseAdmin
+      .from("tiktok_posts")
+      .select("id, generation_id, video_url, title, status, error_msg, publish_id, posted_at, created_at")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false })
+      .limit(50);
+    if (error) throw new Error("Failed to load your TikTok posts.");
+    const rows = (data ?? []) as unknown as Array<{
+      id: string;
+      generation_id: string | null;
+      video_url: string;
+      title: string | null;
+      status: string;
+      error_msg: string | null;
+      publish_id: string | null;
+      posted_at: string | null;
+      created_at: string;
+    }>;
+    return rows.map((r) => ({
+      id: r.id,
+      generationId: r.generation_id,
+      videoUrl: r.video_url,
+      title: r.title,
+      status: r.status,
+      errorMsg: r.error_msg,
+      publishId: r.publish_id,
+      postedAt: r.posted_at,
+      createdAt: r.created_at,
+    }));
   });
 
 /** Get the tiktok_posts rows for a specific generation (to show button state). */

@@ -89,7 +89,7 @@ function SkillChip({ meta }: { meta: SkillMeta }) {
   const icon = SKILL_ICONS[meta.name] ?? <Sparkles className="size-2.5" />;
   const secs = (meta.durationMs / 1000).toFixed(1);
   return (
-    <div className="mb-1.5 inline-flex items-center gap-1.5 rounded-full border border-red-400/30 bg-red-500/10 px-2 py-0.5 text-[9.5px] font-medium text-violet-200/90 max-w-full">
+    <div className="mb-1.5 inline-flex items-center gap-1.5 rounded-full bg-red-500/10 px-2 py-0.5 text-[9.5px] font-medium text-violet-200/90 max-w-full">
       <span className="text-red-300 shrink-0">{icon}</span>
       <span className="truncate">{meta.label}</span>
       <span className="text-red-400/70 shrink-0">· {meta.summary.slice(0, 55)}</span>
@@ -102,7 +102,7 @@ function SkillChip({ meta }: { meta: SkillMeta }) {
 
 function SkillPulse({ label }: { label: string }) {
   return (
-    <div className="inline-flex items-center gap-1.5 rounded-full border border-violet-400/25 bg-violet-500/10 px-2 py-0.5 text-[9.5px] font-medium text-violet-200/80">
+    <div className="inline-flex items-center gap-1.5 rounded-full bg-violet-500/10 px-2 py-0.5 text-[9.5px] font-medium text-violet-200/80">
       <span className="size-1.5 rounded-full bg-red-400 animate-pulse" />
       {label}…
     </div>
@@ -182,7 +182,7 @@ function PlanCard({ plan, onSend }: { plan: AgentPlan; onSend: () => void }) {
             <p className="text-base font-bold text-white leading-tight mt-1">{plan.title}</p>
             <p className="text-[11px] text-white/55 italic mt-0.5">"{plan.logline}"</p>
           </div>
-          <span className="shrink-0 rounded-full border border-red-400/30 bg-red-500/15 px-2 py-1 text-[10px] font-semibold text-violet-200">
+          <span className="shrink-0 rounded-full bg-red-500/15 px-2 py-1 text-[10px] font-semibold text-violet-200">
             {plan.shots.length} shots
           </span>
         </div>
@@ -223,7 +223,7 @@ function PlanCard({ plan, onSend }: { plan: AgentPlan; onSend: () => void }) {
             {plan.suggestions.slice(0, 3).map((s) => (
               <span
                 key={s}
-                className="text-[9.5px] text-white/50 rounded-full border border-white/10 bg-white/[0.03] px-2 py-1"
+                className="text-[9.5px] text-white/50 rounded-full bg-white/[0.03] px-2 py-1"
               >
                 {s}
               </span>
@@ -250,6 +250,7 @@ export function AuroraAgentPanel({ open, onClose, onSendToCanvas }: Props) {
   const [activeStyle, setActiveStyle] = useState<string | null>(null);
   const [cinematicMode, setCinematicMode] = useState(false);
   const [activeSkillLabel, setActiveSkillLabel] = useState<string | null>(null);
+  const [servingModel, setServingModel] = useState<string | null>(null);
   const chatFn = useServerFn(chatWithAuroraAgent);
   const listFn = useServerFn(listAgentChat);
   const clearFn = useServerFn(clearAgentChat);
@@ -264,10 +265,18 @@ export function AuroraAgentPanel({ open, onClose, onSendToCanvas }: Props) {
   });
   const messages: AgentChatMessage[] = history.data?.messages ?? [];
   const hasMemory = history.data?.hasMemory ?? false;
+  useEffect(() => {
+    const latest = [...(history.data?.messages ?? [])]
+      .reverse()
+      .find((message) => message.role === "assistant" && message.aiRouting)?.aiRouting ?? null;
+    setServingModel(latest ? `${latest.provider}${latest.model ? ` · ${latest.model}` : ""}` : null);
+  }, [history.data?.messages]);
+  const servingLabel = servingModel;
 
   const sendMut = useMutation({
     mutationFn: async (message: string) => chatFn({ data: { message, cinematicMode } }),
     onSuccess: (res) => {
+      setServingModel(res.model ? `${res.provider} · ${res.model}` : res.provider);
       setActiveSkillLabel(null);
       setPendingUserMsg(null);
       qc.invalidateQueries({ queryKey: ["agent-chat"] });
@@ -315,6 +324,7 @@ export function AuroraAgentPanel({ open, onClose, onSendToCanvas }: Props) {
   };
 
   const toggleStyle = (style: (typeof STYLES)[number]) => {
+    setServingModel(null);
     if (activeStyle === style.name) {
       setActiveStyle(null);
       setDraft((d) => d.replace(`, in a ${style.hint} style.`, "").trim());
@@ -347,7 +357,7 @@ export function AuroraAgentPanel({ open, onClose, onSendToCanvas }: Props) {
             <p className="text-sm font-semibold text-white inline-flex items-center gap-1.5">
               Aurora Video Agent
               {cinematicMode && (
-                <span className="text-[9px] font-bold uppercase tracking-wider text-amber-300/90 bg-amber-500/15 border border-amber-400/25 rounded-full px-1.5 py-0.5">
+                <span className="text-[9px] font-bold uppercase tracking-wider text-amber-300/90 bg-amber-500/15 rounded-full px-1.5 py-0.5">
                   Cinematic
                 </span>
               )}
@@ -362,6 +372,9 @@ export function AuroraAgentPanel({ open, onClose, onSendToCanvas }: Props) {
                 "Scripts, styles & storyboards — end to end"
               )}
             </p>
+            {servingLabel && (
+              <p className="text-[9px] text-emerald-300/70">Serving {servingLabel}</p>
+            )}
           </div>
         </div>
         <div className="flex items-center gap-1">
@@ -482,10 +495,14 @@ export function AuroraAgentPanel({ open, onClose, onSendToCanvas }: Props) {
               }
             >
               {/* Skill chip — shown above the reply text on assistant messages */}
-              {m.role === "assistant" && m.skillMeta && (
-                <SkillChip meta={m.skillMeta} />
-              )}
+              {m.role === "assistant" && m.skillMeta && <SkillChip meta={m.skillMeta} />}
               <p className="whitespace-pre-wrap">{m.content}</p>
+              {m.role === "assistant" && m.aiRouting && (
+                <p className="mt-1 text-[9px] uppercase tracking-wider text-emerald-300/60">
+                  Serving {m.aiRouting.provider}
+                  {m.aiRouting.model ? ` · ${m.aiRouting.model}` : ""}
+                </p>
+              )}
               {m.role === "assistant" && m.plan && (
                 <PlanCard
                   plan={m.plan}
@@ -528,10 +545,10 @@ export function AuroraAgentPanel({ open, onClose, onSendToCanvas }: Props) {
               <button
                 key={style.name}
                 onClick={() => toggleStyle(style)}
-                className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-medium border transition-colors ${
+                className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300/70 ${
                   activeStyle === style.name
-                    ? "border-red-300/60 bg-red-500/20 text-red-100"
-                    : "border-white/10 bg-white/[0.03] text-white/55 hover:text-white/80 hover:border-white/25"
+                    ? "bg-red-500/20 text-red-100"
+                    : "bg-white/[0.03] text-white/55 hover:bg-white/[0.07] hover:text-white/80"
                 }`}
               >
                 {style.name}
@@ -541,7 +558,10 @@ export function AuroraAgentPanel({ open, onClose, onSendToCanvas }: Props) {
         )}
         <Textarea
           value={draft}
-          onChange={(e) => setDraft(e.target.value)}
+          onChange={(e) => {
+            setDraft(e.target.value);
+            setServingModel(null);
+          }}
           onKeyDown={(e) => {
             if (e.key === "Enter" && !e.shiftKey) {
               e.preventDefault();

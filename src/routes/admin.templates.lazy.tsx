@@ -11,7 +11,6 @@ import {
   templateCost,
   templateFlowLabel,
 } from "@/lib/template-studio";
-import { AdminGate, useAdminAutoUnlock } from "@/components/AdminGate";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
@@ -32,7 +31,6 @@ function AdminTemplatesPage() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
   const qc = useQueryClient();
-  const [unlocked, setUnlocked] = useAdminAutoUnlock(!!user);
   const [filter, setFilter] = useState<"all" | "pending" | "approved" | "rejected">("pending");
   const [rejectId, setRejectId] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState("");
@@ -48,8 +46,9 @@ function AdminTemplatesPage() {
   const { data: templates = [], isLoading } = useQuery({
     queryKey: ["admin-marketplace-templates"],
     queryFn: () => listFn(),
-    enabled: !!user && unlocked,
+    enabled: !!user,
     refetchInterval: 30_000,
+    staleTime: 0,
   });
 
   const reviewMut = useMutation({
@@ -72,7 +71,6 @@ function AdminTemplatesPage() {
     );
   }
 
-  if (!unlocked) return <AdminGate onUnlocked={() => setUnlocked(true)} />;
 
   const shown = filter === "all" ? templates : templates.filter((t) => t.status === filter);
   const pendingCount = templates.filter((t) => t.status === "pending").length;

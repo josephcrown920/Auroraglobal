@@ -71,19 +71,19 @@ CREATE POLICY "crm task admin" ON public.crm_tasks FOR ALL TO authenticated USIN
 -- Pool-level health is deliberately derived from live worker rows, not a manually maintained flag.
 CREATE OR REPLACE VIEW public.gpu_pool_health AS
 SELECT
-  count(*) FILTER (WHERE status IN ('active','paused','draining','pending_approval'))::int AS configured_workers,
-  count(*) FILTER (WHERE status = 'active')::int AS healthy_workers,
-  count(*) FILTER (WHERE status = 'draining')::int AS degraded_workers,
-  count(*) FILTER (WHERE status IN ('paused','draining','pending_approval'))::int AS unavailable_workers,
+  count(*) FILTER (WHERE status IN ('active','online','degraded'))::int AS configured_workers,
+  count(*) FILTER (WHERE status IN ('active','online'))::int AS healthy_workers,
+  count(*) FILTER (WHERE status = 'degraded')::int AS degraded_workers,
+  count(*) FILTER (WHERE status IN ('paused','offline'))::int AS unavailable_workers,
   coalesce(sum(in_flight), 0)::int AS in_flight,
   coalesce(sum(max_concurrency), 0)::int AS max_concurrency,
   CASE WHEN coalesce(sum(max_concurrency),0) > 0
     THEN round((coalesce(sum(in_flight),0)::numeric / sum(max_concurrency)::numeric) * 100, 2)
     ELSE 0 END AS utilization_pct,
-  CASE WHEN count(*) FILTER (WHERE status IN ('active','paused','draining','pending_approval')) > 0
-    THEN round((count(*) FILTER (WHERE status = 'active')::numeric / count(*) FILTER (WHERE status IN ('active','paused','draining','pending_approval'))::numeric) * 100, 2)
+  CASE WHEN count(*) FILTER (WHERE status IN ('active','online','degraded')) > 0
+    THEN round((count(*) FILTER (WHERE status IN ('active','online'))::numeric / count(*) FILTER (WHERE status IN ('active','online','degraded'))::numeric) * 100, 2)
     ELSE 0 END AS healthy_pct,
-  min(last_heartbeat) FILTER (WHERE status = 'active') AS oldest_healthy_heartbeat,
+  min(last_heartbeat) FILTER (WHERE status IN ('active','online')) AS oldest_healthy_heartbeat,
   max(last_probe_at) AS last_probe_at
 FROM public.gpu_workers;
 

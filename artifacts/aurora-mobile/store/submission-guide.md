@@ -1,4 +1,4 @@
-# Aurora Studio — Store Submission Guide
+# Aurora Performance Studio — Store Submission Guide
 
 > Last updated: 2026-08-23
 
@@ -46,7 +46,7 @@ If you haven't already:
 ## Step 2 — Create a Play Console App Record
 
 1. In [Google Play Console](https://play.google.com/console), click **Create app**
-2. App name: **Aurora Studio**
+2. App name: **Aurora Performance Studio**
 3. Default language: English (United States)
 4. App or game: **App**
 5. Free or paid: **Free**
@@ -65,7 +65,7 @@ Use `artifacts/aurora-mobile/store/builds/aurora-studio-v1.0.0-vc2-70a20985.aab`
 ### 3b. Create the app record in Play Console
 
 1. [Play Console](https://play.google.com/console) → **Create app**
-2. App name: **Aurora Studio** · Default language: English (US) · Type: **App** · Price: **Free**
+2. App name: **Aurora Performance Studio** · Default language: English (US) · Type: **App** · Price: **Free**
 3. Accept the declarations and create.
 
 ### 3c. Upload to the internal testing track
@@ -119,7 +119,7 @@ Then download the new AAB and upload it manually in Play Console.
 Copy content from `store-listing.md` into Play Console:
 
 ### Main store listing
-- **App name:** Aurora Studio
+- **App name:** Aurora Performance Studio
 - **Short description:** AI-powered creative studio for generating stunning performance photos & videos.
 - **Full description:** Copy from `store-listing.md` → Full Description section
 - **App icon:** Upload `assets/images/icon.png` (1024×1024)
@@ -175,7 +175,7 @@ After internal testing passes:
 2. Select the AAB you uploaded in Step 3b
 3. Add release notes:
    ```
-   First release! Aurora Studio brings AI-powered creative tools to performers, 
+   First release! Aurora Performance Studio brings AI-powered creative tools to performers, 
    musicians, and content creators. Generate studio-quality performance shots, 
    music video stills, and UGC content from a single selfie.
    ```

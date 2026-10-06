@@ -6,6 +6,7 @@ import {
   BytePlusError,
   getBytePlusKey,
 } from "./byteplus.server";
+import { classifyJobError } from "./jobs.server";
 
 // ─── fetch + clock helpers ────────────────────────────────────────────────────
 
@@ -145,6 +146,95 @@ describe("byteplus.server — image", () => {
     expect(err.retryAfterMs).toBe(7000);
   });
 
+  it("preserves only a bounded allowlist-safe structured provider error code", async () => {
+    installFetch(() =>
+      fakeResponse({
+        ok: false,
+        status: 403,
+        text: JSON.stringify({
+          error: {
+            code: "AccountOverdueError",
+            message: "secret provider detail bp-key",
+          },
+        }),
+      }),
+    );
+    const err = (await bytePlusImage({ model: "m", prompt: "p" }).catch((e) => e)) as Error;
+    expect(err.message).toContain("HTTP 403 (AccountOverdueError)");
+    expect(err.message).not.toContain("secret provider detail");
+    expect(err.message).not.toContain("bp-key");
+
+    installFetch(() =>
+      fakeResponse({
+        ok: false,
+        status: 403,
+        text: JSON.stringify({ error: { code: "unsafe code with key=bp-key" } }),
+      }),
+    );
+    const unsafe = (await bytePlusImage({ model: "m", prompt: "p" }).catch((e) => e)) as Error;
+    expect(unsafe.message).toBe("BytePlus image failed with HTTP 403");
+  });
+
+  it("makes code-less invalid image requests terminal without leaking their body", async () => {
+    for (const status of [400, 413, 415, 422]) {
+      const { calls } = installFetch(() =>
+        fakeResponse({ ok: false, status, text: "private validation details and input URLs" }),
+      );
+      const err = (await bytePlusImage({ model: "m", prompt: "p" }).catch((e) => e)) as Error;
+      expect(err.message).toContain("Invalid request");
+      expect(err.message).not.toContain("private validation");
+      expect(classifyJobError(err.message)).toBe("terminal");
+      expect(calls).toHaveLength(1);
+    }
+  });
+
+  it("keeps rate limits and 5xx image failures transient", async () => {
+    for (const status of [429, 500, 503]) {
+      const { calls } = installFetch(() =>
+        fakeResponse({ ok: false, status, text: "temporary private provider detail" }),
+      );
+      const err = (await bytePlusImage({ model: "m", prompt: "p" }).catch((e) => e)) as Error;
+      expect(classifyJobError(err.message)).toBe("transient");
+      expect(calls).toHaveLength(1);
+    }
+  });
+
+  it("retries once with ARK only after a definitive 401", async () => {
+    process.env.ARK_API_KEY = "ark-key";
+    const { calls } = installFetch(({ index }) =>
+      index === 0
+        ? fakeResponse({ ok: false, status: 401, text: "invalid credential" })
+        : fakeResponse({ json: { data: [{ url: "https://cdn/ark.png" }] } }),
+    );
+
+    await expect(bytePlusImage({ model: "m", prompt: "p" })).resolves.toBe(
+      "https://cdn/ark.png",
+    );
+    expect(calls).toHaveLength(2);
+    expect((calls[0].init!.headers as Record<string, string>).Authorization).toBe("Bearer bp-key");
+    expect((calls[1].init!.headers as Record<string, string>).Authorization).toBe("Bearer ark-key");
+  });
+
+  it("does not retry a billable image submission on 403, 5xx, or transport failure", async () => {
+    process.env.ARK_API_KEY = "ark-key";
+    for (const status of [403, 503]) {
+      const { calls } = installFetch(() =>
+        fakeResponse({ ok: false, status, text: "do not expose this provider body" }),
+      );
+      const err = (await bytePlusImage({ model: "m", prompt: "p" }).catch((e) => e)) as Error;
+      expect(calls).toHaveLength(1);
+      expect(err.message).not.toContain("do not expose");
+    }
+
+    const calls: string[] = [];
+    globalThis.fetch = mock(() => {
+      calls.push("called");
+      return Promise.reject(new Error("timeout"));
+    }) as unknown as typeof fetch;
+    await expect(bytePlusImage({ model: "m", prompt: "p" })).rejects.toThrow("timeout");
+    expect(calls).toHaveLength(1);
+  });
+
   it("throws when the response has no output url (explicit, not empty string)", async () => {
     installFetch(() => fakeResponse({ json: { data: [] } }));
     await expect(bytePlusImage({ model: "m", prompt: "p" })).rejects.toThrow(/no output url/i);
@@ -195,6 +285,110 @@ describe("byteplus.server — video (create + poll)", () => {
     expect(imgPart.image_url.url).toBe("https://a/first.png");
     // poll URL includes the task id
     expect(calls[2].url).toContain("task_123");
+  });
+
+  it("retries a 401 create with ARK and pins polling to the successful credential", async () => {
+    process.env.ARK_API_KEY = "ark-key";
+    const { calls } = installFetch(({ index }) => {
+      if (index === 0) return fakeResponse({ ok: false, status: 401, text: "rejected" });
+      if (index === 1) return fakeResponse({ json: { id: "ark_task" } });
+      return fakeResponse({
+        json: { status: "succeeded", content: { video_url: "https://cdn/ark.mp4" } },
+      });
+    });
+
+    await expect(
+      bytePlusVideo({ model: "m", prompt: "p", pollIntervalMs: 1 }),
+    ).resolves.toBe("https://cdn/ark.mp4");
+    expect(calls).toHaveLength(3);
+    expect((calls[0].init!.headers as Record<string, string>).Authorization).toBe("Bearer bp-key");
+    expect((calls[1].init!.headers as Record<string, string>).Authorization).toBe("Bearer ark-key");
+    expect((calls[2].init!.headers as Record<string, string>).Authorization).toBe("Bearer ark-key");
+  });
+
+  it("does not retry video submission for unsafe statuses", async () => {
+    process.env.ARK_API_KEY = "ark-key";
+    for (const status of [403, 500]) {
+      const { calls } = installFetch(() =>
+        fakeResponse({ ok: false, status, text: "possibly accepted" }),
+      );
+      await expect(
+        bytePlusVideo({ model: "m", prompt: "p", pollIntervalMs: 1 }),
+      ).rejects.toBeInstanceOf(BytePlusError);
+      expect(calls).toHaveLength(1);
+    }
+  });
+
+  it("does not switch credentials when polling the created task", async () => {
+    process.env.ARK_API_KEY = "ark-key";
+    const { calls } = installFetch(({ index }) =>
+      index === 0
+        ? fakeResponse({ json: { id: "bp_task" } })
+        : fakeResponse({ ok: false, status: 401, text: "not authorized" }),
+    );
+
+    await expect(
+      bytePlusVideo({ model: "m", prompt: "p", pollIntervalMs: 1 }),
+    ).rejects.toBeInstanceOf(BytePlusError);
+    expect(calls).toHaveLength(2);
+    expect((calls[1].init!.headers as Record<string, string>).Authorization).toBe("Bearer bp-key");
+  });
+
+  it("preserves a safe structured error code from create and poll failures", async () => {
+    installFetch(() =>
+      fakeResponse({
+        ok: false,
+        status: 403,
+        text: JSON.stringify({ error: { code: "ModelNotOpen", message: "private detail" } }),
+      }),
+    );
+    await expect(
+      bytePlusVideo({ model: "m", prompt: "p", pollIntervalMs: 1 }),
+    ).rejects.toThrow("HTTP 403 (ModelNotOpen)");
+
+    installFetch(({ index }) =>
+      index === 0
+        ? fakeResponse({ json: { id: "t1" } })
+        : fakeResponse({
+            ok: false,
+            status: 403,
+            text: JSON.stringify({ error: { code: "TaskAccessDenied", message: "private" } }),
+          }),
+    );
+    await expect(
+      bytePlusVideo({ model: "m", prompt: "p", pollIntervalMs: 1 }),
+    ).rejects.toThrow("HTTP 403 (TaskAccessDenied)");
+  });
+
+  it("makes code-less 422 video creation terminal through orchestrator-style wrapping", async () => {
+    const { calls } = installFetch(() =>
+      fakeResponse({ ok: false, status: 422, text: "private invalid control details" }),
+    );
+    const err = (await bytePlusVideo({
+      model: "m",
+      prompt: "p",
+      pollIntervalMs: 1,
+    }).catch((e) => e)) as Error;
+    const wrapped = `No video provider available right now (last: ${err.message})`;
+    expect(err.message).toContain("Invalid request");
+    expect(err.message).not.toContain("private invalid control");
+    expect(classifyJobError(wrapped)).toBe("terminal");
+    expect(calls).toHaveLength(1);
+  });
+
+  it("keeps 429 and 5xx video creation transient and never retries submission", async () => {
+    for (const status of [429, 500, 503]) {
+      const { calls } = installFetch(() =>
+        fakeResponse({ ok: false, status, text: "temporary private provider detail" }),
+      );
+      const err = (await bytePlusVideo({
+        model: "m",
+        prompt: "p",
+        pollIntervalMs: 1,
+      }).catch((e) => e)) as Error;
+      expect(classifyJobError(err.message)).toBe("transient");
+      expect(calls).toHaveLength(1);
+    }
   });
 
   it("throws BytePlusError when the task ends failed", async () => {

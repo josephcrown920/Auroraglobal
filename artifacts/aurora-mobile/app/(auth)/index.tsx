@@ -113,7 +113,7 @@ export default function AuthScreen() {
             <View style={[styles.logoRing, { borderColor: colors.primary, backgroundColor: colors.muted }]}>
               <Feather name="zap" size={32} color={colors.primary} />
             </View>
-            <Text style={[styles.logoText, { color: colors.foreground }]}>Aurora Studio</Text>
+            <Text style={[styles.logoText, { color: colors.foreground }]}>Aurora Performance Studio</Text>
             <Text style={[styles.tagline, { color: colors.mutedForeground }]}>
               AI-powered creative studio
             </Text>

@@ -23,3 +23,4 @@ xAI does NOT take user-provided audio — it generates speech from the prompt te
 - Poll GET `https://api.x.ai/v1/videos/<request_id>` every 5s; done when `video.url` appears; error when `error` object appears.
 - Timeout ceiling: 15 min.
 - `XAI_API_KEY` is already set as a Replit secret.
+- **403 signature:** `permission-denied` / "used all available credits or reached its monthly spending limit" = xAI account-level exhaustion, NOT a code/routing bug. When every video provider is account-blocked at once, the chain still walks all candidates and wraps the last failure in the stable "No video provider available right now" message — that wrap means exhausted providers, not a dispatch regression.

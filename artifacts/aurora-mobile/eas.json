@@ -21,6 +21,9 @@
     "production": {
       "node": "22.17.0",
       "distribution": "store",
+      "env": {
+        "EXPO_PUBLIC_DOMAIN": "auroraperformancestudio.com"
+      },
       "android": {
         "buildType": "app-bundle"
       },

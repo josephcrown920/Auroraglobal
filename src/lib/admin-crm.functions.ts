@@ -1,6 +1,7 @@
 // Admin CRM read/write boundary. Customer behavior remains in first-party events;
 // this layer provides an operator-safe customer timeline and lifecycle record.
 
+import { z } from "zod";
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
@@ -21,7 +22,8 @@ export const adminListCustomers = createServerFn({ method: "GET" })
 
 export const adminGetCustomer = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context, data }: { context: { userId: string }; data: { userId: string } }) => {
+  .inputValidator((input: unknown) => z.object({ userId: z.string().uuid() }).parse(input))
+  .handler(async ({ context, data }) => {
     await assertAdmin(context.userId);
     if (!data?.userId) throw new Error("userId is required");
 
@@ -40,7 +42,15 @@ export const adminGetCustomer = createServerFn({ method: "GET" })
 
 export const adminUpsertCustomer = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context, data }: { context: { userId: string }; data: { userId: string; lifecycle_stage?: string; source?: string | null; company_name?: string | null; notes?: string | null; owner_user_id?: string | null } }) => {
+  .inputValidator((input: unknown) => z.object({
+    userId: z.string().uuid(),
+    lifecycle_stage: z.enum(["lead", "trial", "active", "at_risk", "churned", "vip"]).optional(),
+    source: z.string().nullable().optional(),
+    company_name: z.string().nullable().optional(),
+    notes: z.string().nullable().optional(),
+    owner_user_id: z.string().uuid().nullable().optional(),
+  }).parse(input))
+  .handler(async ({ context, data }) => {
     await assertAdmin(context.userId);
     if (!data?.userId) throw new Error("userId is required");
     const allowedStages = new Set(["lead", "trial", "active", "at_risk", "churned", "vip"]);
@@ -65,7 +75,12 @@ export const adminUpsertCustomer = createServerFn({ method: "POST" })
 
 export const adminAddCustomerActivity = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context, data }: { context: { userId: string }; data: { userId: string; activity_type: string; title: string; body?: string | null; metadata?: Record<string, unknown> } }) => {
+  .inputValidator((input: unknown) => z.object({
+    userId: z.string().uuid(), activity_type: z.string().min(1), title: z.string().min(1),
+    body: z.string().nullable().optional(),
+    metadata: z.record(z.string(), z.unknown()).optional(),
+  }).parse(input))
+  .handler(async ({ context, data }) => {
     await assertAdmin(context.userId);
     if (!data?.userId || !data.title || !data.activity_type) throw new Error("userId, activity_type and title are required");
     const { data: activity, error } = await supabaseAdmin
@@ -75,7 +90,7 @@ export const adminAddCustomerActivity = createServerFn({ method: "POST" })
         activity_type: data.activity_type,
         title: data.title,
         body: data.body ?? null,
-        metadata: data.metadata ?? {},
+        metadata: JSON.parse(JSON.stringify(data.metadata ?? {})),
         created_by: context.userId,
       })
       .select("*")

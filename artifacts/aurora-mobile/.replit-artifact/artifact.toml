@@ -1,6 +1,6 @@
 kind = "mobile"
 previewPath = "/aurora-mobile/"
-title = "Aurora Studio"
+title = "Aurora Performance Studio"
 version = "1.0.0"
 id = "artifacts/aurora-mobile"
 

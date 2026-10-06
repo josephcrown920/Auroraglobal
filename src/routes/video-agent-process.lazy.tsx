@@ -16,6 +16,7 @@ import {
 } from "@/lib/video-agent-projects.functions";
 import { vaUid } from "@/lib/video-agent-shared";
 import { useAuth } from "@/hooks/use-auth";
+import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createLazyFileRoute("/video-agent-process")({
   component: AgentProcessing,
@@ -61,6 +62,7 @@ function AgentProcessing() {
   const [error, setError] = useState<string | null>(null);
   const [scenesPersisted, setScenesPersisted] = useState(false);
   const [done, setDone] = useState(false);
+  const [scriptServingModel, setScriptServingModel] = useState<string | null>(null);
   const hasStarted = useRef(false);
   const abortRef = useRef<AbortController | null>(null);
   const logEndRef = useRef<HTMLDivElement>(null);
@@ -112,10 +114,15 @@ function AgentProcessing() {
       setStep("script", "running");
       addLog(`Writing script for: "${project.prompt.slice(0, 60)}…"`);
 
+      const { data: { session } } = await supabase.auth.getSession();
       const scriptRes = await fetch("/api/video-agent/generate-script", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+        },
         body: JSON.stringify({
+          projectId: id,
           prompt: project.prompt,
           style: project.style,
           voice: project.voice,
@@ -131,9 +138,15 @@ function AgentProcessing() {
       const scriptData = (await scriptRes.json()) as {
         title?: string;
         scenes: Array<{ title?: string; script?: string; description?: string; duration?: number }>;
+        provider?: string;
+        model?: string | null;
       };
 
       const title = (scriptData.title ?? "").trim().slice(0, 160) || "Untitled Video";
+      const serving = scriptData.provider
+        ? `${scriptData.provider}${scriptData.model ? ` · ${scriptData.model}` : ""}`
+        : null;
+      setScriptServingModel(serving);
       const cleaned: SceneDraft[] = scriptData.scenes
         .map((s, i) => ({
           id: vaUid(),
@@ -151,7 +164,11 @@ function AgentProcessing() {
       if (!cleaned.length) {
         throw new Error("The script came back without usable scenes — try a more specific prompt.");
       }
-      addLog(`✓ Script ready: "${title}" — ${cleaned.length} scenes`);
+      addLog(
+        `✓ Script ready: "${title}" — ${cleaned.length} scenes${
+          serving ? ` · served by ${serving}` : ""
+        }`,
+      );
       setStep("script", "done", `${cleaned.length} scenes`);
 
       // ── Step 2: Persist the storyboard (durable — survives reloads) ──
@@ -222,6 +239,7 @@ function AgentProcessing() {
     setError(null);
     setDone(false);
     setScenesPersisted(false);
+    setScriptServingModel(null);
     const project = projectQuery.data;
     if (project) void runPipeline(project);
   }
@@ -265,6 +283,9 @@ function AgentProcessing() {
           {done ? "Storyboard ready!" : "Planning your video…"}
         </h1>
         <p className="mt-2 text-sm text-muted-foreground line-clamp-2">{project.prompt}</p>
+        {scriptServingModel && (
+          <p className="mt-1 text-xs text-primary/80">Script served by {scriptServingModel}</p>
+        )}
 
         {/* Progress bar */}
         <div className="mt-6 h-1.5 rounded-full bg-muted overflow-hidden">

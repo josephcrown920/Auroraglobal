@@ -13,10 +13,17 @@ import {
 import { handleGenerationError } from "@/lib/error-toasts";
 import { saveAssetToDisk } from "@/lib/save";
 import { COST_AUTOCUT, type AutocutStyle } from "@/lib/template-studio";
+import { recommendVideoEdit } from "@/lib/video-studio.functions";
+import type { VideoEditRecommendation } from "@/lib/video-studio.schema";
+import { getTimelineDropIndex, moveTimelineItem } from "@/lib/video-studio.timeline";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import {
   ArrowLeft,
+  ArrowDown,
+  ArrowUp,
+  Brain,
   CheckCircle2,
   Download,
   Film,
@@ -131,7 +138,7 @@ type UploadSlot = { signedUrl: string; token: string; path: string };
 type UploadStatus = "pending" | "uploading" | "done" | "error";
 type FileProgress = { file: File; pct: number; status: UploadStatus; error?: string };
 type Phase = "idle" | "uploading" | "dispatching" | "processing" | "done" | "error";
-type ToolId = "style" | "music" | "ratio";
+type ToolId = "style" | "music" | "ratio" | "agent";
 type ClipMeta = { url: string; duration: number | null };
 
 const UPLOAD_TIMEOUT_MS = 60_000;
@@ -176,6 +183,9 @@ function AutoCutPage() {
   const [style, setStyle]             = useState<StyleId>(initialStyle);
   const [musicTrackId, setMusicTrackId] = useState<string>(STYLE_MUSIC[initialStyle][0].id);
   const [noMusic, setNoMusic]         = useState(false);
+  const [creativeDirection, setCreativeDirection] = useState("");
+  const [recommendation, setRecommendation] = useState<VideoEditRecommendation | null>(null);
+  const [editorAgentBusy, setEditorAgentBusy] = useState(false);
 
   // ── Editor chrome state (CapCut-style shell) ────────────────────────────
   const [selectedIdx, setSelectedIdx] = useState(0);
@@ -215,6 +225,7 @@ function AutoCutPage() {
   const getStatusFn    = useServerFn(getGenerationStatus);
   const getJobStageFn  = useServerFn(getAutocutJobStage);
   const getJobDetailFn = useServerFn(getAutocutJobDetail);
+  const recommendEditFn = useServerFn(recommendVideoEdit);
 
   // ── Cleanup on unmount ──────────────────────────────────────────────────
   useEffect(() => () => { if (pollRef.current) clearInterval(pollRef.current); }, []);
@@ -283,6 +294,21 @@ function AutoCutPage() {
 
   const removeFile = (idx: number) => setFiles((prev) => prev.filter((_, i) => i !== idx));
 
+  const moveFile = (from: number, to: number) => {
+    const selectedFile = files[selectedIdx];
+    const nextFiles = moveTimelineItem(files, from, to);
+    setFiles(nextFiles);
+    if (selectedFile) setSelectedIdx(nextFiles.indexOf(selectedFile));
+  };
+
+  const handleTimelineDrop = (event: React.DragEvent, targetIndex: number) => {
+    event.preventDefault();
+    const source = event.dataTransfer.getData("text/plain");
+    if (!/^\d+$/.test(source)) return;
+    const sourceIndex = Number(source);
+    moveFile(sourceIndex, getTimelineDropIndex(sourceIndex, targetIndex));
+  };
+
   const onDrop = (e: React.DragEvent) => {
     e.preventDefault();
     addFiles(Array.from(e.dataTransfer.files));
@@ -292,6 +318,31 @@ function AutoCutPage() {
     setStyle(id);
     setMusicTrackId(STYLE_MUSIC[id][0].id);
     setNoMusic(false);
+    setRecommendation(null);
+  };
+
+  const handleEditorAgent = async () => {
+    const brief = creativeDirection.trim();
+    if (!user) {
+      toast.error("Sign in to use the Video Studio Editor Agent");
+      return;
+    }
+    if (brief.length < 4 || files.length === 0) return;
+
+    setEditorAgentBusy(true);
+    setRecommendation(null);
+    try {
+      const result = await recommendEditFn({ data: { brief, clipCount: files.length } });
+      setRecommendation(result);
+      setStyle(result.style);
+      setNoMusic(!result.includeMusic);
+      if (result.includeMusic) setMusicTrackId(STYLE_MUSIC[result.style][0].id);
+      toast.success("Editor Agent recommendation applied");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Editor Agent could not interpret that direction");
+    } finally {
+      setEditorAgentBusy(false);
+    }
   };
 
   // ── Polling ──────────────────────────────────────────────────────────────
@@ -495,6 +546,8 @@ function AutoCutPage() {
     setIsReEditing(false);
     setSelectedIdx(0);
     setActiveTool(null);
+    setCreativeDirection("");
+    setRecommendation(null);
     void navigate({ search: () => ({}), replace: true });
   };
 
@@ -617,7 +670,7 @@ function AutoCutPage() {
           <ArrowLeft className="size-4" />
         </Link>
         <div className="flex flex-col items-center leading-tight">
-          <span className="text-sm font-extrabold tracking-tight">AutoCut</span>
+          <span className="text-sm font-extrabold tracking-tight">Video Studio</span>
           <span className="text-[11px] font-medium text-muted-foreground">
             {styleLabel} · 9:16 · up to 60s
           </span>
@@ -817,6 +870,14 @@ function AutoCutPage() {
                   <button
                     key={clip.key}
                     type="button"
+                    draggable={canEditClips}
+                    onDragStart={(event) => {
+                      if (!canEditClips) return;
+                      event.dataTransfer.effectAllowed = "move";
+                      event.dataTransfer.setData("text/plain", String(clip.idx));
+                    }}
+                    onDragOver={canEditClips ? (event) => event.preventDefault() : undefined}
+                    onDrop={canEditClips ? (event) => handleTimelineDrop(event, clip.idx) : undefined}
                     onClick={() => {
                       if (isErrored) { void retryUpload(clip.idx); return; }
                       if (canEditClips && files.length > 0) setSelectedIdx(clip.idx);
@@ -882,6 +943,31 @@ function AutoCutPage() {
               )}
             </div>
 
+            {canEditClips && files.length > 1 && (
+              <div className="mt-1 flex justify-end gap-1">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  disabled={selectedIdx === 0}
+                  onClick={() => moveFile(selectedIdx, selectedIdx - 1)}
+                  aria-label="Move selected clip earlier"
+                >
+                  <ArrowUp className="mr-1 size-3.5" /> Move earlier
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  disabled={selectedIdx === files.length - 1}
+                  onClick={() => moveFile(selectedIdx, selectedIdx + 1)}
+                  aria-label="Move selected clip later"
+                >
+                  <ArrowDown className="mr-1 size-3.5" /> Move later
+                </Button>
+              </div>
+            )}
+
             {/* Audio lane — the actually selected soundtrack */}
             <div className="mt-1.5">
               <div
@@ -924,6 +1010,45 @@ function AutoCutPage() {
       {/* ── Tool dock ───────────────────────────────────────────────────── */}
       <footer className="shrink-0 border-t border-white/5 bg-background/85 px-3 pb-[calc(0.6rem+env(safe-area-inset-bottom))] pt-2 backdrop-blur-xl">
         {/* Contextual tool panel */}
+        {showPickers && activeTool === "agent" && (
+          <div className="mb-2 space-y-2 rounded-2xl bg-card p-3 shadow-[var(--shadow-card)]">
+            <label htmlFor="video-studio-direction" className="text-xs font-bold">
+              Direct your edit
+            </label>
+            <Textarea
+              id="video-studio-direction"
+              value={creativeDirection}
+              maxLength={2000}
+              rows={2}
+              placeholder="Describe the mood, pace, or style you want..."
+              onChange={(event) => {
+                setCreativeDirection(event.target.value);
+                setRecommendation(null);
+              }}
+              className="min-h-16 resize-y text-xs"
+            />
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-[10px] text-muted-foreground">
+                Chooses a supported AutoCut style and music setting.
+              </p>
+              <Button
+                type="button"
+                size="sm"
+                disabled={!user || files.length === 0 || creativeDirection.trim().length < 4 || editorAgentBusy}
+                onClick={() => void handleEditorAgent()}
+              >
+                {editorAgentBusy ? <Loader2 className="mr-1.5 size-3.5 animate-spin" /> : <Brain className="mr-1.5 size-3.5" />}
+                {editorAgentBusy ? "Thinking…" : "Recommend"}
+              </Button>
+            </div>
+            {recommendation && (
+              <p className="rounded-lg bg-primary/10 p-2 text-xs" role="status">
+                {recommendation.reason} The clip order and footage remain unchanged.
+              </p>
+            )}
+          </div>
+        )}
+
         {showPickers && activeTool === "style" && (
           <div className="no-scrollbar -mx-3 mb-2 flex gap-2 overflow-x-auto px-3">
             {STYLES.map(({ id, label, desc, Icon }) => {
@@ -956,7 +1081,10 @@ function AutoCutPage() {
           <div className="mb-2 max-h-44 overflow-y-auto rounded-2xl bg-card p-1.5 shadow-[var(--shadow-card)]">
             <button
               type="button"
-              onClick={() => setNoMusic(true)}
+              onClick={() => {
+                setNoMusic(true);
+                setRecommendation(null);
+              }}
               className={cn(
                 "flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-xs transition-colors",
                 noMusic ? "bg-primary/15 font-semibold text-foreground" : "text-muted-foreground hover:text-foreground",
@@ -972,7 +1100,11 @@ function AutoCutPage() {
                 <button
                   key={track.id}
                   type="button"
-                  onClick={() => { setMusicTrackId(track.id); setNoMusic(false); }}
+                  onClick={() => {
+                    setMusicTrackId(track.id);
+                    setNoMusic(false);
+                    setRecommendation(null);
+                  }}
                   className={cn(
                     "flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-xs transition-colors",
                     active ? "bg-primary/15 font-semibold text-foreground" : "text-muted-foreground hover:text-foreground",
@@ -1044,6 +1176,13 @@ function AutoCutPage() {
               active={activeTool === "style"}
               disabled={!showPickers}
               onClick={() => setActiveTool((t) => (t === "style" ? null : "style"))}
+            />
+            <DockButton
+              icon={Brain}
+              label="Agent"
+              active={activeTool === "agent"}
+              disabled={!showPickers}
+              onClick={() => setActiveTool((t) => (t === "agent" ? null : "agent"))}
             />
             <DockButton
               icon={Music2}

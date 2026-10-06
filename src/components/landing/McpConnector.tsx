@@ -11,6 +11,14 @@ import avatarNova from "@/assets/ugc/nova.jpg.asset.json";
 import ugcHome from "@/assets/ugc/ugc-home-selfie.webp.asset.json";
 import ugcStreet from "@/assets/ugc/ugc-street-coffee.jpeg.asset.json";
 import joshStill from "@/assets/josh-performance-still-v1.jpg";
+import { computeCost } from "@/lib/pricing";
+
+const BULK_IMAGE_COST = 8 * computeCost({ features: ["image"] }).total;
+const MCP_VIDEO_COST = computeCost({
+  features: ["video"],
+  model: "kling-v1",
+  durationSeconds: 5,
+}).total;
 
 /** Real avatar/UGC stills used in the bulk-generation chat mockup grid. */
 const GRID_PHOTOS = [
@@ -159,7 +167,7 @@ export function McpConnector() {
               ))}
             </div>
             <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
-              8 images · 600 Aura · ~38s
+              8 images · {BULK_IMAGE_COST} Aura · ~38s
             </p>
           </div>
         </div>
@@ -240,7 +248,7 @@ export function McpConnector() {
                 </span>
               </div>
               <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-emerald-400/80">
-                ✓ 500 Aura
+                ✓ {MCP_VIDEO_COST} Aura
               </p>
             </div>
           </div>

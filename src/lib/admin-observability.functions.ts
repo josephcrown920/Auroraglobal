@@ -1,6 +1,8 @@
 // Admin → Observability server functions.
 // Reads API telemetry plus the derived live GPU pool health view.
 
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/integrations/supabase/types";
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
@@ -11,6 +13,17 @@ import {
   computeRequestsPerHour,
   computeTopEndpoints,
 } from "@/lib/api-observability-stats";
+
+type ObservabilityDatabase = Database & {
+  public: { Views: { gpu_pool_health: {
+    Row: {
+      configured_workers: number; healthy_workers: number; degraded_workers: number;
+      unavailable_workers: number; in_flight: number; max_concurrency: number;
+      utilization_pct: number; healthy_pct: number;
+      oldest_healthy_heartbeat: string | null; last_probe_at: string | null;
+    }; Relationships: [];
+  } } };
+};
 
 const WINDOW_HOURS = 24;
 const MAX_ROWS = 20_000;
@@ -29,7 +42,7 @@ export const adminObservability = createServerFn({ method: "GET" })
         .gte("created_at", since)
         .order("created_at", { ascending: false })
         .limit(MAX_ROWS),
-      supabaseAdmin.from("gpu_pool_health").select("*").maybeSingle(),
+      (supabaseAdmin as unknown as SupabaseClient<ObservabilityDatabase>).from("gpu_pool_health").select("*").maybeSingle(),
     ]);
 
     if (error) throw new Error(error.message);

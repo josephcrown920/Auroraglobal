@@ -15,9 +15,11 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AccountRouteImport } from './routes/account'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AdsRouteImport } from './routes/ads'
+import { Route as AdultRouteImport } from './routes/adult'
 import { Route as AffiliateRouteImport } from './routes/affiliate'
 import { Route as AgentRouteImport } from './routes/agent'
 import { Route as AuroraAdultRouteImport } from './routes/aurora-adult'
+import { Route as AuroraBabyAgentRouteImport } from './routes/aurora-baby-agent'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AvatarRouteImport } from './routes/avatar'
 import { Route as BillingRouteImport } from './routes/billing'
@@ -32,6 +34,7 @@ import { Route as ContentRouteImport } from './routes/content'
 import { Route as ContentMachineRouteImport } from './routes/content-machine'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as DeleteAccountRouteImport } from './routes/delete-account'
+import { Route as DirectorRouteImport } from './routes/director'
 import { Route as DirectorRoomRouteImport } from './routes/director-room'
 import { Route as DirectorsBoardRouteImport } from './routes/directors-board'
 import { Route as EditRouteImport } from './routes/edit'
@@ -44,6 +47,7 @@ import { Route as HeygenTemplatesRouteImport } from './routes/heygen-templates'
 import { Route as HomeRouteImport } from './routes/home'
 import { Route as JobsRouteImport } from './routes/jobs'
 import { Route as KidsRouteImport } from './routes/kids'
+import { Route as LayersRouteImport } from './routes/layers'
 import { Route as LikenessRouteImport } from './routes/likeness'
 import { Route as LipsyncRouteImport } from './routes/lipsync'
 import { Route as LiveStudioRouteImport } from './routes/live-studio'
@@ -55,14 +59,18 @@ import { Route as NexusarbRouteImport } from './routes/nexusarb'
 import { Route as OrchestrateRouteImport } from './routes/orchestrate'
 import { Route as PartnersRouteImport } from './routes/partners'
 import { Route as PerformRouteImport } from './routes/perform'
+import { Route as PerformAnywhereRouteImport } from './routes/perform-anywhere'
 import { Route as PhotoEditRouteImport } from './routes/photo-edit'
+import { Route as PrevisRouteImport } from './routes/previs'
 import { Route as PrivacyRouteImport } from './routes/privacy'
+import { Route as PromotionRouteImport } from './routes/promotion'
 import { Route as PuremixRouteImport } from './routes/puremix'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as ReshootRouteImport } from './routes/reshoot'
 import { Route as RoadmapRouteImport } from './routes/roadmap'
 import { Route as SceneBuilderRouteImport } from './routes/scene-builder'
 import { Route as SceneWeaverRouteImport } from './routes/scene-weaver'
+import { Route as SeedanceMotionRouteImport } from './routes/seedance-motion'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as SoulRouteImport } from './routes/soul'
@@ -78,143 +86,4075 @@ import { Route as TiktokLiveRouteImport } from './routes/tiktok-live'
 import { Route as ToolsRouteImport } from './routes/tools'
 import { Route as TutorialRouteImport } from './routes/tutorial'
 import { Route as UgcRouteImport } from './routes/ugc'
+import { Route as UgcLineRouteImport } from './routes/ugc-line'
+import { Route as VideoAgentRouteImport } from './routes/video-agent'
+import { Route as VideoAgentEditRouteImport } from './routes/video-agent-edit'
+import { Route as VideoAgentProcessRouteImport } from './routes/video-agent-process'
+import { Route as VideoAgentStudioRouteImport } from './routes/video-agent-studio'
+import { Route as VideoEditorRouteImport } from './routes/video-editor'
+import { Route as WorkflowsRouteImport } from './routes/workflows'
+import { Route as AdminAssetsRouteImport } from './routes/admin.assets'
+import { Route as AdminComfyRouteImport } from './routes/admin.comfy'
+import { Route as AdminCostsRouteImport } from './routes/admin.costs'
+import { Route as AdminDesignRouteImport } from './routes/admin.design'
+import { Route as AdminGpuRouteImport } from './routes/admin.gpu'
+import { Route as AdminLedgerRouteImport } from './routes/admin.ledger'
+import { Route as AdminModelsRouteImport } from './routes/admin.models'
+import { Route as AdminOrchestrationRouteImport } from './routes/admin.orchestration'
+import { Route as AdminSiteImagesRouteImport } from './routes/admin.site-images'
+import { Route as AdminSiteMapRouteImport } from './routes/admin.site-map'
+import { Route as AdminSmokeRouteImport } from './routes/admin.smoke'
+import { Route as AdminSocialStudioRouteImport } from './routes/admin.social-studio'
+import { Route as AdminTemplatesRouteImport } from './routes/admin.templates'
+import { Route as AdminWorkflowsRouteImport } from './routes/admin.workflows'
+import { Route as ApiBalanceRouteImport } from './routes/api/balance'
+import { Route as ApiContentAgentRouteImport } from './routes/api/content-agent'
+import { Route as ApiEstimateRouteImport } from './routes/api/estimate'
+import { Route as ApiHealthRouteImport } from './routes/api/health'
+import { Route as ApiMcpRouteImport } from './routes/api/mcp'
+import { Route as ApiModelarkRouteImport } from './routes/api/modelark'
+import { Route as ApiReadyRouteImport } from './routes/api/ready'
+import { Route as CliIndexRouteImport } from './routes/cli.index'
+import { Route as CliAuthorizeRouteImport } from './routes/cli.authorize'
+import { Route as CreatorDashboardRouteImport } from './routes/creator.dashboard'
+import { Route as GuidesIndexRouteImport } from './routes/guides.index'
+import { Route as GuidesSlugRouteImport } from './routes/guides.$slug'
+import { Route as LegalSlugRouteImport } from './routes/legal.$slug'
+import { Route as RTokenRouteImport } from './routes/r.$token'
+import { Route as SoulGenerateRouteImport } from './routes/soul.generate'
+import { Route as SoulLibraryRouteImport } from './routes/soul.library'
+import { Route as SoulTrainRouteImport } from './routes/soul.train'
+import { Route as SoulVibeRouteImport } from './routes/soul.vibe'
+import { Route as ApiAdminFeatureVisibilityRouteImport } from './routes/api/admin/feature-visibility'
+import { Route as ApiAdminRunSmokeStep14RouteImport } from './routes/api/admin/run-smoke-step14'
+import { Route as ApiAdminUploadImageRouteImport } from './routes/api/admin/upload-image'
+import { Route as ApiAdminUploadSiteImageRouteImport } from './routes/api/admin/upload-site-image'
+import { Route as ApiAdminVerifyPasscodeRouteImport } from './routes/api/admin/verify-passcode'
+import { Route as ApiAdultAdminGenerateRouteImport } from './routes/api/adult-admin/generate'
+import { Route as ApiAiGatewayFluxSchnellRouteImport } from './routes/api/ai-gateway/flux-schnell'
+import { Route as ApiAiGatewayFreeChatRouteImport } from './routes/api/ai-gateway/free-chat'
+import { Route as ApiAiGatewayLagunaRouteImport } from './routes/api/ai-gateway/laguna'
+import { Route as ApiAiGatewayModelsRouteImport } from './routes/api/ai-gateway/models'
+import { Route as ApiAudioMasterRouteImport } from './routes/api/audio/master'
+import { Route as ApiAudioUploadRouteImport } from './routes/api/audio/upload'
+import { Route as ApiDirectorsBoardBrainRouteImport } from './routes/api/directors-board/brain'
+import { Route as ApiDirectorsBoardChatRouteImport } from './routes/api/directors-board/chat'
+import { Route as ApiDirectorsBoardGenerateImageRouteImport } from './routes/api/directors-board/generate-image'
+import { Route as ApiGeminiFreeRouteImport } from './routes/api/gemini/free'
+import { Route as ApiMotionEstimateCostRouteImport } from './routes/api/motion/estimate-cost'
+import { Route as ApiMotionJobsRouteImport } from './routes/api/motion/jobs'
+import { Route as ApiMotionStatusRouteImport } from './routes/api/motion/status'
+import { Route as ApiPublicAccountDeleteRouteImport } from './routes/api/public/account-delete'
+import { Route as ApiPublicCheckApiBalancesRouteImport } from './routes/api/public/check-api-balances'
+import { Route as ApiPublicDeletionSweepRouteImport } from './routes/api/public/deletion-sweep'
+import { Route as ApiPublicFaststartVideoRouteImport } from './routes/api/public/faststart-video'
+import { Route as ApiPublicFeatureVisibilityRouteImport } from './routes/api/public/feature-visibility'
+import { Route as ApiPublicFreeDailyGrantRouteImport } from './routes/api/public/free-daily-grant'
+import { Route as ApiPublicFreeMonthlyGrantRouteImport } from './routes/api/public/free-monthly-grant'
+import { Route as ApiPublicGenerateRouteImport } from './routes/api/public/generate'
+import { Route as ApiPublicGithubSyncMonitorRouteImport } from './routes/api/public/github-sync-monitor'
+import { Route as ApiPublicLifecycleEmailsRouteImport } from './routes/api/public/lifecycle-emails'
+import { Route as ApiPublicModelWatchRouteImport } from './routes/api/public/model-watch'
+import { Route as ApiPublicNowpaymentsWebhookRouteImport } from './routes/api/public/nowpayments-webhook'
+import { Route as ApiPublicPaystackWebhookRouteImport } from './routes/api/public/paystack-webhook'
+import { Route as ApiPublicPerformRouteImport } from './routes/api/public/perform'
+import { Route as ApiPublicPricingRouteImport } from './routes/api/public/pricing'
+import { Route as ApiPublicProviderHealthCheckRouteImport } from './routes/api/public/provider-health-check'
+import { Route as ApiPublicSiteCopyRouteImport } from './routes/api/public/site-copy'
+import { Route as ApiPublicSiteImagesRouteImport } from './routes/api/public/site-images'
+import { Route as ApiPublicUptimeMonitorRouteImport } from './routes/api/public/uptime-monitor'
+import { Route as ApiPublicViralPreviewRouteImport } from './routes/api/public/viral-preview'
+import { Route as ApiPublicWatchdogRouteImport } from './routes/api/public/watchdog'
+import { Route as ApiPublicWatermarkImageRouteImport } from './routes/api/public/watermark-image'
+import { Route as ApiPublicWatermarkVideoRouteImport } from './routes/api/public/watermark-video'
+import { Route as ApiSoulFalWebhookRouteImport } from './routes/api/soul/fal-webhook'
+import { Route as ApiUgcLineImagesRouteImport } from './routes/api/ugc-line/images'
+import { Route as ApiUgcLineScriptsRouteImport } from './routes/api/ugc-line/scripts'
+import { Route as ApiUgcLineVariationsRouteImport } from './routes/api/ugc-line/variations'
+import { Route as ApiVideoAgentEnhanceRouteImport } from './routes/api/video-agent/enhance'
+import { Route as ApiVideoAgentFinalizeRouteImport } from './routes/api/video-agent/finalize'
+import { Route as ApiVideoAgentGenerateRouteImport } from './routes/api/video-agent/generate'
+import { Route as ApiVideoAgentGenerateFrameRouteImport } from './routes/api/video-agent/generate-frame'
+import { Route as ApiVideoAgentGenerateScriptRouteImport } from './routes/api/video-agent/generate-script'
+import { Route as ApiVideoAgentStreamRouteImport } from './routes/api/video-agent/stream'
+import { Route as ApiVideoAgentSubmitRouteImport } from './routes/api/video-agent/submit'
+import { Route as SoulGenerateVideoRouteImport } from './routes/soul.generate.video'
+import { Route as ApiJobsIdStatusRouteImport } from './routes/api/jobs/$id/status'
+import { Route as ApiPublicCliVastRouteImport } from './routes/api/public/cli/vast'
+import { Route as ApiPublicGpuClaimRouteImport } from './routes/api/public/gpu/claim'
+import { Route as ApiPublicGpuCompleteRouteImport } from './routes/api/public/gpu/complete'
+import { Route as ApiPublicGpuRegisterRouteImport } from './routes/api/public/gpu/register'
+import { Route as ApiPublicJobsTickRouteImport } from './routes/api/public/jobs/tick'
+import { Route as ApiPublicPaymentsSweepStuckRouteImport } from './routes/api/public/payments/sweep-stuck'
+import { Route as ApiPublicProAccessReconcileRouteImport } from './routes/api/public/pro-access/reconcile'
+import { Route as ApiPublicPromotionSyncRouteImport } from './routes/api/public/promotion/sync'
+import { Route as ApiPublicTiktokCallbackRouteImport } from './routes/api/public/tiktok/callback'
+import { Route as ApiPublicVastAutoscaleRouteImport } from './routes/api/public/vast/autoscale'
+import { Route as ApiPublicVastExpireRouteImport } from './routes/api/public/vast/expire'
+import { Route as ApiPublicWorkersHealthRouteImport } from './routes/api/public/workers/health'
+import { Route as ApiPublicWorkersProgressRouteImport } from './routes/api/public/workers/progress'
+import { Route as ApiPublicWorkersRegisterRouteImport } from './routes/api/public/workers/register'
+import { Route as ApiVideoAgentStatusVideoIdRouteImport } from './routes/api/video-agent/status.$videoId'
+import { Route as ApiAudioMasterIdStatusRouteImport } from './routes/api/audio/master.$id.status'
+import { Route as ApiPublicCliDevicePollRouteImport } from './routes/api/public/cli/device/poll'
+import { Route as ApiPublicCliDeviceStartRouteImport } from './routes/api/public/cli/device/start'
+import { Route as ApiPublicWorkersFilesNameRouteImport } from './routes/api/public/workers/files/$name'
 
-const IndexRoute = IndexRouteImport.update({ id: '/', path: '/', getParentRoute: () => rootRouteImport })
-const AccountRoute = AccountRouteImport.update({ id: '/account', path: '/account', getParentRoute: () => rootRouteImport })
-const AdminRoute = AdminRouteImport.update({ id: '/admin', path: '/admin', getParentRoute: () => rootRouteImport })
-const AdsRoute = AdsRouteImport.update({ id: '/ads', path: '/ads', getParentRoute: () => rootRouteImport })
-const AffiliateRoute = AffiliateRouteImport.update({ id: '/affiliate', path: '/affiliate', getParentRoute: () => rootRouteImport })
-const AgentRoute = AgentRouteImport.update({ id: '/agent', path: '/agent', getParentRoute: () => rootRouteImport })
-const AuroraAdultRoute = AuroraAdultRouteImport.update({ id: '/aurora-adult', path: '/aurora-adult', getParentRoute: () => rootRouteImport })
-const AuthRoute = AuthRouteImport.update({ id: '/auth', path: '/auth', getParentRoute: () => rootRouteImport })
-const AvatarRoute = AvatarRouteImport.update({ id: '/avatar', path: '/avatar', getParentRoute: () => rootRouteImport })
-const BillingRoute = BillingRouteImport.update({ id: '/billing', path: '/billing', getParentRoute: () => rootRouteImport })
-const CanvasRoute = CanvasRouteImport.update({ id: '/canvas', path: '/canvas', getParentRoute: () => rootRouteImport })
-const ClipsRoute = ClipsRouteImport.update({ id: '/clips', path: '/clips', getParentRoute: () => rootRouteImport })
-const ColorsRoute = ColorsRouteImport.update({ id: '/colors', path: '/colors', getParentRoute: () => rootRouteImport })
-const ColorsShowRoute = ColorsShowRouteImport.update({ id: '/colors-show', path: '/colors-show', getParentRoute: () => rootRouteImport })
-const ComfyRoute = ComfyRouteImport.update({ id: '/comfy', path: '/comfy', getParentRoute: () => rootRouteImport })
-const ConnectRoute = ConnectRouteImport.update({ id: '/connect', path: '/connect', getParentRoute: () => rootRouteImport })
-const ContactRoute = ContactRouteImport.update({ id: '/contact', path: '/contact', getParentRoute: () => rootRouteImport })
-const ContentRoute = ContentRouteImport.update({ id: '/content', path: '/content', getParentRoute: () => rootRouteImport })
-const ContentMachineRoute = ContentMachineRouteImport.update({ id: '/content-machine', path: '/content-machine', getParentRoute: () => rootRouteImport })
-const DashboardRoute = DashboardRouteImport.update({ id: '/dashboard', path: '/dashboard', getParentRoute: () => rootRouteImport })
-const DeleteAccountRoute = DeleteAccountRouteImport.update({ id: '/delete-account', path: '/delete-account', getParentRoute: () => rootRouteImport })
-const DirectorRoomRoute = DirectorRoomRouteImport.update({ id: '/director-room', path: '/director-room', getParentRoute: () => rootRouteImport })
-const DirectorsBoardRoute = DirectorsBoardRouteImport.update({ id: '/directors-board', path: '/directors-board', getParentRoute: () => rootRouteImport })
-const EditRoute = EditRouteImport.update({ id: '/edit', path: '/edit', getParentRoute: () => rootRouteImport })
-const EditorRoute = EditorRouteImport.update({ id: '/editor', path: '/editor', getParentRoute: () => rootRouteImport })
-const EromifyRoute = EromifyRouteImport.update({ id: '/eromify', path: '/eromify', getParentRoute: () => rootRouteImport })
-const GalleryRoute = GalleryRouteImport.update({ id: '/gallery', path: '/gallery', getParentRoute: () => rootRouteImport })
-const GiftsRoute = GiftsRouteImport.update({ id: '/gifts', path: '/gifts', getParentRoute: () => rootRouteImport })
-const GrowthRoute = GrowthRouteImport.update({ id: '/growth', path: '/growth', getParentRoute: () => rootRouteImport })
-const HeygenTemplatesRoute = HeygenTemplatesRouteImport.update({ id: '/heygen-templates', path: '/heygen-templates', getParentRoute: () => rootRouteImport })
-const HomeRoute = HomeRouteImport.update({ id: '/home', path: '/home', getParentRoute: () => rootRouteImport })
-const JobsRoute = JobsRouteImport.update({ id: '/jobs', path: '/jobs', getParentRoute: () => rootRouteImport })
-const KidsRoute = KidsRouteImport.update({ id: '/kids', path: '/kids', getParentRoute: () => rootRouteImport })
-const LikenessRoute = LikenessRouteImport.update({ id: '/likeness', path: '/likeness', getParentRoute: () => rootRouteImport })
-const LipsyncRoute = LipsyncRouteImport.update({ id: '/lipsync', path: '/lipsync', getParentRoute: () => rootRouteImport })
-const LiveStudioRoute = LiveStudioRouteImport.update({ id: '/live-studio', path: '/live-studio', getParentRoute: () => rootRouteImport })
-const MarketplaceRoute = MarketplaceRouteImport.update({ id: '/marketplace', path: '/marketplace', getParentRoute: () => rootRouteImport })
-const MasteringRoute = MasteringRouteImport.update({ id: '/mastering', path: '/mastering', getParentRoute: () => rootRouteImport })
-const MotionRoute = MotionRouteImport.update({ id: '/motion', path: '/motion', getParentRoute: () => rootRouteImport })
-const MusicVideoRoute = MusicVideoRouteImport.update({ id: '/music-video', path: '/music-video', getParentRoute: () => rootRouteImport })
-const NexusarbRoute = NexusarbRouteImport.update({ id: '/nexusarb', path: '/nexusarb', getParentRoute: () => rootRouteImport })
-const OrchestrateRoute = OrchestrateRouteImport.update({ id: '/orchestrate', path: '/orchestrate', getParentRoute: () => rootRouteImport })
-const PartnersRoute = PartnersRouteImport.update({ id: '/partners', path: '/partners', getParentRoute: () => rootRouteImport })
-const PerformRoute = PerformRouteImport.update({ id: '/perform', path: '/perform', getParentRoute: () => rootRouteImport })
-const PhotoEditRoute = PhotoEditRouteImport.update({ id: '/photo-edit', path: '/photo-edit', getParentRoute: () => rootRouteImport })
-const PrivacyRoute = PrivacyRouteImport.update({ id: '/privacy', path: '/privacy', getParentRoute: () => rootRouteImport })
-const PuremixRoute = PuremixRouteImport.update({ id: '/puremix', path: '/puremix', getParentRoute: () => rootRouteImport })
-const ResetPasswordRoute = ResetPasswordRouteImport.update({ id: '/reset-password', path: '/reset-password', getParentRoute: () => rootRouteImport })
-const ReshootRoute = ReshootRouteImport.update({ id: '/reshoot', path: '/reshoot', getParentRoute: () => rootRouteImport })
-const RoadmapRoute = RoadmapRouteImport.update({ id: '/roadmap', path: '/roadmap', getParentRoute: () => rootRouteImport })
-const SceneBuilderRoute = SceneBuilderRouteImport.update({ id: '/scene-builder', path: '/scene-builder', getParentRoute: () => rootRouteImport })
-const SceneWeaverRoute = SceneWeaverRouteImport.update({ id: '/scene-weaver', path: '/scene-weaver', getParentRoute: () => rootRouteImport })
-const SettingsRoute = SettingsRouteImport.update({ id: '/settings', path: '/settings', getParentRoute: () => rootRouteImport })
-const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({ id: '/sitemap.xml', path: '/sitemap.xml', getParentRoute: () => rootRouteImport })
-const SoulRoute = SoulRouteImport.update({ id: '/soul', path: '/soul', getParentRoute: () => rootRouteImport })
-const SpeechRoute = SpeechRouteImport.update({ id: '/speech', path: '/speech', getParentRoute: () => rootRouteImport })
-const SpinRoute = SpinRouteImport.update({ id: '/spin', path: '/spin', getParentRoute: () => rootRouteImport })
-const SplitRealityRoute = SplitRealityRouteImport.update({ id: '/split-reality', path: '/split-reality', getParentRoute: () => rootRouteImport })
-const StoryboardRoute = StoryboardRouteImport.update({ id: '/storyboard', path: '/storyboard', getParentRoute: () => rootRouteImport })
-const StudioRoute = StudioRouteImport.update({ id: '/studio', path: '/studio', getParentRoute: () => rootRouteImport })
-const TemplatesRoute = TemplatesRouteImport.update({ id: '/templates', path: '/templates', getParentRoute: () => rootRouteImport })
-const TermsRoute = TermsRouteImport.update({ id: '/terms', path: '/terms', getParentRoute: () => rootRouteImport })
-const TiktokRoute = TiktokRouteImport.update({ id: '/tiktok', path: '/tiktok', getParentRoute: () => rootRouteImport })
-const TiktokLiveRoute = TiktokLiveRouteImport.update({ id: '/tiktok-live', path: '/tiktok-live', getParentRoute: () => rootRouteImport })
-const ToolsRoute = ToolsRouteImport.update({ id: '/tools', path: '/tools', getParentRoute: () => rootRouteImport })
-const TutorialRoute = TutorialRouteImport.update({ id: '/tutorial', path: '/tutorial', getParentRoute: () => rootRouteImport })
-const UgcRoute = UgcRouteImport.update({ id: '/ugc', path: '/ugc', getParentRoute: () => rootRouteImport })
+const BeatReelLazyRouteImport = createFileRoute('/beat-reel')()
+const AdminIndexLazyRouteImport = createFileRoute('/admin/')()
+const AdminObservabilityLazyRouteImport = createFileRoute(
+  '/admin/observability',
+)()
 
-const routeTree = rootRouteImport.addChildren({
-  IndexRoute,
-  AccountRoute,
-  AdminRoute,
-  AdsRoute,
-  AffiliateRoute,
-  AgentRoute,
-  AuroraAdultRoute,
-  AuthRoute,
-  AvatarRoute,
-  BillingRoute,
-  CanvasRoute,
-  ClipsRoute,
-  ColorsRoute,
-  ColorsShowRoute,
-  ComfyRoute,
-  ConnectRoute,
-  ContactRoute,
-  ContentRoute,
-  ContentMachineRoute,
-  DashboardRoute,
-  DeleteAccountRoute,
-  DirectorRoomRoute,
-  DirectorsBoardRoute,
-  EditRoute,
-  EditorRoute,
-  EromifyRoute,
-  GalleryRoute,
-  GiftsRoute,
-  GrowthRoute,
-  HeygenTemplatesRoute,
-  HomeRoute,
-  JobsRoute,
-  KidsRoute,
-  LikenessRoute,
-  LipsyncRoute,
-  LiveStudioRoute,
-  MarketplaceRoute,
-  MasteringRoute,
-  MotionRoute,
-  MusicVideoRoute,
-  NexusarbRoute,
-  OrchestrateRoute,
-  PartnersRoute,
-  PerformRoute,
-  PhotoEditRoute,
-  PrivacyRoute,
-  PuremixRoute,
-  ResetPasswordRoute,
-  ReshootRoute,
-  RoadmapRoute,
-  SceneBuilderRoute,
-  SceneWeaverRoute,
-  SettingsRoute,
-  SitemapDotxmlRoute,
-  SoulRoute,
-  SpeechRoute,
-  SpinRoute,
-  SplitRealityRoute,
-  StoryboardRoute,
-  StudioRoute,
-  TemplatesRoute,
-  TermsRoute,
-  TiktokRoute,
-  TiktokLiveRoute,
-  ToolsRoute,
-  TutorialRoute,
-  UgcRoute,
-})
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AccountRoute = AccountRouteImport.update({
+  id: '/account',
+  path: '/account',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/account.lazy').then((d) => d.Route))
+const AdminRoute = AdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/admin.lazy').then((d) => d.Route))
+const AdsRoute = AdsRouteImport.update({
+  id: '/ads',
+  path: '/ads',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/ads.lazy').then((d) => d.Route))
+const AdultRoute = AdultRouteImport.update({
+  id: '/adult',
+  path: '/adult',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/adult.lazy').then((d) => d.Route))
+const AffiliateRoute = AffiliateRouteImport.update({
+  id: '/affiliate',
+  path: '/affiliate',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AgentRoute = AgentRouteImport.update({
+  id: '/agent',
+  path: '/agent',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/agent.lazy').then((d) => d.Route))
+const AuroraAdultRoute = AuroraAdultRouteImport.update({
+  id: '/aurora-adult',
+  path: '/aurora-adult',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuroraBabyAgentRoute = AuroraBabyAgentRouteImport.update({
+  id: '/aurora-baby-agent',
+  path: '/aurora-baby-agent',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() =>
+  import('./routes/aurora-baby-agent.lazy').then((d) => d.Route),
+)
+const AuthRoute = AuthRouteImport.update({
+  id: '/auth',
+  path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/auth.lazy').then((d) => d.Route))
+const AvatarRoute = AvatarRouteImport.update({
+  id: '/avatar',
+  path: '/avatar',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/avatar.lazy').then((d) => d.Route))
+const BeatReelLazyRoute = BeatReelLazyRouteImport.update({
+  id: '/beat-reel',
+  path: '/beat-reel',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/beat-reel.lazy').then((d) => d.Route))
+const BillingRoute = BillingRouteImport.update({
+  id: '/billing',
+  path: '/billing',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/billing.lazy').then((d) => d.Route))
+const CanvasRoute = CanvasRouteImport.update({
+  id: '/canvas',
+  path: '/canvas',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/canvas.lazy').then((d) => d.Route))
+const ClipsRoute = ClipsRouteImport.update({
+  id: '/clips',
+  path: '/clips',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/clips.lazy').then((d) => d.Route))
+const ColorsRoute = ColorsRouteImport.update({
+  id: '/colors',
+  path: '/colors',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/colors.lazy').then((d) => d.Route))
+const ColorsShowRoute = ColorsShowRouteImport.update({
+  id: '/colors-show',
+  path: '/colors-show',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/colors-show.lazy').then((d) => d.Route))
+const ComfyRoute = ComfyRouteImport.update({
+  id: '/comfy',
+  path: '/comfy',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/comfy.lazy').then((d) => d.Route))
+const ConnectRoute = ConnectRouteImport.update({
+  id: '/connect',
+  path: '/connect',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/connect.lazy').then((d) => d.Route))
+const ContactRoute = ContactRouteImport.update({
+  id: '/contact',
+  path: '/contact',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/contact.lazy').then((d) => d.Route))
+const ContentRoute = ContentRouteImport.update({
+  id: '/content',
+  path: '/content',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/content.lazy').then((d) => d.Route))
+const ContentMachineRoute = ContentMachineRouteImport.update({
+  id: '/content-machine',
+  path: '/content-machine',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() =>
+  import('./routes/content-machine.lazy').then((d) => d.Route),
+)
+const DashboardRoute = DashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/dashboard.lazy').then((d) => d.Route))
+const DeleteAccountRoute = DeleteAccountRouteImport.update({
+  id: '/delete-account',
+  path: '/delete-account',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DirectorRoute = DirectorRouteImport.update({
+  id: '/director',
+  path: '/director',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DirectorRoomRoute = DirectorRoomRouteImport.update({
+  id: '/director-room',
+  path: '/director-room',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/director-room.lazy').then((d) => d.Route))
+const DirectorsBoardRoute = DirectorsBoardRouteImport.update({
+  id: '/directors-board',
+  path: '/directors-board',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() =>
+  import('./routes/directors-board.lazy').then((d) => d.Route),
+)
+const EditRoute = EditRouteImport.update({
+  id: '/edit',
+  path: '/edit',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/edit.lazy').then((d) => d.Route))
+const EditorRoute = EditorRouteImport.update({
+  id: '/editor',
+  path: '/editor',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/editor.lazy').then((d) => d.Route))
+const EromifyRoute = EromifyRouteImport.update({
+  id: '/eromify',
+  path: '/eromify',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/eromify.lazy').then((d) => d.Route))
+const GalleryRoute = GalleryRouteImport.update({
+  id: '/gallery',
+  path: '/gallery',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/gallery.lazy').then((d) => d.Route))
+const GiftsRoute = GiftsRouteImport.update({
+  id: '/gifts',
+  path: '/gifts',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/gifts.lazy').then((d) => d.Route))
+const GrowthRoute = GrowthRouteImport.update({
+  id: '/growth',
+  path: '/growth',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/growth.lazy').then((d) => d.Route))
+const HeygenTemplatesRoute = HeygenTemplatesRouteImport.update({
+  id: '/heygen-templates',
+  path: '/heygen-templates',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() =>
+  import('./routes/heygen-templates.lazy').then((d) => d.Route),
+)
+const HomeRoute = HomeRouteImport.update({
+  id: '/home',
+  path: '/home',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/home.lazy').then((d) => d.Route))
+const JobsRoute = JobsRouteImport.update({
+  id: '/jobs',
+  path: '/jobs',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/jobs.lazy').then((d) => d.Route))
+const KidsRoute = KidsRouteImport.update({
+  id: '/kids',
+  path: '/kids',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/kids.lazy').then((d) => d.Route))
+const LayersRoute = LayersRouteImport.update({
+  id: '/layers',
+  path: '/layers',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/layers.lazy').then((d) => d.Route))
+const LikenessRoute = LikenessRouteImport.update({
+  id: '/likeness',
+  path: '/likeness',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/likeness.lazy').then((d) => d.Route))
+const LipsyncRoute = LipsyncRouteImport.update({
+  id: '/lipsync',
+  path: '/lipsync',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/lipsync.lazy').then((d) => d.Route))
+const LiveStudioRoute = LiveStudioRouteImport.update({
+  id: '/live-studio',
+  path: '/live-studio',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/live-studio.lazy').then((d) => d.Route))
+const MarketplaceRoute = MarketplaceRouteImport.update({
+  id: '/marketplace',
+  path: '/marketplace',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/marketplace.lazy').then((d) => d.Route))
+const MasteringRoute = MasteringRouteImport.update({
+  id: '/mastering',
+  path: '/mastering',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/mastering.lazy').then((d) => d.Route))
+const MotionRoute = MotionRouteImport.update({
+  id: '/motion',
+  path: '/motion',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/motion.lazy').then((d) => d.Route))
+const MusicVideoRoute = MusicVideoRouteImport.update({
+  id: '/music-video',
+  path: '/music-video',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/music-video.lazy').then((d) => d.Route))
+const NexusarbRoute = NexusarbRouteImport.update({
+  id: '/nexusarb',
+  path: '/nexusarb',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/nexusarb.lazy').then((d) => d.Route))
+const OrchestrateRoute = OrchestrateRouteImport.update({
+  id: '/orchestrate',
+  path: '/orchestrate',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PartnersRoute = PartnersRouteImport.update({
+  id: '/partners',
+  path: '/partners',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/partners.lazy').then((d) => d.Route))
+const PerformRoute = PerformRouteImport.update({
+  id: '/perform',
+  path: '/perform',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PerformAnywhereRoute = PerformAnywhereRouteImport.update({
+  id: '/perform-anywhere',
+  path: '/perform-anywhere',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() =>
+  import('./routes/perform-anywhere.lazy').then((d) => d.Route),
+)
+const PhotoEditRoute = PhotoEditRouteImport.update({
+  id: '/photo-edit',
+  path: '/photo-edit',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/photo-edit.lazy').then((d) => d.Route))
+const PrevisRoute = PrevisRouteImport.update({
+  id: '/previs',
+  path: '/previs',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/previs.lazy').then((d) => d.Route))
+const PrivacyRoute = PrivacyRouteImport.update({
+  id: '/privacy',
+  path: '/privacy',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PromotionRoute = PromotionRouteImport.update({
+  id: '/promotion',
+  path: '/promotion',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/promotion.lazy').then((d) => d.Route))
+const PuremixRoute = PuremixRouteImport.update({
+  id: '/puremix',
+  path: '/puremix',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/puremix.lazy').then((d) => d.Route))
+const ResetPasswordRoute = ResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() =>
+  import('./routes/reset-password.lazy').then((d) => d.Route),
+)
+const ReshootRoute = ReshootRouteImport.update({
+  id: '/reshoot',
+  path: '/reshoot',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/reshoot.lazy').then((d) => d.Route))
+const RoadmapRoute = RoadmapRouteImport.update({
+  id: '/roadmap',
+  path: '/roadmap',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/roadmap.lazy').then((d) => d.Route))
+const SceneBuilderRoute = SceneBuilderRouteImport.update({
+  id: '/scene-builder',
+  path: '/scene-builder',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/scene-builder.lazy').then((d) => d.Route))
+const SceneWeaverRoute = SceneWeaverRouteImport.update({
+  id: '/scene-weaver',
+  path: '/scene-weaver',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/scene-weaver.lazy').then((d) => d.Route))
+const SeedanceMotionRoute = SeedanceMotionRouteImport.update({
+  id: '/seedance-motion',
+  path: '/seedance-motion',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsRoute = SettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/settings.lazy').then((d) => d.Route))
+const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
+  id: '/sitemap.xml',
+  path: '/sitemap.xml',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SoulRoute = SoulRouteImport.update({
+  id: '/soul',
+  path: '/soul',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/soul.lazy').then((d) => d.Route))
+const SpeechRoute = SpeechRouteImport.update({
+  id: '/speech',
+  path: '/speech',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/speech.lazy').then((d) => d.Route))
+const SpinRoute = SpinRouteImport.update({
+  id: '/spin',
+  path: '/spin',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/spin.lazy').then((d) => d.Route))
+const SplitRealityRoute = SplitRealityRouteImport.update({
+  id: '/split-reality',
+  path: '/split-reality',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/split-reality.lazy').then((d) => d.Route))
+const StoryboardRoute = StoryboardRouteImport.update({
+  id: '/storyboard',
+  path: '/storyboard',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/storyboard.lazy').then((d) => d.Route))
+const StudioRoute = StudioRouteImport.update({
+  id: '/studio',
+  path: '/studio',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/studio.lazy').then((d) => d.Route))
+const TemplatesRoute = TemplatesRouteImport.update({
+  id: '/templates',
+  path: '/templates',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/templates.lazy').then((d) => d.Route))
+const TermsRoute = TermsRouteImport.update({
+  id: '/terms',
+  path: '/terms',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TiktokRoute = TiktokRouteImport.update({
+  id: '/tiktok',
+  path: '/tiktok',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/tiktok.lazy').then((d) => d.Route))
+const TiktokLiveRoute = TiktokLiveRouteImport.update({
+  id: '/tiktok-live',
+  path: '/tiktok-live',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/tiktok-live.lazy').then((d) => d.Route))
+const ToolsRoute = ToolsRouteImport.update({
+  id: '/tools',
+  path: '/tools',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/tools.lazy').then((d) => d.Route))
+const TutorialRoute = TutorialRouteImport.update({
+  id: '/tutorial',
+  path: '/tutorial',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/tutorial.lazy').then((d) => d.Route))
+const UgcRoute = UgcRouteImport.update({
+  id: '/ugc',
+  path: '/ugc',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/ugc.lazy').then((d) => d.Route))
+const UgcLineRoute = UgcLineRouteImport.update({
+  id: '/ugc-line',
+  path: '/ugc-line',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/ugc-line.lazy').then((d) => d.Route))
+const VideoAgentRoute = VideoAgentRouteImport.update({
+  id: '/video-agent',
+  path: '/video-agent',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/video-agent.lazy').then((d) => d.Route))
+const VideoAgentEditRoute = VideoAgentEditRouteImport.update({
+  id: '/video-agent-edit',
+  path: '/video-agent-edit',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() =>
+  import('./routes/video-agent-edit.lazy').then((d) => d.Route),
+)
+const VideoAgentProcessRoute = VideoAgentProcessRouteImport.update({
+  id: '/video-agent-process',
+  path: '/video-agent-process',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() =>
+  import('./routes/video-agent-process.lazy').then((d) => d.Route),
+)
+const VideoAgentStudioRoute = VideoAgentStudioRouteImport.update({
+  id: '/video-agent-studio',
+  path: '/video-agent-studio',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() =>
+  import('./routes/video-agent-studio.lazy').then((d) => d.Route),
+)
+const VideoEditorRoute = VideoEditorRouteImport.update({
+  id: '/video-editor',
+  path: '/video-editor',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/video-editor.lazy').then((d) => d.Route))
+const WorkflowsRoute = WorkflowsRouteImport.update({
+  id: '/workflows',
+  path: '/workflows',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/workflows.lazy').then((d) => d.Route))
+const AdminIndexLazyRoute = AdminIndexLazyRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AdminRoute,
+} as any).lazy(() => import('./routes/admin.index.lazy').then((d) => d.Route))
+const AdminAssetsRoute = AdminAssetsRouteImport.update({
+  id: '/assets',
+  path: '/assets',
+  getParentRoute: () => AdminRoute,
+} as any).lazy(() => import('./routes/admin.assets.lazy').then((d) => d.Route))
+const AdminComfyRoute = AdminComfyRouteImport.update({
+  id: '/comfy',
+  path: '/comfy',
+  getParentRoute: () => AdminRoute,
+} as any).lazy(() => import('./routes/admin.comfy.lazy').then((d) => d.Route))
+const AdminCostsRoute = AdminCostsRouteImport.update({
+  id: '/costs',
+  path: '/costs',
+  getParentRoute: () => AdminRoute,
+} as any).lazy(() => import('./routes/admin.costs.lazy').then((d) => d.Route))
+const AdminDesignRoute = AdminDesignRouteImport.update({
+  id: '/design',
+  path: '/design',
+  getParentRoute: () => AdminRoute,
+} as any).lazy(() => import('./routes/admin.design.lazy').then((d) => d.Route))
+const AdminGpuRoute = AdminGpuRouteImport.update({
+  id: '/gpu',
+  path: '/gpu',
+  getParentRoute: () => AdminRoute,
+} as any).lazy(() => import('./routes/admin.gpu.lazy').then((d) => d.Route))
+const AdminLedgerRoute = AdminLedgerRouteImport.update({
+  id: '/ledger',
+  path: '/ledger',
+  getParentRoute: () => AdminRoute,
+} as any).lazy(() => import('./routes/admin.ledger.lazy').then((d) => d.Route))
+const AdminModelsRoute = AdminModelsRouteImport.update({
+  id: '/models',
+  path: '/models',
+  getParentRoute: () => AdminRoute,
+} as any).lazy(() => import('./routes/admin.models.lazy').then((d) => d.Route))
+const AdminObservabilityLazyRoute = AdminObservabilityLazyRouteImport.update({
+  id: '/observability',
+  path: '/observability',
+  getParentRoute: () => AdminRoute,
+} as any).lazy(() =>
+  import('./routes/admin.observability.lazy').then((d) => d.Route),
+)
+const AdminOrchestrationRoute = AdminOrchestrationRouteImport.update({
+  id: '/orchestration',
+  path: '/orchestration',
+  getParentRoute: () => AdminRoute,
+} as any).lazy(() =>
+  import('./routes/admin.orchestration.lazy').then((d) => d.Route),
+)
+const AdminSiteImagesRoute = AdminSiteImagesRouteImport.update({
+  id: '/site-images',
+  path: '/site-images',
+  getParentRoute: () => AdminRoute,
+} as any).lazy(() =>
+  import('./routes/admin.site-images.lazy').then((d) => d.Route),
+)
+const AdminSiteMapRoute = AdminSiteMapRouteImport.update({
+  id: '/site-map',
+  path: '/site-map',
+  getParentRoute: () => AdminRoute,
+} as any).lazy(() =>
+  import('./routes/admin.site-map.lazy').then((d) => d.Route),
+)
+const AdminSmokeRoute = AdminSmokeRouteImport.update({
+  id: '/smoke',
+  path: '/smoke',
+  getParentRoute: () => AdminRoute,
+} as any).lazy(() => import('./routes/admin.smoke.lazy').then((d) => d.Route))
+const AdminSocialStudioRoute = AdminSocialStudioRouteImport.update({
+  id: '/social-studio',
+  path: '/social-studio',
+  getParentRoute: () => AdminRoute,
+} as any).lazy(() =>
+  import('./routes/admin.social-studio.lazy').then((d) => d.Route),
+)
+const AdminTemplatesRoute = AdminTemplatesRouteImport.update({
+  id: '/templates',
+  path: '/templates',
+  getParentRoute: () => AdminRoute,
+} as any).lazy(() =>
+  import('./routes/admin.templates.lazy').then((d) => d.Route),
+)
+const AdminWorkflowsRoute = AdminWorkflowsRouteImport.update({
+  id: '/workflows',
+  path: '/workflows',
+  getParentRoute: () => AdminRoute,
+} as any).lazy(() =>
+  import('./routes/admin.workflows.lazy').then((d) => d.Route),
+)
+const ApiBalanceRoute = ApiBalanceRouteImport.update({
+  id: '/api/balance',
+  path: '/api/balance',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiContentAgentRoute = ApiContentAgentRouteImport.update({
+  id: '/api/content-agent',
+  path: '/api/content-agent',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiEstimateRoute = ApiEstimateRouteImport.update({
+  id: '/api/estimate',
+  path: '/api/estimate',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiHealthRoute = ApiHealthRouteImport.update({
+  id: '/api/health',
+  path: '/api/health',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiMcpRoute = ApiMcpRouteImport.update({
+  id: '/api/mcp',
+  path: '/api/mcp',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiModelarkRoute = ApiModelarkRouteImport.update({
+  id: '/api/modelark',
+  path: '/api/modelark',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiReadyRoute = ApiReadyRouteImport.update({
+  id: '/api/ready',
+  path: '/api/ready',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CliIndexRoute = CliIndexRouteImport.update({
+  id: '/cli/',
+  path: '/cli/',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/cli.index.lazy').then((d) => d.Route))
+const CliAuthorizeRoute = CliAuthorizeRouteImport.update({
+  id: '/cli/authorize',
+  path: '/cli/authorize',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/cli.authorize.lazy').then((d) => d.Route))
+const CreatorDashboardRoute = CreatorDashboardRouteImport.update({
+  id: '/creator/dashboard',
+  path: '/creator/dashboard',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() =>
+  import('./routes/creator.dashboard.lazy').then((d) => d.Route),
+)
+const GuidesIndexRoute = GuidesIndexRouteImport.update({
+  id: '/guides/',
+  path: '/guides/',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/guides.index.lazy').then((d) => d.Route))
+const GuidesSlugRoute = GuidesSlugRouteImport.update({
+  id: '/guides/$slug',
+  path: '/guides/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/guides.$slug.lazy').then((d) => d.Route))
+const LegalSlugRoute = LegalSlugRouteImport.update({
+  id: '/legal/$slug',
+  path: '/legal/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/legal.$slug.lazy').then((d) => d.Route))
+const RTokenRoute = RTokenRouteImport.update({
+  id: '/r/$token',
+  path: '/r/$token',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/r.$token.lazy').then((d) => d.Route))
+const SoulGenerateRoute = SoulGenerateRouteImport.update({
+  id: '/generate',
+  path: '/generate',
+  getParentRoute: () => SoulRoute,
+} as any).lazy(() => import('./routes/soul.generate.lazy').then((d) => d.Route))
+const SoulLibraryRoute = SoulLibraryRouteImport.update({
+  id: '/library',
+  path: '/library',
+  getParentRoute: () => SoulRoute,
+} as any).lazy(() => import('./routes/soul.library.lazy').then((d) => d.Route))
+const SoulTrainRoute = SoulTrainRouteImport.update({
+  id: '/train',
+  path: '/train',
+  getParentRoute: () => SoulRoute,
+} as any).lazy(() => import('./routes/soul.train.lazy').then((d) => d.Route))
+const SoulVibeRoute = SoulVibeRouteImport.update({
+  id: '/vibe',
+  path: '/vibe',
+  getParentRoute: () => SoulRoute,
+} as any).lazy(() => import('./routes/soul.vibe.lazy').then((d) => d.Route))
+const ApiAdminFeatureVisibilityRoute =
+  ApiAdminFeatureVisibilityRouteImport.update({
+    id: '/api/admin/feature-visibility',
+    path: '/api/admin/feature-visibility',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiAdminRunSmokeStep14Route = ApiAdminRunSmokeStep14RouteImport.update({
+  id: '/api/admin/run-smoke-step14',
+  path: '/api/admin/run-smoke-step14',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAdminUploadImageRoute = ApiAdminUploadImageRouteImport.update({
+  id: '/api/admin/upload-image',
+  path: '/api/admin/upload-image',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAdminUploadSiteImageRoute = ApiAdminUploadSiteImageRouteImport.update({
+  id: '/api/admin/upload-site-image',
+  path: '/api/admin/upload-site-image',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAdminVerifyPasscodeRoute = ApiAdminVerifyPasscodeRouteImport.update({
+  id: '/api/admin/verify-passcode',
+  path: '/api/admin/verify-passcode',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAdultAdminGenerateRoute = ApiAdultAdminGenerateRouteImport.update({
+  id: '/api/adult-admin/generate',
+  path: '/api/adult-admin/generate',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAiGatewayFluxSchnellRoute = ApiAiGatewayFluxSchnellRouteImport.update({
+  id: '/api/ai-gateway/flux-schnell',
+  path: '/api/ai-gateway/flux-schnell',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAiGatewayFreeChatRoute = ApiAiGatewayFreeChatRouteImport.update({
+  id: '/api/ai-gateway/free-chat',
+  path: '/api/ai-gateway/free-chat',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAiGatewayLagunaRoute = ApiAiGatewayLagunaRouteImport.update({
+  id: '/api/ai-gateway/laguna',
+  path: '/api/ai-gateway/laguna',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAiGatewayModelsRoute = ApiAiGatewayModelsRouteImport.update({
+  id: '/api/ai-gateway/models',
+  path: '/api/ai-gateway/models',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAudioMasterRoute = ApiAudioMasterRouteImport.update({
+  id: '/api/audio/master',
+  path: '/api/audio/master',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAudioUploadRoute = ApiAudioUploadRouteImport.update({
+  id: '/api/audio/upload',
+  path: '/api/audio/upload',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiDirectorsBoardBrainRoute = ApiDirectorsBoardBrainRouteImport.update({
+  id: '/api/directors-board/brain',
+  path: '/api/directors-board/brain',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiDirectorsBoardChatRoute = ApiDirectorsBoardChatRouteImport.update({
+  id: '/api/directors-board/chat',
+  path: '/api/directors-board/chat',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiDirectorsBoardGenerateImageRoute =
+  ApiDirectorsBoardGenerateImageRouteImport.update({
+    id: '/api/directors-board/generate-image',
+    path: '/api/directors-board/generate-image',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiGeminiFreeRoute = ApiGeminiFreeRouteImport.update({
+  id: '/api/gemini/free',
+  path: '/api/gemini/free',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiMotionEstimateCostRoute = ApiMotionEstimateCostRouteImport.update({
+  id: '/api/motion/estimate-cost',
+  path: '/api/motion/estimate-cost',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiMotionJobsRoute = ApiMotionJobsRouteImport.update({
+  id: '/api/motion/jobs',
+  path: '/api/motion/jobs',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiMotionStatusRoute = ApiMotionStatusRouteImport.update({
+  id: '/api/motion/status',
+  path: '/api/motion/status',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicAccountDeleteRoute = ApiPublicAccountDeleteRouteImport.update({
+  id: '/api/public/account-delete',
+  path: '/api/public/account-delete',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicCheckApiBalancesRoute =
+  ApiPublicCheckApiBalancesRouteImport.update({
+    id: '/api/public/check-api-balances',
+    path: '/api/public/check-api-balances',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicDeletionSweepRoute = ApiPublicDeletionSweepRouteImport.update({
+  id: '/api/public/deletion-sweep',
+  path: '/api/public/deletion-sweep',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicFaststartVideoRoute = ApiPublicFaststartVideoRouteImport.update({
+  id: '/api/public/faststart-video',
+  path: '/api/public/faststart-video',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicFeatureVisibilityRoute =
+  ApiPublicFeatureVisibilityRouteImport.update({
+    id: '/api/public/feature-visibility',
+    path: '/api/public/feature-visibility',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicFreeDailyGrantRoute = ApiPublicFreeDailyGrantRouteImport.update({
+  id: '/api/public/free-daily-grant',
+  path: '/api/public/free-daily-grant',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicFreeMonthlyGrantRoute =
+  ApiPublicFreeMonthlyGrantRouteImport.update({
+    id: '/api/public/free-monthly-grant',
+    path: '/api/public/free-monthly-grant',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicGenerateRoute = ApiPublicGenerateRouteImport.update({
+  id: '/api/public/generate',
+  path: '/api/public/generate',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicGithubSyncMonitorRoute =
+  ApiPublicGithubSyncMonitorRouteImport.update({
+    id: '/api/public/github-sync-monitor',
+    path: '/api/public/github-sync-monitor',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicLifecycleEmailsRoute =
+  ApiPublicLifecycleEmailsRouteImport.update({
+    id: '/api/public/lifecycle-emails',
+    path: '/api/public/lifecycle-emails',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicModelWatchRoute = ApiPublicModelWatchRouteImport.update({
+  id: '/api/public/model-watch',
+  path: '/api/public/model-watch',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicNowpaymentsWebhookRoute =
+  ApiPublicNowpaymentsWebhookRouteImport.update({
+    id: '/api/public/nowpayments-webhook',
+    path: '/api/public/nowpayments-webhook',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicPaystackWebhookRoute =
+  ApiPublicPaystackWebhookRouteImport.update({
+    id: '/api/public/paystack-webhook',
+    path: '/api/public/paystack-webhook',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicPerformRoute = ApiPublicPerformRouteImport.update({
+  id: '/api/public/perform',
+  path: '/api/public/perform',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicPricingRoute = ApiPublicPricingRouteImport.update({
+  id: '/api/public/pricing',
+  path: '/api/public/pricing',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicProviderHealthCheckRoute =
+  ApiPublicProviderHealthCheckRouteImport.update({
+    id: '/api/public/provider-health-check',
+    path: '/api/public/provider-health-check',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicSiteCopyRoute = ApiPublicSiteCopyRouteImport.update({
+  id: '/api/public/site-copy',
+  path: '/api/public/site-copy',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicSiteImagesRoute = ApiPublicSiteImagesRouteImport.update({
+  id: '/api/public/site-images',
+  path: '/api/public/site-images',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicUptimeMonitorRoute = ApiPublicUptimeMonitorRouteImport.update({
+  id: '/api/public/uptime-monitor',
+  path: '/api/public/uptime-monitor',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicViralPreviewRoute = ApiPublicViralPreviewRouteImport.update({
+  id: '/api/public/viral-preview',
+  path: '/api/public/viral-preview',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicWatchdogRoute = ApiPublicWatchdogRouteImport.update({
+  id: '/api/public/watchdog',
+  path: '/api/public/watchdog',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicWatermarkImageRoute = ApiPublicWatermarkImageRouteImport.update({
+  id: '/api/public/watermark-image',
+  path: '/api/public/watermark-image',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicWatermarkVideoRoute = ApiPublicWatermarkVideoRouteImport.update({
+  id: '/api/public/watermark-video',
+  path: '/api/public/watermark-video',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiSoulFalWebhookRoute = ApiSoulFalWebhookRouteImport.update({
+  id: '/api/soul/fal-webhook',
+  path: '/api/soul/fal-webhook',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiUgcLineImagesRoute = ApiUgcLineImagesRouteImport.update({
+  id: '/api/ugc-line/images',
+  path: '/api/ugc-line/images',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiUgcLineScriptsRoute = ApiUgcLineScriptsRouteImport.update({
+  id: '/api/ugc-line/scripts',
+  path: '/api/ugc-line/scripts',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiUgcLineVariationsRoute = ApiUgcLineVariationsRouteImport.update({
+  id: '/api/ugc-line/variations',
+  path: '/api/ugc-line/variations',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiVideoAgentEnhanceRoute = ApiVideoAgentEnhanceRouteImport.update({
+  id: '/api/video-agent/enhance',
+  path: '/api/video-agent/enhance',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiVideoAgentFinalizeRoute = ApiVideoAgentFinalizeRouteImport.update({
+  id: '/api/video-agent/finalize',
+  path: '/api/video-agent/finalize',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiVideoAgentGenerateRoute = ApiVideoAgentGenerateRouteImport.update({
+  id: '/api/video-agent/generate',
+  path: '/api/video-agent/generate',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiVideoAgentGenerateFrameRoute =
+  ApiVideoAgentGenerateFrameRouteImport.update({
+    id: '/api/video-agent/generate-frame',
+    path: '/api/video-agent/generate-frame',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiVideoAgentGenerateScriptRoute =
+  ApiVideoAgentGenerateScriptRouteImport.update({
+    id: '/api/video-agent/generate-script',
+    path: '/api/video-agent/generate-script',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiVideoAgentStreamRoute = ApiVideoAgentStreamRouteImport.update({
+  id: '/api/video-agent/stream',
+  path: '/api/video-agent/stream',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiVideoAgentSubmitRoute = ApiVideoAgentSubmitRouteImport.update({
+  id: '/api/video-agent/submit',
+  path: '/api/video-agent/submit',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SoulGenerateVideoRoute = SoulGenerateVideoRouteImport.update({
+  id: '/video',
+  path: '/video',
+  getParentRoute: () => SoulGenerateRoute,
+} as any).lazy(() =>
+  import('./routes/soul.generate.video.lazy').then((d) => d.Route),
+)
+const ApiJobsIdStatusRoute = ApiJobsIdStatusRouteImport.update({
+  id: '/api/jobs/$id/status',
+  path: '/api/jobs/$id/status',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicCliVastRoute = ApiPublicCliVastRouteImport.update({
+  id: '/api/public/cli/vast',
+  path: '/api/public/cli/vast',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicGpuClaimRoute = ApiPublicGpuClaimRouteImport.update({
+  id: '/api/public/gpu/claim',
+  path: '/api/public/gpu/claim',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicGpuCompleteRoute = ApiPublicGpuCompleteRouteImport.update({
+  id: '/api/public/gpu/complete',
+  path: '/api/public/gpu/complete',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicGpuRegisterRoute = ApiPublicGpuRegisterRouteImport.update({
+  id: '/api/public/gpu/register',
+  path: '/api/public/gpu/register',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicJobsTickRoute = ApiPublicJobsTickRouteImport.update({
+  id: '/api/public/jobs/tick',
+  path: '/api/public/jobs/tick',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicPaymentsSweepStuckRoute =
+  ApiPublicPaymentsSweepStuckRouteImport.update({
+    id: '/api/public/payments/sweep-stuck',
+    path: '/api/public/payments/sweep-stuck',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicProAccessReconcileRoute =
+  ApiPublicProAccessReconcileRouteImport.update({
+    id: '/api/public/pro-access/reconcile',
+    path: '/api/public/pro-access/reconcile',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicPromotionSyncRoute = ApiPublicPromotionSyncRouteImport.update({
+  id: '/api/public/promotion/sync',
+  path: '/api/public/promotion/sync',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicTiktokCallbackRoute = ApiPublicTiktokCallbackRouteImport.update({
+  id: '/api/public/tiktok/callback',
+  path: '/api/public/tiktok/callback',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicVastAutoscaleRoute = ApiPublicVastAutoscaleRouteImport.update({
+  id: '/api/public/vast/autoscale',
+  path: '/api/public/vast/autoscale',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicVastExpireRoute = ApiPublicVastExpireRouteImport.update({
+  id: '/api/public/vast/expire',
+  path: '/api/public/vast/expire',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicWorkersHealthRoute = ApiPublicWorkersHealthRouteImport.update({
+  id: '/api/public/workers/health',
+  path: '/api/public/workers/health',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicWorkersProgressRoute =
+  ApiPublicWorkersProgressRouteImport.update({
+    id: '/api/public/workers/progress',
+    path: '/api/public/workers/progress',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicWorkersRegisterRoute =
+  ApiPublicWorkersRegisterRouteImport.update({
+    id: '/api/public/workers/register',
+    path: '/api/public/workers/register',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiVideoAgentStatusVideoIdRoute =
+  ApiVideoAgentStatusVideoIdRouteImport.update({
+    id: '/api/video-agent/status/$videoId',
+    path: '/api/video-agent/status/$videoId',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiAudioMasterIdStatusRoute = ApiAudioMasterIdStatusRouteImport.update({
+  id: '/$id/status',
+  path: '/$id/status',
+  getParentRoute: () => ApiAudioMasterRoute,
+} as any)
+const ApiPublicCliDevicePollRoute = ApiPublicCliDevicePollRouteImport.update({
+  id: '/api/public/cli/device/poll',
+  path: '/api/public/cli/device/poll',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicCliDeviceStartRoute = ApiPublicCliDeviceStartRouteImport.update({
+  id: '/api/public/cli/device/start',
+  path: '/api/public/cli/device/start',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicWorkersFilesNameRoute =
+  ApiPublicWorkersFilesNameRouteImport.update({
+    id: '/api/public/workers/files/$name',
+    path: '/api/public/workers/files/$name',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
-export const routeTree = routeTree
+export interface FileRoutesByFullPath {
+  '/': typeof IndexRoute
+  '/account': typeof AccountRoute
+  '/admin': typeof AdminRouteWithChildren
+  '/ads': typeof AdsRoute
+  '/adult': typeof AdultRoute
+  '/affiliate': typeof AffiliateRoute
+  '/agent': typeof AgentRoute
+  '/aurora-adult': typeof AuroraAdultRoute
+  '/aurora-baby-agent': typeof AuroraBabyAgentRoute
+  '/auth': typeof AuthRoute
+  '/avatar': typeof AvatarRoute
+  '/billing': typeof BillingRoute
+  '/canvas': typeof CanvasRoute
+  '/clips': typeof ClipsRoute
+  '/colors': typeof ColorsRoute
+  '/colors-show': typeof ColorsShowRoute
+  '/comfy': typeof ComfyRoute
+  '/connect': typeof ConnectRoute
+  '/contact': typeof ContactRoute
+  '/content': typeof ContentRoute
+  '/content-machine': typeof ContentMachineRoute
+  '/dashboard': typeof DashboardRoute
+  '/delete-account': typeof DeleteAccountRoute
+  '/director': typeof DirectorRoute
+  '/director-room': typeof DirectorRoomRoute
+  '/directors-board': typeof DirectorsBoardRoute
+  '/edit': typeof EditRoute
+  '/editor': typeof EditorRoute
+  '/eromify': typeof EromifyRoute
+  '/gallery': typeof GalleryRoute
+  '/gifts': typeof GiftsRoute
+  '/growth': typeof GrowthRoute
+  '/heygen-templates': typeof HeygenTemplatesRoute
+  '/home': typeof HomeRoute
+  '/jobs': typeof JobsRoute
+  '/kids': typeof KidsRoute
+  '/layers': typeof LayersRoute
+  '/likeness': typeof LikenessRoute
+  '/lipsync': typeof LipsyncRoute
+  '/live-studio': typeof LiveStudioRoute
+  '/marketplace': typeof MarketplaceRoute
+  '/mastering': typeof MasteringRoute
+  '/motion': typeof MotionRoute
+  '/music-video': typeof MusicVideoRoute
+  '/nexusarb': typeof NexusarbRoute
+  '/orchestrate': typeof OrchestrateRoute
+  '/partners': typeof PartnersRoute
+  '/perform': typeof PerformRoute
+  '/perform-anywhere': typeof PerformAnywhereRoute
+  '/photo-edit': typeof PhotoEditRoute
+  '/previs': typeof PrevisRoute
+  '/privacy': typeof PrivacyRoute
+  '/promotion': typeof PromotionRoute
+  '/puremix': typeof PuremixRoute
+  '/reset-password': typeof ResetPasswordRoute
+  '/reshoot': typeof ReshootRoute
+  '/roadmap': typeof RoadmapRoute
+  '/scene-builder': typeof SceneBuilderRoute
+  '/scene-weaver': typeof SceneWeaverRoute
+  '/seedance-motion': typeof SeedanceMotionRoute
+  '/settings': typeof SettingsRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/soul': typeof SoulRouteWithChildren
+  '/speech': typeof SpeechRoute
+  '/spin': typeof SpinRoute
+  '/split-reality': typeof SplitRealityRoute
+  '/storyboard': typeof StoryboardRoute
+  '/studio': typeof StudioRoute
+  '/templates': typeof TemplatesRoute
+  '/terms': typeof TermsRoute
+  '/tiktok': typeof TiktokRoute
+  '/tiktok-live': typeof TiktokLiveRoute
+  '/tools': typeof ToolsRoute
+  '/tutorial': typeof TutorialRoute
+  '/ugc': typeof UgcRoute
+  '/ugc-line': typeof UgcLineRoute
+  '/video-agent': typeof VideoAgentRoute
+  '/video-agent-edit': typeof VideoAgentEditRoute
+  '/video-agent-process': typeof VideoAgentProcessRoute
+  '/video-agent-studio': typeof VideoAgentStudioRoute
+  '/video-editor': typeof VideoEditorRoute
+  '/workflows': typeof WorkflowsRoute
+  '/beat-reel': typeof BeatReelLazyRoute
+  '/admin/assets': typeof AdminAssetsRoute
+  '/admin/comfy': typeof AdminComfyRoute
+  '/admin/costs': typeof AdminCostsRoute
+  '/admin/design': typeof AdminDesignRoute
+  '/admin/gpu': typeof AdminGpuRoute
+  '/admin/ledger': typeof AdminLedgerRoute
+  '/admin/models': typeof AdminModelsRoute
+  '/admin/orchestration': typeof AdminOrchestrationRoute
+  '/admin/site-images': typeof AdminSiteImagesRoute
+  '/admin/site-map': typeof AdminSiteMapRoute
+  '/admin/smoke': typeof AdminSmokeRoute
+  '/admin/social-studio': typeof AdminSocialStudioRoute
+  '/admin/templates': typeof AdminTemplatesRoute
+  '/admin/workflows': typeof AdminWorkflowsRoute
+  '/api/balance': typeof ApiBalanceRoute
+  '/api/content-agent': typeof ApiContentAgentRoute
+  '/api/estimate': typeof ApiEstimateRoute
+  '/api/health': typeof ApiHealthRoute
+  '/api/mcp': typeof ApiMcpRoute
+  '/api/modelark': typeof ApiModelarkRoute
+  '/api/ready': typeof ApiReadyRoute
+  '/cli/authorize': typeof CliAuthorizeRoute
+  '/creator/dashboard': typeof CreatorDashboardRoute
+  '/guides/$slug': typeof GuidesSlugRoute
+  '/legal/$slug': typeof LegalSlugRoute
+  '/r/$token': typeof RTokenRoute
+  '/soul/generate': typeof SoulGenerateRouteWithChildren
+  '/soul/library': typeof SoulLibraryRoute
+  '/soul/train': typeof SoulTrainRoute
+  '/soul/vibe': typeof SoulVibeRoute
+  '/admin/observability': typeof AdminObservabilityLazyRoute
+  '/cli/': typeof CliIndexRoute
+  '/guides/': typeof GuidesIndexRoute
+  '/admin/': typeof AdminIndexLazyRoute
+  '/api/admin/feature-visibility': typeof ApiAdminFeatureVisibilityRoute
+  '/api/admin/run-smoke-step14': typeof ApiAdminRunSmokeStep14Route
+  '/api/admin/upload-image': typeof ApiAdminUploadImageRoute
+  '/api/admin/upload-site-image': typeof ApiAdminUploadSiteImageRoute
+  '/api/admin/verify-passcode': typeof ApiAdminVerifyPasscodeRoute
+  '/api/adult-admin/generate': typeof ApiAdultAdminGenerateRoute
+  '/api/ai-gateway/flux-schnell': typeof ApiAiGatewayFluxSchnellRoute
+  '/api/ai-gateway/free-chat': typeof ApiAiGatewayFreeChatRoute
+  '/api/ai-gateway/laguna': typeof ApiAiGatewayLagunaRoute
+  '/api/ai-gateway/models': typeof ApiAiGatewayModelsRoute
+  '/api/audio/master': typeof ApiAudioMasterRouteWithChildren
+  '/api/audio/upload': typeof ApiAudioUploadRoute
+  '/api/directors-board/brain': typeof ApiDirectorsBoardBrainRoute
+  '/api/directors-board/chat': typeof ApiDirectorsBoardChatRoute
+  '/api/directors-board/generate-image': typeof ApiDirectorsBoardGenerateImageRoute
+  '/api/gemini/free': typeof ApiGeminiFreeRoute
+  '/api/motion/estimate-cost': typeof ApiMotionEstimateCostRoute
+  '/api/motion/jobs': typeof ApiMotionJobsRoute
+  '/api/motion/status': typeof ApiMotionStatusRoute
+  '/api/public/account-delete': typeof ApiPublicAccountDeleteRoute
+  '/api/public/check-api-balances': typeof ApiPublicCheckApiBalancesRoute
+  '/api/public/deletion-sweep': typeof ApiPublicDeletionSweepRoute
+  '/api/public/faststart-video': typeof ApiPublicFaststartVideoRoute
+  '/api/public/feature-visibility': typeof ApiPublicFeatureVisibilityRoute
+  '/api/public/free-daily-grant': typeof ApiPublicFreeDailyGrantRoute
+  '/api/public/free-monthly-grant': typeof ApiPublicFreeMonthlyGrantRoute
+  '/api/public/generate': typeof ApiPublicGenerateRoute
+  '/api/public/github-sync-monitor': typeof ApiPublicGithubSyncMonitorRoute
+  '/api/public/lifecycle-emails': typeof ApiPublicLifecycleEmailsRoute
+  '/api/public/model-watch': typeof ApiPublicModelWatchRoute
+  '/api/public/nowpayments-webhook': typeof ApiPublicNowpaymentsWebhookRoute
+  '/api/public/paystack-webhook': typeof ApiPublicPaystackWebhookRoute
+  '/api/public/perform': typeof ApiPublicPerformRoute
+  '/api/public/pricing': typeof ApiPublicPricingRoute
+  '/api/public/provider-health-check': typeof ApiPublicProviderHealthCheckRoute
+  '/api/public/site-copy': typeof ApiPublicSiteCopyRoute
+  '/api/public/site-images': typeof ApiPublicSiteImagesRoute
+  '/api/public/uptime-monitor': typeof ApiPublicUptimeMonitorRoute
+  '/api/public/viral-preview': typeof ApiPublicViralPreviewRoute
+  '/api/public/watchdog': typeof ApiPublicWatchdogRoute
+  '/api/public/watermark-image': typeof ApiPublicWatermarkImageRoute
+  '/api/public/watermark-video': typeof ApiPublicWatermarkVideoRoute
+  '/api/soul/fal-webhook': typeof ApiSoulFalWebhookRoute
+  '/api/ugc-line/images': typeof ApiUgcLineImagesRoute
+  '/api/ugc-line/scripts': typeof ApiUgcLineScriptsRoute
+  '/api/ugc-line/variations': typeof ApiUgcLineVariationsRoute
+  '/api/video-agent/enhance': typeof ApiVideoAgentEnhanceRoute
+  '/api/video-agent/finalize': typeof ApiVideoAgentFinalizeRoute
+  '/api/video-agent/generate': typeof ApiVideoAgentGenerateRoute
+  '/api/video-agent/generate-frame': typeof ApiVideoAgentGenerateFrameRoute
+  '/api/video-agent/generate-script': typeof ApiVideoAgentGenerateScriptRoute
+  '/api/video-agent/stream': typeof ApiVideoAgentStreamRoute
+  '/api/video-agent/submit': typeof ApiVideoAgentSubmitRoute
+  '/soul/generate/video': typeof SoulGenerateVideoRoute
+  '/api/jobs/$id/status': typeof ApiJobsIdStatusRoute
+  '/api/public/cli/vast': typeof ApiPublicCliVastRoute
+  '/api/public/gpu/claim': typeof ApiPublicGpuClaimRoute
+  '/api/public/gpu/complete': typeof ApiPublicGpuCompleteRoute
+  '/api/public/gpu/register': typeof ApiPublicGpuRegisterRoute
+  '/api/public/jobs/tick': typeof ApiPublicJobsTickRoute
+  '/api/public/payments/sweep-stuck': typeof ApiPublicPaymentsSweepStuckRoute
+  '/api/public/pro-access/reconcile': typeof ApiPublicProAccessReconcileRoute
+  '/api/public/promotion/sync': typeof ApiPublicPromotionSyncRoute
+  '/api/public/tiktok/callback': typeof ApiPublicTiktokCallbackRoute
+  '/api/public/vast/autoscale': typeof ApiPublicVastAutoscaleRoute
+  '/api/public/vast/expire': typeof ApiPublicVastExpireRoute
+  '/api/public/workers/health': typeof ApiPublicWorkersHealthRoute
+  '/api/public/workers/progress': typeof ApiPublicWorkersProgressRoute
+  '/api/public/workers/register': typeof ApiPublicWorkersRegisterRoute
+  '/api/video-agent/status/$videoId': typeof ApiVideoAgentStatusVideoIdRoute
+  '/api/audio/master/$id/status': typeof ApiAudioMasterIdStatusRoute
+  '/api/public/cli/device/poll': typeof ApiPublicCliDevicePollRoute
+  '/api/public/cli/device/start': typeof ApiPublicCliDeviceStartRoute
+  '/api/public/workers/files/$name': typeof ApiPublicWorkersFilesNameRoute
+}
+export interface FileRoutesByTo {
+  '/': typeof IndexRoute
+  '/account': typeof AccountRoute
+  '/ads': typeof AdsRoute
+  '/adult': typeof AdultRoute
+  '/affiliate': typeof AffiliateRoute
+  '/agent': typeof AgentRoute
+  '/aurora-adult': typeof AuroraAdultRoute
+  '/aurora-baby-agent': typeof AuroraBabyAgentRoute
+  '/auth': typeof AuthRoute
+  '/avatar': typeof AvatarRoute
+  '/billing': typeof BillingRoute
+  '/canvas': typeof CanvasRoute
+  '/clips': typeof ClipsRoute
+  '/colors': typeof ColorsRoute
+  '/colors-show': typeof ColorsShowRoute
+  '/comfy': typeof ComfyRoute
+  '/connect': typeof ConnectRoute
+  '/contact': typeof ContactRoute
+  '/content': typeof ContentRoute
+  '/content-machine': typeof ContentMachineRoute
+  '/dashboard': typeof DashboardRoute
+  '/delete-account': typeof DeleteAccountRoute
+  '/director': typeof DirectorRoute
+  '/director-room': typeof DirectorRoomRoute
+  '/directors-board': typeof DirectorsBoardRoute
+  '/edit': typeof EditRoute
+  '/editor': typeof EditorRoute
+  '/eromify': typeof EromifyRoute
+  '/gallery': typeof GalleryRoute
+  '/gifts': typeof GiftsRoute
+  '/growth': typeof GrowthRoute
+  '/heygen-templates': typeof HeygenTemplatesRoute
+  '/home': typeof HomeRoute
+  '/jobs': typeof JobsRoute
+  '/kids': typeof KidsRoute
+  '/layers': typeof LayersRoute
+  '/likeness': typeof LikenessRoute
+  '/lipsync': typeof LipsyncRoute
+  '/live-studio': typeof LiveStudioRoute
+  '/marketplace': typeof MarketplaceRoute
+  '/mastering': typeof MasteringRoute
+  '/motion': typeof MotionRoute
+  '/music-video': typeof MusicVideoRoute
+  '/nexusarb': typeof NexusarbRoute
+  '/orchestrate': typeof OrchestrateRoute
+  '/partners': typeof PartnersRoute
+  '/perform': typeof PerformRoute
+  '/perform-anywhere': typeof PerformAnywhereRoute
+  '/photo-edit': typeof PhotoEditRoute
+  '/previs': typeof PrevisRoute
+  '/privacy': typeof PrivacyRoute
+  '/promotion': typeof PromotionRoute
+  '/puremix': typeof PuremixRoute
+  '/reset-password': typeof ResetPasswordRoute
+  '/reshoot': typeof ReshootRoute
+  '/roadmap': typeof RoadmapRoute
+  '/scene-builder': typeof SceneBuilderRoute
+  '/scene-weaver': typeof SceneWeaverRoute
+  '/seedance-motion': typeof SeedanceMotionRoute
+  '/settings': typeof SettingsRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/soul': typeof SoulRouteWithChildren
+  '/speech': typeof SpeechRoute
+  '/spin': typeof SpinRoute
+  '/split-reality': typeof SplitRealityRoute
+  '/storyboard': typeof StoryboardRoute
+  '/studio': typeof StudioRoute
+  '/templates': typeof TemplatesRoute
+  '/terms': typeof TermsRoute
+  '/tiktok': typeof TiktokRoute
+  '/tiktok-live': typeof TiktokLiveRoute
+  '/tools': typeof ToolsRoute
+  '/tutorial': typeof TutorialRoute
+  '/ugc': typeof UgcRoute
+  '/ugc-line': typeof UgcLineRoute
+  '/video-agent': typeof VideoAgentRoute
+  '/video-agent-edit': typeof VideoAgentEditRoute
+  '/video-agent-process': typeof VideoAgentProcessRoute
+  '/video-agent-studio': typeof VideoAgentStudioRoute
+  '/video-editor': typeof VideoEditorRoute
+  '/workflows': typeof WorkflowsRoute
+  '/beat-reel': typeof BeatReelLazyRoute
+  '/admin/assets': typeof AdminAssetsRoute
+  '/admin/comfy': typeof AdminComfyRoute
+  '/admin/costs': typeof AdminCostsRoute
+  '/admin/design': typeof AdminDesignRoute
+  '/admin/gpu': typeof AdminGpuRoute
+  '/admin/ledger': typeof AdminLedgerRoute
+  '/admin/models': typeof AdminModelsRoute
+  '/admin/orchestration': typeof AdminOrchestrationRoute
+  '/admin/site-images': typeof AdminSiteImagesRoute
+  '/admin/site-map': typeof AdminSiteMapRoute
+  '/admin/smoke': typeof AdminSmokeRoute
+  '/admin/social-studio': typeof AdminSocialStudioRoute
+  '/admin/templates': typeof AdminTemplatesRoute
+  '/admin/workflows': typeof AdminWorkflowsRoute
+  '/api/balance': typeof ApiBalanceRoute
+  '/api/content-agent': typeof ApiContentAgentRoute
+  '/api/estimate': typeof ApiEstimateRoute
+  '/api/health': typeof ApiHealthRoute
+  '/api/mcp': typeof ApiMcpRoute
+  '/api/modelark': typeof ApiModelarkRoute
+  '/api/ready': typeof ApiReadyRoute
+  '/cli/authorize': typeof CliAuthorizeRoute
+  '/creator/dashboard': typeof CreatorDashboardRoute
+  '/guides/$slug': typeof GuidesSlugRoute
+  '/legal/$slug': typeof LegalSlugRoute
+  '/r/$token': typeof RTokenRoute
+  '/soul/generate': typeof SoulGenerateRouteWithChildren
+  '/soul/library': typeof SoulLibraryRoute
+  '/soul/train': typeof SoulTrainRoute
+  '/soul/vibe': typeof SoulVibeRoute
+  '/admin/observability': typeof AdminObservabilityLazyRoute
+  '/cli': typeof CliIndexRoute
+  '/guides': typeof GuidesIndexRoute
+  '/admin': typeof AdminIndexLazyRoute
+  '/api/admin/feature-visibility': typeof ApiAdminFeatureVisibilityRoute
+  '/api/admin/run-smoke-step14': typeof ApiAdminRunSmokeStep14Route
+  '/api/admin/upload-image': typeof ApiAdminUploadImageRoute
+  '/api/admin/upload-site-image': typeof ApiAdminUploadSiteImageRoute
+  '/api/admin/verify-passcode': typeof ApiAdminVerifyPasscodeRoute
+  '/api/adult-admin/generate': typeof ApiAdultAdminGenerateRoute
+  '/api/ai-gateway/flux-schnell': typeof ApiAiGatewayFluxSchnellRoute
+  '/api/ai-gateway/free-chat': typeof ApiAiGatewayFreeChatRoute
+  '/api/ai-gateway/laguna': typeof ApiAiGatewayLagunaRoute
+  '/api/ai-gateway/models': typeof ApiAiGatewayModelsRoute
+  '/api/audio/master': typeof ApiAudioMasterRouteWithChildren
+  '/api/audio/upload': typeof ApiAudioUploadRoute
+  '/api/directors-board/brain': typeof ApiDirectorsBoardBrainRoute
+  '/api/directors-board/chat': typeof ApiDirectorsBoardChatRoute
+  '/api/directors-board/generate-image': typeof ApiDirectorsBoardGenerateImageRoute
+  '/api/gemini/free': typeof ApiGeminiFreeRoute
+  '/api/motion/estimate-cost': typeof ApiMotionEstimateCostRoute
+  '/api/motion/jobs': typeof ApiMotionJobsRoute
+  '/api/motion/status': typeof ApiMotionStatusRoute
+  '/api/public/account-delete': typeof ApiPublicAccountDeleteRoute
+  '/api/public/check-api-balances': typeof ApiPublicCheckApiBalancesRoute
+  '/api/public/deletion-sweep': typeof ApiPublicDeletionSweepRoute
+  '/api/public/faststart-video': typeof ApiPublicFaststartVideoRoute
+  '/api/public/feature-visibility': typeof ApiPublicFeatureVisibilityRoute
+  '/api/public/free-daily-grant': typeof ApiPublicFreeDailyGrantRoute
+  '/api/public/free-monthly-grant': typeof ApiPublicFreeMonthlyGrantRoute
+  '/api/public/generate': typeof ApiPublicGenerateRoute
+  '/api/public/github-sync-monitor': typeof ApiPublicGithubSyncMonitorRoute
+  '/api/public/lifecycle-emails': typeof ApiPublicLifecycleEmailsRoute
+  '/api/public/model-watch': typeof ApiPublicModelWatchRoute
+  '/api/public/nowpayments-webhook': typeof ApiPublicNowpaymentsWebhookRoute
+  '/api/public/paystack-webhook': typeof ApiPublicPaystackWebhookRoute
+  '/api/public/perform': typeof ApiPublicPerformRoute
+  '/api/public/pricing': typeof ApiPublicPricingRoute
+  '/api/public/provider-health-check': typeof ApiPublicProviderHealthCheckRoute
+  '/api/public/site-copy': typeof ApiPublicSiteCopyRoute
+  '/api/public/site-images': typeof ApiPublicSiteImagesRoute
+  '/api/public/uptime-monitor': typeof ApiPublicUptimeMonitorRoute
+  '/api/public/viral-preview': typeof ApiPublicViralPreviewRoute
+  '/api/public/watchdog': typeof ApiPublicWatchdogRoute
+  '/api/public/watermark-image': typeof ApiPublicWatermarkImageRoute
+  '/api/public/watermark-video': typeof ApiPublicWatermarkVideoRoute
+  '/api/soul/fal-webhook': typeof ApiSoulFalWebhookRoute
+  '/api/ugc-line/images': typeof ApiUgcLineImagesRoute
+  '/api/ugc-line/scripts': typeof ApiUgcLineScriptsRoute
+  '/api/ugc-line/variations': typeof ApiUgcLineVariationsRoute
+  '/api/video-agent/enhance': typeof ApiVideoAgentEnhanceRoute
+  '/api/video-agent/finalize': typeof ApiVideoAgentFinalizeRoute
+  '/api/video-agent/generate': typeof ApiVideoAgentGenerateRoute
+  '/api/video-agent/generate-frame': typeof ApiVideoAgentGenerateFrameRoute
+  '/api/video-agent/generate-script': typeof ApiVideoAgentGenerateScriptRoute
+  '/api/video-agent/stream': typeof ApiVideoAgentStreamRoute
+  '/api/video-agent/submit': typeof ApiVideoAgentSubmitRoute
+  '/soul/generate/video': typeof SoulGenerateVideoRoute
+  '/api/jobs/$id/status': typeof ApiJobsIdStatusRoute
+  '/api/public/cli/vast': typeof ApiPublicCliVastRoute
+  '/api/public/gpu/claim': typeof ApiPublicGpuClaimRoute
+  '/api/public/gpu/complete': typeof ApiPublicGpuCompleteRoute
+  '/api/public/gpu/register': typeof ApiPublicGpuRegisterRoute
+  '/api/public/jobs/tick': typeof ApiPublicJobsTickRoute
+  '/api/public/payments/sweep-stuck': typeof ApiPublicPaymentsSweepStuckRoute
+  '/api/public/pro-access/reconcile': typeof ApiPublicProAccessReconcileRoute
+  '/api/public/promotion/sync': typeof ApiPublicPromotionSyncRoute
+  '/api/public/tiktok/callback': typeof ApiPublicTiktokCallbackRoute
+  '/api/public/vast/autoscale': typeof ApiPublicVastAutoscaleRoute
+  '/api/public/vast/expire': typeof ApiPublicVastExpireRoute
+  '/api/public/workers/health': typeof ApiPublicWorkersHealthRoute
+  '/api/public/workers/progress': typeof ApiPublicWorkersProgressRoute
+  '/api/public/workers/register': typeof ApiPublicWorkersRegisterRoute
+  '/api/video-agent/status/$videoId': typeof ApiVideoAgentStatusVideoIdRoute
+  '/api/audio/master/$id/status': typeof ApiAudioMasterIdStatusRoute
+  '/api/public/cli/device/poll': typeof ApiPublicCliDevicePollRoute
+  '/api/public/cli/device/start': typeof ApiPublicCliDeviceStartRoute
+  '/api/public/workers/files/$name': typeof ApiPublicWorkersFilesNameRoute
+}
+export interface FileRoutesById {
+  __root__: typeof rootRouteImport
+  '/': typeof IndexRoute
+  '/account': typeof AccountRoute
+  '/admin': typeof AdminRouteWithChildren
+  '/ads': typeof AdsRoute
+  '/adult': typeof AdultRoute
+  '/affiliate': typeof AffiliateRoute
+  '/agent': typeof AgentRoute
+  '/aurora-adult': typeof AuroraAdultRoute
+  '/aurora-baby-agent': typeof AuroraBabyAgentRoute
+  '/auth': typeof AuthRoute
+  '/avatar': typeof AvatarRoute
+  '/billing': typeof BillingRoute
+  '/canvas': typeof CanvasRoute
+  '/clips': typeof ClipsRoute
+  '/colors': typeof ColorsRoute
+  '/colors-show': typeof ColorsShowRoute
+  '/comfy': typeof ComfyRoute
+  '/connect': typeof ConnectRoute
+  '/contact': typeof ContactRoute
+  '/content': typeof ContentRoute
+  '/content-machine': typeof ContentMachineRoute
+  '/dashboard': typeof DashboardRoute
+  '/delete-account': typeof DeleteAccountRoute
+  '/director': typeof DirectorRoute
+  '/director-room': typeof DirectorRoomRoute
+  '/directors-board': typeof DirectorsBoardRoute
+  '/edit': typeof EditRoute
+  '/editor': typeof EditorRoute
+  '/eromify': typeof EromifyRoute
+  '/gallery': typeof GalleryRoute
+  '/gifts': typeof GiftsRoute
+  '/growth': typeof GrowthRoute
+  '/heygen-templates': typeof HeygenTemplatesRoute
+  '/home': typeof HomeRoute
+  '/jobs': typeof JobsRoute
+  '/kids': typeof KidsRoute
+  '/layers': typeof LayersRoute
+  '/likeness': typeof LikenessRoute
+  '/lipsync': typeof LipsyncRoute
+  '/live-studio': typeof LiveStudioRoute
+  '/marketplace': typeof MarketplaceRoute
+  '/mastering': typeof MasteringRoute
+  '/motion': typeof MotionRoute
+  '/music-video': typeof MusicVideoRoute
+  '/nexusarb': typeof NexusarbRoute
+  '/orchestrate': typeof OrchestrateRoute
+  '/partners': typeof PartnersRoute
+  '/perform': typeof PerformRoute
+  '/perform-anywhere': typeof PerformAnywhereRoute
+  '/photo-edit': typeof PhotoEditRoute
+  '/previs': typeof PrevisRoute
+  '/privacy': typeof PrivacyRoute
+  '/promotion': typeof PromotionRoute
+  '/puremix': typeof PuremixRoute
+  '/reset-password': typeof ResetPasswordRoute
+  '/reshoot': typeof ReshootRoute
+  '/roadmap': typeof RoadmapRoute
+  '/scene-builder': typeof SceneBuilderRoute
+  '/scene-weaver': typeof SceneWeaverRoute
+  '/seedance-motion': typeof SeedanceMotionRoute
+  '/settings': typeof SettingsRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/soul': typeof SoulRouteWithChildren
+  '/speech': typeof SpeechRoute
+  '/spin': typeof SpinRoute
+  '/split-reality': typeof SplitRealityRoute
+  '/storyboard': typeof StoryboardRoute
+  '/studio': typeof StudioRoute
+  '/templates': typeof TemplatesRoute
+  '/terms': typeof TermsRoute
+  '/tiktok': typeof TiktokRoute
+  '/tiktok-live': typeof TiktokLiveRoute
+  '/tools': typeof ToolsRoute
+  '/tutorial': typeof TutorialRoute
+  '/ugc': typeof UgcRoute
+  '/ugc-line': typeof UgcLineRoute
+  '/video-agent': typeof VideoAgentRoute
+  '/video-agent-edit': typeof VideoAgentEditRoute
+  '/video-agent-process': typeof VideoAgentProcessRoute
+  '/video-agent-studio': typeof VideoAgentStudioRoute
+  '/video-editor': typeof VideoEditorRoute
+  '/workflows': typeof WorkflowsRoute
+  '/beat-reel': typeof BeatReelLazyRoute
+  '/admin/assets': typeof AdminAssetsRoute
+  '/admin/comfy': typeof AdminComfyRoute
+  '/admin/costs': typeof AdminCostsRoute
+  '/admin/design': typeof AdminDesignRoute
+  '/admin/gpu': typeof AdminGpuRoute
+  '/admin/ledger': typeof AdminLedgerRoute
+  '/admin/models': typeof AdminModelsRoute
+  '/admin/orchestration': typeof AdminOrchestrationRoute
+  '/admin/site-images': typeof AdminSiteImagesRoute
+  '/admin/site-map': typeof AdminSiteMapRoute
+  '/admin/smoke': typeof AdminSmokeRoute
+  '/admin/social-studio': typeof AdminSocialStudioRoute
+  '/admin/templates': typeof AdminTemplatesRoute
+  '/admin/workflows': typeof AdminWorkflowsRoute
+  '/api/balance': typeof ApiBalanceRoute
+  '/api/content-agent': typeof ApiContentAgentRoute
+  '/api/estimate': typeof ApiEstimateRoute
+  '/api/health': typeof ApiHealthRoute
+  '/api/mcp': typeof ApiMcpRoute
+  '/api/modelark': typeof ApiModelarkRoute
+  '/api/ready': typeof ApiReadyRoute
+  '/cli/authorize': typeof CliAuthorizeRoute
+  '/creator/dashboard': typeof CreatorDashboardRoute
+  '/guides/$slug': typeof GuidesSlugRoute
+  '/legal/$slug': typeof LegalSlugRoute
+  '/r/$token': typeof RTokenRoute
+  '/soul/generate': typeof SoulGenerateRouteWithChildren
+  '/soul/library': typeof SoulLibraryRoute
+  '/soul/train': typeof SoulTrainRoute
+  '/soul/vibe': typeof SoulVibeRoute
+  '/admin/observability': typeof AdminObservabilityLazyRoute
+  '/cli/': typeof CliIndexRoute
+  '/guides/': typeof GuidesIndexRoute
+  '/admin/': typeof AdminIndexLazyRoute
+  '/api/admin/feature-visibility': typeof ApiAdminFeatureVisibilityRoute
+  '/api/admin/run-smoke-step14': typeof ApiAdminRunSmokeStep14Route
+  '/api/admin/upload-image': typeof ApiAdminUploadImageRoute
+  '/api/admin/upload-site-image': typeof ApiAdminUploadSiteImageRoute
+  '/api/admin/verify-passcode': typeof ApiAdminVerifyPasscodeRoute
+  '/api/adult-admin/generate': typeof ApiAdultAdminGenerateRoute
+  '/api/ai-gateway/flux-schnell': typeof ApiAiGatewayFluxSchnellRoute
+  '/api/ai-gateway/free-chat': typeof ApiAiGatewayFreeChatRoute
+  '/api/ai-gateway/laguna': typeof ApiAiGatewayLagunaRoute
+  '/api/ai-gateway/models': typeof ApiAiGatewayModelsRoute
+  '/api/audio/master': typeof ApiAudioMasterRouteWithChildren
+  '/api/audio/upload': typeof ApiAudioUploadRoute
+  '/api/directors-board/brain': typeof ApiDirectorsBoardBrainRoute
+  '/api/directors-board/chat': typeof ApiDirectorsBoardChatRoute
+  '/api/directors-board/generate-image': typeof ApiDirectorsBoardGenerateImageRoute
+  '/api/gemini/free': typeof ApiGeminiFreeRoute
+  '/api/motion/estimate-cost': typeof ApiMotionEstimateCostRoute
+  '/api/motion/jobs': typeof ApiMotionJobsRoute
+  '/api/motion/status': typeof ApiMotionStatusRoute
+  '/api/public/account-delete': typeof ApiPublicAccountDeleteRoute
+  '/api/public/check-api-balances': typeof ApiPublicCheckApiBalancesRoute
+  '/api/public/deletion-sweep': typeof ApiPublicDeletionSweepRoute
+  '/api/public/faststart-video': typeof ApiPublicFaststartVideoRoute
+  '/api/public/feature-visibility': typeof ApiPublicFeatureVisibilityRoute
+  '/api/public/free-daily-grant': typeof ApiPublicFreeDailyGrantRoute
+  '/api/public/free-monthly-grant': typeof ApiPublicFreeMonthlyGrantRoute
+  '/api/public/generate': typeof ApiPublicGenerateRoute
+  '/api/public/github-sync-monitor': typeof ApiPublicGithubSyncMonitorRoute
+  '/api/public/lifecycle-emails': typeof ApiPublicLifecycleEmailsRoute
+  '/api/public/model-watch': typeof ApiPublicModelWatchRoute
+  '/api/public/nowpayments-webhook': typeof ApiPublicNowpaymentsWebhookRoute
+  '/api/public/paystack-webhook': typeof ApiPublicPaystackWebhookRoute
+  '/api/public/perform': typeof ApiPublicPerformRoute
+  '/api/public/pricing': typeof ApiPublicPricingRoute
+  '/api/public/provider-health-check': typeof ApiPublicProviderHealthCheckRoute
+  '/api/public/site-copy': typeof ApiPublicSiteCopyRoute
+  '/api/public/site-images': typeof ApiPublicSiteImagesRoute
+  '/api/public/uptime-monitor': typeof ApiPublicUptimeMonitorRoute
+  '/api/public/viral-preview': typeof ApiPublicViralPreviewRoute
+  '/api/public/watchdog': typeof ApiPublicWatchdogRoute
+  '/api/public/watermark-image': typeof ApiPublicWatermarkImageRoute
+  '/api/public/watermark-video': typeof ApiPublicWatermarkVideoRoute
+  '/api/soul/fal-webhook': typeof ApiSoulFalWebhookRoute
+  '/api/ugc-line/images': typeof ApiUgcLineImagesRoute
+  '/api/ugc-line/scripts': typeof ApiUgcLineScriptsRoute
+  '/api/ugc-line/variations': typeof ApiUgcLineVariationsRoute
+  '/api/video-agent/enhance': typeof ApiVideoAgentEnhanceRoute
+  '/api/video-agent/finalize': typeof ApiVideoAgentFinalizeRoute
+  '/api/video-agent/generate': typeof ApiVideoAgentGenerateRoute
+  '/api/video-agent/generate-frame': typeof ApiVideoAgentGenerateFrameRoute
+  '/api/video-agent/generate-script': typeof ApiVideoAgentGenerateScriptRoute
+  '/api/video-agent/stream': typeof ApiVideoAgentStreamRoute
+  '/api/video-agent/submit': typeof ApiVideoAgentSubmitRoute
+  '/soul/generate/video': typeof SoulGenerateVideoRoute
+  '/api/jobs/$id/status': typeof ApiJobsIdStatusRoute
+  '/api/public/cli/vast': typeof ApiPublicCliVastRoute
+  '/api/public/gpu/claim': typeof ApiPublicGpuClaimRoute
+  '/api/public/gpu/complete': typeof ApiPublicGpuCompleteRoute
+  '/api/public/gpu/register': typeof ApiPublicGpuRegisterRoute
+  '/api/public/jobs/tick': typeof ApiPublicJobsTickRoute
+  '/api/public/payments/sweep-stuck': typeof ApiPublicPaymentsSweepStuckRoute
+  '/api/public/pro-access/reconcile': typeof ApiPublicProAccessReconcileRoute
+  '/api/public/promotion/sync': typeof ApiPublicPromotionSyncRoute
+  '/api/public/tiktok/callback': typeof ApiPublicTiktokCallbackRoute
+  '/api/public/vast/autoscale': typeof ApiPublicVastAutoscaleRoute
+  '/api/public/vast/expire': typeof ApiPublicVastExpireRoute
+  '/api/public/workers/health': typeof ApiPublicWorkersHealthRoute
+  '/api/public/workers/progress': typeof ApiPublicWorkersProgressRoute
+  '/api/public/workers/register': typeof ApiPublicWorkersRegisterRoute
+  '/api/video-agent/status/$videoId': typeof ApiVideoAgentStatusVideoIdRoute
+  '/api/audio/master/$id/status': typeof ApiAudioMasterIdStatusRoute
+  '/api/public/cli/device/poll': typeof ApiPublicCliDevicePollRoute
+  '/api/public/cli/device/start': typeof ApiPublicCliDeviceStartRoute
+  '/api/public/workers/files/$name': typeof ApiPublicWorkersFilesNameRoute
+}
+export interface FileRouteTypes {
+  fileRoutesByFullPath: FileRoutesByFullPath
+  fullPaths:
+    | '/'
+    | '/account'
+    | '/admin'
+    | '/ads'
+    | '/adult'
+    | '/affiliate'
+    | '/agent'
+    | '/aurora-adult'
+    | '/aurora-baby-agent'
+    | '/auth'
+    | '/avatar'
+    | '/billing'
+    | '/canvas'
+    | '/clips'
+    | '/colors'
+    | '/colors-show'
+    | '/comfy'
+    | '/connect'
+    | '/contact'
+    | '/content'
+    | '/content-machine'
+    | '/dashboard'
+    | '/delete-account'
+    | '/director'
+    | '/director-room'
+    | '/directors-board'
+    | '/edit'
+    | '/editor'
+    | '/eromify'
+    | '/gallery'
+    | '/gifts'
+    | '/growth'
+    | '/heygen-templates'
+    | '/home'
+    | '/jobs'
+    | '/kids'
+    | '/layers'
+    | '/likeness'
+    | '/lipsync'
+    | '/live-studio'
+    | '/marketplace'
+    | '/mastering'
+    | '/motion'
+    | '/music-video'
+    | '/nexusarb'
+    | '/orchestrate'
+    | '/partners'
+    | '/perform'
+    | '/perform-anywhere'
+    | '/photo-edit'
+    | '/previs'
+    | '/privacy'
+    | '/promotion'
+    | '/puremix'
+    | '/reset-password'
+    | '/reshoot'
+    | '/roadmap'
+    | '/scene-builder'
+    | '/scene-weaver'
+    | '/seedance-motion'
+    | '/settings'
+    | '/sitemap.xml'
+    | '/soul'
+    | '/speech'
+    | '/spin'
+    | '/split-reality'
+    | '/storyboard'
+    | '/studio'
+    | '/templates'
+    | '/terms'
+    | '/tiktok'
+    | '/tiktok-live'
+    | '/tools'
+    | '/tutorial'
+    | '/ugc'
+    | '/ugc-line'
+    | '/video-agent'
+    | '/video-agent-edit'
+    | '/video-agent-process'
+    | '/video-agent-studio'
+    | '/video-editor'
+    | '/workflows'
+    | '/beat-reel'
+    | '/admin/assets'
+    | '/admin/comfy'
+    | '/admin/costs'
+    | '/admin/design'
+    | '/admin/gpu'
+    | '/admin/ledger'
+    | '/admin/models'
+    | '/admin/orchestration'
+    | '/admin/site-images'
+    | '/admin/site-map'
+    | '/admin/smoke'
+    | '/admin/social-studio'
+    | '/admin/templates'
+    | '/admin/workflows'
+    | '/api/balance'
+    | '/api/content-agent'
+    | '/api/estimate'
+    | '/api/health'
+    | '/api/mcp'
+    | '/api/modelark'
+    | '/api/ready'
+    | '/cli/authorize'
+    | '/creator/dashboard'
+    | '/guides/$slug'
+    | '/legal/$slug'
+    | '/r/$token'
+    | '/soul/generate'
+    | '/soul/library'
+    | '/soul/train'
+    | '/soul/vibe'
+    | '/admin/observability'
+    | '/cli/'
+    | '/guides/'
+    | '/admin/'
+    | '/api/admin/feature-visibility'
+    | '/api/admin/run-smoke-step14'
+    | '/api/admin/upload-image'
+    | '/api/admin/upload-site-image'
+    | '/api/admin/verify-passcode'
+    | '/api/adult-admin/generate'
+    | '/api/ai-gateway/flux-schnell'
+    | '/api/ai-gateway/free-chat'
+    | '/api/ai-gateway/laguna'
+    | '/api/ai-gateway/models'
+    | '/api/audio/master'
+    | '/api/audio/upload'
+    | '/api/directors-board/brain'
+    | '/api/directors-board/chat'
+    | '/api/directors-board/generate-image'
+    | '/api/gemini/free'
+    | '/api/motion/estimate-cost'
+    | '/api/motion/jobs'
+    | '/api/motion/status'
+    | '/api/public/account-delete'
+    | '/api/public/check-api-balances'
+    | '/api/public/deletion-sweep'
+    | '/api/public/faststart-video'
+    | '/api/public/feature-visibility'
+    | '/api/public/free-daily-grant'
+    | '/api/public/free-monthly-grant'
+    | '/api/public/generate'
+    | '/api/public/github-sync-monitor'
+    | '/api/public/lifecycle-emails'
+    | '/api/public/model-watch'
+    | '/api/public/nowpayments-webhook'
+    | '/api/public/paystack-webhook'
+    | '/api/public/perform'
+    | '/api/public/pricing'
+    | '/api/public/provider-health-check'
+    | '/api/public/site-copy'
+    | '/api/public/site-images'
+    | '/api/public/uptime-monitor'
+    | '/api/public/viral-preview'
+    | '/api/public/watchdog'
+    | '/api/public/watermark-image'
+    | '/api/public/watermark-video'
+    | '/api/soul/fal-webhook'
+    | '/api/ugc-line/images'
+    | '/api/ugc-line/scripts'
+    | '/api/ugc-line/variations'
+    | '/api/video-agent/enhance'
+    | '/api/video-agent/finalize'
+    | '/api/video-agent/generate'
+    | '/api/video-agent/generate-frame'
+    | '/api/video-agent/generate-script'
+    | '/api/video-agent/stream'
+    | '/api/video-agent/submit'
+    | '/soul/generate/video'
+    | '/api/jobs/$id/status'
+    | '/api/public/cli/vast'
+    | '/api/public/gpu/claim'
+    | '/api/public/gpu/complete'
+    | '/api/public/gpu/register'
+    | '/api/public/jobs/tick'
+    | '/api/public/payments/sweep-stuck'
+    | '/api/public/pro-access/reconcile'
+    | '/api/public/promotion/sync'
+    | '/api/public/tiktok/callback'
+    | '/api/public/vast/autoscale'
+    | '/api/public/vast/expire'
+    | '/api/public/workers/health'
+    | '/api/public/workers/progress'
+    | '/api/public/workers/register'
+    | '/api/video-agent/status/$videoId'
+    | '/api/audio/master/$id/status'
+    | '/api/public/cli/device/poll'
+    | '/api/public/cli/device/start'
+    | '/api/public/workers/files/$name'
+  fileRoutesByTo: FileRoutesByTo
+  to:
+    | '/'
+    | '/account'
+    | '/ads'
+    | '/adult'
+    | '/affiliate'
+    | '/agent'
+    | '/aurora-adult'
+    | '/aurora-baby-agent'
+    | '/auth'
+    | '/avatar'
+    | '/billing'
+    | '/canvas'
+    | '/clips'
+    | '/colors'
+    | '/colors-show'
+    | '/comfy'
+    | '/connect'
+    | '/contact'
+    | '/content'
+    | '/content-machine'
+    | '/dashboard'
+    | '/delete-account'
+    | '/director'
+    | '/director-room'
+    | '/directors-board'
+    | '/edit'
+    | '/editor'
+    | '/eromify'
+    | '/gallery'
+    | '/gifts'
+    | '/growth'
+    | '/heygen-templates'
+    | '/home'
+    | '/jobs'
+    | '/kids'
+    | '/layers'
+    | '/likeness'
+    | '/lipsync'
+    | '/live-studio'
+    | '/marketplace'
+    | '/mastering'
+    | '/motion'
+    | '/music-video'
+    | '/nexusarb'
+    | '/orchestrate'
+    | '/partners'
+    | '/perform'
+    | '/perform-anywhere'
+    | '/photo-edit'
+    | '/previs'
+    | '/privacy'
+    | '/promotion'
+    | '/puremix'
+    | '/reset-password'
+    | '/reshoot'
+    | '/roadmap'
+    | '/scene-builder'
+    | '/scene-weaver'
+    | '/seedance-motion'
+    | '/settings'
+    | '/sitemap.xml'
+    | '/soul'
+    | '/speech'
+    | '/spin'
+    | '/split-reality'
+    | '/storyboard'
+    | '/studio'
+    | '/templates'
+    | '/terms'
+    | '/tiktok'
+    | '/tiktok-live'
+    | '/tools'
+    | '/tutorial'
+    | '/ugc'
+    | '/ugc-line'
+    | '/video-agent'
+    | '/video-agent-edit'
+    | '/video-agent-process'
+    | '/video-agent-studio'
+    | '/video-editor'
+    | '/workflows'
+    | '/beat-reel'
+    | '/admin/assets'
+    | '/admin/comfy'
+    | '/admin/costs'
+    | '/admin/design'
+    | '/admin/gpu'
+    | '/admin/ledger'
+    | '/admin/models'
+    | '/admin/orchestration'
+    | '/admin/site-images'
+    | '/admin/site-map'
+    | '/admin/smoke'
+    | '/admin/social-studio'
+    | '/admin/templates'
+    | '/admin/workflows'
+    | '/api/balance'
+    | '/api/content-agent'
+    | '/api/estimate'
+    | '/api/health'
+    | '/api/mcp'
+    | '/api/modelark'
+    | '/api/ready'
+    | '/cli/authorize'
+    | '/creator/dashboard'
+    | '/guides/$slug'
+    | '/legal/$slug'
+    | '/r/$token'
+    | '/soul/generate'
+    | '/soul/library'
+    | '/soul/train'
+    | '/soul/vibe'
+    | '/admin/observability'
+    | '/cli'
+    | '/guides'
+    | '/admin'
+    | '/api/admin/feature-visibility'
+    | '/api/admin/run-smoke-step14'
+    | '/api/admin/upload-image'
+    | '/api/admin/upload-site-image'
+    | '/api/admin/verify-passcode'
+    | '/api/adult-admin/generate'
+    | '/api/ai-gateway/flux-schnell'
+    | '/api/ai-gateway/free-chat'
+    | '/api/ai-gateway/laguna'
+    | '/api/ai-gateway/models'
+    | '/api/audio/master'
+    | '/api/audio/upload'
+    | '/api/directors-board/brain'
+    | '/api/directors-board/chat'
+    | '/api/directors-board/generate-image'
+    | '/api/gemini/free'
+    | '/api/motion/estimate-cost'
+    | '/api/motion/jobs'
+    | '/api/motion/status'
+    | '/api/public/account-delete'
+    | '/api/public/check-api-balances'
+    | '/api/public/deletion-sweep'
+    | '/api/public/faststart-video'
+    | '/api/public/feature-visibility'
+    | '/api/public/free-daily-grant'
+    | '/api/public/free-monthly-grant'
+    | '/api/public/generate'
+    | '/api/public/github-sync-monitor'
+    | '/api/public/lifecycle-emails'
+    | '/api/public/model-watch'
+    | '/api/public/nowpayments-webhook'
+    | '/api/public/paystack-webhook'
+    | '/api/public/perform'
+    | '/api/public/pricing'
+    | '/api/public/provider-health-check'
+    | '/api/public/site-copy'
+    | '/api/public/site-images'
+    | '/api/public/uptime-monitor'
+    | '/api/public/viral-preview'
+    | '/api/public/watchdog'
+    | '/api/public/watermark-image'
+    | '/api/public/watermark-video'
+    | '/api/soul/fal-webhook'
+    | '/api/ugc-line/images'
+    | '/api/ugc-line/scripts'
+    | '/api/ugc-line/variations'
+    | '/api/video-agent/enhance'
+    | '/api/video-agent/finalize'
+    | '/api/video-agent/generate'
+    | '/api/video-agent/generate-frame'
+    | '/api/video-agent/generate-script'
+    | '/api/video-agent/stream'
+    | '/api/video-agent/submit'
+    | '/soul/generate/video'
+    | '/api/jobs/$id/status'
+    | '/api/public/cli/vast'
+    | '/api/public/gpu/claim'
+    | '/api/public/gpu/complete'
+    | '/api/public/gpu/register'
+    | '/api/public/jobs/tick'
+    | '/api/public/payments/sweep-stuck'
+    | '/api/public/pro-access/reconcile'
+    | '/api/public/promotion/sync'
+    | '/api/public/tiktok/callback'
+    | '/api/public/vast/autoscale'
+    | '/api/public/vast/expire'
+    | '/api/public/workers/health'
+    | '/api/public/workers/progress'
+    | '/api/public/workers/register'
+    | '/api/video-agent/status/$videoId'
+    | '/api/audio/master/$id/status'
+    | '/api/public/cli/device/poll'
+    | '/api/public/cli/device/start'
+    | '/api/public/workers/files/$name'
+  id:
+    | '__root__'
+    | '/'
+    | '/account'
+    | '/admin'
+    | '/ads'
+    | '/adult'
+    | '/affiliate'
+    | '/agent'
+    | '/aurora-adult'
+    | '/aurora-baby-agent'
+    | '/auth'
+    | '/avatar'
+    | '/billing'
+    | '/canvas'
+    | '/clips'
+    | '/colors'
+    | '/colors-show'
+    | '/comfy'
+    | '/connect'
+    | '/contact'
+    | '/content'
+    | '/content-machine'
+    | '/dashboard'
+    | '/delete-account'
+    | '/director'
+    | '/director-room'
+    | '/directors-board'
+    | '/edit'
+    | '/editor'
+    | '/eromify'
+    | '/gallery'
+    | '/gifts'
+    | '/growth'
+    | '/heygen-templates'
+    | '/home'
+    | '/jobs'
+    | '/kids'
+    | '/layers'
+    | '/likeness'
+    | '/lipsync'
+    | '/live-studio'
+    | '/marketplace'
+    | '/mastering'
+    | '/motion'
+    | '/music-video'
+    | '/nexusarb'
+    | '/orchestrate'
+    | '/partners'
+    | '/perform'
+    | '/perform-anywhere'
+    | '/photo-edit'
+    | '/previs'
+    | '/privacy'
+    | '/promotion'
+    | '/puremix'
+    | '/reset-password'
+    | '/reshoot'
+    | '/roadmap'
+    | '/scene-builder'
+    | '/scene-weaver'
+    | '/seedance-motion'
+    | '/settings'
+    | '/sitemap.xml'
+    | '/soul'
+    | '/speech'
+    | '/spin'
+    | '/split-reality'
+    | '/storyboard'
+    | '/studio'
+    | '/templates'
+    | '/terms'
+    | '/tiktok'
+    | '/tiktok-live'
+    | '/tools'
+    | '/tutorial'
+    | '/ugc'
+    | '/ugc-line'
+    | '/video-agent'
+    | '/video-agent-edit'
+    | '/video-agent-process'
+    | '/video-agent-studio'
+    | '/video-editor'
+    | '/workflows'
+    | '/beat-reel'
+    | '/admin/assets'
+    | '/admin/comfy'
+    | '/admin/costs'
+    | '/admin/design'
+    | '/admin/gpu'
+    | '/admin/ledger'
+    | '/admin/models'
+    | '/admin/orchestration'
+    | '/admin/site-images'
+    | '/admin/site-map'
+    | '/admin/smoke'
+    | '/admin/social-studio'
+    | '/admin/templates'
+    | '/admin/workflows'
+    | '/api/balance'
+    | '/api/content-agent'
+    | '/api/estimate'
+    | '/api/health'
+    | '/api/mcp'
+    | '/api/modelark'
+    | '/api/ready'
+    | '/cli/authorize'
+    | '/creator/dashboard'
+    | '/guides/$slug'
+    | '/legal/$slug'
+    | '/r/$token'
+    | '/soul/generate'
+    | '/soul/library'
+    | '/soul/train'
+    | '/soul/vibe'
+    | '/admin/observability'
+    | '/cli/'
+    | '/guides/'
+    | '/admin/'
+    | '/api/admin/feature-visibility'
+    | '/api/admin/run-smoke-step14'
+    | '/api/admin/upload-image'
+    | '/api/admin/upload-site-image'
+    | '/api/admin/verify-passcode'
+    | '/api/adult-admin/generate'
+    | '/api/ai-gateway/flux-schnell'
+    | '/api/ai-gateway/free-chat'
+    | '/api/ai-gateway/laguna'
+    | '/api/ai-gateway/models'
+    | '/api/audio/master'
+    | '/api/audio/upload'
+    | '/api/directors-board/brain'
+    | '/api/directors-board/chat'
+    | '/api/directors-board/generate-image'
+    | '/api/gemini/free'
+    | '/api/motion/estimate-cost'
+    | '/api/motion/jobs'
+    | '/api/motion/status'
+    | '/api/public/account-delete'
+    | '/api/public/check-api-balances'
+    | '/api/public/deletion-sweep'
+    | '/api/public/faststart-video'
+    | '/api/public/feature-visibility'
+    | '/api/public/free-daily-grant'
+    | '/api/public/free-monthly-grant'
+    | '/api/public/generate'
+    | '/api/public/github-sync-monitor'
+    | '/api/public/lifecycle-emails'
+    | '/api/public/model-watch'
+    | '/api/public/nowpayments-webhook'
+    | '/api/public/paystack-webhook'
+    | '/api/public/perform'
+    | '/api/public/pricing'
+    | '/api/public/provider-health-check'
+    | '/api/public/site-copy'
+    | '/api/public/site-images'
+    | '/api/public/uptime-monitor'
+    | '/api/public/viral-preview'
+    | '/api/public/watchdog'
+    | '/api/public/watermark-image'
+    | '/api/public/watermark-video'
+    | '/api/soul/fal-webhook'
+    | '/api/ugc-line/images'
+    | '/api/ugc-line/scripts'
+    | '/api/ugc-line/variations'
+    | '/api/video-agent/enhance'
+    | '/api/video-agent/finalize'
+    | '/api/video-agent/generate'
+    | '/api/video-agent/generate-frame'
+    | '/api/video-agent/generate-script'
+    | '/api/video-agent/stream'
+    | '/api/video-agent/submit'
+    | '/soul/generate/video'
+    | '/api/jobs/$id/status'
+    | '/api/public/cli/vast'
+    | '/api/public/gpu/claim'
+    | '/api/public/gpu/complete'
+    | '/api/public/gpu/register'
+    | '/api/public/jobs/tick'
+    | '/api/public/payments/sweep-stuck'
+    | '/api/public/pro-access/reconcile'
+    | '/api/public/promotion/sync'
+    | '/api/public/tiktok/callback'
+    | '/api/public/vast/autoscale'
+    | '/api/public/vast/expire'
+    | '/api/public/workers/health'
+    | '/api/public/workers/progress'
+    | '/api/public/workers/register'
+    | '/api/video-agent/status/$videoId'
+    | '/api/audio/master/$id/status'
+    | '/api/public/cli/device/poll'
+    | '/api/public/cli/device/start'
+    | '/api/public/workers/files/$name'
+  fileRoutesById: FileRoutesById
+}
+export interface RootRouteChildren {
+  IndexRoute: typeof IndexRoute
+  AccountRoute: typeof AccountRoute
+  AdminRoute: typeof AdminRouteWithChildren
+  AdsRoute: typeof AdsRoute
+  AdultRoute: typeof AdultRoute
+  AffiliateRoute: typeof AffiliateRoute
+  AgentRoute: typeof AgentRoute
+  AuroraAdultRoute: typeof AuroraAdultRoute
+  AuroraBabyAgentRoute: typeof AuroraBabyAgentRoute
+  AuthRoute: typeof AuthRoute
+  AvatarRoute: typeof AvatarRoute
+  BillingRoute: typeof BillingRoute
+  CanvasRoute: typeof CanvasRoute
+  ClipsRoute: typeof ClipsRoute
+  ColorsRoute: typeof ColorsRoute
+  ColorsShowRoute: typeof ColorsShowRoute
+  ComfyRoute: typeof ComfyRoute
+  ConnectRoute: typeof ConnectRoute
+  ContactRoute: typeof ContactRoute
+  ContentRoute: typeof ContentRoute
+  ContentMachineRoute: typeof ContentMachineRoute
+  DashboardRoute: typeof DashboardRoute
+  DeleteAccountRoute: typeof DeleteAccountRoute
+  DirectorRoute: typeof DirectorRoute
+  DirectorRoomRoute: typeof DirectorRoomRoute
+  DirectorsBoardRoute: typeof DirectorsBoardRoute
+  EditRoute: typeof EditRoute
+  EditorRoute: typeof EditorRoute
+  EromifyRoute: typeof EromifyRoute
+  GalleryRoute: typeof GalleryRoute
+  GiftsRoute: typeof GiftsRoute
+  GrowthRoute: typeof GrowthRoute
+  HeygenTemplatesRoute: typeof HeygenTemplatesRoute
+  HomeRoute: typeof HomeRoute
+  JobsRoute: typeof JobsRoute
+  KidsRoute: typeof KidsRoute
+  LayersRoute: typeof LayersRoute
+  LikenessRoute: typeof LikenessRoute
+  LipsyncRoute: typeof LipsyncRoute
+  LiveStudioRoute: typeof LiveStudioRoute
+  MarketplaceRoute: typeof MarketplaceRoute
+  MasteringRoute: typeof MasteringRoute
+  MotionRoute: typeof MotionRoute
+  MusicVideoRoute: typeof MusicVideoRoute
+  NexusarbRoute: typeof NexusarbRoute
+  OrchestrateRoute: typeof OrchestrateRoute
+  PartnersRoute: typeof PartnersRoute
+  PerformRoute: typeof PerformRoute
+  PerformAnywhereRoute: typeof PerformAnywhereRoute
+  PhotoEditRoute: typeof PhotoEditRoute
+  PrevisRoute: typeof PrevisRoute
+  PrivacyRoute: typeof PrivacyRoute
+  PromotionRoute: typeof PromotionRoute
+  PuremixRoute: typeof PuremixRoute
+  ResetPasswordRoute: typeof ResetPasswordRoute
+  ReshootRoute: typeof ReshootRoute
+  RoadmapRoute: typeof RoadmapRoute
+  SceneBuilderRoute: typeof SceneBuilderRoute
+  SceneWeaverRoute: typeof SceneWeaverRoute
+  SeedanceMotionRoute: typeof SeedanceMotionRoute
+  SettingsRoute: typeof SettingsRoute
+  SitemapDotxmlRoute: typeof SitemapDotxmlRoute
+  SoulRoute: typeof SoulRouteWithChildren
+  SpeechRoute: typeof SpeechRoute
+  SpinRoute: typeof SpinRoute
+  SplitRealityRoute: typeof SplitRealityRoute
+  StoryboardRoute: typeof StoryboardRoute
+  StudioRoute: typeof StudioRoute
+  TemplatesRoute: typeof TemplatesRoute
+  TermsRoute: typeof TermsRoute
+  TiktokRoute: typeof TiktokRoute
+  TiktokLiveRoute: typeof TiktokLiveRoute
+  ToolsRoute: typeof ToolsRoute
+  TutorialRoute: typeof TutorialRoute
+  UgcRoute: typeof UgcRoute
+  UgcLineRoute: typeof UgcLineRoute
+  VideoAgentRoute: typeof VideoAgentRoute
+  VideoAgentEditRoute: typeof VideoAgentEditRoute
+  VideoAgentProcessRoute: typeof VideoAgentProcessRoute
+  VideoAgentStudioRoute: typeof VideoAgentStudioRoute
+  VideoEditorRoute: typeof VideoEditorRoute
+  WorkflowsRoute: typeof WorkflowsRoute
+  BeatReelLazyRoute: typeof BeatReelLazyRoute
+  ApiBalanceRoute: typeof ApiBalanceRoute
+  ApiContentAgentRoute: typeof ApiContentAgentRoute
+  ApiEstimateRoute: typeof ApiEstimateRoute
+  ApiHealthRoute: typeof ApiHealthRoute
+  ApiMcpRoute: typeof ApiMcpRoute
+  ApiModelarkRoute: typeof ApiModelarkRoute
+  ApiReadyRoute: typeof ApiReadyRoute
+  CliAuthorizeRoute: typeof CliAuthorizeRoute
+  CreatorDashboardRoute: typeof CreatorDashboardRoute
+  GuidesSlugRoute: typeof GuidesSlugRoute
+  LegalSlugRoute: typeof LegalSlugRoute
+  RTokenRoute: typeof RTokenRoute
+  CliIndexRoute: typeof CliIndexRoute
+  GuidesIndexRoute: typeof GuidesIndexRoute
+  ApiAdminFeatureVisibilityRoute: typeof ApiAdminFeatureVisibilityRoute
+  ApiAdminRunSmokeStep14Route: typeof ApiAdminRunSmokeStep14Route
+  ApiAdminUploadImageRoute: typeof ApiAdminUploadImageRoute
+  ApiAdminUploadSiteImageRoute: typeof ApiAdminUploadSiteImageRoute
+  ApiAdminVerifyPasscodeRoute: typeof ApiAdminVerifyPasscodeRoute
+  ApiAdultAdminGenerateRoute: typeof ApiAdultAdminGenerateRoute
+  ApiAiGatewayFluxSchnellRoute: typeof ApiAiGatewayFluxSchnellRoute
+  ApiAiGatewayFreeChatRoute: typeof ApiAiGatewayFreeChatRoute
+  ApiAiGatewayLagunaRoute: typeof ApiAiGatewayLagunaRoute
+  ApiAiGatewayModelsRoute: typeof ApiAiGatewayModelsRoute
+  ApiAudioMasterRoute: typeof ApiAudioMasterRouteWithChildren
+  ApiAudioUploadRoute: typeof ApiAudioUploadRoute
+  ApiDirectorsBoardBrainRoute: typeof ApiDirectorsBoardBrainRoute
+  ApiDirectorsBoardChatRoute: typeof ApiDirectorsBoardChatRoute
+  ApiDirectorsBoardGenerateImageRoute: typeof ApiDirectorsBoardGenerateImageRoute
+  ApiGeminiFreeRoute: typeof ApiGeminiFreeRoute
+  ApiMotionEstimateCostRoute: typeof ApiMotionEstimateCostRoute
+  ApiMotionJobsRoute: typeof ApiMotionJobsRoute
+  ApiMotionStatusRoute: typeof ApiMotionStatusRoute
+  ApiPublicAccountDeleteRoute: typeof ApiPublicAccountDeleteRoute
+  ApiPublicCheckApiBalancesRoute: typeof ApiPublicCheckApiBalancesRoute
+  ApiPublicDeletionSweepRoute: typeof ApiPublicDeletionSweepRoute
+  ApiPublicFaststartVideoRoute: typeof ApiPublicFaststartVideoRoute
+  ApiPublicFeatureVisibilityRoute: typeof ApiPublicFeatureVisibilityRoute
+  ApiPublicFreeDailyGrantRoute: typeof ApiPublicFreeDailyGrantRoute
+  ApiPublicFreeMonthlyGrantRoute: typeof ApiPublicFreeMonthlyGrantRoute
+  ApiPublicGenerateRoute: typeof ApiPublicGenerateRoute
+  ApiPublicGithubSyncMonitorRoute: typeof ApiPublicGithubSyncMonitorRoute
+  ApiPublicLifecycleEmailsRoute: typeof ApiPublicLifecycleEmailsRoute
+  ApiPublicModelWatchRoute: typeof ApiPublicModelWatchRoute
+  ApiPublicNowpaymentsWebhookRoute: typeof ApiPublicNowpaymentsWebhookRoute
+  ApiPublicPaystackWebhookRoute: typeof ApiPublicPaystackWebhookRoute
+  ApiPublicPerformRoute: typeof ApiPublicPerformRoute
+  ApiPublicPricingRoute: typeof ApiPublicPricingRoute
+  ApiPublicProviderHealthCheckRoute: typeof ApiPublicProviderHealthCheckRoute
+  ApiPublicSiteCopyRoute: typeof ApiPublicSiteCopyRoute
+  ApiPublicSiteImagesRoute: typeof ApiPublicSiteImagesRoute
+  ApiPublicUptimeMonitorRoute: typeof ApiPublicUptimeMonitorRoute
+  ApiPublicViralPreviewRoute: typeof ApiPublicViralPreviewRoute
+  ApiPublicWatchdogRoute: typeof ApiPublicWatchdogRoute
+  ApiPublicWatermarkImageRoute: typeof ApiPublicWatermarkImageRoute
+  ApiPublicWatermarkVideoRoute: typeof ApiPublicWatermarkVideoRoute
+  ApiSoulFalWebhookRoute: typeof ApiSoulFalWebhookRoute
+  ApiUgcLineImagesRoute: typeof ApiUgcLineImagesRoute
+  ApiUgcLineScriptsRoute: typeof ApiUgcLineScriptsRoute
+  ApiUgcLineVariationsRoute: typeof ApiUgcLineVariationsRoute
+  ApiVideoAgentEnhanceRoute: typeof ApiVideoAgentEnhanceRoute
+  ApiVideoAgentFinalizeRoute: typeof ApiVideoAgentFinalizeRoute
+  ApiVideoAgentGenerateRoute: typeof ApiVideoAgentGenerateRoute
+  ApiVideoAgentGenerateFrameRoute: typeof ApiVideoAgentGenerateFrameRoute
+  ApiVideoAgentGenerateScriptRoute: typeof ApiVideoAgentGenerateScriptRoute
+  ApiVideoAgentStreamRoute: typeof ApiVideoAgentStreamRoute
+  ApiVideoAgentSubmitRoute: typeof ApiVideoAgentSubmitRoute
+  ApiJobsIdStatusRoute: typeof ApiJobsIdStatusRoute
+  ApiPublicCliVastRoute: typeof ApiPublicCliVastRoute
+  ApiPublicGpuClaimRoute: typeof ApiPublicGpuClaimRoute
+  ApiPublicGpuCompleteRoute: typeof ApiPublicGpuCompleteRoute
+  ApiPublicGpuRegisterRoute: typeof ApiPublicGpuRegisterRoute
+  ApiPublicJobsTickRoute: typeof ApiPublicJobsTickRoute
+  ApiPublicPaymentsSweepStuckRoute: typeof ApiPublicPaymentsSweepStuckRoute
+  ApiPublicProAccessReconcileRoute: typeof ApiPublicProAccessReconcileRoute
+  ApiPublicPromotionSyncRoute: typeof ApiPublicPromotionSyncRoute
+  ApiPublicTiktokCallbackRoute: typeof ApiPublicTiktokCallbackRoute
+  ApiPublicVastAutoscaleRoute: typeof ApiPublicVastAutoscaleRoute
+  ApiPublicVastExpireRoute: typeof ApiPublicVastExpireRoute
+  ApiPublicWorkersHealthRoute: typeof ApiPublicWorkersHealthRoute
+  ApiPublicWorkersProgressRoute: typeof ApiPublicWorkersProgressRoute
+  ApiPublicWorkersRegisterRoute: typeof ApiPublicWorkersRegisterRoute
+  ApiVideoAgentStatusVideoIdRoute: typeof ApiVideoAgentStatusVideoIdRoute
+  ApiPublicCliDevicePollRoute: typeof ApiPublicCliDevicePollRoute
+  ApiPublicCliDeviceStartRoute: typeof ApiPublicCliDeviceStartRoute
+  ApiPublicWorkersFilesNameRoute: typeof ApiPublicWorkersFilesNameRoute
+}
+
+declare module '@tanstack/react-router' {
+  interface FileRoutesByPath {
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/account': {
+      id: '/account'
+      path: '/account'
+      fullPath: '/account'
+      preLoaderRoute: typeof AccountRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/ads': {
+      id: '/ads'
+      path: '/ads'
+      fullPath: '/ads'
+      preLoaderRoute: typeof AdsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/adult': {
+      id: '/adult'
+      path: '/adult'
+      fullPath: '/adult'
+      preLoaderRoute: typeof AdultRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/affiliate': {
+      id: '/affiliate'
+      path: '/affiliate'
+      fullPath: '/affiliate'
+      preLoaderRoute: typeof AffiliateRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/agent': {
+      id: '/agent'
+      path: '/agent'
+      fullPath: '/agent'
+      preLoaderRoute: typeof AgentRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/aurora-adult': {
+      id: '/aurora-adult'
+      path: '/aurora-adult'
+      fullPath: '/aurora-adult'
+      preLoaderRoute: typeof AuroraAdultRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/aurora-baby-agent': {
+      id: '/aurora-baby-agent'
+      path: '/aurora-baby-agent'
+      fullPath: '/aurora-baby-agent'
+      preLoaderRoute: typeof AuroraBabyAgentRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth': {
+      id: '/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/avatar': {
+      id: '/avatar'
+      path: '/avatar'
+      fullPath: '/avatar'
+      preLoaderRoute: typeof AvatarRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/beat-reel': {
+      id: '/beat-reel'
+      path: '/beat-reel'
+      fullPath: '/beat-reel'
+      preLoaderRoute: typeof BeatReelLazyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/billing': {
+      id: '/billing'
+      path: '/billing'
+      fullPath: '/billing'
+      preLoaderRoute: typeof BillingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/canvas': {
+      id: '/canvas'
+      path: '/canvas'
+      fullPath: '/canvas'
+      preLoaderRoute: typeof CanvasRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/clips': {
+      id: '/clips'
+      path: '/clips'
+      fullPath: '/clips'
+      preLoaderRoute: typeof ClipsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/colors': {
+      id: '/colors'
+      path: '/colors'
+      fullPath: '/colors'
+      preLoaderRoute: typeof ColorsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/colors-show': {
+      id: '/colors-show'
+      path: '/colors-show'
+      fullPath: '/colors-show'
+      preLoaderRoute: typeof ColorsShowRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/comfy': {
+      id: '/comfy'
+      path: '/comfy'
+      fullPath: '/comfy'
+      preLoaderRoute: typeof ComfyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/connect': {
+      id: '/connect'
+      path: '/connect'
+      fullPath: '/connect'
+      preLoaderRoute: typeof ConnectRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/contact': {
+      id: '/contact'
+      path: '/contact'
+      fullPath: '/contact'
+      preLoaderRoute: typeof ContactRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/content': {
+      id: '/content'
+      path: '/content'
+      fullPath: '/content'
+      preLoaderRoute: typeof ContentRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/content-machine': {
+      id: '/content-machine'
+      path: '/content-machine'
+      fullPath: '/content-machine'
+      preLoaderRoute: typeof ContentMachineRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dashboard': {
+      id: '/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof DashboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/delete-account': {
+      id: '/delete-account'
+      path: '/delete-account'
+      fullPath: '/delete-account'
+      preLoaderRoute: typeof DeleteAccountRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/director': {
+      id: '/director'
+      path: '/director'
+      fullPath: '/director'
+      preLoaderRoute: typeof DirectorRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/director-room': {
+      id: '/director-room'
+      path: '/director-room'
+      fullPath: '/director-room'
+      preLoaderRoute: typeof DirectorRoomRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/directors-board': {
+      id: '/directors-board'
+      path: '/directors-board'
+      fullPath: '/directors-board'
+      preLoaderRoute: typeof DirectorsBoardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/edit': {
+      id: '/edit'
+      path: '/edit'
+      fullPath: '/edit'
+      preLoaderRoute: typeof EditRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/editor': {
+      id: '/editor'
+      path: '/editor'
+      fullPath: '/editor'
+      preLoaderRoute: typeof EditorRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/eromify': {
+      id: '/eromify'
+      path: '/eromify'
+      fullPath: '/eromify'
+      preLoaderRoute: typeof EromifyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/gallery': {
+      id: '/gallery'
+      path: '/gallery'
+      fullPath: '/gallery'
+      preLoaderRoute: typeof GalleryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/gifts': {
+      id: '/gifts'
+      path: '/gifts'
+      fullPath: '/gifts'
+      preLoaderRoute: typeof GiftsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/growth': {
+      id: '/growth'
+      path: '/growth'
+      fullPath: '/growth'
+      preLoaderRoute: typeof GrowthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/heygen-templates': {
+      id: '/heygen-templates'
+      path: '/heygen-templates'
+      fullPath: '/heygen-templates'
+      preLoaderRoute: typeof HeygenTemplatesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/home': {
+      id: '/home'
+      path: '/home'
+      fullPath: '/home'
+      preLoaderRoute: typeof HomeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/jobs': {
+      id: '/jobs'
+      path: '/jobs'
+      fullPath: '/jobs'
+      preLoaderRoute: typeof JobsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/kids': {
+      id: '/kids'
+      path: '/kids'
+      fullPath: '/kids'
+      preLoaderRoute: typeof KidsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/layers': {
+      id: '/layers'
+      path: '/layers'
+      fullPath: '/layers'
+      preLoaderRoute: typeof LayersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/likeness': {
+      id: '/likeness'
+      path: '/likeness'
+      fullPath: '/likeness'
+      preLoaderRoute: typeof LikenessRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/lipsync': {
+      id: '/lipsync'
+      path: '/lipsync'
+      fullPath: '/lipsync'
+      preLoaderRoute: typeof LipsyncRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/live-studio': {
+      id: '/live-studio'
+      path: '/live-studio'
+      fullPath: '/live-studio'
+      preLoaderRoute: typeof LiveStudioRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/marketplace': {
+      id: '/marketplace'
+      path: '/marketplace'
+      fullPath: '/marketplace'
+      preLoaderRoute: typeof MarketplaceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/mastering': {
+      id: '/mastering'
+      path: '/mastering'
+      fullPath: '/mastering'
+      preLoaderRoute: typeof MasteringRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/motion': {
+      id: '/motion'
+      path: '/motion'
+      fullPath: '/motion'
+      preLoaderRoute: typeof MotionRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/music-video': {
+      id: '/music-video'
+      path: '/music-video'
+      fullPath: '/music-video'
+      preLoaderRoute: typeof MusicVideoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/nexusarb': {
+      id: '/nexusarb'
+      path: '/nexusarb'
+      fullPath: '/nexusarb'
+      preLoaderRoute: typeof NexusarbRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/orchestrate': {
+      id: '/orchestrate'
+      path: '/orchestrate'
+      fullPath: '/orchestrate'
+      preLoaderRoute: typeof OrchestrateRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/partners': {
+      id: '/partners'
+      path: '/partners'
+      fullPath: '/partners'
+      preLoaderRoute: typeof PartnersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/perform': {
+      id: '/perform'
+      path: '/perform'
+      fullPath: '/perform'
+      preLoaderRoute: typeof PerformRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/perform-anywhere': {
+      id: '/perform-anywhere'
+      path: '/perform-anywhere'
+      fullPath: '/perform-anywhere'
+      preLoaderRoute: typeof PerformAnywhereRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/photo-edit': {
+      id: '/photo-edit'
+      path: '/photo-edit'
+      fullPath: '/photo-edit'
+      preLoaderRoute: typeof PhotoEditRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/previs': {
+      id: '/previs'
+      path: '/previs'
+      fullPath: '/previs'
+      preLoaderRoute: typeof PrevisRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/privacy': {
+      id: '/privacy'
+      path: '/privacy'
+      fullPath: '/privacy'
+      preLoaderRoute: typeof PrivacyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/promotion': {
+      id: '/promotion'
+      path: '/promotion'
+      fullPath: '/promotion'
+      preLoaderRoute: typeof PromotionRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/puremix': {
+      id: '/puremix'
+      path: '/puremix'
+      fullPath: '/puremix'
+      preLoaderRoute: typeof PuremixRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reset-password': {
+      id: '/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof ResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reshoot': {
+      id: '/reshoot'
+      path: '/reshoot'
+      fullPath: '/reshoot'
+      preLoaderRoute: typeof ReshootRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/roadmap': {
+      id: '/roadmap'
+      path: '/roadmap'
+      fullPath: '/roadmap'
+      preLoaderRoute: typeof RoadmapRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/scene-builder': {
+      id: '/scene-builder'
+      path: '/scene-builder'
+      fullPath: '/scene-builder'
+      preLoaderRoute: typeof SceneBuilderRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/scene-weaver': {
+      id: '/scene-weaver'
+      path: '/scene-weaver'
+      fullPath: '/scene-weaver'
+      preLoaderRoute: typeof SceneWeaverRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/seedance-motion': {
+      id: '/seedance-motion'
+      path: '/seedance-motion'
+      fullPath: '/seedance-motion'
+      preLoaderRoute: typeof SeedanceMotionRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/settings': {
+      id: '/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sitemap.xml': {
+      id: '/sitemap.xml'
+      path: '/sitemap.xml'
+      fullPath: '/sitemap.xml'
+      preLoaderRoute: typeof SitemapDotxmlRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/soul': {
+      id: '/soul'
+      path: '/soul'
+      fullPath: '/soul'
+      preLoaderRoute: typeof SoulRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/speech': {
+      id: '/speech'
+      path: '/speech'
+      fullPath: '/speech'
+      preLoaderRoute: typeof SpeechRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/spin': {
+      id: '/spin'
+      path: '/spin'
+      fullPath: '/spin'
+      preLoaderRoute: typeof SpinRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/split-reality': {
+      id: '/split-reality'
+      path: '/split-reality'
+      fullPath: '/split-reality'
+      preLoaderRoute: typeof SplitRealityRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/storyboard': {
+      id: '/storyboard'
+      path: '/storyboard'
+      fullPath: '/storyboard'
+      preLoaderRoute: typeof StoryboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/studio': {
+      id: '/studio'
+      path: '/studio'
+      fullPath: '/studio'
+      preLoaderRoute: typeof StudioRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/templates': {
+      id: '/templates'
+      path: '/templates'
+      fullPath: '/templates'
+      preLoaderRoute: typeof TemplatesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/terms': {
+      id: '/terms'
+      path: '/terms'
+      fullPath: '/terms'
+      preLoaderRoute: typeof TermsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/tiktok': {
+      id: '/tiktok'
+      path: '/tiktok'
+      fullPath: '/tiktok'
+      preLoaderRoute: typeof TiktokRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/tiktok-live': {
+      id: '/tiktok-live'
+      path: '/tiktok-live'
+      fullPath: '/tiktok-live'
+      preLoaderRoute: typeof TiktokLiveRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/tools': {
+      id: '/tools'
+      path: '/tools'
+      fullPath: '/tools'
+      preLoaderRoute: typeof ToolsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/tutorial': {
+      id: '/tutorial'
+      path: '/tutorial'
+      fullPath: '/tutorial'
+      preLoaderRoute: typeof TutorialRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/ugc': {
+      id: '/ugc'
+      path: '/ugc'
+      fullPath: '/ugc'
+      preLoaderRoute: typeof UgcRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/ugc-line': {
+      id: '/ugc-line'
+      path: '/ugc-line'
+      fullPath: '/ugc-line'
+      preLoaderRoute: typeof UgcLineRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/video-agent': {
+      id: '/video-agent'
+      path: '/video-agent'
+      fullPath: '/video-agent'
+      preLoaderRoute: typeof VideoAgentRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/video-agent-edit': {
+      id: '/video-agent-edit'
+      path: '/video-agent-edit'
+      fullPath: '/video-agent-edit'
+      preLoaderRoute: typeof VideoAgentEditRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/video-agent-process': {
+      id: '/video-agent-process'
+      path: '/video-agent-process'
+      fullPath: '/video-agent-process'
+      preLoaderRoute: typeof VideoAgentProcessRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/video-agent-studio': {
+      id: '/video-agent-studio'
+      path: '/video-agent-studio'
+      fullPath: '/video-agent-studio'
+      preLoaderRoute: typeof VideoAgentStudioRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/video-editor': {
+      id: '/video-editor'
+      path: '/video-editor'
+      fullPath: '/video-editor'
+      preLoaderRoute: typeof VideoEditorRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/workflows': {
+      id: '/workflows'
+      path: '/workflows'
+      fullPath: '/workflows'
+      preLoaderRoute: typeof WorkflowsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/': {
+      id: '/admin/'
+      path: '/'
+      fullPath: '/admin/'
+      preLoaderRoute: typeof AdminIndexLazyRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/assets': {
+      id: '/admin/assets'
+      path: '/assets'
+      fullPath: '/admin/assets'
+      preLoaderRoute: typeof AdminAssetsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/comfy': {
+      id: '/admin/comfy'
+      path: '/comfy'
+      fullPath: '/admin/comfy'
+      preLoaderRoute: typeof AdminComfyRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/costs': {
+      id: '/admin/costs'
+      path: '/costs'
+      fullPath: '/admin/costs'
+      preLoaderRoute: typeof AdminCostsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/design': {
+      id: '/admin/design'
+      path: '/design'
+      fullPath: '/admin/design'
+      preLoaderRoute: typeof AdminDesignRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/gpu': {
+      id: '/admin/gpu'
+      path: '/gpu'
+      fullPath: '/admin/gpu'
+      preLoaderRoute: typeof AdminGpuRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/ledger': {
+      id: '/admin/ledger'
+      path: '/ledger'
+      fullPath: '/admin/ledger'
+      preLoaderRoute: typeof AdminLedgerRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/models': {
+      id: '/admin/models'
+      path: '/models'
+      fullPath: '/admin/models'
+      preLoaderRoute: typeof AdminModelsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/observability': {
+      id: '/admin/observability'
+      path: '/observability'
+      fullPath: '/admin/observability'
+      preLoaderRoute: typeof AdminObservabilityLazyRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/orchestration': {
+      id: '/admin/orchestration'
+      path: '/orchestration'
+      fullPath: '/admin/orchestration'
+      preLoaderRoute: typeof AdminOrchestrationRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/site-images': {
+      id: '/admin/site-images'
+      path: '/site-images'
+      fullPath: '/admin/site-images'
+      preLoaderRoute: typeof AdminSiteImagesRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/site-map': {
+      id: '/admin/site-map'
+      path: '/site-map'
+      fullPath: '/admin/site-map'
+      preLoaderRoute: typeof AdminSiteMapRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/smoke': {
+      id: '/admin/smoke'
+      path: '/smoke'
+      fullPath: '/admin/smoke'
+      preLoaderRoute: typeof AdminSmokeRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/social-studio': {
+      id: '/admin/social-studio'
+      path: '/social-studio'
+      fullPath: '/admin/social-studio'
+      preLoaderRoute: typeof AdminSocialStudioRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/templates': {
+      id: '/admin/templates'
+      path: '/templates'
+      fullPath: '/admin/templates'
+      preLoaderRoute: typeof AdminTemplatesRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/workflows': {
+      id: '/admin/workflows'
+      path: '/workflows'
+      fullPath: '/admin/workflows'
+      preLoaderRoute: typeof AdminWorkflowsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/api/balance': {
+      id: '/api/balance'
+      path: '/api/balance'
+      fullPath: '/api/balance'
+      preLoaderRoute: typeof ApiBalanceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/content-agent': {
+      id: '/api/content-agent'
+      path: '/api/content-agent'
+      fullPath: '/api/content-agent'
+      preLoaderRoute: typeof ApiContentAgentRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/estimate': {
+      id: '/api/estimate'
+      path: '/api/estimate'
+      fullPath: '/api/estimate'
+      preLoaderRoute: typeof ApiEstimateRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/health': {
+      id: '/api/health'
+      path: '/api/health'
+      fullPath: '/api/health'
+      preLoaderRoute: typeof ApiHealthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/mcp': {
+      id: '/api/mcp'
+      path: '/api/mcp'
+      fullPath: '/api/mcp'
+      preLoaderRoute: typeof ApiMcpRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/modelark': {
+      id: '/api/modelark'
+      path: '/api/modelark'
+      fullPath: '/api/modelark'
+      preLoaderRoute: typeof ApiModelarkRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/ready': {
+      id: '/api/ready'
+      path: '/api/ready'
+      fullPath: '/api/ready'
+      preLoaderRoute: typeof ApiReadyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/cli/': {
+      id: '/cli/'
+      path: '/cli'
+      fullPath: '/cli/'
+      preLoaderRoute: typeof CliIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/cli/authorize': {
+      id: '/cli/authorize'
+      path: '/cli/authorize'
+      fullPath: '/cli/authorize'
+      preLoaderRoute: typeof CliAuthorizeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/creator/dashboard': {
+      id: '/creator/dashboard'
+      path: '/creator/dashboard'
+      fullPath: '/creator/dashboard'
+      preLoaderRoute: typeof CreatorDashboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/guides/': {
+      id: '/guides/'
+      path: '/guides'
+      fullPath: '/guides/'
+      preLoaderRoute: typeof GuidesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/guides/$slug': {
+      id: '/guides/$slug'
+      path: '/guides/$slug'
+      fullPath: '/guides/$slug'
+      preLoaderRoute: typeof GuidesSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/legal/$slug': {
+      id: '/legal/$slug'
+      path: '/legal/$slug'
+      fullPath: '/legal/$slug'
+      preLoaderRoute: typeof LegalSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/r/$token': {
+      id: '/r/$token'
+      path: '/r/$token'
+      fullPath: '/r/$token'
+      preLoaderRoute: typeof RTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/soul/generate': {
+      id: '/soul/generate'
+      path: '/generate'
+      fullPath: '/soul/generate'
+      preLoaderRoute: typeof SoulGenerateRouteImport
+      parentRoute: typeof SoulRoute
+    }
+    '/soul/library': {
+      id: '/soul/library'
+      path: '/library'
+      fullPath: '/soul/library'
+      preLoaderRoute: typeof SoulLibraryRouteImport
+      parentRoute: typeof SoulRoute
+    }
+    '/soul/train': {
+      id: '/soul/train'
+      path: '/train'
+      fullPath: '/soul/train'
+      preLoaderRoute: typeof SoulTrainRouteImport
+      parentRoute: typeof SoulRoute
+    }
+    '/soul/vibe': {
+      id: '/soul/vibe'
+      path: '/vibe'
+      fullPath: '/soul/vibe'
+      preLoaderRoute: typeof SoulVibeRouteImport
+      parentRoute: typeof SoulRoute
+    }
+    '/api/admin/feature-visibility': {
+      id: '/api/admin/feature-visibility'
+      path: '/api/admin/feature-visibility'
+      fullPath: '/api/admin/feature-visibility'
+      preLoaderRoute: typeof ApiAdminFeatureVisibilityRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/admin/run-smoke-step14': {
+      id: '/api/admin/run-smoke-step14'
+      path: '/api/admin/run-smoke-step14'
+      fullPath: '/api/admin/run-smoke-step14'
+      preLoaderRoute: typeof ApiAdminRunSmokeStep14RouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/admin/upload-image': {
+      id: '/api/admin/upload-image'
+      path: '/api/admin/upload-image'
+      fullPath: '/api/admin/upload-image'
+      preLoaderRoute: typeof ApiAdminUploadImageRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/admin/upload-site-image': {
+      id: '/api/admin/upload-site-image'
+      path: '/api/admin/upload-site-image'
+      fullPath: '/api/admin/upload-site-image'
+      preLoaderRoute: typeof ApiAdminUploadSiteImageRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/admin/verify-passcode': {
+      id: '/api/admin/verify-passcode'
+      path: '/api/admin/verify-passcode'
+      fullPath: '/api/admin/verify-passcode'
+      preLoaderRoute: typeof ApiAdminVerifyPasscodeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/adult-admin/generate': {
+      id: '/api/adult-admin/generate'
+      path: '/api/adult-admin/generate'
+      fullPath: '/api/adult-admin/generate'
+      preLoaderRoute: typeof ApiAdultAdminGenerateRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/ai-gateway/flux-schnell': {
+      id: '/api/ai-gateway/flux-schnell'
+      path: '/api/ai-gateway/flux-schnell'
+      fullPath: '/api/ai-gateway/flux-schnell'
+      preLoaderRoute: typeof ApiAiGatewayFluxSchnellRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/ai-gateway/free-chat': {
+      id: '/api/ai-gateway/free-chat'
+      path: '/api/ai-gateway/free-chat'
+      fullPath: '/api/ai-gateway/free-chat'
+      preLoaderRoute: typeof ApiAiGatewayFreeChatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/ai-gateway/laguna': {
+      id: '/api/ai-gateway/laguna'
+      path: '/api/ai-gateway/laguna'
+      fullPath: '/api/ai-gateway/laguna'
+      preLoaderRoute: typeof ApiAiGatewayLagunaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/ai-gateway/models': {
+      id: '/api/ai-gateway/models'
+      path: '/api/ai-gateway/models'
+      fullPath: '/api/ai-gateway/models'
+      preLoaderRoute: typeof ApiAiGatewayModelsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/audio/master': {
+      id: '/api/audio/master'
+      path: '/api/audio/master'
+      fullPath: '/api/audio/master'
+      preLoaderRoute: typeof ApiAudioMasterRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/audio/upload': {
+      id: '/api/audio/upload'
+      path: '/api/audio/upload'
+      fullPath: '/api/audio/upload'
+      preLoaderRoute: typeof ApiAudioUploadRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/directors-board/brain': {
+      id: '/api/directors-board/brain'
+      path: '/api/directors-board/brain'
+      fullPath: '/api/directors-board/brain'
+      preLoaderRoute: typeof ApiDirectorsBoardBrainRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/directors-board/chat': {
+      id: '/api/directors-board/chat'
+      path: '/api/directors-board/chat'
+      fullPath: '/api/directors-board/chat'
+      preLoaderRoute: typeof ApiDirectorsBoardChatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/directors-board/generate-image': {
+      id: '/api/directors-board/generate-image'
+      path: '/api/directors-board/generate-image'
+      fullPath: '/api/directors-board/generate-image'
+      preLoaderRoute: typeof ApiDirectorsBoardGenerateImageRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/gemini/free': {
+      id: '/api/gemini/free'
+      path: '/api/gemini/free'
+      fullPath: '/api/gemini/free'
+      preLoaderRoute: typeof ApiGeminiFreeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/motion/estimate-cost': {
+      id: '/api/motion/estimate-cost'
+      path: '/api/motion/estimate-cost'
+      fullPath: '/api/motion/estimate-cost'
+      preLoaderRoute: typeof ApiMotionEstimateCostRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/motion/jobs': {
+      id: '/api/motion/jobs'
+      path: '/api/motion/jobs'
+      fullPath: '/api/motion/jobs'
+      preLoaderRoute: typeof ApiMotionJobsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/motion/status': {
+      id: '/api/motion/status'
+      path: '/api/motion/status'
+      fullPath: '/api/motion/status'
+      preLoaderRoute: typeof ApiMotionStatusRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/account-delete': {
+      id: '/api/public/account-delete'
+      path: '/api/public/account-delete'
+      fullPath: '/api/public/account-delete'
+      preLoaderRoute: typeof ApiPublicAccountDeleteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/check-api-balances': {
+      id: '/api/public/check-api-balances'
+      path: '/api/public/check-api-balances'
+      fullPath: '/api/public/check-api-balances'
+      preLoaderRoute: typeof ApiPublicCheckApiBalancesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/deletion-sweep': {
+      id: '/api/public/deletion-sweep'
+      path: '/api/public/deletion-sweep'
+      fullPath: '/api/public/deletion-sweep'
+      preLoaderRoute: typeof ApiPublicDeletionSweepRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/faststart-video': {
+      id: '/api/public/faststart-video'
+      path: '/api/public/faststart-video'
+      fullPath: '/api/public/faststart-video'
+      preLoaderRoute: typeof ApiPublicFaststartVideoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/feature-visibility': {
+      id: '/api/public/feature-visibility'
+      path: '/api/public/feature-visibility'
+      fullPath: '/api/public/feature-visibility'
+      preLoaderRoute: typeof ApiPublicFeatureVisibilityRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/free-daily-grant': {
+      id: '/api/public/free-daily-grant'
+      path: '/api/public/free-daily-grant'
+      fullPath: '/api/public/free-daily-grant'
+      preLoaderRoute: typeof ApiPublicFreeDailyGrantRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/free-monthly-grant': {
+      id: '/api/public/free-monthly-grant'
+      path: '/api/public/free-monthly-grant'
+      fullPath: '/api/public/free-monthly-grant'
+      preLoaderRoute: typeof ApiPublicFreeMonthlyGrantRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/generate': {
+      id: '/api/public/generate'
+      path: '/api/public/generate'
+      fullPath: '/api/public/generate'
+      preLoaderRoute: typeof ApiPublicGenerateRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/github-sync-monitor': {
+      id: '/api/public/github-sync-monitor'
+      path: '/api/public/github-sync-monitor'
+      fullPath: '/api/public/github-sync-monitor'
+      preLoaderRoute: typeof ApiPublicGithubSyncMonitorRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/lifecycle-emails': {
+      id: '/api/public/lifecycle-emails'
+      path: '/api/public/lifecycle-emails'
+      fullPath: '/api/public/lifecycle-emails'
+      preLoaderRoute: typeof ApiPublicLifecycleEmailsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/model-watch': {
+      id: '/api/public/model-watch'
+      path: '/api/public/model-watch'
+      fullPath: '/api/public/model-watch'
+      preLoaderRoute: typeof ApiPublicModelWatchRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/nowpayments-webhook': {
+      id: '/api/public/nowpayments-webhook'
+      path: '/api/public/nowpayments-webhook'
+      fullPath: '/api/public/nowpayments-webhook'
+      preLoaderRoute: typeof ApiPublicNowpaymentsWebhookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/paystack-webhook': {
+      id: '/api/public/paystack-webhook'
+      path: '/api/public/paystack-webhook'
+      fullPath: '/api/public/paystack-webhook'
+      preLoaderRoute: typeof ApiPublicPaystackWebhookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/perform': {
+      id: '/api/public/perform'
+      path: '/api/public/perform'
+      fullPath: '/api/public/perform'
+      preLoaderRoute: typeof ApiPublicPerformRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/pricing': {
+      id: '/api/public/pricing'
+      path: '/api/public/pricing'
+      fullPath: '/api/public/pricing'
+      preLoaderRoute: typeof ApiPublicPricingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/provider-health-check': {
+      id: '/api/public/provider-health-check'
+      path: '/api/public/provider-health-check'
+      fullPath: '/api/public/provider-health-check'
+      preLoaderRoute: typeof ApiPublicProviderHealthCheckRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/site-copy': {
+      id: '/api/public/site-copy'
+      path: '/api/public/site-copy'
+      fullPath: '/api/public/site-copy'
+      preLoaderRoute: typeof ApiPublicSiteCopyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/site-images': {
+      id: '/api/public/site-images'
+      path: '/api/public/site-images'
+      fullPath: '/api/public/site-images'
+      preLoaderRoute: typeof ApiPublicSiteImagesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/uptime-monitor': {
+      id: '/api/public/uptime-monitor'
+      path: '/api/public/uptime-monitor'
+      fullPath: '/api/public/uptime-monitor'
+      preLoaderRoute: typeof ApiPublicUptimeMonitorRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/viral-preview': {
+      id: '/api/public/viral-preview'
+      path: '/api/public/viral-preview'
+      fullPath: '/api/public/viral-preview'
+      preLoaderRoute: typeof ApiPublicViralPreviewRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/watchdog': {
+      id: '/api/public/watchdog'
+      path: '/api/public/watchdog'
+      fullPath: '/api/public/watchdog'
+      preLoaderRoute: typeof ApiPublicWatchdogRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/watermark-image': {
+      id: '/api/public/watermark-image'
+      path: '/api/public/watermark-image'
+      fullPath: '/api/public/watermark-image'
+      preLoaderRoute: typeof ApiPublicWatermarkImageRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/watermark-video': {
+      id: '/api/public/watermark-video'
+      path: '/api/public/watermark-video'
+      fullPath: '/api/public/watermark-video'
+      preLoaderRoute: typeof ApiPublicWatermarkVideoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/soul/fal-webhook': {
+      id: '/api/soul/fal-webhook'
+      path: '/api/soul/fal-webhook'
+      fullPath: '/api/soul/fal-webhook'
+      preLoaderRoute: typeof ApiSoulFalWebhookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/ugc-line/images': {
+      id: '/api/ugc-line/images'
+      path: '/api/ugc-line/images'
+      fullPath: '/api/ugc-line/images'
+      preLoaderRoute: typeof ApiUgcLineImagesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/ugc-line/scripts': {
+      id: '/api/ugc-line/scripts'
+      path: '/api/ugc-line/scripts'
+      fullPath: '/api/ugc-line/scripts'
+      preLoaderRoute: typeof ApiUgcLineScriptsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/ugc-line/variations': {
+      id: '/api/ugc-line/variations'
+      path: '/api/ugc-line/variations'
+      fullPath: '/api/ugc-line/variations'
+      preLoaderRoute: typeof ApiUgcLineVariationsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/video-agent/enhance': {
+      id: '/api/video-agent/enhance'
+      path: '/api/video-agent/enhance'
+      fullPath: '/api/video-agent/enhance'
+      preLoaderRoute: typeof ApiVideoAgentEnhanceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/video-agent/finalize': {
+      id: '/api/video-agent/finalize'
+      path: '/api/video-agent/finalize'
+      fullPath: '/api/video-agent/finalize'
+      preLoaderRoute: typeof ApiVideoAgentFinalizeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/video-agent/generate': {
+      id: '/api/video-agent/generate'
+      path: '/api/video-agent/generate'
+      fullPath: '/api/video-agent/generate'
+      preLoaderRoute: typeof ApiVideoAgentGenerateRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/video-agent/generate-frame': {
+      id: '/api/video-agent/generate-frame'
+      path: '/api/video-agent/generate-frame'
+      fullPath: '/api/video-agent/generate-frame'
+      preLoaderRoute: typeof ApiVideoAgentGenerateFrameRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/video-agent/generate-script': {
+      id: '/api/video-agent/generate-script'
+      path: '/api/video-agent/generate-script'
+      fullPath: '/api/video-agent/generate-script'
+      preLoaderRoute: typeof ApiVideoAgentGenerateScriptRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/video-agent/stream': {
+      id: '/api/video-agent/stream'
+      path: '/api/video-agent/stream'
+      fullPath: '/api/video-agent/stream'
+      preLoaderRoute: typeof ApiVideoAgentStreamRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/video-agent/submit': {
+      id: '/api/video-agent/submit'
+      path: '/api/video-agent/submit'
+      fullPath: '/api/video-agent/submit'
+      preLoaderRoute: typeof ApiVideoAgentSubmitRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/soul/generate/video': {
+      id: '/soul/generate/video'
+      path: '/video'
+      fullPath: '/soul/generate/video'
+      preLoaderRoute: typeof SoulGenerateVideoRouteImport
+      parentRoute: typeof SoulGenerateRoute
+    }
+    '/api/jobs/$id/status': {
+      id: '/api/jobs/$id/status'
+      path: '/api/jobs/$id/status'
+      fullPath: '/api/jobs/$id/status'
+      preLoaderRoute: typeof ApiJobsIdStatusRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/cli/vast': {
+      id: '/api/public/cli/vast'
+      path: '/api/public/cli/vast'
+      fullPath: '/api/public/cli/vast'
+      preLoaderRoute: typeof ApiPublicCliVastRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/gpu/claim': {
+      id: '/api/public/gpu/claim'
+      path: '/api/public/gpu/claim'
+      fullPath: '/api/public/gpu/claim'
+      preLoaderRoute: typeof ApiPublicGpuClaimRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/gpu/complete': {
+      id: '/api/public/gpu/complete'
+      path: '/api/public/gpu/complete'
+      fullPath: '/api/public/gpu/complete'
+      preLoaderRoute: typeof ApiPublicGpuCompleteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/gpu/register': {
+      id: '/api/public/gpu/register'
+      path: '/api/public/gpu/register'
+      fullPath: '/api/public/gpu/register'
+      preLoaderRoute: typeof ApiPublicGpuRegisterRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/jobs/tick': {
+      id: '/api/public/jobs/tick'
+      path: '/api/public/jobs/tick'
+      fullPath: '/api/public/jobs/tick'
+      preLoaderRoute: typeof ApiPublicJobsTickRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/payments/sweep-stuck': {
+      id: '/api/public/payments/sweep-stuck'
+      path: '/api/public/payments/sweep-stuck'
+      fullPath: '/api/public/payments/sweep-stuck'
+      preLoaderRoute: typeof ApiPublicPaymentsSweepStuckRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/pro-access/reconcile': {
+      id: '/api/public/pro-access/reconcile'
+      path: '/api/public/pro-access/reconcile'
+      fullPath: '/api/public/pro-access/reconcile'
+      preLoaderRoute: typeof ApiPublicProAccessReconcileRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/promotion/sync': {
+      id: '/api/public/promotion/sync'
+      path: '/api/public/promotion/sync'
+      fullPath: '/api/public/promotion/sync'
+      preLoaderRoute: typeof ApiPublicPromotionSyncRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/tiktok/callback': {
+      id: '/api/public/tiktok/callback'
+      path: '/api/public/tiktok/callback'
+      fullPath: '/api/public/tiktok/callback'
+      preLoaderRoute: typeof ApiPublicTiktokCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/vast/autoscale': {
+      id: '/api/public/vast/autoscale'
+      path: '/api/public/vast/autoscale'
+      fullPath: '/api/public/vast/autoscale'
+      preLoaderRoute: typeof ApiPublicVastAutoscaleRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/vast/expire': {
+      id: '/api/public/vast/expire'
+      path: '/api/public/vast/expire'
+      fullPath: '/api/public/vast/expire'
+      preLoaderRoute: typeof ApiPublicVastExpireRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/workers/health': {
+      id: '/api/public/workers/health'
+      path: '/api/public/workers/health'
+      fullPath: '/api/public/workers/health'
+      preLoaderRoute: typeof ApiPublicWorkersHealthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/workers/progress': {
+      id: '/api/public/workers/progress'
+      path: '/api/public/workers/progress'
+      fullPath: '/api/public/workers/progress'
+      preLoaderRoute: typeof ApiPublicWorkersProgressRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/workers/register': {
+      id: '/api/public/workers/register'
+      path: '/api/public/workers/register'
+      fullPath: '/api/public/workers/register'
+      preLoaderRoute: typeof ApiPublicWorkersRegisterRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/video-agent/status/$videoId': {
+      id: '/api/video-agent/status/$videoId'
+      path: '/api/video-agent/status/$videoId'
+      fullPath: '/api/video-agent/status/$videoId'
+      preLoaderRoute: typeof ApiVideoAgentStatusVideoIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/audio/master/$id/status': {
+      id: '/api/audio/master/$id/status'
+      path: '/$id/status'
+      fullPath: '/api/audio/master/$id/status'
+      preLoaderRoute: typeof ApiAudioMasterIdStatusRouteImport
+      parentRoute: typeof ApiAudioMasterRoute
+    }
+    '/api/public/cli/device/poll': {
+      id: '/api/public/cli/device/poll'
+      path: '/api/public/cli/device/poll'
+      fullPath: '/api/public/cli/device/poll'
+      preLoaderRoute: typeof ApiPublicCliDevicePollRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/cli/device/start': {
+      id: '/api/public/cli/device/start'
+      path: '/api/public/cli/device/start'
+      fullPath: '/api/public/cli/device/start'
+      preLoaderRoute: typeof ApiPublicCliDeviceStartRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/workers/files/$name': {
+      id: '/api/public/workers/files/$name'
+      path: '/api/public/workers/files/$name'
+      fullPath: '/api/public/workers/files/$name'
+      preLoaderRoute: typeof ApiPublicWorkersFilesNameRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+  }
+}
+
+interface AdminRouteChildren {
+  AdminAssetsRoute: typeof AdminAssetsRoute
+  AdminComfyRoute: typeof AdminComfyRoute
+  AdminCostsRoute: typeof AdminCostsRoute
+  AdminDesignRoute: typeof AdminDesignRoute
+  AdminGpuRoute: typeof AdminGpuRoute
+  AdminLedgerRoute: typeof AdminLedgerRoute
+  AdminModelsRoute: typeof AdminModelsRoute
+  AdminOrchestrationRoute: typeof AdminOrchestrationRoute
+  AdminSiteImagesRoute: typeof AdminSiteImagesRoute
+  AdminSiteMapRoute: typeof AdminSiteMapRoute
+  AdminSmokeRoute: typeof AdminSmokeRoute
+  AdminSocialStudioRoute: typeof AdminSocialStudioRoute
+  AdminTemplatesRoute: typeof AdminTemplatesRoute
+  AdminWorkflowsRoute: typeof AdminWorkflowsRoute
+  AdminObservabilityLazyRoute: typeof AdminObservabilityLazyRoute
+  AdminIndexLazyRoute: typeof AdminIndexLazyRoute
+}
+
+const AdminRouteChildren: AdminRouteChildren = {
+  AdminAssetsRoute: AdminAssetsRoute,
+  AdminComfyRoute: AdminComfyRoute,
+  AdminCostsRoute: AdminCostsRoute,
+  AdminDesignRoute: AdminDesignRoute,
+  AdminGpuRoute: AdminGpuRoute,
+  AdminLedgerRoute: AdminLedgerRoute,
+  AdminModelsRoute: AdminModelsRoute,
+  AdminOrchestrationRoute: AdminOrchestrationRoute,
+  AdminSiteImagesRoute: AdminSiteImagesRoute,
+  AdminSiteMapRoute: AdminSiteMapRoute,
+  AdminSmokeRoute: AdminSmokeRoute,
+  AdminSocialStudioRoute: AdminSocialStudioRoute,
+  AdminTemplatesRoute: AdminTemplatesRoute,
+  AdminWorkflowsRoute: AdminWorkflowsRoute,
+  AdminObservabilityLazyRoute: AdminObservabilityLazyRoute,
+  AdminIndexLazyRoute: AdminIndexLazyRoute,
+}
+
+const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
+
+interface SoulGenerateRouteChildren {
+  SoulGenerateVideoRoute: typeof SoulGenerateVideoRoute
+}
+
+const SoulGenerateRouteChildren: SoulGenerateRouteChildren = {
+  SoulGenerateVideoRoute: SoulGenerateVideoRoute,
+}
+
+const SoulGenerateRouteWithChildren = SoulGenerateRoute._addFileChildren(
+  SoulGenerateRouteChildren,
+)
+
+interface SoulRouteChildren {
+  SoulGenerateRoute: typeof SoulGenerateRouteWithChildren
+  SoulLibraryRoute: typeof SoulLibraryRoute
+  SoulTrainRoute: typeof SoulTrainRoute
+  SoulVibeRoute: typeof SoulVibeRoute
+}
+
+const SoulRouteChildren: SoulRouteChildren = {
+  SoulGenerateRoute: SoulGenerateRouteWithChildren,
+  SoulLibraryRoute: SoulLibraryRoute,
+  SoulTrainRoute: SoulTrainRoute,
+  SoulVibeRoute: SoulVibeRoute,
+}
+
+const SoulRouteWithChildren = SoulRoute._addFileChildren(SoulRouteChildren)
+
+interface ApiAudioMasterRouteChildren {
+  ApiAudioMasterIdStatusRoute: typeof ApiAudioMasterIdStatusRoute
+}
+
+const ApiAudioMasterRouteChildren: ApiAudioMasterRouteChildren = {
+  ApiAudioMasterIdStatusRoute: ApiAudioMasterIdStatusRoute,
+}
+
+const ApiAudioMasterRouteWithChildren = ApiAudioMasterRoute._addFileChildren(
+  ApiAudioMasterRouteChildren,
+)
+
+const rootRouteChildren: RootRouteChildren = {
+  IndexRoute: IndexRoute,
+  AccountRoute: AccountRoute,
+  AdminRoute: AdminRouteWithChildren,
+  AdsRoute: AdsRoute,
+  AdultRoute: AdultRoute,
+  AffiliateRoute: AffiliateRoute,
+  AgentRoute: AgentRoute,
+  AuroraAdultRoute: AuroraAdultRoute,
+  AuroraBabyAgentRoute: AuroraBabyAgentRoute,
+  AuthRoute: AuthRoute,
+  AvatarRoute: AvatarRoute,
+  BillingRoute: BillingRoute,
+  CanvasRoute: CanvasRoute,
+  ClipsRoute: ClipsRoute,
+  ColorsRoute: ColorsRoute,
+  ColorsShowRoute: ColorsShowRoute,
+  ComfyRoute: ComfyRoute,
+  ConnectRoute: ConnectRoute,
+  ContactRoute: ContactRoute,
+  ContentRoute: ContentRoute,
+  ContentMachineRoute: ContentMachineRoute,
+  DashboardRoute: DashboardRoute,
+  DeleteAccountRoute: DeleteAccountRoute,
+  DirectorRoute: DirectorRoute,
+  DirectorRoomRoute: DirectorRoomRoute,
+  DirectorsBoardRoute: DirectorsBoardRoute,
+  EditRoute: EditRoute,
+  EditorRoute: EditorRoute,
+  EromifyRoute: EromifyRoute,
+  GalleryRoute: GalleryRoute,
+  GiftsRoute: GiftsRoute,
+  GrowthRoute: GrowthRoute,
+  HeygenTemplatesRoute: HeygenTemplatesRoute,
+  HomeRoute: HomeRoute,
+  JobsRoute: JobsRoute,
+  KidsRoute: KidsRoute,
+  LayersRoute: LayersRoute,
+  LikenessRoute: LikenessRoute,
+  LipsyncRoute: LipsyncRoute,
+  LiveStudioRoute: LiveStudioRoute,
+  MarketplaceRoute: MarketplaceRoute,
+  MasteringRoute: MasteringRoute,
+  MotionRoute: MotionRoute,
+  MusicVideoRoute: MusicVideoRoute,
+  NexusarbRoute: NexusarbRoute,
+  OrchestrateRoute: OrchestrateRoute,
+  PartnersRoute: PartnersRoute,
+  PerformRoute: PerformRoute,
+  PerformAnywhereRoute: PerformAnywhereRoute,
+  PhotoEditRoute: PhotoEditRoute,
+  PrevisRoute: PrevisRoute,
+  PrivacyRoute: PrivacyRoute,
+  PromotionRoute: PromotionRoute,
+  PuremixRoute: PuremixRoute,
+  ResetPasswordRoute: ResetPasswordRoute,
+  ReshootRoute: ReshootRoute,
+  RoadmapRoute: RoadmapRoute,
+  SceneBuilderRoute: SceneBuilderRoute,
+  SceneWeaverRoute: SceneWeaverRoute,
+  SeedanceMotionRoute: SeedanceMotionRoute,
+  SettingsRoute: SettingsRoute,
+  SitemapDotxmlRoute: SitemapDotxmlRoute,
+  SoulRoute: SoulRouteWithChildren,
+  SpeechRoute: SpeechRoute,
+  SpinRoute: SpinRoute,
+  SplitRealityRoute: SplitRealityRoute,
+  StoryboardRoute: StoryboardRoute,
+  StudioRoute: StudioRoute,
+  TemplatesRoute: TemplatesRoute,
+  TermsRoute: TermsRoute,
+  TiktokRoute: TiktokRoute,
+  TiktokLiveRoute: TiktokLiveRoute,
+  ToolsRoute: ToolsRoute,
+  TutorialRoute: TutorialRoute,
+  UgcRoute: UgcRoute,
+  UgcLineRoute: UgcLineRoute,
+  VideoAgentRoute: VideoAgentRoute,
+  VideoAgentEditRoute: VideoAgentEditRoute,
+  VideoAgentProcessRoute: VideoAgentProcessRoute,
+  VideoAgentStudioRoute: VideoAgentStudioRoute,
+  VideoEditorRoute: VideoEditorRoute,
+  WorkflowsRoute: WorkflowsRoute,
+  BeatReelLazyRoute: BeatReelLazyRoute,
+  ApiBalanceRoute: ApiBalanceRoute,
+  ApiContentAgentRoute: ApiContentAgentRoute,
+  ApiEstimateRoute: ApiEstimateRoute,
+  ApiHealthRoute: ApiHealthRoute,
+  ApiMcpRoute: ApiMcpRoute,
+  ApiModelarkRoute: ApiModelarkRoute,
+  ApiReadyRoute: ApiReadyRoute,
+  CliAuthorizeRoute: CliAuthorizeRoute,
+  CreatorDashboardRoute: CreatorDashboardRoute,
+  GuidesSlugRoute: GuidesSlugRoute,
+  LegalSlugRoute: LegalSlugRoute,
+  RTokenRoute: RTokenRoute,
+  CliIndexRoute: CliIndexRoute,
+  GuidesIndexRoute: GuidesIndexRoute,
+  ApiAdminFeatureVisibilityRoute: ApiAdminFeatureVisibilityRoute,
+  ApiAdminRunSmokeStep14Route: ApiAdminRunSmokeStep14Route,
+  ApiAdminUploadImageRoute: ApiAdminUploadImageRoute,
+  ApiAdminUploadSiteImageRoute: ApiAdminUploadSiteImageRoute,
+  ApiAdminVerifyPasscodeRoute: ApiAdminVerifyPasscodeRoute,
+  ApiAdultAdminGenerateRoute: ApiAdultAdminGenerateRoute,
+  ApiAiGatewayFluxSchnellRoute: ApiAiGatewayFluxSchnellRoute,
+  ApiAiGatewayFreeChatRoute: ApiAiGatewayFreeChatRoute,
+  ApiAiGatewayLagunaRoute: ApiAiGatewayLagunaRoute,
+  ApiAiGatewayModelsRoute: ApiAiGatewayModelsRoute,
+  ApiAudioMasterRoute: ApiAudioMasterRouteWithChildren,
+  ApiAudioUploadRoute: ApiAudioUploadRoute,
+  ApiDirectorsBoardBrainRoute: ApiDirectorsBoardBrainRoute,
+  ApiDirectorsBoardChatRoute: ApiDirectorsBoardChatRoute,
+  ApiDirectorsBoardGenerateImageRoute: ApiDirectorsBoardGenerateImageRoute,
+  ApiGeminiFreeRoute: ApiGeminiFreeRoute,
+  ApiMotionEstimateCostRoute: ApiMotionEstimateCostRoute,
+  ApiMotionJobsRoute: ApiMotionJobsRoute,
+  ApiMotionStatusRoute: ApiMotionStatusRoute,
+  ApiPublicAccountDeleteRoute: ApiPublicAccountDeleteRoute,
+  ApiPublicCheckApiBalancesRoute: ApiPublicCheckApiBalancesRoute,
+  ApiPublicDeletionSweepRoute: ApiPublicDeletionSweepRoute,
+  ApiPublicFaststartVideoRoute: ApiPublicFaststartVideoRoute,
+  ApiPublicFeatureVisibilityRoute: ApiPublicFeatureVisibilityRoute,
+  ApiPublicFreeDailyGrantRoute: ApiPublicFreeDailyGrantRoute,
+  ApiPublicFreeMonthlyGrantRoute: ApiPublicFreeMonthlyGrantRoute,
+  ApiPublicGenerateRoute: ApiPublicGenerateRoute,
+  ApiPublicGithubSyncMonitorRoute: ApiPublicGithubSyncMonitorRoute,
+  ApiPublicLifecycleEmailsRoute: ApiPublicLifecycleEmailsRoute,
+  ApiPublicModelWatchRoute: ApiPublicModelWatchRoute,
+  ApiPublicNowpaymentsWebhookRoute: ApiPublicNowpaymentsWebhookRoute,
+  ApiPublicPaystackWebhookRoute: ApiPublicPaystackWebhookRoute,
+  ApiPublicPerformRoute: ApiPublicPerformRoute,
+  ApiPublicPricingRoute: ApiPublicPricingRoute,
+  ApiPublicProviderHealthCheckRoute: ApiPublicProviderHealthCheckRoute,
+  ApiPublicSiteCopyRoute: ApiPublicSiteCopyRoute,
+  ApiPublicSiteImagesRoute: ApiPublicSiteImagesRoute,
+  ApiPublicUptimeMonitorRoute: ApiPublicUptimeMonitorRoute,
+  ApiPublicViralPreviewRoute: ApiPublicViralPreviewRoute,
+  ApiPublicWatchdogRoute: ApiPublicWatchdogRoute,
+  ApiPublicWatermarkImageRoute: ApiPublicWatermarkImageRoute,
+  ApiPublicWatermarkVideoRoute: ApiPublicWatermarkVideoRoute,
+  ApiSoulFalWebhookRoute: ApiSoulFalWebhookRoute,
+  ApiUgcLineImagesRoute: ApiUgcLineImagesRoute,
+  ApiUgcLineScriptsRoute: ApiUgcLineScriptsRoute,
+  ApiUgcLineVariationsRoute: ApiUgcLineVariationsRoute,
+  ApiVideoAgentEnhanceRoute: ApiVideoAgentEnhanceRoute,
+  ApiVideoAgentFinalizeRoute: ApiVideoAgentFinalizeRoute,
+  ApiVideoAgentGenerateRoute: ApiVideoAgentGenerateRoute,
+  ApiVideoAgentGenerateFrameRoute: ApiVideoAgentGenerateFrameRoute,
+  ApiVideoAgentGenerateScriptRoute: ApiVideoAgentGenerateScriptRoute,
+  ApiVideoAgentStreamRoute: ApiVideoAgentStreamRoute,
+  ApiVideoAgentSubmitRoute: ApiVideoAgentSubmitRoute,
+  ApiJobsIdStatusRoute: ApiJobsIdStatusRoute,
+  ApiPublicCliVastRoute: ApiPublicCliVastRoute,
+  ApiPublicGpuClaimRoute: ApiPublicGpuClaimRoute,
+  ApiPublicGpuCompleteRoute: ApiPublicGpuCompleteRoute,
+  ApiPublicGpuRegisterRoute: ApiPublicGpuRegisterRoute,
+  ApiPublicJobsTickRoute: ApiPublicJobsTickRoute,
+  ApiPublicPaymentsSweepStuckRoute: ApiPublicPaymentsSweepStuckRoute,
+  ApiPublicProAccessReconcileRoute: ApiPublicProAccessReconcileRoute,
+  ApiPublicPromotionSyncRoute: ApiPublicPromotionSyncRoute,
+  ApiPublicTiktokCallbackRoute: ApiPublicTiktokCallbackRoute,
+  ApiPublicVastAutoscaleRoute: ApiPublicVastAutoscaleRoute,
+  ApiPublicVastExpireRoute: ApiPublicVastExpireRoute,
+  ApiPublicWorkersHealthRoute: ApiPublicWorkersHealthRoute,
+  ApiPublicWorkersProgressRoute: ApiPublicWorkersProgressRoute,
+  ApiPublicWorkersRegisterRoute: ApiPublicWorkersRegisterRoute,
+  ApiVideoAgentStatusVideoIdRoute: ApiVideoAgentStatusVideoIdRoute,
+  ApiPublicCliDevicePollRoute: ApiPublicCliDevicePollRoute,
+  ApiPublicCliDeviceStartRoute: ApiPublicCliDeviceStartRoute,
+  ApiPublicWorkersFilesNameRoute: ApiPublicWorkersFilesNameRoute,
+}
+export const routeTree = rootRouteImport
+  ._addFileChildren(rootRouteChildren)
+  ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+
+import type { startInstance } from './start.ts'
+
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+
+    router: Awaited<ReturnType<typeof getRouter>>
+
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}

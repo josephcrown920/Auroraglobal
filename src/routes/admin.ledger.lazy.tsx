@@ -7,7 +7,6 @@ import { useServerFn } from "@tanstack/react-start";
 import { useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { adminSearchLedger } from "@/lib/admin.functions";
-import { AdminGate, useAdminAutoUnlock } from "@/components/AdminGate";
 import { ArrowLeft, Coins, Download, Loader2, Search } from "lucide-react";
 
 export const Route = createLazyFileRoute("/admin/ledger")({
@@ -30,7 +29,6 @@ type Row = {
 function LedgerPage() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
-  const [unlocked, setUnlocked] = useAdminAutoUnlock(!!user);
 
   useEffect(() => {
     if (!loading && !user) navigate({ to: "/auth", search: authNextSearch() });
@@ -93,7 +91,6 @@ function LedgerPage() {
     URL.revokeObjectURL(url);
   };
 
-  if (!unlocked) return <AdminGate onUnlocked={() => setUnlocked(true)} />;
 
   return (
     <div className="min-h-screen bg-background text-foreground">

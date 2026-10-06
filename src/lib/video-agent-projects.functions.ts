@@ -3,6 +3,9 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { computeCost } from "./pricing";
+import { getUserTier } from "./cost-guardrails.server";
+import { VideoPlanSchema, type VideoPlan, type VideoShot } from "./video-agent-skills";
+import { verifyPlanReceipt } from "./video-plan-receipt.server";
 import {
   NBA_JOSH_DURATION_SECONDS,
   NBA_JOSH_STILL_MODEL,
@@ -27,13 +30,164 @@ const SceneSchema = z.object({
   title: z.string().min(1).max(160),
   script: z.string().min(1).max(2400),
   description: z.string().min(1).max(3000),
-  duration: z.number().min(3).max(15),
+  duration: z.number().min(2).max(15),
   frame: z.string().url().nullable().optional(),
   frameStatus: z.enum(["idle", "loading", "done", "error"]).optional(),
   voiceoverStatus: z.enum(["idle", "loading", "done", "error"]).optional(),
+  purpose: z.enum(["establishing", "context", "character", "reaction", "detail", "insert", "payoff"]).optional(),
+  shotType: z.string().max(80).optional(),
+  lensMm: z.number().min(1).max(1000).optional(),
+  camera: z.string().max(1000).optional(),
+  lighting: z.string().max(1000).optional(),
+  modelPrompt: z.string().max(4000).optional(),
+  negativePrompt: z.string().max(2000).optional(),
+  continuityNote: z.string().max(1500).optional(),
+  aspectRatio: z.enum(["16:9", "9:16", "1:1", "4:3", "3:4", "2.39:1", "21:9"]).optional(),
+  visualDirection: z.string().max(1000).optional(),
+  plateQuality: z.enum(["free", "premium"]).optional(),
+  plateGenerationId: z.string().max(160).nullable().optional(),
 });
 const SceneListSchema = z.array(SceneSchema);
 type SceneRecord = z.infer<typeof SceneSchema>;
+
+/**
+ * Server-authored attribution for the script-writing pass. This lives inside
+ * the existing project `production` JSON envelope, so script attribution
+ * survives the process→editor transition without a schema migration.
+ *
+ * The hash covers the normalized title/script/visual/timing content. Editor
+ * edits therefore cannot continue to display an attribution for a different
+ * script; the update path removes it when that hash changes.
+ */
+export const VideoAgentScriptAttributionSchema = z.object({
+  version: z.literal(1),
+  provider: z.string().min(1).max(120),
+  model: z.string().min(1).max(240).nullable(),
+  scriptHash: z.string().regex(/^[a-f0-9]{64}$/),
+  generatedAt: z.string().datetime(),
+});
+export type VideoAgentScriptAttribution = z.infer<typeof VideoAgentScriptAttributionSchema>;
+const SCRIPT_ATTRIBUTION_KEY = "aurora_script_attribution";
+
+export type VideoAgentScriptSceneLike = {
+  title?: string | null;
+  script?: string | null;
+  description?: string | null;
+  duration?: number | null;
+};
+
+function normalizedScriptContent(title: string, scenes: VideoAgentScriptSceneLike[]) {
+  return {
+    title: title.trim().slice(0, 160) || "Untitled Video",
+    scenes: scenes
+      .map((scene, index) => ({
+        index,
+        title: (scene.title ?? "").trim().slice(0, 160) || `Scene ${index + 1}`,
+        script: (scene.script ?? "").trim().slice(0, 2400),
+        description: (scene.description ?? "").trim().slice(0, 3000),
+        duration: Math.max(3, Math.min(15, Math.round(Number(scene.duration)) || 6)),
+      }))
+      .filter((scene) => scene.script && scene.description)
+      .slice(0, 12)
+      .map((scene, index) => ({ ...scene, index })),
+  };
+}
+
+export async function videoAgentScriptContentHash(
+  title: string,
+  scenes: VideoAgentScriptSceneLike[],
+): Promise<string> {
+  const canonical = JSON.stringify(normalizedScriptContent(title, scenes));
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(canonical));
+  return Array.from(new Uint8Array(digest))
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+function parseScriptAttribution(value: unknown): VideoAgentScriptAttribution | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const raw = (value as Record<string, unknown>)[SCRIPT_ATTRIBUTION_KEY];
+  const parsed = VideoAgentScriptAttributionSchema.safeParse(raw);
+  return parsed.success ? parsed.data : null;
+}
+
+function productionWithScriptAttribution(
+  production: unknown,
+  attribution: VideoAgentScriptAttribution,
+): Record<string, unknown> {
+  const base = production && typeof production === "object" && !Array.isArray(production)
+    ? { ...(production as Record<string, unknown>) }
+    : {};
+  return { ...base, [SCRIPT_ATTRIBUTION_KEY]: attribution };
+}
+
+function productionWithoutScriptAttribution(production: unknown): Record<string, unknown> | null {
+  if (!production || typeof production !== "object" || Array.isArray(production)) return null;
+  const { [SCRIPT_ATTRIBUTION_KEY]: _removed, ...rest } = production as Record<string, unknown>;
+  return Object.keys(rest).length > 0 ? rest : null;
+}
+
+/** The editor's visual description is the canonical provider prompt. */
+export function resolveVideoAgentScenePrompt(scene: {
+  description?: string | null;
+  modelPrompt?: string | null;
+}): string {
+  return scene.description?.trim() || scene.modelPrompt?.trim() || "";
+}
+
+export function mergeVideoAgentSceneEdit(
+  previous: SceneRecord | undefined,
+  scene: SceneRecord,
+): SceneRecord {
+  const visualPromptChanged =
+    previous !== undefined &&
+    resolveVideoAgentScenePrompt(previous) !== resolveVideoAgentScenePrompt(scene);
+  return {
+    ...scene,
+    // A generated plate is derived from the old canonical visual prompt. Clear
+    // it only when that prompt changes; narration/timing/title edits retain it.
+    frame: visualPromptChanged ? null : previous?.frame ?? null,
+    frameStatus: visualPromptChanged ? "idle" : previous?.frameStatus ?? "idle",
+    plateQuality: visualPromptChanged ? undefined : previous?.plateQuality,
+    plateGenerationId: visualPromptChanged ? null : previous?.plateGenerationId ?? null,
+  };
+}
+
+const VideoAgentRenderEngineSchema = z.object({
+  version: z.literal(1),
+  scenes: z.array(z.object({
+    sceneId: z.string().min(1).max(100),
+    index: z.number().int().min(0).max(20),
+    image: z.discriminatedUnion("source", [
+      z.object({
+        source: z.literal("generated"),
+        provider: z.string().min(1).max(200),
+        endpoint: z.string().min(1).max(500),
+      }),
+      z.object({
+        source: z.literal("reused"),
+        plateQuality: z.enum(["free", "premium"]).nullable(),
+        generationId: z.string().max(160).nullable(),
+      }),
+    ]),
+    video: z.object({
+      provider: z.string().min(1).max(200),
+      endpoint: z.string().min(1).max(500),
+    }),
+  })).max(12),
+  assembler: z.object({
+    provider: z.literal("aurora-video-agent"),
+    endpoint: z.literal("local-ffmpeg-assemble"),
+  }),
+});
+export type VideoAgentRenderEngine = z.infer<typeof VideoAgentRenderEngineSchema>;
+
+/** Pure entitlement boundary shared by enqueue and the durable worker. */
+export function assertVideoAgentSeedanceEntitlement(tier: string): void {
+  if (tier !== "pro") {
+    throw new Error("An active Pro subscription is required for Video Agent Seedance renders");
+  }
+}
 
 const ProjectInput = z.object({
   prompt: z.string().min(10).max(4000),
@@ -64,12 +218,217 @@ type ProjectRow = {
   updated_at: string;
 };
 
+const FilmPlannerMetadataSchema = z.object({
+  planner: z.string().min(1).max(120),
+  provider: z.string().min(1).max(120),
+  model: z.string().min(1).max(200),
+  modelKey: z.string().min(1).max(240).optional(),
+  plannerVersion: z.string().min(1).max(80).optional(),
+  generatedAt: z.string().datetime().optional(),
+  fallbackCount: z.number().int().nonnegative().optional(),
+  latencyMs: z.number().int().nonnegative().optional(),
+  planningMode: z.enum(["full", "revision"]).optional(),
+  provenanceTrust: z.enum(["client-supplied", "server-verified"]),
+});
+
+const FilmContinuityLedgerSchema = z.object({
+  identity: z.array(z.string().max(2000)).max(40),
+  wardrobe: z.array(z.string().max(2000)).max(40),
+  props: z.array(z.string().max(2000)).max(40),
+  location: z.array(z.string().max(2000)).max(40),
+  time: z.array(z.string().max(2000)).max(40),
+  lighting: z.array(z.string().max(2000)).max(40),
+  screen_direction: z.array(z.string().max(2000)).max(40),
+  audio: z.array(z.string().max(2000)).max(40),
+});
+
+export const FilmPlanSchema = z.object({
+  schemaVersion: z.literal(1),
+  brief: z.object({
+    title: z.string().min(1).max(160),
+    logline: z.string().min(1).max(1000),
+    genre: z.string().max(120).optional(),
+    mood: z.string().max(500).optional(),
+    format: z.enum(["16:9", "9:16", "1:1", "4:3", "3:4", "2.39:1", "21:9"]),
+    motionLanguage: z.string().max(160).optional(),
+    assumptions: z.array(z.string().max(500)).max(20).default([]),
+  }),
+  script: z.string().max(50_000).default(""),
+  continuity: z.object({
+    identityAnchor: z.string().max(2000).default(""),
+    wardrobe: z.string().max(2000).default(""),
+    environment: z.string().max(2000).default(""),
+    cameraRules: z.string().max(2000).default(""),
+    colorRules: z.string().max(2000).default(""),
+  }),
+  continuityLedger: FilmContinuityLedgerSchema,
+  renderPlan: z.object({
+    rendererModel: z.literal("byteplus/seedance-2.5"),
+    aspectRatio: z.enum(["16:9", "9:16", "1:1", "4:3", "3:4", "21:9"]),
+    resolution: z.enum(["480p", "720p"]),
+    fps: z.union([z.literal(24), z.literal(25), z.literal(30), z.literal(48), z.literal(60)]),
+    generateAudio: z.boolean().default(true),
+    watermark: z.boolean().default(false),
+    seed: z.number().int().min(0).max(2147483647).optional(),
+  }),
+  planner: FilmPlannerMetadataSchema,
+  adoptedAt: z.string().datetime(),
+  renderApproval: z.object({
+    approved: z.literal(true),
+    fingerprint: z.string().length(64),
+    approvedAt: z.string().datetime(),
+  }).nullable().default(null),
+  // Actual provider/endpoint receipt from the most recently finalized render.
+  // It is intentionally outside the approval fingerprint: it is an execution
+  // receipt, not an input to the approved creative/render contract.
+  renderEngine: VideoAgentRenderEngineSchema.optional(),
+});
+
+export type FilmPlanRecord = z.infer<typeof FilmPlanSchema>;
+
+const FilmRenderChoicesSchema = FilmPlanSchema.shape.renderPlan;
+const SupportedFilmRenderChoicesSchema = FilmRenderChoicesSchema.superRefine((settings, context) => {
+  if (!["16:9", "9:16", "1:1"].includes(settings.aspectRatio)) {
+    context.addIssue({
+      code: "custom",
+      path: ["aspectRatio"],
+      message: "Durable Film Studio assembly currently supports 16:9, 9:16, or 1:1",
+    });
+  }
+  if (settings.fps !== 24) {
+    context.addIssue({
+      code: "custom",
+      path: ["fps"],
+      message: "Durable Film Studio assembly currently supports 24fps",
+    });
+  }
+});
+
+export function assertSupportedFilmStudioAssembly(
+  settings: z.infer<typeof FilmRenderChoicesSchema>,
+): void {
+  const parsed = SupportedFilmRenderChoicesSchema.safeParse(settings);
+  if (!parsed.success) {
+    throw new Error(parsed.error.issues.map((issue) => issue.message).join("; "));
+  }
+}
+
+export const FilmPlanAdoptionInputSchema = z.object({
+  prompt: z.string().min(10).max(4000),
+  originalPlan: VideoPlanSchema,
+  renderSettings: SupportedFilmRenderChoicesSchema,
+}).strict();
+
+function verifiedPlanScript(plan: VideoPlan): string {
+  if (!plan.screenplay) return "";
+  return [
+    plan.screenplay.synopsis,
+    ...plan.screenplay.beats.map((beat) => [
+      `${beat.timing} · ${beat.visual}`,
+      beat.action,
+      beat.dialogue ? `Dialogue: ${beat.dialogue}` : "",
+      beat.voiceover ? `Voice-over: ${beat.voiceover}` : "",
+      beat.audio ? `Audio: ${beat.audio}` : "",
+    ].filter(Boolean).join("\n")),
+  ].join("\n\n");
+}
+
+function verifiedShotScript(plan: VideoPlan, shot: VideoShot): string {
+  const beat = plan.screenplay?.beats.find((item) => item.id === shot.screenplay_beat_id);
+  if (!beat) return shot.action;
+  return [
+    beat.action,
+    beat.dialogue ? `Dialogue: ${beat.dialogue}` : "",
+    beat.voiceover ? `Voice-over: ${beat.voiceover}` : "",
+    beat.audio ? `Audio: ${beat.audio}` : "",
+  ].filter(Boolean).join("\n").slice(0, 2400);
+}
+
+export function deriveVerifiedFilmStudioPayload(
+  plan: VideoPlan,
+  renderSettings: z.infer<typeof FilmRenderChoicesSchema>,
+  adoptedAt: string,
+): { scenes: SceneRecord[]; filmPlan: FilmPlanRecord } {
+  const brief = plan.brief;
+  const shots = plan.shots;
+  const ledger = plan.continuity_ledger;
+  const provenance = plan.provenance;
+  if (!brief || !shots?.length || !ledger || !provenance?.provider || !provenance.model) {
+    throw new Error("Verified Film Planner output is missing required production fields");
+  }
+  if (plan.stages && Object.values(plan.stages).some((stage) => stage.status === "blocked")) {
+    throw new Error("Verified Film Planner output contains a blocked production stage");
+  }
+  const continuity: FilmPlanRecord["continuity"] = {
+    identityAnchor: ledger.identity.join("\n") || brief.identity_anchor || "",
+    wardrobe: ledger.wardrobe.join("\n"),
+    environment: [...ledger.location, ...ledger.time, ...ledger.props].join("\n"),
+    cameraRules: [...ledger.screen_direction, plan.direction?.camera_movement ?? ""].filter(Boolean).join("\n"),
+    colorRules: [...ledger.lighting, brief.mood].filter(Boolean).join("\n"),
+  };
+  const scenes = SceneListSchema.parse(shots.map((shot, index) => ({
+    id: shot.id || `shot-${index + 1}`,
+    index,
+    title: `${shot.purpose.charAt(0).toUpperCase()}${shot.purpose.slice(1)} · ${shot.shot_type}`,
+    script: verifiedShotScript(plan, shot),
+    description: shot.prompt,
+    duration: shot.duration_s,
+    frame: null,
+    frameStatus: "idle" as const,
+    purpose: shot.purpose,
+    shotType: shot.shot_type,
+    lensMm: shot.lens_mm,
+    camera: shot.camera,
+    lighting: shot.lighting,
+    modelPrompt: shot.prompt,
+    negativePrompt: shot.negative_prompt,
+    continuityNote: shot.chain_from,
+    aspectRatio: renderSettings.aspectRatio,
+  })));
+  return {
+    scenes,
+    filmPlan: FilmPlanSchema.parse({
+      schemaVersion: 1,
+      brief: {
+        title: brief.title,
+        logline: brief.logline,
+        genre: brief.genre,
+        mood: brief.mood,
+        format: brief.format,
+        motionLanguage: brief.motion_language,
+        assumptions: brief.assumptions ?? [],
+      },
+      script: verifiedPlanScript(plan),
+      continuity,
+      continuityLedger: ledger,
+      renderPlan: renderSettings,
+      planner: {
+        planner: "film-planner",
+        provider: provenance.provider,
+        model: provenance.model,
+        plannerVersion: provenance.schema_version,
+        generatedAt: provenance.generated_at,
+        fallbackCount: provenance.fallback_count,
+        latencyMs: provenance.latency_ms,
+        planningMode: provenance.planning_mode,
+        provenanceTrust: "server-verified",
+      },
+      adoptedAt,
+      renderApproval: null,
+    }),
+  };
+}
+
 export const VIDEO_AGENT_RENDER_COST = computeCost({
   features: ["video", "audio"],
   model: "seedance-2.0-fast",
   durationSeconds: 5,
 }).total;
 
+// The native model is registered, but the durable video_agent_render worker
+// still pins legacy Seedance and asserts subscriber mode. Keep Film Studio paid
+// dispatch fail-closed until that worker consumes the approved native contract
+// and performs its normal entitlement check.
 type SingleResult = Promise<{ data: ProjectRow | null; error: { message: string } | null }>;
 type ListResult = Promise<{ data: ProjectRow[] | null; error: { message: string } | null }>;
 
@@ -81,7 +440,10 @@ type ProjectSelectChain = {
 
 type ProjectUpdateChain = {
   eq: (column: string, value: string) => ProjectUpdateChain & {
-    select: (columns: string) => { single: () => SingleResult };
+    select: (columns: string) => {
+      single: () => SingleResult;
+      maybeSingle: () => SingleResult;
+    };
   };
 };
 
@@ -125,6 +487,38 @@ function parseProduction(value: unknown): NbaJoshProduction | null {
   return parsed.success ? refreshNbaJoshQuotes(parsed.data) : null;
 }
 
+function parseFilmPlan(value: unknown): FilmPlanRecord | null {
+  if (!value) return null;
+  const parsed = FilmPlanSchema.safeParse(value);
+  return parsed.success ? parsed.data : null;
+}
+
+function parseRenderEngine(value: unknown): VideoAgentRenderEngine | null {
+  if (!value || typeof value !== "object") return null;
+  const parsed = VideoAgentRenderEngineSchema.safeParse(
+    (value as { renderEngine?: unknown }).renderEngine,
+  );
+  return parsed.success ? parsed.data : null;
+}
+
+export async function filmRenderFingerprintAsync(scenes: SceneRecord[], plan: FilmPlanRecord): Promise<string> {
+  const canonical = JSON.stringify({
+    scenes: scenes.map((scene) => ({
+      id: scene.id, index: scene.index, script: scene.script,
+      description: scene.description, duration: scene.duration,
+      frame: scene.frame ?? null, plateGenerationId: scene.plateGenerationId ?? null,
+      modelPrompt: scene.modelPrompt ?? null,
+      negativePrompt: scene.negativePrompt ?? null,
+      continuityNote: scene.continuityNote ?? null,
+    })),
+    continuity: plan.continuity,
+    continuityLedger: plan.continuityLedger,
+    renderPlan: plan.renderPlan,
+  });
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(canonical));
+  return Array.from(new Uint8Array(digest)).map((byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
 export type VideoAgentProjectDto = ReturnType<typeof mapVideoAgentProject>;
 
 export function mapVideoAgentProject(row: ProjectRow) {
@@ -144,8 +538,12 @@ export function mapVideoAgentProject(row: ProjectRow) {
     thumbnailUrl: row.thumbnail_url,
     error: row.error,
     production: parseProduction(row.production),
+    filmPlan: parseFilmPlan(row.production),
+    renderEngine: parseRenderEngine(row.production),
+    scriptAttribution: parseScriptAttribution(row.production),
     createdAt: new Date(row.created_at).getTime(),
     updatedAt: new Date(row.updated_at).getTime(),
+    version: row.updated_at,
   };
 }
 
@@ -160,6 +558,46 @@ async function fetchOwnedProject(id: string, userId: string) {
   return row;
 }
 
+/**
+ * Persists attribution for the exact script returned by the authenticated
+ * server route. The client never supplies provider/model or the stored
+ * metadata; it only receives the already-authenticated response and later
+ * edits the storyboard through updateVideoAgentProject.
+ */
+export async function persistVideoAgentScriptAttribution(
+  projectId: string,
+  userId: string,
+  script: {
+    title: string;
+    scenes: VideoAgentScriptSceneLike[];
+    provider: string;
+    model: string | null;
+  },
+): Promise<void> {
+  const current = await fetchOwnedProject(projectId, userId);
+  if (!normalizedScriptContent(script.title, script.scenes).scenes.length) {
+    throw new Error("The generated script has no usable scenes");
+  }
+  const scriptHash = await videoAgentScriptContentHash(script.title, script.scenes);
+  const attribution = VideoAgentScriptAttributionSchema.parse({
+    version: 1,
+    provider: script.provider,
+    model: script.model,
+    scriptHash,
+    generatedAt: new Date().toISOString(),
+  });
+  const { error } = await projectTable()
+    .update({
+      production: productionWithScriptAttribution(current.production, attribution),
+      status_message: `Storyboard generated · served by ${attribution.provider} · ${attribution.model}`,
+    })
+    .eq("id", projectId)
+    .eq("user_id", userId)
+    .select("*")
+    .single();
+  if (error) throw new Error(error.message);
+}
+
 export const createVideoAgentProject = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: unknown) => ProjectInput.parse(data))
@@ -172,13 +610,129 @@ export const createVideoAgentProject = createServerFn({ method: "POST" })
         style: data.style,
         voice: data.voice,
         target_duration: data.targetDuration,
-        scenes: data.scenes,
+        scenes: data.scenes.map((scene) => ({
+          ...scene,
+          frame: null,
+          frameStatus: "idle",
+          plateQuality: undefined,
+          plateGenerationId: null,
+        })),
         status: data.scenes.length ? "editing" : "draft",
         status_message: data.scenes.length ? "Storyboard ready to render" : "Planning storyboard",
       })
       .select("*")
       .single();
     if (error || !row) throw new Error(error?.message ?? "Could not create project");
+    return mapVideoAgentProject(row);
+  });
+
+export const adoptFilmStudioPlan = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) => FilmPlanAdoptionInputSchema.parse(data))
+  .handler(async ({ data, context }) => {
+    const receipt = verifyPlanReceipt(data.originalPlan, data.originalPlan.receipt, context.userId);
+    if (!receipt.valid) {
+      throw new Error(`Film Planner receipt verification failed: ${receipt.reason}`);
+    }
+    const { scenes, filmPlan } = deriveVerifiedFilmStudioPayload(
+      data.originalPlan,
+      data.renderSettings,
+      new Date().toISOString(),
+    );
+    const { data: row, error } = await projectTable()
+      .insert({
+        user_id: context.userId,
+        prompt: data.prompt,
+        title: filmPlan.brief.title,
+        style: "cinematic",
+        voice: "narrator-warm",
+        target_duration: Math.max(15, Math.min(120, Math.round(
+          scenes.reduce((sum, scene) => sum + scene.duration, 0),
+        ))),
+        scenes: scenes.map((scene) => ({
+          ...scene,
+          frame: null,
+          frameStatus: "idle",
+          plateQuality: undefined,
+          plateGenerationId: null,
+        })),
+        production: filmPlan,
+        status: "editing",
+        status_message: "Film plan adopted — review continuity and approve the render boundary",
+      })
+      .select("*")
+      .single();
+    if (error || !row) throw new Error(error?.message ?? "Could not adopt film plan");
+    return mapVideoAgentProject(row);
+  });
+
+export const updateFilmStudioContinuity = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) => z.object({
+    id: z.string().uuid(),
+    expectedVersion: z.string().min(1).max(64),
+    continuity: FilmPlanSchema.shape.continuity,
+  }).parse(data))
+  .handler(async ({ data, context }) => {
+    const current = await fetchOwnedProject(data.id, context.userId);
+    if (current.status === "queued" || current.status === "processing") {
+      throw new Error("Continuity is locked while a render is in progress");
+    }
+    const filmPlan = parseFilmPlan(current.production);
+    if (!filmPlan) throw new Error("This project does not contain an adopted film plan");
+    const next = { ...filmPlan, continuity: data.continuity, renderApproval: null };
+    const { data: row, error } = await projectTable()
+      .update({
+        production: next,
+        status_message: "Continuity changed — render approval must be renewed",
+      })
+      .eq("id", data.id)
+      .eq("user_id", context.userId)
+      .eq("updated_at", data.expectedVersion)
+      .select("*")
+      .maybeSingle();
+    if (!row && !error) throw new Error("This project changed elsewhere. Reload before saving continuity.");
+    if (error || !row) throw new Error(error?.message ?? "Could not save continuity");
+    return mapVideoAgentProject(row);
+  });
+
+export const approveFilmStudioRender = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) => z.object({
+    id: z.string().uuid(),
+    expectedVersion: z.string().min(1).max(64),
+  }).parse(data))
+  .handler(async ({ data, context }) => {
+    const current = await fetchOwnedProject(data.id, context.userId);
+    if (current.status === "queued" || current.status === "processing") {
+      throw new Error("A render is already in progress");
+    }
+    const plan = parseFilmPlan(current.production);
+    if (!plan) throw new Error("This project does not contain an adopted film plan");
+    assertSupportedFilmStudioAssembly(plan.renderPlan);
+    const scenes = SceneListSchema.min(1).max(12).parse(current.scenes);
+    const shortScene = scenes.find((scene) => !Number.isInteger(scene.duration) || scene.duration < 4);
+    if (shortScene) {
+      throw new Error(`${shortScene.title} is ${shortScene.duration}s. Seedance 2.5 requires every shot to be an integer from 4–15 seconds.`);
+    }
+    const fingerprint = await filmRenderFingerprintAsync(scenes, plan);
+    const next: FilmPlanRecord = {
+      ...plan,
+      renderApproval: {
+        approved: true,
+        fingerprint,
+        approvedAt: new Date().toISOString(),
+      },
+    };
+    const { data: row, error } = await projectTable()
+      .update({ production: next, status_message: "Render plan approved — ready to render" })
+      .eq("id", data.id)
+      .eq("user_id", context.userId)
+      .eq("updated_at", data.expectedVersion)
+      .select("*")
+      .maybeSingle();
+    if (!row && !error) throw new Error("This project changed elsewhere. Review the latest plan before approving.");
+    if (error || !row) throw new Error(error?.message ?? "Could not approve render plan");
     return mapVideoAgentProject(row);
   });
 
@@ -272,10 +826,14 @@ export const updateVideoAgentProject = createServerFn({ method: "POST" })
     title: z.string().min(1).max(160).optional(),
     scenes: SceneListSchema.max(12).optional(),
     production: NbaJoshProductionSchema.optional(),
+    // Opaque, server-issued Postgres timestamptz token. Do not normalize it:
+    // PostgREST may serialize an explicit offset and CAS requires byte fidelity.
+    expectedVersion: z.string().min(1).max(64).optional(),
   }).parse(data))
   .handler(async ({ data, context }) => {
     const current = await fetchOwnedProject(data.id, context.userId);
     const patch: Record<string, unknown> = {};
+    const currentScriptAttribution = parseScriptAttribution(current.production);
     if (data.title !== undefined) patch.title = data.title;
     if (data.scenes !== undefined) {
       // The queued/processing render consumed a snapshot of this storyboard;
@@ -285,7 +843,27 @@ export const updateVideoAgentProject = createServerFn({ method: "POST" })
       if (current.status === "queued" || current.status === "processing") {
         throw new Error("The storyboard is locked while a render is in progress");
       }
-      patch.scenes = data.scenes;
+      const currentScenes = parseScenes(current.scenes);
+      // Plate provenance is server-owned. Client edits may change shot metadata,
+      // but cannot inject a frame URL or impersonate a paid generation.
+      patch.scenes = data.scenes.map((scene) => {
+        const previous = currentScenes.find((item) => item.id === scene.id);
+        return mergeVideoAgentSceneEdit(previous, scene);
+      });
+      // Frame/status enrichment performed by the processing page does not
+      // change the generated script and therefore keeps its attribution.
+      // Actual title, narration, visual, or timing edits change the content
+      // hash and must clear the server-authored claim.
+      if (currentScriptAttribution) {
+        const nextScriptHash = await videoAgentScriptContentHash(
+          data.title ?? current.title,
+          data.scenes,
+        );
+        if (nextScriptHash !== currentScriptAttribution.scriptHash) {
+          patch.production = productionWithoutScriptAttribution(current.production);
+          patch.status_message = "Storyboard changed — script attribution cleared";
+        }
+      }
       // Storyboard edits move a draft into the editable state, but never
       // clobber a terminal render status (succeeded/failed keep showing the
       // last render result until a re-render is queued).
@@ -295,6 +873,22 @@ export const updateVideoAgentProject = createServerFn({ method: "POST" })
           ? "Storyboard ready to render"
           : "Planning storyboard";
       }
+      const filmPlan = parseFilmPlan(current.production);
+      if (filmPlan) {
+        patch.production = { ...filmPlan, renderApproval: null };
+        patch.status_message = "Storyboard changed — render approval must be renewed";
+      }
+    }
+    if (
+      data.title !== undefined &&
+      currentScriptAttribution &&
+      (data.scenes === undefined || (
+        await videoAgentScriptContentHash(data.title, parseScenes(current.scenes))
+          !== currentScriptAttribution.scriptHash
+      ))
+    ) {
+      patch.production = productionWithoutScriptAttribution(current.production);
+      patch.status_message = "Storyboard changed — script attribution cleared";
     }
     if (data.production !== undefined) {
       if (current.status === "queued" || current.status === "processing") {
@@ -319,12 +913,17 @@ export const updateVideoAgentProject = createServerFn({ method: "POST" })
       }
     }
     if (!Object.keys(patch).length) return mapVideoAgentProject(current);
-    const { data: row, error } = await projectTable()
+    let update = projectTable()
       .update(patch)
       .eq("id", data.id)
-      .eq("user_id", context.userId)
-      .select("*")
-      .single();
+      .eq("user_id", context.userId);
+    if (data.expectedVersion) update = update.eq("updated_at", data.expectedVersion);
+    const { data: row, error } = data.expectedVersion
+      ? await update.select("*").maybeSingle()
+      : await update.select("*").single();
+    if (!row && data.expectedVersion && !error) {
+      throw new Error("This project changed in another request. Reloaded the latest version; please repeat your edit.");
+    }
     if (error || !row) throw new Error(error?.message ?? "Could not update project");
     return mapVideoAgentProject(row);
   });
@@ -387,9 +986,30 @@ async function persistProduction(
     .update({ production, status: "editing", status_message: statusMessage })
     .eq("id", projectId)
     .eq("user_id", userId)
+    .eq("status", "processing")
     .select("id")
     .single();
   if (error) throw new Error(error.message);
+}
+
+/**
+ * Claim the project row before any NBA Josh mutation or paid provider call.
+ * The UI lock is only advisory; this CAS prevents two browser tabs from
+ * spending on the same outfit concurrently.
+ */
+async function claimNbaJoshAction(row: ProjectRow, userId: string, action: string): Promise<void> {
+  if (row.status !== "editing" && row.status !== "draft") {
+    throw new Error("Another Video Agent action is already in progress. Refresh and try again.");
+  }
+  const { data, error } = await projectTable()
+    .update({ status: "processing", status_message: action })
+    .eq("id", row.id)
+    .eq("user_id", userId)
+    .eq("status", row.status)
+    .select("id")
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!data) throw new Error("Another Video Agent action is already in progress. Refresh and try again.");
 }
 
 export const quoteNbaJoshProduction = createServerFn({ method: "POST" })
@@ -425,6 +1045,7 @@ export const approveNbaJoshStill = createServerFn({ method: "POST" })
     if (!production.identityRefs.some((ref) => ref.approved)) {
       throw new Error("Approve at least one identity reference before generating");
     }
+    await claimNbaJoshAction(row, context.userId, `${outfit.name} still approval in progress`);
     const next: NbaJoshProduction = {
       ...production,
       outfits: production.outfits.map((item) => item.id === outfit.id ? {
@@ -452,13 +1073,14 @@ export const generateNbaJoshStills = createServerFn({ method: "POST" })
     }
     const imageUrls = await assertOwnedGenerationAssets(production, outfit, context.userId);
     const { reserveOrchestrateRecord } = await import("./generate-core.server");
+    await claimNbaJoshAction(row, context.userId, `Generating ${outfit.name} Seedream stills`);
     const working: NbaJoshProduction = {
       ...production,
       outfits: production.outfits.map((item) => item.id === outfit.id ? { ...item, stillStatus: "processing", stillError: undefined } : item),
     };
     await persistProduction(row.id, context.userId, working, `Generating ${outfit.name} Seedream stills`);
 
-    const outputs: Array<{ url: string; generationId: string }> = [];
+    const outputs: Array<{ url: string; generationId: string; servingModel: string }> = [];
     const failures: string[] = [];
     for (let index = 0; index < outfit.variationCount; index++) {
       try {
@@ -475,7 +1097,11 @@ export const generateNbaJoshStills = createServerFn({ method: "POST" })
           idempotencyKey: `${row.id}:still:${outfit.id}:${data.planHash}:${index}`,
         });
         if (!result.ok) throw new Error(result.error);
-        outputs.push({ url: result.url, generationId: result.generationId });
+        outputs.push({
+          url: result.url,
+          generationId: result.generationId,
+          servingModel: `${result.provider} · ${result.endpoint}`,
+        });
       } catch (error) {
         failures.push(error instanceof Error ? error.message : String(error));
       }
@@ -489,12 +1115,18 @@ export const generateNbaJoshStills = createServerFn({ method: "POST" })
         videoStatus: succeeded ? "awaiting_motion_approval" : "idle",
         stillUrls: outputs.map((output) => output.url),
         stillGenerationIds: outputs.map((output) => output.generationId),
+        stillServingModels: outputs.map((output) => output.servingModel),
         stillError: failures.length ? failures.join("; ").slice(0, 1000) : undefined,
       } : item),
     };
     await persistProduction(row.id, context.userId, next, succeeded ? `${outfit.name} stills ready for selection` : `${outfit.name} still generation failed`);
     if (!succeeded) throw new Error(failures[0] ?? "Still generation failed");
-    return { stillUrls: outputs.map((output) => output.url), generationIds: outputs.map((output) => output.generationId), failedVariations: failures.length };
+    return {
+      stillUrls: outputs.map((output) => output.url),
+      generationIds: outputs.map((output) => output.generationId),
+      servingModels: outputs.map((output) => output.servingModel),
+      failedVariations: failures.length,
+    };
   });
 
 export const selectNbaJoshStill = createServerFn({ method: "POST" })
@@ -505,6 +1137,7 @@ export const selectNbaJoshStill = createServerFn({ method: "POST" })
     assertCurrentPlanHash(production, data.planHash);
     const outfit = findNbaJoshOutfit(production, data.outfitId);
     if (!outfit.stillUrls.includes(data.stillUrl)) throw new Error("That still is not part of this outfit");
+    await claimNbaJoshAction(row, context.userId, `${outfit.name} still selection in progress`);
     const next: NbaJoshProduction = {
       ...production,
       outfits: production.outfits.map((item) => item.id === outfit.id ? {
@@ -528,6 +1161,7 @@ export const approveNbaJoshMotion = createServerFn({ method: "POST" })
     if (outfit.selectedStillUrl !== data.stillUrl || !outfit.stillUrls.includes(data.stillUrl)) {
       throw new Error("Select a generated still before approving motion");
     }
+    await claimNbaJoshAction(row, context.userId, `${outfit.name} motion approval in progress`);
     const next: NbaJoshProduction = {
       ...production,
       outfits: production.outfits.map((item) => item.id === outfit.id ? {
@@ -555,6 +1189,7 @@ export const generateNbaJoshMotionPreview = createServerFn({ method: "POST" })
     }
     if (!outfit.selectedStillUrl) throw new Error("Select a still before requesting a motion preview");
     const { reserveOrchestrateRecord } = await import("./generate-core.server");
+    await claimNbaJoshAction(row, context.userId, `Generating ${outfit.name} Seedance preview`);
     const working: NbaJoshProduction = {
       ...production,
       outfits: production.outfits.map((item) => item.id === outfit.id ? { ...item, videoStatus: "preview_queued", videoError: undefined } : item),
@@ -584,6 +1219,7 @@ export const generateNbaJoshMotionPreview = createServerFn({ method: "POST" })
           videoStatus: "preview_succeeded",
           videoUrl: result.url,
           videoGenerationId: result.generationId,
+          videoServingModel: `${result.provider} · ${result.endpoint}`,
         } : item),
       };
       await persistProduction(row.id, context.userId, next, `${outfit.name} preview ready for review`);
@@ -617,6 +1253,7 @@ export const generateNbaJoshVideo = createServerFn({ method: "POST" })
       throw new Error("Approve the selected still's motion plan before rendering");
     }
     const { reserveOrchestrateRecord } = await import("./generate-core.server");
+    await claimNbaJoshAction(row, context.userId, `Generating ${outfit.name} Layer A`);
     const working: NbaJoshProduction = {
       ...production,
       outfits: production.outfits.map((item) => item.id === outfit.id ? { ...item, videoStatus: "processing", videoError: undefined } : item),
@@ -649,6 +1286,7 @@ export const generateNbaJoshVideo = createServerFn({ method: "POST" })
           videoStatus: "succeeded",
           videoUrl: result.url,
           videoGenerationId: result.generationId,
+          videoServingModel: `${result.provider} · ${result.endpoint}`,
         } : item),
       };
       await persistProduction(row.id, context.userId, next, `${outfit.name} Layer A ready — package with Layer B`);
@@ -687,6 +1325,84 @@ const previsStyleHints: Record<z.infer<typeof StyleSchema>, string> = {
   documentary: "natural light, candid, hyper-realistic",
 };
 
+function pollinationsPrevisUrl(prompt: string): string {
+  const encoded = encodeURIComponent(prompt.slice(0, 500));
+  const seed = Math.floor(Math.random() * 999999);
+  return `https://image.pollinations.ai/prompt/${encoded}?width=896&height=504&nologo=true&enhance=false&seed=${seed}`;
+}
+
+async function persistPrevisPlate(args: {
+  projectId: string;
+  userId: string;
+  sceneId: string;
+  url: string;
+  quality: "free" | "premium";
+  generationId: string | null;
+  statusMessage: string;
+}) {
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const current = await fetchOwnedProject(args.projectId, args.userId);
+    const scenes = parseScenes(current.scenes);
+    const scene = scenes.find((item) => item.id === args.sceneId);
+    if (!scene) throw new Error("Scene was removed while the plate was rendering");
+    const nextScenes = scenes.map((item) =>
+      item.id === args.sceneId
+        ? {
+            ...item,
+            frame: args.url,
+            frameStatus: "done" as const,
+            plateQuality: args.quality,
+            plateGenerationId: args.generationId,
+          }
+        : item,
+    );
+    const { data, error } = await projectTable()
+      .update({ scenes: nextScenes, status_message: args.statusMessage })
+      .eq("id", current.id)
+      .eq("user_id", args.userId)
+      .eq("updated_at", current.updated_at)
+      .select("id")
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (data) return;
+  }
+  throw new Error("The plate rendered, but the project changed before it could be saved. Retry to attach the existing render safely.");
+}
+
+/**
+ * Generate a free sketch plate from server-owned project state and persist it
+ * onto the scene. The client supplies only project/scene identifiers; the
+ * visual prompt is never accepted from the request body.
+ */
+export const generateVideoAgentPrevisPlate = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) =>
+    z.object({ id: z.string().uuid(), sceneId: z.string().min(1).max(100) }).parse(data),
+  )
+  .handler(async ({ data, context }) => {
+    const project = await fetchOwnedProject(data.id, context.userId);
+    if (project.status === "queued" || project.status === "processing") {
+      throw new Error("The storyboard is locked while a render is in progress");
+    }
+    const scenes = parseScenes(project.scenes);
+    const scene = scenes.find((item) => item.id === data.sceneId);
+    if (!scene) throw new Error("Scene not found in this project");
+    const prompt = resolveVideoAgentScenePrompt(scene);
+    if (!prompt) throw new Error("Add a model prompt before generating the plate");
+
+    const url = pollinationsPrevisUrl(prompt);
+    await persistPrevisPlate({
+      projectId: project.id,
+      userId: context.userId,
+      sceneId: scene.id,
+      url,
+      quality: "free",
+      generationId: null,
+      statusMessage: `${scene.title} free previs plate ready`,
+    });
+    return { sceneId: scene.id, url, quality: "free" as const, provider: "pollinations", cost: 0 };
+  });
+
 export const upgradeVideoAgentPlate = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: unknown) =>
@@ -703,7 +1419,7 @@ export const upgradeVideoAgentPlate = createServerFn({ method: "POST" })
     if (!scene.description.trim()) throw new Error("Add a visual description before upgrading the plate");
 
     const styleHint = previsStyleHints[project.style] ?? previsStyleHints.cinematic;
-    const prompt = `${scene.description}. Style: ${styleHint}. Cinematic keyframe.`;
+    const prompt = `${resolveVideoAgentScenePrompt(scene)}. Style: ${styleHint}. Cinematic keyframe.`;
 
     const { reserveOrchestrateRecord } = await import("./generate-core.server");
     let outcome;
@@ -715,6 +1431,7 @@ export const upgradeVideoAgentPlate = createServerFn({ method: "POST" })
         cost: PREVIS_PLATE_COST,
         reason: "video_agent_previs_plate",
         mode: "preview",
+        idempotencyKey: `previs:${project.id}:${scene.id}:${project.updated_at}`,
       });
     } catch (err) {
       throw new Error(err instanceof Error ? err.message : "Plate upgrade failed");
@@ -726,13 +1443,15 @@ export const upgradeVideoAgentPlate = createServerFn({ method: "POST" })
 
     // Persist the upgraded frame onto the scene so it survives reloads and feeds
     // the real render. Only mutate this one scene's frame; leave the rest intact.
-    const nextScenes = scenes.map((s) => (s.id === data.sceneId ? { ...s, frame: outcome!.url, frameStatus: "done" as const } : s));
-    await projectTable()
-      .update({ scenes: nextScenes })
-      .eq("id", project.id)
-      .eq("user_id", context.userId)
-      .select("id")
-      .single();
+    await persistPrevisPlate({
+      projectId: project.id,
+      userId: context.userId,
+      sceneId: scene.id,
+      url: outcome.url,
+      quality: "premium",
+      generationId: outcome.generationId,
+      statusMessage: `${scene.title} premium previs plate ready`,
+    });
 
     return { sceneId: data.sceneId, url: outcome.url, generationId: outcome.generationId, provider: outcome.provider, cost: PREVIS_PLATE_COST };
   });
@@ -743,8 +1462,36 @@ export const enqueueVideoAgentRender = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const project = await fetchOwnedProject(data.id, context.userId);
     const scenes = SceneListSchema.min(1).max(12).parse(project.scenes);
+    const filmPlan = parseFilmPlan(project.production);
+    let renderCost = VIDEO_AGENT_RENDER_COST;
+    if (filmPlan) {
+      assertSupportedFilmStudioAssembly(filmPlan.renderPlan);
+      const shortScene = scenes.find((scene) => !Number.isInteger(scene.duration) || scene.duration < 4);
+      if (shortScene) {
+        throw new Error(`${shortScene.title} is ${shortScene.duration}s. Seedance 2.5 requires every shot to be an integer from 4–15 seconds.`);
+      }
+      const fingerprint = await filmRenderFingerprintAsync(scenes, filmPlan);
+      if (!filmPlan.renderApproval?.approved || filmPlan.renderApproval.fingerprint !== fingerprint) {
+        throw new Error("Approve the current film plan before starting a paid render");
+      }
+      if (process.env.FILM_STUDIO_NATIVE_RENDER_ENABLED !== "true") {
+        throw new Error(
+          "Film Studio native rendering is prepared but disabled until scoped video_agent_projects write grants are deployed. No Aura was reserved.",
+        );
+      }
+      renderCost = computeCost({
+        features: ["video", "audio"],
+        model: filmPlan.renderPlan.rendererModel,
+        resolution: filmPlan.renderPlan.resolution,
+        durationSeconds: scenes.reduce((sum, scene) => sum + scene.duration, 0),
+      }).total;
+    }
+    // The legacy path also explicitly dispatches paid Seedance with
+    // forSubscriber=true. Adapter-native checks are not an entitlement lookup:
+    // enforce active Pro before an existing job is adopted or Aura is reserved.
+    assertVideoAgentSeedanceEntitlement(await getUserTier(context.userId));
     if (project.job_id && ["queued", "processing"].includes(project.status)) {
-      return { jobId: project.job_id, generationId: project.generation_id, cost: VIDEO_AGENT_RENDER_COST };
+      return { jobId: project.job_id, generationId: project.generation_id, cost: renderCost };
     }
 
     // Idempotency: if a previous enqueue reserved + created the job but the
@@ -794,9 +1541,10 @@ export const enqueueVideoAgentRender = createServerFn({ method: "POST" })
         })
         .eq("id", project.id)
         .eq("user_id", context.userId)
+        .eq("updated_at", project.updated_at)
         .select("id")
         .single();
-      return { jobId: existing.id, generationId: existing.generation_id, cost: VIDEO_AGENT_RENDER_COST };
+      return { jobId: existing.id, generationId: existing.generation_id, cost: renderCost };
     }
 
     const payload = {
@@ -808,6 +1556,16 @@ export const enqueueVideoAgentRender = createServerFn({ method: "POST" })
       voice: project.voice,
       targetDuration: project.target_duration,
       scenes,
+      ...(filmPlan ? {
+        rendererModel: filmPlan.renderPlan.rendererModel,
+        renderParams: {
+          generate_audio: filmPlan.renderPlan.generateAudio,
+          watermark: filmPlan.renderPlan.watermark,
+          ...(filmPlan.renderPlan.seed === undefined ? {} : { seed: filmPlan.renderPlan.seed }),
+        },
+        approvalFingerprint: filmPlan.renderApproval?.fingerprint,
+        filmPlan,
+      } : {}),
     };
     const client = supabaseAdmin as unknown as {
       rpc: (name: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: { message: string } | null }>;
@@ -816,7 +1574,7 @@ export const enqueueVideoAgentRender = createServerFn({ method: "POST" })
       _user: context.userId,
       _kind: "video",
       _prompt: project.prompt,
-      _amount: VIDEO_AGENT_RENDER_COST,
+      _amount: renderCost,
       _payload: payload,
     });
     if (error) {
@@ -835,6 +1593,7 @@ export const enqueueVideoAgentRender = createServerFn({ method: "POST" })
       })
       .eq("id", project.id)
       .eq("user_id", context.userId)
+      .eq("updated_at", project.updated_at)
       .select("*")
       .single();
     if (updateError) {
@@ -846,5 +1605,5 @@ export const enqueueVideoAgentRender = createServerFn({ method: "POST" })
         `[video-agent] job ${row.job_id} enqueued but project ${project.id} status update failed: ${updateError.message}`,
       );
     }
-    return { jobId: row.job_id, generationId: row.generation_id, cost: VIDEO_AGENT_RENDER_COST };
+    return { jobId: row.job_id, generationId: row.generation_id, cost: renderCost };
   });

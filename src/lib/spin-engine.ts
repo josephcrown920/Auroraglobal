@@ -20,7 +20,7 @@ const beautyTemplateImg        = "/josh/generated2/colors-sunset-orange.webp";
 // 30 posts per run — (10 Aura × 30 = 300 Aura upfront).
 // The engine is count-driven; the fallback axes have LCM(10,11)=110 ≥ 30 so
 // every (location, outfit) pair is still unique across the full batch.
-export const SPIN_COUNT = 50;
+export const SPIN_COUNT = 30;
 // 10 Aura per spin piece (2026-07-19 ×10 rebase) — the single client-safe
 // source for the per-piece charge. spin.functions.ts (server) and every cost
 // label import THIS constant so the disclosed price can never drift from what

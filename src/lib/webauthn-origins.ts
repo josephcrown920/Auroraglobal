@@ -4,7 +4,7 @@
 export function getRP() {
   const siteUrl = (process.env.SITE_URL ?? "https://auroraperformancestudio.com").replace(/\/$/, "");
   const url = new URL(siteUrl.startsWith("http") ? siteUrl : `https://${siteUrl}`);
-  return { rpName: "Aurora Studio", rpID: url.hostname, origin: url.origin };
+  return { rpName: "Aurora Performance Studio", rpID: url.hostname, origin: url.origin };
 }
 
 /**

@@ -2,7 +2,7 @@ import { authNextSearch } from "@/lib/auth-return-path";
 import { createLazyFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { FeatureGuard } from "@/components/FeatureVisibilityProvider";
 import { AutoplayVideo } from "@/components/ui/AutoplayVideo";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { ExampleOutputGrid } from "@/components/studio/ExampleOutputGrid";
 import { useMutation } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -20,12 +20,6 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Smartphone, Camera, ShoppingBag, Coffee, Dumbbell, Sparkles, Check, Loader2, Wand2, Film, AudioLines, Music2, X, Plus, ImagePlus, Presentation, ArrowRight, PackageOpen } from "lucide-react";
-import avatarMaya from "@/assets/ugc/maya.jpg.asset.json";
-import avatarLuna from "@/assets/ugc/luna.jpg.asset.json";
-import avatarAva from "@/assets/ugc/ava.jpg.asset.json";
-import avatarRio from "@/assets/ugc/rio.jpg.asset.json";
-import avatarScarlet from "@/assets/ugc/scarlet.jpg.asset.json";
-import avatarNova from "@/assets/ugc/nova.jpg.asset.json";
 import productLipstick from "@/assets/ugc/product-lipstick-car.jpg.asset.json";
 import realCarHold from "@/assets/ugc/ugc-car-product-hold.webp.asset.json";
 import realStreet from "@/assets/ugc/ugc-street-coffee.jpeg.asset.json";
@@ -36,10 +30,14 @@ import demo3 from "@/assets/demo-3.mov.asset.json";
 import demo4 from "@/assets/demo-4.mov.asset.json";
 import demo5 from "@/assets/demo-5.mov.asset.json";
 import demo6 from "@/assets/demo-6.mov.asset.json";
-import auraBloom from "../../attached_assets/IMG_0629_1785995684443.jpeg";
-import auraCafe from "../../attached_assets/IMG_0626_1785995684443.jpeg";
+import auraBloom from "../assets/ugc/aura-bloom.jpeg";
+import auraCafe from "../assets/ugc/aura-cafe.jpeg";
 import { EditableCopy } from "@/components/EditableCopy";
 import { useSiteCopyValue } from "@/components/landing/SiteCopyProvider";
+import { PageHeroBanner } from "@/components/visual/PageHeroBanner";
+import { OutputGallery } from "@/components/visual/OutputGallery";
+import { DEMO_ASSETS } from "@/lib/demo-assets";
+import { UGC_AVATARS } from "@/lib/ugc-avatars";
 
 // Artist-only mode: this feature is hidden from regular users by default.
 // Admins always pass; regular users are redirected to /studio unless the
@@ -52,16 +50,7 @@ export const Route = createLazyFileRoute("/ugc")({
   ),
 });
 
-const AVATARS = [
-  { id: "maya",    name: "Maya",    vibe: "Soft-glam beauty reviewer", img: avatarMaya.url },
-  { id: "luna",    name: "Luna",    vibe: "Clean-girl skincare lead",  img: avatarLuna.url },
-  { id: "ava",     name: "Ava",     vibe: "Bold lip, red-dress energy", img: avatarAva.url },
-  { id: "rio",     name: "Rio",     vibe: "Cool-tone editorial",       img: avatarRio.url },
-  { id: "scarlet", name: "Scarlet", vibe: "Red-hair freckled it-girl", img: avatarScarlet.url },
-  { id: "nova",    name: "Nova",    vibe: "Glossy fitness creator",    img: avatarNova.url },
-  { id: "emma",    name: "Emma",    vibe: "Car-selfie product reviewer", img: realCarHold.url },
-  { id: "sasha",   name: "Sasha",   vibe: "Street-style coffee run",     img: realStreet.url },
-];
+const AVATARS = UGC_AVATARS;
 
 const PRESETS = [
   { id: "iphone-selfie", name: "iPhone selfie review", icon: Smartphone, hint: "Front camera, slightly tilted, soft window light, casual room.", video: demo1.url, poster: undefined as string | undefined },
@@ -125,17 +114,47 @@ function UGCStudio() {
   const genStatus = useServerFn(getGenerationStatus);
   const genDemo = useServerFn(generateProductDemo);
 
-  // Avatar images are bundled as relative asset paths; the async pipeline needs
-  // an absolute, fetchable URL for both validation and the provider fetch.
-  const toAbsolute = (u: string) =>
-    /^https?:\/\//.test(u) ? u : new URL(u, window.location.origin).href;
+  // The bundled avatar images live at same-origin /__l5e/ asset paths, which the
+  // reference-image ownership guard (correctly) refuses — a character reference
+  // must be something the caller OWNS, and Aurora's own origin is not a trusted
+  // provider host. So each selected avatar is staged into the caller's own studio
+  // folder once per session and the studio URL is what every generation call
+  // references — the same pattern as the Studio demo selfie (orchestrate re-signs
+  // studio refs before handing them to any provider).
+  const avatarRefCache = useRef<Record<string, string>>({});
+  const resolveAvatarRef = async (): Promise<string> => {
+    if (!user) throw new Error("Please sign in first.");
+    const cached = avatarRefCache.current[avatar.id];
+    if (cached) return cached;
+    const ext = (avatar.img.split("?")[0].split(".").pop() || "jpg").toLowerCase();
+    const path = `${user.id}/ugc/avatar-${avatar.id}.${ext}`;
+    const publicUrl = supabase.storage.from("studio").getPublicUrl(path).data.publicUrl;
+    // Probe first: a previous session may already have staged this avatar.
+    const alreadyStaged = await new Promise<boolean>((resolve) => {
+      const probe = new Image();
+      probe.onload = () => resolve(true);
+      probe.onerror = () => resolve(false);
+      probe.src = publicUrl;
+    });
+    if (!alreadyStaged) {
+      const blob = await (await fetch(avatar.img)).blob();
+      const { error } = await supabase.storage.from("studio").upload(path, blob, {
+        contentType: blob.type || "image/jpeg",
+        upsert: true,
+      });
+      if (error) throw new Error(`Avatar staging failed: ${error.message}`);
+    }
+    avatarRefCache.current[avatar.id] = publicUrl;
+    return publicUrl;
+  };
 
   const imageMut = useMutation({
     mutationFn: async () => {
       if (!user) throw new Error("Please sign in first.");
       if (!productPrompt.trim()) throw new Error("Describe your product (e.g. holding a glossy red lipstick).");
       const prompt = `Hyper-realistic UGC iPhone-style shot. ${preset.hint} Featuring AI creator "${avatar.name}" (${avatar.vibe}). Product/action: ${productPrompt.trim()}. Native social media aesthetic, photoreal skin, no logos, 9:16 framing.`;
-      return await genShot({ data: { prompt, imageUrls: [toAbsolute(avatar.img)], model: "google/gemini-2.5-flash-image" } });
+      const avatarRef = await resolveAvatarRef();
+      return await genShot({ data: { prompt, imageUrls: [avatarRef], model: "google/gemini-2.5-flash-image" } });
     },
     onSuccess: (r) => { setResultImage(r.resultUrl); setResultVideo(null); toast.success("UGC shot ready — make it move next."); },
     onError: (e) => handleGenerationError(e),
@@ -174,9 +193,10 @@ function UGCStudio() {
         if (signErr || !signed?.signedUrl) throw new Error(`Voice URL failed: ${signErr?.message ?? "no url"}`);
         audioUrl = signed.signedUrl;
       }
+      const avatarRef = await resolveAvatarRef();
       const { generationId } = await genAd({
         data: {
-          avatarImageUrl: toAbsolute(avatar.img),
+          avatarImageUrl: avatarRef,
           avatarName: avatar.name,
           vibe: avatar.vibe,
           presetHint: preset.hint,
@@ -291,6 +311,13 @@ function UGCStudio() {
         </nav>
       </header>
 
+      <PageHeroBanner
+        kicker="UGC Factory"
+        headline="Turn a product brief into creator-ready proof."
+        sub="Pair a product, creator, and scene; Aurora turns the direction into an ad your audience can picture."
+        media={DEMO_ASSETS.ugc.hero}
+        className="relative z-10 mx-6 mt-7 rounded-3xl border border-white/10"
+      />
       <section className="relative z-10 max-w-6xl mx-auto px-6 py-12">
          <EditableCopy
            copyKey="ugc_hero_kicker"
@@ -403,7 +430,13 @@ function UGCStudio() {
           </section>
 
         {/* ── Sample campaigns inspiration ────────────────────────── */}
-        <UGCInspirationBlock />
+        <OutputGallery
+          items={DEMO_ASSETS.ugc.gallery}
+          kicker="Campaign proof"
+          title="See the creator, product, and outcome together."
+          subtitle="Every reference is a real Aurora direction—not stock imagery."
+          showGalleryLink
+        />
 
         {/* Preset gallery */}
         <div className="mt-12">

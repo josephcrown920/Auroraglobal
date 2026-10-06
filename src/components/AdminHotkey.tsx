@@ -1,10 +1,13 @@
 import { useEffect, useRef } from "react";
 import { useRouter } from "@tanstack/react-router";
+import { requestAdminGate } from "@/components/AdminGate";
 
 /**
  * Hidden owner entrance — no visible link, no console log.
  * Only way in: triple-click the very bottom-right 24×24 px corner.
- * Server independently enforces admin role on every request.
+ * It merely asks the /admin route boundary to show the owner passcode form
+ * (instead of redirecting a non-admin away); nothing is unlocked here and the
+ * server independently enforces admin authorization on every request.
  */
 export function AdminHotkey() {
   const router = useRouter();
@@ -19,6 +22,7 @@ export function AdminHotkey() {
         clicks.current = [...clicks.current.filter((t) => now - t < 800), now];
         if (clicks.current.length >= 3) {
           clicks.current = [];
+          requestAdminGate();
           router.navigate({ to: "/admin" });
         }
       }

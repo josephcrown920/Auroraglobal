@@ -1,5 +1,6 @@
 {pkgs}: {
   deps = [
+    pkgs.k6
     pkgs.gemini-cli
     pkgs.gh
     pkgs.libgbm

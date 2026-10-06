@@ -1,5 +1,11 @@
 import { describe, expect, it } from "bun:test";
-import { buildEvenLyricSegments } from "./music-video-prompts";
+import {
+  buildBeatAlignedSegments,
+  buildEvenLyricSegments,
+  buildLyricVideoSegments,
+  lyricAnalysisMarkerAfterCleanup,
+  lyricBeatGate,
+} from "./music-video-prompts";
 
 describe("buildEvenLyricSegments", () => {
   it("evenly splits lines across the full duration, in order", () => {
@@ -43,5 +49,158 @@ describe("buildEvenLyricSegments", () => {
       { start: 3.33, end: 6.67, text: "b" },
       { start: 6.67, end: 10, text: "c" },
     ]);
+  });
+});
+
+describe("buildBeatAlignedSegments", () => {
+  it("snaps each line's start to the nearest beat", () => {
+    // 10s song, 2 lines → even starts 0 and 5; beats land at 1.2 and 6.0
+    const segs = buildBeatAlignedSegments(10, ["one", "two"], [1.2, 6.0]);
+    expect(segs).toEqual([
+      { start: 1.2, end: 6, text: "one" },
+      { start: 6, end: 10, text: "two" },
+    ]);
+  });
+
+  it("lands exactly on the grid when beats match the even split", () => {
+    const segs = buildBeatAlignedSegments(8, ["a", "b", "c", "d"], [0, 2, 4, 6]);
+    expect(segs.map((s) => s.start)).toEqual([0, 2, 4, 6]);
+    expect(segs.map((s) => s.end)).toEqual([2, 4, 6, 8]);
+  });
+
+  it("keeps starts strictly increasing when beats run out", () => {
+    const segs = buildBeatAlignedSegments(4, ["a", "b", "c", "d"], [0, 1]);
+    for (let i = 1; i < segs.length; i++) {
+      expect(segs[i].start).toBeGreaterThan(segs[i - 1].start);
+    }
+    for (const s of segs) expect(s.end).toBeGreaterThanOrEqual(s.start);
+    expect(segs[segs.length - 1].end).toBe(4);
+  });
+
+  it("never lets consecutive lines share a beat", () => {
+    // 4 lines, 2s song → even split is 0.5s/line but only 2 beats exist
+    const segs = buildBeatAlignedSegments(2, ["a", "b", "c", "d"], [0.2, 0.9]);
+    for (let i = 1; i < segs.length; i++) {
+      expect(segs[i].start).toBeGreaterThan(segs[i - 1].start);
+    }
+  });
+
+  it("falls back to an even split when there are no usable beats", () => {
+    const lines = ["one", "two", "three"];
+    expect(buildBeatAlignedSegments(30, lines, [])).toEqual(buildEvenLyricSegments(30, lines));
+    // beats outside [0, duration) are unusable
+    expect(buildBeatAlignedSegments(30, lines, [-2, 99])).toEqual(buildEvenLyricSegments(30, lines));
+  });
+
+  it("handles unsorted beat timestamps", () => {
+    const segs = buildBeatAlignedSegments(10, ["one", "two"], [6, 1.2]);
+    expect(segs[0].start).toBe(1.2);
+    expect(segs[1].start).toBe(6);
+  });
+
+  it("reserves room so late-only beats cannot collapse the tail", () => {
+    // The only beat is at 9.9s of a 10s song — no line may take it, because
+    // the later lines would have nowhere to go. Result is the even split.
+    const segs = buildBeatAlignedSegments(10, ["a", "b", "c"], [9.9]);
+    expect(segs.map((s) => s.start)).toEqual([0, 3.33, 6.67]);
+    for (const s of segs) expect(s.end).toBeGreaterThan(s.start);
+    expect(segs[2].end).toBe(10);
+  });
+
+  it("only snaps when a beat is near the line's even position", () => {
+    // Beat at 3.4s is closest to line 2's even position (3.33s); line 1
+    // keeps its 0s even start rather than jumping to 3.4s.
+    const segs = buildBeatAlignedSegments(10, ["a", "b", "c"], [3.4]);
+    expect(segs.map((s) => s.start)).toEqual([0, 3.4, 6.67]);
+  });
+
+  it("keeps rounded boundaries monotonic on very short songs", () => {
+    const segs = buildBeatAlignedSegments(2, ["a", "b", "c", "d"], [0.4, 0.9, 1.4, 1.9]);
+    for (let i = 1; i < segs.length; i++) {
+      expect(segs[i].start).toBeGreaterThanOrEqual(segs[i - 1].start);
+      expect(segs[i].end).toBeGreaterThanOrEqual(segs[i].start);
+    }
+    expect(segs[segs.length - 1].end).toBe(2);
+  });
+
+  it("keeps starts strictly increasing at the densest supported line count", () => {
+    // 1s song, 50 lines → 0.02s slots; every line has its own beat.
+    const beats = Array.from({ length: 50 }, (_, i) => i * 0.02);
+    const lines = Array.from({ length: 50 }, (_, i) => `line ${i}`);
+    const segs = buildBeatAlignedSegments(1, lines, beats);
+    for (let i = 1; i < segs.length; i++) {
+      expect(segs[i].start).toBeGreaterThan(segs[i - 1].start);
+    }
+    expect(segs[49].end).toBe(1);
+  });
+
+  it("falls back to the even split when distinct centisecond boundaries are impossible", () => {
+    // 0.01s song with 3 lines → 0.003s slots cannot produce distinct
+    // 2-decimal boundaries; defined behavior is the even split.
+    const lines = ["a", "b", "c"];
+    expect(buildBeatAlignedSegments(0.01, lines, [0.005])).toEqual(
+      buildEvenLyricSegments(0.01, lines),
+    );
+  });
+
+  it("returns an empty array for empty lines or invalid duration", () => {
+    expect(buildBeatAlignedSegments(30, [], [1, 2])).toEqual([]);
+    expect(buildBeatAlignedSegments(0, ["x"], [1])).toEqual([]);
+    expect(buildBeatAlignedSegments(Number.NaN, ["x"], [1])).toEqual([]);
+    expect(buildBeatAlignedSegments(10, ["   "], [1])).toEqual([]);
+  });
+});
+
+describe("lyricBeatGate", () => {
+  it("blocks generation while beat detection is pending", () => {
+    // The pre-effect render (idle with a song set) and the analysis window
+    // must both keep Generate disabled — submitting then would silently use
+    // even-split timing.
+    expect(lyricBeatGate({ hasAudio: true, beatStatus: "idle", analysisFailed: false })).toBe("pending");
+    expect(lyricBeatGate({ hasAudio: true, beatStatus: "analyzing", analysisFailed: false })).toBe("pending");
+  });
+
+  it("opens generation once detection settles, with even split as the failure fallback", () => {
+    expect(lyricBeatGate({ hasAudio: true, beatStatus: "done", analysisFailed: false })).toBe("ready");
+    expect(lyricBeatGate({ hasAudio: true, beatStatus: "error", analysisFailed: false })).toBe("ready");
+    expect(lyricBeatGate({ hasAudio: true, beatStatus: "idle", analysisFailed: true })).toBe("ready");
+  });
+
+  it("stays blocked without an uploaded song", () => {
+    expect(lyricBeatGate({ hasAudio: false, beatStatus: "done", analysisFailed: false })).toBe("no-audio");
+  });
+});
+
+describe("lyricAnalysisMarkerAfterCleanup", () => {
+  it("clears the marker after a cancelled analysis so returning re-analyzes", () => {
+    // Leave/return while the download or decode is pending must not skip
+    // analysis forever for that file.
+    expect(lyricAnalysisMarkerAfterCleanup("url-a", "url-a")).toBeNull();
+  });
+
+  it("never touches a marker for a different URL", () => {
+    expect(lyricAnalysisMarkerAfterCleanup("url-a", "url-b")).toBe("url-a");
+  });
+});
+
+describe("shared Lyric Video timing contract", () => {
+  const duration = 12;
+  const lines = ["first line", "second line", "third line"];
+  const beats = [0.4, 4.2, 8.1];
+
+  it("gives Music Video and Motion the same beat-aligned payload timing", () => {
+    // Both /music-video and /motion call this shared function before
+    // generateLyricVideoFromSong, so they cannot quietly diverge.
+    const musicVideoPayload = buildLyricVideoSegments(duration, lines, beats);
+    const motionPayload = buildLyricVideoSegments(duration, lines, beats);
+    expect(musicVideoPayload).toEqual(motionPayload);
+    expect(musicVideoPayload).toEqual(buildBeatAlignedSegments(duration, lines, beats));
+  });
+
+  it("gives both entry points the explicit even-split fallback when no beat grid exists", () => {
+    const musicVideoPayload = buildLyricVideoSegments(duration, lines, null);
+    const motionPayload = buildLyricVideoSegments(duration, lines, []);
+    expect(musicVideoPayload).toEqual(buildEvenLyricSegments(duration, lines));
+    expect(motionPayload).toEqual(buildEvenLyricSegments(duration, lines));
   });
 });

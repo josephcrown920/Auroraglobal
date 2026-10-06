@@ -48,7 +48,7 @@ function scene({ width, height, eyebrow, headline, subhead, screen, accent = "#a
     <rect x="${deviceX}" y="${deviceY}" width="${deviceW}" height="${deviceH}" rx="${Math.round(74 * scale)}" fill="#05040a" stroke="#6d5a8a" stroke-width="${Math.max(2, Math.round(2 * scale))}" filter="url(#shadow)"/>
     <rect x="${deviceX + Math.round(deviceW * 0.38)}" y="${deviceY + 14}" width="${Math.round(deviceW * 0.24)}" height="${Math.round(28 * scale)}" rx="${Math.round(14 * scale)}" fill="#05040a"/>
     <g clip-path="url(#screenClip)">${screen({ x: deviceX + 18, y: deviceY + 18, width: deviceW - 36, height: deviceH - 36, accent, scale })}</g>
-    <text x="${width / 2}" y="${Math.round(height * 0.95)}" text-anchor="middle" fill="#8f7aa9" font-family="Arial, Helvetica, sans-serif" font-size="${Math.round(20 * scale)}" font-weight="700" letter-spacing="${Math.round(3 * scale)}">AURORA STUDIO</text>
+    <text x="${width / 2}" y="${Math.round(height * 0.95)}" text-anchor="middle" fill="#8f7aa9" font-family="Arial, Helvetica, sans-serif" font-size="${Math.round(20 * scale)}" font-weight="700" letter-spacing="${Math.round(3 * scale)}">AURORA PERFORMANCE STUDIO</text>
   </svg>`;
 }
 

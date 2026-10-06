@@ -1,5 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Sparkles,
   Images,
@@ -27,6 +27,7 @@ import {
   UserRound,
   Radio,
   Star,
+  BarChart3,
   type LucideIcon,
 } from "lucide-react";
 
@@ -36,7 +37,7 @@ import { cn } from "@/lib/utils";
 import { useTheme } from "@/lib/theme-context";
 import { WhatsNew } from "@/components/WhatsNew";
 import { HiddenBadge, useFeatureVisibility } from "@/components/FeatureVisibilityProvider";
-import { featureKeyForRoute } from "@/lib/feature-visibility";
+import { featureKeyForRoute, filterNavFeatures } from "@/lib/feature-visibility";
 
 type Feature = {
   to: string;
@@ -46,13 +47,14 @@ type Feature = {
   badge?: string;
   previewImg?: string;
   starred?: boolean;
+  /** Only rendered once the viewer is a server-verified admin (never before the check settles). */
+  adminOnly?: boolean;
 };
 
 
 // ── Core — the heart of Aurora, always first (owner-picked flagship set) ──
-// Note: Video Agent, TikTok30, and Infinity Canvas are pinned in the bottom
-// tab bar (TAB_ITEMS) — keep them OUT of CORE_FEATURES to avoid showing the
-// same entry twice (once in this menu, once in the tab).
+// Note: Video Agent and TikTok30 are pinned in the bottom tab bar (TAB_ITEMS)
+// — keep them OUT of CORE_FEATURES to avoid showing the same entry twice.
 const CORE_FEATURES: Feature[] = [
   { to: "/motion",        label: "Perform Anywhere",   icon: Wand2,        previewImg: "/nav-previews/perform-anywhere.jpg", starred: true },
   { to: "/colors",        label: "Colors Studio",      icon: Palette,      previewImg: "/nav-previews/colors.jpg",          starred: true },
@@ -60,28 +62,17 @@ const CORE_FEATURES: Feature[] = [
   { to: "/director-room", label: "Director's Room",     icon: Clapperboard, previewImg: "/nav-previews/music-video.jpg",     starred: true, badge: "$20k Look" },
 ];
 
-// Director's Room owns the planning rail. These entries also remain available
-// from the global directory so a creator can enter the exact stage they need.
-const DIRECTOR_ROOM_FEATURES: Feature[] = [
-  { to: "/director-room", href: "/director-room#wardrobe", label: "Wardrobe", icon: Camera },
-  { to: "/director-room", href: "/director-room#scenes", label: "Scenes", icon: Clapperboard },
-  { to: "/director-room", href: "/director-room#layers", label: "Layers", icon: Layers },
-  { to: "/edit", label: "AutoCut", icon: Clapperboard },
-  { to: "/director-room", href: "/director-room#storyboard", label: "Storyboard", icon: LayoutGrid },
-  { to: "/director-room", href: "/director-room#moodboard", label: "Moodboard", icon: Palette },
-  { to: "/canvas", label: "Infinity Canvas", icon: Workflow },
-  { to: "/scene-weaver", label: "Scene Weaver", icon: Sparkles },
-  { to: "/photo-edit", label: "Style Transfer", icon: Brush },
-  { to: "/puremix", label: "Soundweaver", icon: Music2 },
-  { to: "/director-room", href: "/director-room#flows", label: "Flows", icon: Workflow },
-  { to: "/edit", label: "Edits", icon: Brush },
-  { to: "/video-agent", label: "Video Agent Projects", icon: Film },
-  { to: "/agent", label: "Aurora AI Director", icon: Sparkles },
-];
+// Director's Room's internal tools (Wardrobe, Scenes, Layers, AutoCut,
+// Storyboard, Moodboard, Infinity Canvas, Scene Weaver, Style Transfer,
+// Soundweaver, Flows, Video Agent Projects, Aurora AI Director) live ONLY in
+// its in-workspace rail (DirectorRoomRail.tsx) — deliberately not repeated
+// here, so the global nav lists Director's Room once as a single destination.
 
 // ── Studio — image & scene tools ──────────────────────────────────────────
 const STUDIO_FEATURES: Feature[] = [
   { to: "/studio",          label: "Image & Video Studio",  icon: Sparkles, previewImg: "/nav-previews/studio.jpg" },
+  { to: "/edit",            label: "Video Studio",          icon: Film },
+  { to: "/previs",          label: "Previs Workspace",      icon: Clapperboard, previewImg: "/nav-previews/music-video.jpg", badge: "New" },
   { to: "/likeness",        label: "Locked Likeness Shoot", icon: Camera,   previewImg: "/nav-previews/avatar.jpg",        badge: "New" },
   { to: "/scene-builder",   label: "Scene Builder",         icon: Layers,   previewImg: "/nav-previews/scene-builder.jpg" },
   { to: "/agent",           label: "Video Agent",           icon: Film,     badge: "New" },
@@ -91,6 +82,11 @@ const STUDIO_FEATURES: Feature[] = [
 const MUSIC_FEATURES: Feature[] = [
   { to: "/music-video", label: "Lyric Video", icon: Film,   previewImg: "/nav-previews/music-video.jpg" },
   { to: "/puremix",     label: "PureMix",     icon: Music2, previewImg: "/nav-previews/music-video.jpg", badge: "New" },
+];
+
+// ── Promotion — artist stats across streaming/social platforms ────────────
+const PROMOTION_FEATURES: Feature[] = [
+  { to: "/promotion", label: "Promotion Hub", icon: BarChart3, badge: "New" },
 ];
 
 // ── More — everything else that's live ────────────────────────────────────
@@ -110,7 +106,6 @@ const CONTENT_FEATURES: Feature[] = [
   { to: "/content-machine", label: "Content Machine",icon: LayoutGrid },
   { to: "/ads",             label: "Ads Studio",     icon: Megaphone },
   { to: "/tiktok",          label: "TikTok Studio",  icon: Music2 },
-  { to: "/edit",            label: "AutoCut",        icon: Clapperboard },
 ];
 
 const ACCOUNT_FEATURES: Feature[] = [
@@ -120,7 +115,7 @@ const ACCOUNT_FEATURES: Feature[] = [
   { to: "/creator/dashboard", label: "Creator Hub", icon: TrendingUp },
   { to: "/settings", label: "Settings", icon: UserRound },
   { to: "/partners", label: "Earn Free Aura", icon: Users },
-  { to: "/admin", label: "Admin", icon: Shield },
+  { to: "/admin", label: "Admin", icon: Shield, adminOnly: true },
 ];
 
 /** Archived — hidden from the main nav; still reachable from /admin.
@@ -151,10 +146,62 @@ export const ARCHIVED_FEATURES: Feature[] = [
 
 // Bottom tab — flagship trio with premium badge treatment.
 const TAB_ITEMS: (Feature & { premium?: boolean })[] = [
-  { to: "/canvas",       label: "Infinity Canvas", icon: Workflow, premium: true },
   { to: "/video-agent",  label: "Video Agent",     icon: Film,     premium: true },
   { to: "/spin",         label: "TikTok30",        icon: Flame,    premium: true },
 ];
+
+type GlobalNavSection = {
+  label: string;
+  features: Feature[];
+};
+
+/**
+ * The single source of truth for every globally rendered MobileNav branch.
+ * Director's Room tools belong to DirectorRoomRail, never to these sections.
+ */
+// eslint-disable-next-line react-refresh/only-export-components -- exported for the nav-boundary regression test
+export function getGlobalMobileNavBranches({
+  isAdmin = true,
+  showFeature = () => true,
+}: {
+  isAdmin?: boolean;
+  showFeature?: Parameters<typeof filterNavFeatures>[1]["showFeature"];
+} = {}): {
+  desktop: GlobalNavSection[];
+  mobileDrawer: GlobalNavSection[];
+  mobileTabs: Array<Feature & { premium?: boolean }>;
+} {
+  const visible = (items: Feature[]) => filterNavFeatures(items, { isAdmin, showFeature });
+  const visibleTabs = TAB_ITEMS.filter((item) => showFeature(featureKeyForRoute(item.to)));
+  const quickAccessTabs = visibleTabs.filter((item) => item.to !== "/spin");
+  const tiktokThirty = visibleTabs.find((item) => item.to === "/spin");
+  const content = visible(CONTENT_FEATURES);
+
+  return {
+    desktop: [
+      { label: "Start Here", features: CORE_FEATURES },
+      { label: "Quick Access", features: quickAccessTabs },
+      ...(tiktokThirty
+        ? [{ label: "TikTok30 Premium", features: [tiktokThirty] }]
+        : []),
+      { label: "Studio", features: STUDIO_FEATURES },
+      { label: "Music & Audio", features: MUSIC_FEATURES },
+      { label: "Promotion", features: PROMOTION_FEATURES },
+      ...(content.length > 0 ? [{ label: "Content", features: content }] : []),
+      { label: "Account", features: visible(ACCOUNT_FEATURES) },
+    ],
+    mobileDrawer: [
+      { label: "Start Here", features: CORE_FEATURES },
+      { label: "Studio", features: STUDIO_FEATURES },
+      { label: "Music & Audio", features: MUSIC_FEATURES },
+      { label: "Promotion", features: PROMOTION_FEATURES },
+      ...(content.length > 0 ? [{ label: "Content", features: content }] : []),
+      { label: "More", features: visible(MORE_FEATURES) },
+      { label: "Account", features: visible(ACCOUNT_FEATURES) },
+    ],
+    mobileTabs: visibleTabs,
+  };
+}
 
 
 function isActive(pathname: string, to: string) {
@@ -248,18 +295,26 @@ export function MobileNav() {
   const [open, setOpen] = useState(false);
   const touchStartX = useRef<number | null>(null);
   const { theme, toggle } = useTheme();
-  const { showFeature, isHiddenFromUsers } = useFeatureVisibility();
+  const { showFeature, isHiddenFromUsers, isAdmin } = useFeatureVisibility();
 
   // Artist-only gating: drop nav items whose feature is hidden for this
   // viewer. Admins keep every item (with a "Hidden" badge on gated ones).
-  const visible = (items: Feature[]) => items.filter((f) => showFeature(featureKeyForRoute(f.to)));
+  // Admin-only entries (the Admin console) are dropped for everyone until the
+  // server-verified admin check has settled as admin — partner, referral and
+  // ordinary accounts never see them, whatever sits in session/local storage.
   const gatedBadge = (f: Feature) => isHiddenFromUsers(featureKeyForRoute(f.to));
-  const visibleTabs = TAB_ITEMS.filter((t) => showFeature(featureKeyForRoute(t.to)));
-  const quickAccessTabs = visibleTabs.filter((t) => t.to !== "/spin");
-  const tiktokThirty = visibleTabs.find((t) => t.to === "/spin");
+  const globalNav = getGlobalMobileNavBranches({ isAdmin, showFeature });
+  const visibleTabs = globalNav.mobileTabs;
 
   const isCanvas  = isActive(pathname, "/canvas");
-  const isLanding = pathname === "/";
+
+  // Keep the overlay from surviving a route transition triggered by a link,
+  // browser history, or an imperative navigate call. Radix handles Escape,
+  // backdrop, focus, and body scroll restoration; this closes the controlled
+  // state for transitions that happen outside the drawer itself.
+  useEffect(() => {
+    setOpen(false);
+  }, [pathname]);
 
   const onTouchStart = (e: React.TouchEvent) => {
     touchStartX.current = e.touches[0]?.clientX ?? null;
@@ -295,98 +350,6 @@ export function MobileNav() {
         }
       `}</style>
 
-      <aside
-        aria-label="Primary navigation"
-        className="aurora-desktop-sidebar fixed inset-y-0 left-0 z-[60] w-[17rem] flex-col overflow-hidden border-r border-border bg-[oklch(0.085_0.022_272/0.96)] shadow-[16px_0_50px_-28px_oklch(0.04_0.02_290/0.9)] backdrop-blur-2xl"
-      >
-        <span aria-hidden className="aurora-ambient opacity-50" />
-
-        <header className="relative shrink-0 border-b border-border p-4">
-          <Link to="/" className="flex items-center gap-3 no-underline">
-            <span className="relative flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-[#0a0a0f] ring-1 ring-white/10 shadow-[0_0_18px_-6px_oklch(0.6_0.24_295/0.55)]">
-              {/* Cropped Aurora mark (public/brand/aurora-mark.webp) — the old
-                  full brand poster (logo + wordmark + icon strip) was illegible
-                  at 40px. */}
-              <img
-                src="/brand/aurora-mark.webp"
-                alt=""
-                className="size-full scale-110 object-cover"
-              />
-            </span>
-            <span className="flex min-w-0 flex-col leading-tight">
-              <span className="truncate text-[13px] font-bold tracking-tight text-foreground">AURORA</span>
-              <span className="text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground">Creative Studio</span>
-            </span>
-          </Link>
-        </header>
-
-        <nav aria-label="All features" className="relative flex flex-1 flex-col gap-3 overflow-y-auto p-3">
-          <NavSection label="Start Here">
-            {CORE_FEATURES.map((f) => (
-              <LiveNavItem key={f.to} f={f} active={isActive(pathname, f.to)} onClick={() => {}} />
-            ))}
-          </NavSection>
-
-          <NavSection label="Director’s Room">
-            {DIRECTOR_ROOM_FEATURES.map((f) => (
-              <LiveNavItem key={`${f.label}-${f.href ?? f.to}`} f={f} active={isActive(pathname, f.to)} onClick={() => {}} />
-            ))}
-          </NavSection>
-
-          <NavSection label="Quick Access">
-            {quickAccessTabs.map((f) => (
-              <LiveNavItem key={f.to} f={f} active={isActive(pathname, f.to)} onClick={() => {}} hiddenBadge={gatedBadge(f)} />
-            ))}
-          </NavSection>
-
-          {tiktokThirty && (
-            <NavSection label="TikTok30 Premium">
-              <LiveNavItem f={tiktokThirty} active={isActive(pathname, tiktokThirty.to)} onClick={() => {}} hiddenBadge={gatedBadge(tiktokThirty)} />
-            </NavSection>
-          )}
-
-          <NavSection label="Studio">
-            {STUDIO_FEATURES.map((f) => (
-              <LiveNavItem key={f.to} f={f} active={isActive(pathname, f.to)} onClick={() => {}} />
-            ))}
-          </NavSection>
-
-          <NavSection label="Music & Audio">
-            {MUSIC_FEATURES.map((f) => (
-              <LiveNavItem key={f.to} f={f} active={isActive(pathname, f.to)} onClick={() => {}} />
-            ))}
-          </NavSection>
-
-          {visible(CONTENT_FEATURES).length > 0 && (
-            <NavSection label="Content">
-              {visible(CONTENT_FEATURES).map((f) => (
-                <LiveNavItem key={f.to} f={f} active={isActive(pathname, f.to)} onClick={() => {}} hiddenBadge={gatedBadge(f)} />
-              ))}
-            </NavSection>
-          )}
-
-          <NavSection label="Account">
-            {visible(ACCOUNT_FEATURES).map((f) => (
-              <LiveNavItem key={f.to} f={f} active={isActive(pathname, f.to)} onClick={() => {}} hiddenBadge={gatedBadge(f)} />
-            ))}
-          </NavSection>
-        </nav>
-
-        <div className="relative shrink-0 border-t border-border p-3">
-          <button
-            type="button"
-            onClick={toggle}
-            aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
-            className="flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-sm text-muted-foreground transition-colors hover:bg-accent/40 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-          >
-            <span className="flex items-center gap-3">
-              {theme === "dark" ? <Moon className="size-4 shrink-0" /> : <Sun className="size-4 shrink-0" />}
-              <span className="font-medium">{theme === "dark" ? "Dark mode" : "Light mode"}</span>
-            </span>
-          </button>
-        </div>
-      </aside>
-
       <button
         type="button"
         onClick={() => setOpen(true)}
@@ -395,7 +358,7 @@ export function MobileNav() {
         aria-label="Open navigation menu"
         style={{ top: isCanvas ? "0.75rem" : "calc(env(safe-area-inset-top, 0px) + 4.25rem)" }}
         className={cn(
-          "aurora-mobile-chrome phone-edge-left fixed z-[60] flex items-center gap-1.5 rounded-full aurora-glass-strong px-3.5 py-2 text-xs font-medium shadow-[var(--shadow-soft)] transition-[filter,color] hover:brightness-110",
+          "phone-edge-left aurora-navigation-trigger fixed z-40 flex items-center gap-1.5 rounded-full px-3.5 py-2 text-xs font-medium shadow-[var(--shadow-soft)] transition-[filter,color] hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background",
           open ? "text-primary" : "text-foreground",
         )}
       >
@@ -493,7 +456,7 @@ export function MobileNav() {
           onTouchStart={onTouchStart}
           onTouchMove={onTouchMove}
           onTouchEnd={onTouchEnd}
-          className="phone-drawer-left flex flex-col gap-0 overflow-hidden p-0"
+          className="phone-drawer-left aurora-navigation-drawer flex flex-col gap-0 overflow-hidden p-0"
         >
           <span aria-hidden className="aurora-ambient opacity-70" />
 
@@ -524,50 +487,13 @@ export function MobileNav() {
 
           {/* ── Nav body ────────────────────────────────────────────────── */}
           <nav aria-label="All features" className="relative flex flex-1 flex-col gap-3 overflow-y-auto p-3 pb-4">
-
-            <NavSection label="Start Here">
-              {CORE_FEATURES.map((f) => (
-                <LiveNavItem key={f.to} f={f} active={isActive(pathname, f.to)} onClick={() => setOpen(false)} />
-              ))}
-            </NavSection>
-
-            <NavSection label="Director’s Room">
-              {DIRECTOR_ROOM_FEATURES.map((f) => (
-                <LiveNavItem key={`${f.label}-${f.href ?? f.to}`} f={f} active={isActive(pathname, f.to)} onClick={() => setOpen(false)} />
-              ))}
-            </NavSection>
-
-            <NavSection label="Studio">
-              {STUDIO_FEATURES.map((f) => (
-                <LiveNavItem key={f.to} f={f} active={isActive(pathname, f.to)} onClick={() => setOpen(false)} />
-              ))}
-            </NavSection>
-
-            <NavSection label="Music & Audio">
-              {MUSIC_FEATURES.map((f) => (
-                <LiveNavItem key={f.to} f={f} active={isActive(pathname, f.to)} onClick={() => setOpen(false)} />
-              ))}
-            </NavSection>
-
-            {visible(CONTENT_FEATURES).length > 0 && (
-              <NavSection label="Content">
-                {visible(CONTENT_FEATURES).map((f) => (
-                  <LiveNavItem key={f.to} f={f} active={isActive(pathname, f.to)} onClick={() => setOpen(false)} hiddenBadge={gatedBadge(f)} />
+            {globalNav.mobileDrawer.map((section) => (
+              <NavSection key={section.label} label={section.label}>
+                {section.features.map((f) => (
+                <LiveNavItem key={f.to} f={f} active={isActive(pathname, f.to)} onClick={() => setOpen(false)} hiddenBadge={gatedBadge(f)} />
                 ))}
               </NavSection>
-            )}
-
-            <NavSection label="More">
-              {visible(MORE_FEATURES).map((f) => (
-                <LiveNavItem key={f.to} f={f} active={isActive(pathname, f.to)} onClick={() => setOpen(false)} hiddenBadge={gatedBadge(f)} />
-              ))}
-            </NavSection>
-
-            <NavSection label="Account">
-              {visible(ACCOUNT_FEATURES).map((f) => (
-                <LiveNavItem key={f.to} f={f} active={isActive(pathname, f.to)} onClick={() => setOpen(false)} hiddenBadge={gatedBadge(f)} />
-              ))}
-            </NavSection>
+            ))}
           </nav>
 
           {/* ── Footer ──────────────────────────────────────────────────── */}

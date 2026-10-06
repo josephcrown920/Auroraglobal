@@ -16,6 +16,7 @@ import {
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
+import { supabase } from "@/integrations/supabase/client";
 import { UploadSlot } from "@/components/studio/UploadSlot";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -68,13 +69,14 @@ import {
   MUSIC_VIDEO_STYLES,
   MUSIC_VIDEO_MODES,
   buildMusicVideoPrompt,
-  buildEvenLyricSegments,
+  buildLyricVideoSegments,
   LOCATION_SUGGESTIONS,
   SUBJECT_SUGGESTIONS,
   type MusicVideoMode,
   type MusicVideoStyle,
 } from "@/lib/music-video-prompts";
 import { useBeatDetect } from "@/hooks/use-beat-detect";
+import { useLyricBeatAnalysis } from "@/hooks/use-lyric-beat-analysis";
 import { cn, AUDIO_ACCEPT } from "@/lib/utils";
 import { HiggsHero, HiggsDivider, FanPhotos } from "@/components/studio/HiggsLayout";
 
@@ -123,6 +125,77 @@ const MOTION_CAMERA = [
 
 type Mode = "pose" | "transfer" | "reskin" | "avatar-shots" | "live-avatar" | "music-video";
 type ShotEngine = "seedream" | "gemini" | "kling";
+type ShotResult = { url: string; engine: ShotEngine; kind: "image" | "video"; fallbackFrom?: ShotEngine };
+
+const ANIMATE_DURATION_SECONDS = 5;
+
+type AnimatePreviewKeyInput = {
+  sourceUrl: string | null;
+  endFrameUrl: string | null;
+  prompt: string;
+  cameraMovement: string;
+  modelKey: string;
+  resolution: Resolution;
+  durationSeconds: number;
+};
+
+/** Stable identity for the inputs bound to an animation preview ticket. */
+function buildAnimatePreviewKey(input: AnimatePreviewKeyInput): string {
+  return JSON.stringify(input);
+}
+
+const SHOT_ENGINE_LABEL: Record<ShotEngine, string> = { seedream: "SeedDream", gemini: "Gemini Omni", kling: "KlingAI" };
+
+const KLING_FALLBACK_TOAST = "KlingAI unavailable — generated a SeedDream portrait instead";
+
+function shotResultLabel(r: ShotResult): string {
+  return r.fallbackFrom ? `${SHOT_ENGINE_LABEL[r.engine]} (fallback)` : SHOT_ENGINE_LABEL[r.engine];
+}
+
+/**
+ * Result cards for Avatar Shots / Live Avatar. Branches on the media kind the
+ * server ACTUALLY served — a KlingAI request that fell back to SeedDream is a
+ * still image, so it must never be poured into a <video> element.
+ */
+function ShotResultsSection({ results }: { results: ShotResult[] }) {
+  if (results.length === 0) return null;
+  return (
+    <section className="space-y-3" aria-label="Generated avatar shots">
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Results</p>
+        <Link to="/gallery" className="inline-flex items-center gap-2 rounded-full bg-emerald-500/10 border border-emerald-500/30 px-3 py-1.5 text-xs font-semibold text-emerald-400 no-underline hover:bg-emerald-500/20 transition-colors">
+          <Check className="size-3.5" /> Saved to Gallery
+        </Link>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        {results.map((r, i) => (
+          <div key={`${r.url}-${i}`} className="rounded-2xl border border-border bg-card/60 overflow-hidden" data-testid={`shot-result-${r.kind}`}>
+            {r.kind === "video" ? (
+              <video src={r.url} controls playsInline preload="metadata" className="w-full aspect-video object-cover bg-black" />
+            ) : (
+              <img src={r.url} alt={`${shotResultLabel(r)} avatar shot ${i + 1}`} className="w-full aspect-square object-cover" loading="lazy" />
+            )}
+            <div className="p-2 flex items-center justify-between gap-2">
+              <span
+                className={cn("text-[10px] font-medium", r.fallbackFrom ? "text-amber-400" : "text-muted-foreground")}
+                title={r.fallbackFrom ? `${SHOT_ENGINE_LABEL[r.fallbackFrom]} was unavailable, so ${SHOT_ENGINE_LABEL[r.engine]} served this shot` : undefined}
+              >
+                {shotResultLabel(r)}
+              </span>
+              <button
+                type="button"
+                onClick={() => void saveAssetToDisk(r.url, `shot-${Date.now()}.${r.kind === "video" ? "mp4" : "jpg"}`)}
+                className="text-xs text-primary flex items-center gap-1"
+              >
+                <Download className="size-3" /> Save
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
 
 function MotionStudio() {
   const { user, loading } = useAuth();
@@ -180,18 +253,6 @@ function MotionStudio() {
     }
   }, []);
 
-  // Animate runs generateVideoFromImage at a fixed 5s; cost mirrors the server
-  // charge exactly. First pass is a 480p preview; confirmed full render uses
-  // the selected resolution (720p → 2160p). Premium models retier live.
-  const animateCost = useMemo(
-    () => computeCost({ features: ["video"], model: videoModel, durationSeconds: 5, resolution: videoResolution }).total,
-    [videoModel, videoResolution],
-  );
-  const animatePreviewCost = useMemo(
-    () => computeCost({ features: ["video"], model: videoModel, durationSeconds: 5, resolution: "480p" }).total,
-    [videoModel],
-  );
-
   // Motion Transfer (MimicMotion)
   const [mtImage, setMtImage] = useState<string | null>(null);
   const [mtImage2, setMtImage2] = useState<string | null>(null);
@@ -237,6 +298,116 @@ function MotionStudio() {
   const [animatePreviewId, setAnimatePreviewId] = useState<string | null>(null);
   const [animateHdDialogOpen, setAnimateHdDialogOpen] = useState(false);
 
+  // The quick-start sample is bundled with the app, not owned by the caller.
+  // Stage it into the caller's studio folder before using it as a character
+  // reference so generateVideoFromImage can enforce the same ownership guard as
+  // a user-uploaded frame.
+  type DemoStageStatus = "idle" | "loading" | "ready" | "error";
+  const [demoRef, setDemoRef] = useState<{ userId: string; url: string } | null>(null);
+  const [demoStageStatus, setDemoStageStatus] = useState<DemoStageStatus>("idle");
+  const [demoStageError, setDemoStageError] = useState<string | null>(null);
+  const [demoStageAttempt, setDemoStageAttempt] = useState(0);
+  const demoOwnerId = user?.id ?? null;
+  useEffect(() => {
+    if (!demoOwnerId) {
+      setDemoRef(null);
+      setDemoStageStatus("idle");
+      setDemoStageError(null);
+      return;
+    }
+
+    let cancelled = false;
+    const ownerId = demoOwnerId;
+    const path = `${ownerId}/demo/selfie.jpg`;
+    setDemoRef(null);
+    setDemoStageStatus("loading");
+    setDemoStageError(null);
+
+    const stageDemo = async () => {
+      try {
+        // The studio bucket may be private, so probing its public URL with an
+        // <img> is not a reliable existence check. A signed URL uses the
+        // caller's authenticated session and also gives the guarded enqueue
+        // path a fetchable reference.
+        const existing = await supabase.storage.from("studio").createSignedUrl(path, 60 * 60);
+        let signedUrl = existing.data?.signedUrl ?? null;
+
+        if (!signedUrl) {
+          const response = await fetch(demoSelfie);
+          if (!response.ok) throw new Error(`Demo selfie fetch failed: HTTP ${response.status}`);
+          const blob = await response.blob();
+          const { error } = await supabase.storage.from("studio").upload(path, blob, {
+            contentType: blob.type || "image/jpeg",
+            upsert: true,
+          });
+          if (error) throw new Error(`Demo selfie staging failed: ${error.message}`);
+
+          const staged = await supabase.storage.from("studio").createSignedUrl(path, 60 * 60);
+          if (staged.error || !staged.data?.signedUrl) {
+            throw new Error(`Demo selfie URL failed: ${staged.error?.message ?? "no signed URL"}`);
+          }
+          signedUrl = staged.data.signedUrl;
+        }
+
+        if (!cancelled) {
+          setDemoRef({ userId: ownerId, url: signedUrl });
+          setDemoStageStatus("ready");
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setDemoStageStatus("error");
+          setDemoStageError(error instanceof Error ? error.message : "Could not prepare the demo selfie");
+        }
+      }
+    };
+
+    void stageDemo();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [demoOwnerId, demoStageAttempt]);
+  const usableDemoUrl = demoRef?.userId === demoOwnerId ? demoRef.url : null;
+
+  // A preview confirmation ticket is only valid for the exact inputs that
+  // produced it. Keep this identity separate from output/mutation state so a
+  // completed video or a refetch cannot invalidate a fresh preview.
+  const animatePreviewBindingRef = useRef<string | null>(null);
+  const animateRequestKeyRef = useRef<string | null>(null);
+  const animateSource = startFrame ?? stagedImage ?? usableDemoUrl;
+  const animateInputKey = buildAnimatePreviewKey({
+    sourceUrl: animateSource,
+    endFrameUrl: endFrame,
+    prompt: videoPrompt,
+    cameraMovement,
+    modelKey: videoModel,
+    resolution: videoResolution,
+    durationSeconds: ANIMATE_DURATION_SECONDS,
+  });
+  const currentAnimateInputKeyRef = useRef(animateInputKey);
+  currentAnimateInputKeyRef.current = animateInputKey;
+  const activeAnimatePreviewId =
+    animatePreviewId && animatePreviewBindingRef.current === animateInputKey ? animatePreviewId : null;
+
+  useEffect(() => {
+    if (!animatePreviewId || animatePreviewBindingRef.current === animateInputKey) return;
+    animatePreviewBindingRef.current = null;
+    setAnimatePreviewId(null);
+    setAnimateHdDialogOpen(false);
+  }, [animateInputKey, animatePreviewId]);
+
+  // Animate runs generateVideoFromImage at a fixed 5s; cost mirrors the server
+  // charge exactly. First pass is a 480p preview; confirmed full render uses
+  // the selected resolution (720p → 2160p). Premium models retier live.
+  const animateCost = useMemo(
+    () => computeCost({ features: ["video"], model: videoModel, durationSeconds: ANIMATE_DURATION_SECONDS, resolution: videoResolution }).total,
+    [videoModel, videoResolution],
+  );
+  const animatePreviewCost = useMemo(
+    () => computeCost({ features: ["video"], model: videoModel, durationSeconds: ANIMATE_DURATION_SECONDS, resolution: "480p" }).total,
+    [videoModel],
+  );
+
   useEffect(() => {
     if (!loading && !user) navigate({ to: "/auth", search: authNextSearch() });
   }, [user, loading, navigate]);
@@ -244,7 +415,7 @@ function MotionStudio() {
   // ── Avatar Shots state ────────────────────────────────────────────────────
   const [shotEngine, setShotEngine] = useState<ShotEngine>("seedream");
   const [shotPrompt, setShotPrompt] = useState("");
-  const [shotResults, setShotResults] = useState<Array<{ url: string; engine: ShotEngine; kind: "image" | "video" }>>([]);
+  const [shotResults, setShotResults] = useState<ShotResult[]>([]);
   const [shotLoading, setShotLoading] = useState(false);
 
   // ── Music Video (embedded) state ──────────────────────────────────────────
@@ -266,13 +437,20 @@ function MotionStudio() {
   const { state: beatState, analyze: analyzeBeat, reset: resetBeat } = useBeatDetect();
 
   const isMvLyric = mvMode === "lyric-style";
+  const lyricBeatAnalysis = useLyricBeatAnalysis(lyricAudioUrl, isMvLyric);
   const mvCurrentMode = MUSIC_VIDEO_MODES.find((m) => m.key === mvMode)!;
   const mvVideoCost = computeCost({ features: ["video"], model: mvVideoModel, durationSeconds: 5, resolution: "720p" }).total;
   const mvLyricCost = computeCost({ features: ["lyric_video"] }).total;
   const mvDisplayCost = isMvLyric ? mvLyricCost : mvCurrentMode?.needsImage ? mvVideoCost : 1;
 
   const lyricLines = lyricsText.split("\n").map((l) => l.trim()).filter(Boolean);
-  const lyricSegments = lyricAudioDuration ? buildEvenLyricSegments(lyricAudioDuration, lyricLines) : [];
+  const lyricBeatTimestamps = lyricBeatAnalysis.beatTimestamps;
+  const lyricGenerationGate = lyricBeatAnalysis.gate;
+  const lyricSegments = buildLyricVideoSegments(
+    lyricAudioDuration,
+    lyricLines,
+    lyricBeatTimestamps,
+  );
 
   useEffect(() => {
     setMvPrompt(buildMusicVideoPrompt(mvMode, mvStyle, mvLocation, mvSubject));
@@ -318,9 +496,9 @@ function MotionStudio() {
   const animatePlanWarnings = evaluatePlanLimits({
     tier: isPro ? "pro" : "free",
     kind: "video",
-    durationSeconds: 5,
+    durationSeconds: ANIMATE_DURATION_SECONDS,
     resolution: videoResolution,
-    nextRenderIsPreview: !animatePreviewId,
+    nextRenderIsPreview: !activeAnimatePreviewId,
   });
   const animatePlanBlocked = animatePlanWarnings.some((w) => w.blocksNextRender);
 
@@ -328,7 +506,7 @@ function MotionStudio() {
     queryKey: ["worker-capability", "motion"],
     queryFn: () => checkWorkerFn({ data: { capability: "motion" } }),
     enabled: !!user,
-    staleTime: 30_000,
+    staleTime: 0,
     refetchInterval: 60_000,
   });
   const motionOnline = motionWorker?.available ?? false;
@@ -338,6 +516,7 @@ function MotionStudio() {
     queryFn: () => listFn(),
     enabled: !!user,
     refetchInterval: 6000,
+    staleTime: 0,
   });
 
   // Step 1 — stage the still with pose reference
@@ -383,18 +562,28 @@ function MotionStudio() {
     mutationFn: async () => {
       const override = animateOverrideRef.current;
       animateOverrideRef.current = null;
-      const source = startFrame ?? override ?? stagedImage;
+      const source = startFrame ?? override ?? stagedImage ?? usableDemoUrl;
       if (!source) throw new Error("Add a first frame or stage a pose first");
+      const previewId = activeAnimatePreviewId;
+      animateRequestKeyRef.current = buildAnimatePreviewKey({
+        sourceUrl: source,
+        endFrameUrl: endFrame,
+        prompt: videoPrompt,
+        cameraMovement,
+        modelKey: videoModel,
+        resolution: videoResolution,
+        durationSeconds: ANIMATE_DURATION_SECONDS,
+      });
       const out = await videoFn({
         data: {
           imageUrl: source,
           prompt: videoPrompt,
-          duration: 5,
-          resolution: animatePreviewId ? videoResolution : "480p",
+          duration: ANIMATE_DURATION_SECONDS,
+          resolution: previewId ? videoResolution : "480p",
           modelKey: videoModel,
           cameraMovement,
           endFrameUrl: endFrame ?? null,
-          confirmPreviewId: animatePreviewId ?? undefined,
+          confirmPreviewId: previewId ?? undefined,
         },
       });
       return out;
@@ -405,9 +594,17 @@ function MotionStudio() {
       const res = out;
       setVideoUrl(res?.videoUrl ?? null);
       if (res?.preview) {
-        setAnimatePreviewId(res.id ?? null);
+        const requestKey = animateRequestKeyRef.current;
+        if (res.id && requestKey && requestKey === currentAnimateInputKeyRef.current) {
+          animatePreviewBindingRef.current = requestKey;
+          setAnimatePreviewId(res.id);
+        } else {
+          animatePreviewBindingRef.current = null;
+          setAnimatePreviewId(null);
+        }
         toast.success("Preview ready — happy with it? Render full quality next");
       } else {
+        animatePreviewBindingRef.current = null;
         setAnimatePreviewId(null);
         toast.success("Motion ready");
       }
@@ -415,6 +612,7 @@ function MotionStudio() {
     },
     onError: (e) => {
       if (e instanceof Error && e.message.includes("Unsupported preview confirmation")) {
+        animatePreviewBindingRef.current = null;
         setAnimatePreviewId(null);
       }
       setVideoError(friendlyGenerationMessage(e));
@@ -577,6 +775,7 @@ function MotionStudio() {
     queryFn: () => jobStatusFn({ data: { jobId: transferJobId! } }),
     enabled: !!transferJobId && transferActive,
     refetchInterval: 3_500,
+    staleTime: 0,
   });
   const reskinActive =
     reskinJobStatus === "queued" || reskinJobStatus === "processing" || reskinJobStatus === "finalizing";
@@ -585,6 +784,7 @@ function MotionStudio() {
     queryFn: () => jobStatusFn({ data: { jobId: reskinJobId! } }),
     enabled: !!reskinJobId && reskinActive,
     refetchInterval: 3_500,
+    staleTime: 0,
   });
 
   // Fire a toast + scroll the result panel into view the moment a job completes.
@@ -1122,6 +1322,27 @@ function MotionStudio() {
                 </div>
               </div>
 
+              {!stagedImage && !startFrame && demoStageStatus === "loading" && (
+                <p className="text-xs text-muted-foreground" role="status" aria-live="polite">
+                  Preparing the quick-start demo…
+                </p>
+              )}
+              {!stagedImage && !startFrame && demoStageStatus === "error" && (
+                <div className="flex items-start gap-3 rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2.5 text-xs" role="alert">
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium text-destructive">Quick-start demo unavailable</p>
+                    <p className="mt-0.5 text-destructive/80">{demoStageError ?? "Could not prepare the sample image."}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setDemoStageAttempt((attempt) => attempt + 1)}
+                    className="shrink-0 rounded-lg border border-destructive/40 px-2.5 py-1.5 font-semibold text-destructive hover:bg-destructive/10"
+                  >
+                    Retry
+                  </button>
+                </div>
+              )}
+
               <ExampleChips
                 presets={MOTION_EXAMPLE_PRESETS}
                 activeId={activeExampleId}
@@ -1136,10 +1357,19 @@ function MotionStudio() {
                 }}
                 onGenerate={() => {
                   if (!stagedImage && !startFrame) {
-                    animateOverrideRef.current = demoSelfie as string;
+                    if (!usableDemoUrl) {
+                      if (demoStageStatus === "error") {
+                        setDemoStageAttempt((attempt) => attempt + 1);
+                        return;
+                      }
+                      toast.error("Demo selfie is still loading — try again in a second");
+                      return;
+                    }
+                    animateOverrideRef.current = usableDemoUrl;
                   }
                   animateMut.mutate();
                 }}
+                generateDisabled={animateMut.isPending || (!stagedImage && !startFrame && demoStageStatus === "loading")}
                 label="Quick start:"
                 className="mb-1"
               />
@@ -1212,11 +1442,11 @@ function MotionStudio() {
                 <div className="flex items-center justify-between gap-2">
                   <span>Animate will charge</span>
                   <span className="font-semibold text-foreground">
-                    {animatePreviewId ? animateCost : animatePreviewCost} Aura
+                    {activeAnimatePreviewId ? animateCost : animatePreviewCost} Aura
                   </span>
                 </div>
                 <p className="mt-0.5">
-                  {animatePreviewId
+                  {activeAnimatePreviewId
                     ? `Full-quality ${videoResolution === "2160p" ? "4K" : videoResolution} render · 5s video`
                     : "480p preview · 5s video"}
                   {" "}· pose preset & camera move included free
@@ -1236,7 +1466,7 @@ function MotionStudio() {
                   disabled={animateMut.isPending || animatePlanBlocked || (!stagedImage && !startFrame)}
                   onClick={() => {
                     const isHd = videoResolution === "1080p" || videoResolution === "2160p";
-                    if (animatePreviewId && isHd) {
+                    if (activeAnimatePreviewId && isHd) {
                       setAnimateHdDialogOpen(true);
                     } else {
                       animateMut.mutate();
@@ -1248,7 +1478,7 @@ function MotionStudio() {
                   {animateMut.isPending ? (
                     <><Loader2 className="size-4 mr-2 animate-spin" /> Rendering…</>
                   ) : (
-                    <><Film className="size-4 mr-2" /> {videoError ? "Retry animate" : animatePreviewId ? `Render full quality · ${animateCost} Aura` : `Preview animation · ${animatePreviewCost} Aura`}</>
+                    <><Film className="size-4 mr-2" /> {videoError ? "Retry animate" : activeAnimatePreviewId ? `Render full quality · ${animateCost} Aura` : `Preview animation · ${animatePreviewCost} Aura`}</>
                   )}
                 </Button>
                 <AlertDialog open={animateHdDialogOpen} onOpenChange={setAnimateHdDialogOpen}>
@@ -1593,11 +1823,14 @@ function MotionStudio() {
                     if (!res.ok) {
                       toast.error(res.error ?? "Generation failed");
                     } else {
+                      // Trust the server's report of what ACTUALLY served the shot — when the
+                      // KlingAI→SeedDream fallback fires the result is a still, not a video.
                       setShotResults((prev) => [
-                        { url: res.url, engine: shotEngine, kind: ((res as { mediaKind?: string }).mediaKind ?? (shotEngine === "kling" ? "video" : "image")) as "video" | "image" },
+                        { url: res.url, engine: res.engine, kind: res.mediaKind, fallbackFrom: res.fallbackFrom },
                         ...prev,
                       ]);
-                      toast.success("Shot ready!");
+                      if (res.fallbackFrom === "kling") toast.info(KLING_FALLBACK_TOAST);
+                      else toast.success("Shot ready!");
                     }
                   } catch {
                     toast.error("Generation failed");
@@ -1616,13 +1849,7 @@ function MotionStudio() {
               </Button>
             </section>
 
-            {shotResults.length > 0 && !shotLoading && (
-              <div>
-                <Link to="/gallery" className="inline-flex items-center gap-2 rounded-full bg-emerald-500/10 border border-emerald-500/30 px-4 py-2.5 text-sm font-semibold text-emerald-400 no-underline hover:bg-emerald-500/20 transition-colors">
-                  <Check className="size-4" /> Ready — View in Gallery
-                </Link>
-              </div>
-            )}
+            {!shotLoading && <ShotResultsSection results={shotResults} />}
 
             {shotResults.length === 0 && !shotLoading && (
               <div className="mx-auto max-w-sm overflow-hidden rounded-2xl border border-primary/20 bg-card/50 text-center">
@@ -1684,8 +1911,12 @@ function MotionStudio() {
                     if (!res.ok) {
                       toast.error(res.error ?? "Generation failed");
                     } else {
-                      setShotResults((prev) => [{ url: res.url, engine: "kling", kind: ((res as { mediaKind?: string }).mediaKind ?? "video") as "video" | "image" }, ...prev]);
-                      toast.success("Live avatar ready!");
+                      setShotResults((prev) => [
+                        { url: res.url, engine: res.engine, kind: res.mediaKind, fallbackFrom: res.fallbackFrom },
+                        ...prev,
+                      ]);
+                      if (res.fallbackFrom === "kling") toast.info(KLING_FALLBACK_TOAST);
+                      else toast.success("Live avatar ready!");
                     }
                   } catch {
                     toast.error("Generation failed");
@@ -1704,13 +1935,7 @@ function MotionStudio() {
               </Button>
             </section>
 
-            {shotResults.filter((r) => r.kind === "video").length > 0 && !shotLoading && (
-              <div>
-                <Link to="/gallery" className="inline-flex items-center gap-2 rounded-full bg-emerald-500/10 border border-emerald-500/30 px-4 py-2.5 text-sm font-semibold text-emerald-400 no-underline hover:bg-emerald-500/20 transition-colors">
-                  <Check className="size-4" /> Ready — View in Gallery
-                </Link>
-              </div>
-            )}
+            {!shotLoading && <ShotResultsSection results={shotResults.filter((r) => r.engine === "kling" || r.fallbackFrom === "kling")} />}
           </div>
         )}
 
@@ -1795,7 +2020,14 @@ function MotionStudio() {
                   <p className="text-xs text-muted-foreground">Duration: {Math.round(lyricAudioDuration)}s</p>
                 )}
                 <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground pt-1">
-                  Lyrics <span className="ml-1 font-normal normal-case opacity-60">one line per lyric</span>
+                  Lyrics{" "}
+                  <span className="ml-1 font-normal normal-case opacity-60">
+                    {lyricBeatTimestamps
+                      ? "one line per lyric — snapped to the detected beat grid"
+                      : lyricGenerationGate === "pending"
+                        ? "one line per lyric — detecting beats…"
+                        : "one line per lyric — beat detection unavailable, evenly timed"}
+                  </span>
                 </p>
                 <Textarea
                   rows={7}
@@ -1808,7 +2040,9 @@ function MotionStudio() {
                   <p className="text-xs text-muted-foreground">
                     {lyricLines.length} line{lyricLines.length === 1 ? "" : "s"}
                     {lyricAudioDuration != null && lyricSegments.length > 0
-                      ? ` · ~${(lyricAudioDuration / lyricLines.length).toFixed(1)}s per line`
+                      ? lyricBeatTimestamps
+                        ? ` · beat-aligned (${lyricBeatTimestamps.length} beats detected)`
+                        : ` · ~${(lyricAudioDuration / lyricLines.length).toFixed(1)}s per line`
                       : ""}
                   </p>
                 )}
@@ -1819,9 +2053,12 @@ function MotionStudio() {
                   ETA: <span className="text-foreground font-medium">~20–40s</span>
                 </div>
                 <Button
-                  disabled={!lyricAudioUrl || lyricSegments.length === 0}
+                  disabled={lyricGenerationGate !== "ready" || lyricSegments.length === 0}
                   onClick={async () => {
                     if (!lyricAudioUrl) return toast.error("Upload a song first");
+                    if (lyricGenerationGate === "pending") {
+                      return toast.error("Beat analysis is still running — wait a moment before generating.");
+                    }
                     if (lyricSegments.length === 0) return toast.error("Paste at least one lyric line");
                     const res = await lyricVideoFn({ data: { audioUrl: lyricAudioUrl, lines: lyricSegments } });
                     if (!res.ok) { toast.error(res.error); return; }
@@ -1834,6 +2071,15 @@ function MotionStudio() {
                 >
                   <Wand2 className="size-4 mr-2" /> Generate Lyric Video · {mvDisplayCost} Aura
                 </Button>
+                {lyricGenerationGate === "pending" ? (
+                  <p className="text-center text-xs text-muted-foreground flex items-center justify-center gap-1.5">
+                    <Loader2 className="size-3 animate-spin" /> Detecting the beat grid before timing your lyrics…
+                  </p>
+                ) : (!lyricAudioUrl || lyricSegments.length === 0) && (
+                  <p className="text-center text-xs text-muted-foreground">
+                    {!lyricAudioUrl ? "↑ Upload a song to continue" : "↑ Paste at least one lyric line"}
+                  </p>
+                )}
               </section>
             )}
 

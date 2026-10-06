@@ -1,6 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
 import fs from "node:fs";
 import path from "node:path";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { isAdmin } from "@/lib/admin.server";
 
 export interface GitHubSyncHealth {
   /** ISO-8601 UTC timestamp of the last daemon cycle, or null if the status file doesn't exist yet */
@@ -21,10 +23,14 @@ export interface GitHubSyncHealth {
   daemon_stalled: boolean;
 }
 
-export const getGitHubSyncHealth = createServerFn({ method: "GET" }).handler(
-  async (): Promise<GitHubSyncHealth> => {
-    // Low-sensitivity status data; the admin page is already gated by
-    // AdminGate + role assertion in adminOverview — no need to double-check here.
+export const getGitHubSyncHealth = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<GitHubSyncHealth> => {
+    // Admin-only operational data (repo sync failures, back-off state). The
+    // /admin UI is gated client-side, but every privileged entry point must
+    // enforce authorization itself — anyone can call a server function
+    // directly, so the client gate is never the security boundary.
+    if (!(await isAdmin(context.userId))) throw new Error("Admin access required");
     const root = path.resolve(process.cwd());
     const statusPath = path.join(root, ".local", ".github-sync-status.json");
 
@@ -86,5 +92,4 @@ export const getGitHubSyncHealth = createServerFn({ method: "GET" }).handler(
       seconds_since_success,
       daemon_stalled,
     };
-  },
-);
+  });

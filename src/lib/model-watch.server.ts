@@ -27,7 +27,11 @@
  */
 
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { getBytePlusKey, bytePlusBaseUrl } from "@/lib/byteplus.server";
+import {
+  fetchWithCredentialFallback,
+  getBytePlusKey,
+  bytePlusBaseUrl,
+} from "@/lib/byteplus.server";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -238,13 +242,15 @@ async function probeArkAnticipated(): Promise<{
   const base = bytePlusBaseUrl();
   const probes = await Promise.all(
     ARK_ANTICIPATED.map(async (a) => {
-      const res = await fetch(`${base}/contents/generations/tasks`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-        // Deliberately invalid payload — can never enqueue a billable task.
-        body: JSON.stringify({ model: a.modelId, content: [] }),
-        signal: AbortSignal.timeout(15_000),
-      });
+      const { response: res, key: probeKey } = await fetchWithCredentialFallback((credential) =>
+        fetch(`${base}/contents/generations/tasks`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${credential}`, "Content-Type": "application/json" },
+          // Deliberately invalid payload — can never enqueue a billable task.
+          body: JSON.stringify({ model: a.modelId, content: [] }),
+          signal: AbortSignal.timeout(15_000),
+        }),
+      );
       let body: unknown = null;
       try {
         body = await res.json();
@@ -273,7 +279,7 @@ async function probeArkAnticipated(): Promise<{
           try {
             await fetch(`${base}/contents/generations/tasks/${unexpectedTaskId}`, {
               method: "DELETE",
-              headers: { Authorization: `Bearer ${key}` },
+              headers: { Authorization: `Bearer ${probeKey}` },
               signal: AbortSignal.timeout(10_000),
             });
           } catch (cancelErr) {
@@ -330,7 +336,7 @@ async function sendModelWatchEmail(opts: {
 <tr><td align="center" style="padding:40px 16px">
 <table width="100%" cellpadding="0" cellspacing="0" style="max-width:520px">
   <tr><td style="padding-bottom:24px;text-align:center">
-    <span style="font-size:22px;font-weight:800;color:#a78bfa">Aurora</span><span style="font-size:22px;font-weight:300;color:#6b7280"> Studio</span>
+    <span style="font-size:22px;font-weight:800;color:#a78bfa">Aurora</span><span style="font-size:22px;font-weight:300;color:#6b7280"> Performance Studio</span>
   </td></tr>
   <tr><td style="background:#0f1123;border:1px solid rgba(167,139,250,0.18);border-radius:14px;padding:32px 28px">
     ${openedHtml}

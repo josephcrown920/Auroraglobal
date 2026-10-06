@@ -51,6 +51,13 @@ let jobsReadMode: "failed" | "stuck" = "failed";
 // How many times the (dependency-injected) orchestrate was invoked — lets a test
 // assert a job failed a preflight BEFORE reaching any paid generation stage.
 let orchCalls = 0;
+let orchRequests: unknown[] = [];
+let videoAgentProjectRow: { production: unknown; updated_at: string } | null = {
+  production: null,
+  updated_at: "2026-09-09T00:00:00.000Z",
+};
+let videoAgentProductionCasFailures = 0;
+let videoAgentConcurrentProduction: unknown = null;
 let orchestrateImpl: (req: unknown) => Promise<{
   url: string;
   provider: string;
@@ -79,9 +86,23 @@ function builder(table: string) {
   // jobs UPDATE returns one row by default (won) and zero rows when jobsCasWins is
   // false (lost the lock). Reads (no UPDATE) keep the original {data:null} shape.
   let updated = false;
+  let updatePatch: Record<string, unknown> | null = null;
   const resolve = () =>
     updated
-      ? { data: table === "jobs" && !jobsCasWins ? [] : [{ id: "x" }], error: null }
+      ? table === "video_agent_projects" && updatePatch && "production" in updatePatch
+        ? videoAgentProductionCasFailures > 0
+          ? (
+              videoAgentProductionCasFailures--,
+              videoAgentConcurrentProduction !== null
+                ? videoAgentProjectRow = {
+                    production: videoAgentConcurrentProduction,
+                    updated_at: "2026-09-09T00:00:01.000Z",
+                  }
+                : undefined,
+              { data: null, error: null }
+            )
+          : { data: [{ id: "p1" }], error: null }
+        : { data: table === "jobs" && !jobsCasWins ? [] : [{ id: "x" }], error: null }
       : // A read on `jobs` is either the failed-orphan sweep SELECT or the
         // stuck-reservation sweep SELECT (picked via jobsReadMode), a read on
         // `gpu_workers` is the worker preflight; everything else keeps the
@@ -94,6 +115,8 @@ function builder(table: string) {
                 : failedJobsRows
               : table === "gpu_workers"
                 ? gpuWorkers
+                : table === "video_agent_projects"
+                  ? videoAgentProjectRow
                 : null,
           error: null,
         };
@@ -115,6 +138,7 @@ function builder(table: string) {
     b[m] = () => b;
   b.update = (patch: Record<string, unknown>) => {
     calls.updates.push({ table, patch });
+    updatePatch = patch;
     updated = true;
     return b;
   };
@@ -198,6 +222,7 @@ const {
   recordSchedulerHeartbeat,
   PERSISTENT_RETRY_MAX_ATTEMPTS,
   PERSISTENT_RETRY_MAX_AGE_MS,
+  mergeVideoAgentRenderReceipt,
 } = await import("./jobs.server");
 
 // orchestrate is dependency-injected (NOT module-mocked) so this file never
@@ -206,8 +231,10 @@ const {
 const deps = {
   orchestrate: ((req: unknown) => {
     orchCalls++;
+    orchRequests.push(req);
     return orchestrateImpl(req);
   }) as never,
+  getUserTier: async () => "pro" as const,
 };
 const processOneJob = (workerId: string) => rawProcessOneJob(workerId, deps);
 const processBatch = (workerId: string, limit?: number) => rawProcessBatch(workerId, limit, deps);
@@ -242,6 +269,13 @@ beforeEach(() => {
   jobsReadMode = "failed";
   gpuWorkers = [];
   orchCalls = 0;
+  orchRequests = [];
+  videoAgentProjectRow = {
+    production: null,
+    updated_at: "2026-09-09T00:00:00.000Z",
+  };
+  videoAgentProductionCasFailures = 0;
+  videoAgentConcurrentProduction = null;
   calls.rpc.length = 0;
   calls.updates.length = 0;
   calls.inserts.length = 0;
@@ -659,6 +693,452 @@ describe("video_agent_render jobs", () => {
     targetDuration: 30,
     scenes: validScenes,
   };
+
+  async function nativePayload() {
+    const nativeScenes = validScenes.map((scene) => ({
+      ...scene,
+      frame: "https://storage.example.com/users/u1/frame.png",
+      plateQuality: "premium" as const,
+    }));
+    const baseFilmPlan = {
+      schemaVersion: 1 as const,
+      brief: { title: "Signal", logline: "A courier follows a signal.", format: "16:9" as const, assumptions: [] },
+      script: "A courier follows a signal.",
+      continuity: { identityAnchor: "same courier", wardrobe: "", environment: "", cameraRules: "", colorRules: "" },
+      continuityLedger: {
+        identity: ["same courier"], wardrobe: [], props: [], location: [], time: [],
+        lighting: [], screen_direction: [], audio: [],
+      },
+      renderPlan: {
+        rendererModel: "byteplus/seedance-2.5" as const,
+        aspectRatio: "16:9" as const,
+        resolution: "720p" as const,
+        fps: 24 as const,
+        generateAudio: true,
+        watermark: false,
+        seed: 42,
+      },
+      planner: {
+        planner: "film-planner",
+        provider: "byteplus",
+        model: "verified-planner",
+        provenanceTrust: "server-verified" as const,
+      },
+      adoptedAt: new Date().toISOString(),
+      renderApproval: null,
+    };
+    const { filmRenderFingerprintAsync } = await import("./video-agent-projects.functions");
+    const fingerprint = await filmRenderFingerprintAsync(nativeScenes, baseFilmPlan);
+    const filmPlan = {
+      ...baseFilmPlan,
+      renderApproval: { approved: true as const, fingerprint, approvedAt: new Date().toISOString() },
+    };
+    return {
+      ...basePayload,
+      scenes: nativeScenes,
+      filmPlan,
+      rendererModel: filmPlan.renderPlan.rendererModel,
+      renderParams: { generate_audio: true, watermark: false, seed: 42 },
+      approvalFingerprint: fingerprint,
+    };
+  }
+
+  it("dispatches the exact approved native model and parameters without fallback", async () => {
+    const prevHf = process.env.HF_TOKEN;
+    const prevNative = process.env.FILM_STUDIO_NATIVE_RENDER_ENABLED;
+    process.env.HF_TOKEN = "test-token";
+    process.env.FILM_STUDIO_NATIVE_RENDER_ENABLED = "true";
+    try {
+      orchestrateImpl = async () => {
+        throw new Error("provider unavailable");
+      };
+      claimQueue = [job({
+        kind: "video_agent_render",
+        attempts: PERSISTENT_RETRY_MAX_ATTEMPTS,
+        credits_reserved: 20,
+        payload: await nativePayload(),
+      })];
+      await processOneJob("w1");
+      expect(orchRequests[0]).toMatchObject({
+        kind: "video",
+        model: "byteplus/seedance-2.5",
+        duration: 5,
+        resolution: "720p",
+        aspectRatio: "16:9",
+        pinnedModelOnly: true,
+        forSubscriber: true,
+        params: { generate_audio: true, watermark: false, seed: 42 },
+      });
+    } finally {
+      if (prevHf === undefined) delete process.env.HF_TOKEN;
+      else process.env.HF_TOKEN = prevHf;
+      if (prevNative === undefined) delete process.env.FILM_STUDIO_NATIVE_RENDER_ENABLED;
+      else process.env.FILM_STUDIO_NATIVE_RENDER_ENABLED = prevNative;
+    }
+  });
+
+  it("assembles native portrait shots with the approved fps and exact authored timeline", async () => {
+    const prevHf = process.env.HF_TOKEN;
+    const prevNative = process.env.FILM_STUDIO_NATIVE_RENDER_ENABLED;
+    process.env.HF_TOKEN = "test-token";
+    process.env.FILM_STUDIO_NATIVE_RENDER_ENABLED = "true";
+    try {
+      const payload = await nativePayload();
+      const unapprovedPlan = {
+        ...payload.filmPlan,
+        renderPlan: {
+          ...payload.filmPlan.renderPlan,
+          aspectRatio: "9:16" as const,
+        },
+        renderApproval: null,
+      };
+      const { filmRenderFingerprintAsync } = await import("./video-agent-projects.functions");
+      const fingerprint = await filmRenderFingerprintAsync(payload.scenes, unapprovedPlan);
+      const filmPlan = {
+        ...unapprovedPlan,
+        renderApproval: {
+          approved: true as const,
+          fingerprint,
+          approvedAt: new Date().toISOString(),
+        },
+      };
+      let assemblyParams: Record<string, unknown> | null = null;
+      claimQueue = [job({
+        kind: "video_agent_render",
+        credits_reserved: 20,
+        payload: {
+          ...payload,
+          filmPlan,
+          rendererModel: filmPlan.renderPlan.rendererModel,
+          approvalFingerprint: fingerprint,
+        },
+      })];
+      const result = await rawProcessOneJob("w1", {
+        ...deps,
+        assembleVideoAgent: async (params) => {
+          assemblyParams = params as unknown as Record<string, unknown>;
+          return Buffer.from("assembled");
+        },
+        uploadVideoAgent: async () => "https://storage.example.com/native-final.mp4",
+      });
+      expect(result.status).toBe("succeeded");
+      expect(assemblyParams).toMatchObject({
+        style: null,
+        aspect: "9:16",
+        fps: 24,
+        preserveClipDuration: true,
+        targetClipDurationsSec: [5, 5],
+        maxDurationSec: 10,
+      });
+    } finally {
+      if (prevHf === undefined) delete process.env.HF_TOKEN;
+      else process.env.HF_TOKEN = prevHf;
+      if (prevNative === undefined) delete process.env.FILM_STUDIO_NATIVE_RENDER_ENABLED;
+      else process.env.FILM_STUDIO_NATIVE_RENDER_ENABLED = prevNative;
+    }
+  });
+
+  it("uses the edited visual description for both generated plates and video dispatch", async () => {
+    const prevHf = process.env.HF_TOKEN;
+    process.env.HF_TOKEN = "test-token";
+    try {
+      const editedDescription = "Edited crane shot over a rain-lit avenue";
+      claimQueue = [job({
+        kind: "video_agent_render",
+        credits_reserved: 20,
+        payload: {
+          ...basePayload,
+          scenes: [{
+            ...validScenes[0],
+            description: editedDescription,
+            modelPrompt: "Stale original planner prompt",
+            frame: null,
+            plateQuality: undefined,
+          }],
+        },
+      })];
+      const result = await rawProcessOneJob("w1", {
+        ...deps,
+        assembleVideoAgent: async () => Buffer.from("assembled"),
+        uploadVideoAgent: async () => "https://storage.example.com/final.mp4",
+      });
+      expect(result.status).toBe("succeeded");
+      const imageRequest = orchRequests.find((request) =>
+        (request as { kind?: string }).kind === "image"
+      ) as { prompt?: string };
+      const videoRequest = orchRequests.find((request) =>
+        (request as { kind?: string }).kind === "video"
+      ) as { prompt?: string };
+      expect(imageRequest.prompt).toBe(editedDescription);
+      expect(videoRequest.prompt).toContain(editedDescription);
+      expect(videoRequest.prompt).not.toContain("Stale original planner prompt");
+    } finally {
+      if (prevHf === undefined) delete process.env.HF_TOKEN;
+      else process.env.HF_TOKEN = prevHf;
+    }
+  });
+
+  it("rejects native dispatch for a non-Pro user before any paid generation", async () => {
+    const prevHf = process.env.HF_TOKEN;
+    const prevNative = process.env.FILM_STUDIO_NATIVE_RENDER_ENABLED;
+    process.env.HF_TOKEN = "test-token";
+    process.env.FILM_STUDIO_NATIVE_RENDER_ENABLED = "true";
+    try {
+      claimQueue = [job({
+        kind: "video_agent_render",
+        attempts: PERSISTENT_RETRY_MAX_ATTEMPTS,
+        credits_reserved: 20,
+        payload: await nativePayload(),
+      })];
+      const result = await rawProcessOneJob("w1", {
+        ...deps,
+        getUserTier: async () => "free",
+      });
+      expect(result.status).toBe("failed");
+      expect(orchCalls).toBe(0);
+    } finally {
+      if (prevHf === undefined) delete process.env.HF_TOKEN;
+      else process.env.HF_TOKEN = prevHf;
+      if (prevNative === undefined) delete process.env.FILM_STUDIO_NATIVE_RENDER_ENABLED;
+      else process.env.FILM_STUDIO_NATIVE_RENDER_ENABLED = prevNative;
+    }
+  });
+
+  it("rejects the legacy paid Seedance path for a non-Pro user before any provider call", async () => {
+    const prevHf = process.env.HF_TOKEN;
+    process.env.HF_TOKEN = "test-token";
+    try {
+      claimQueue = [job({
+        kind: "video_agent_render",
+        attempts: PERSISTENT_RETRY_MAX_ATTEMPTS,
+        credits_reserved: 20,
+        payload: basePayload,
+      })];
+      const result = await rawProcessOneJob("w1", {
+        ...deps,
+        getUserTier: async () => "free",
+      });
+      expect(result.status).toBe("failed");
+      expect(result.error).toMatch(/active Pro subscription/i);
+      expect(orchCalls).toBe(0);
+    } finally {
+      if (prevHf === undefined) delete process.env.HF_TOKEN;
+      else process.env.HF_TOKEN = prevHf;
+    }
+  });
+
+  it("persists actual per-scene engines and labels reused plates after winning finalization", async () => {
+    const prevHf = process.env.HF_TOKEN;
+    process.env.HF_TOKEN = "test-token";
+    try {
+      videoAgentProjectRow = {
+        production: {
+          template: "legacy-custom-production",
+          unknownLegacyField: { keep: true },
+        },
+        updated_at: "2026-09-09T00:00:00.000Z",
+      };
+      const scenes = [
+        {
+          ...validScenes[0],
+          frame: "https://storage.example.com/reused.png",
+          plateQuality: "premium" as const,
+          plateGenerationId: "plate-gen-1",
+        },
+        validScenes[1],
+      ];
+      orchestrateImpl = async (request) => {
+        const kind = (request as { kind: string }).kind;
+        return kind === "image"
+          ? {
+              url: "https://out/generated-still.png",
+              provider: "image-provider-actual",
+              endpoint: "images/v9/actual",
+            }
+          : {
+              url: `https://out/clip-${orchCalls}.mp4`,
+              provider: "video-provider-actual",
+              endpoint: "video/v4/image-to-video",
+            };
+      };
+      claimQueue = [job({
+        kind: "video_agent_render",
+        credits_reserved: 20,
+        payload: { ...basePayload, scenes },
+      })];
+      const result = await rawProcessOneJob("w1", {
+        ...deps,
+        assembleVideoAgent: async () => Buffer.from("assembled"),
+        uploadVideoAgent: async () => "https://storage.example.com/final.mp4",
+      });
+
+      expect(result.status).toBe("succeeded");
+      const finalized = calls.rpc.find((call) =>
+        call.name === "finalize_job" && call.args._outcome === "succeeded"
+      );
+      const renderEngine = (
+        finalized?.args._result as { meta?: { renderEngine?: Record<string, unknown> } }
+      )?.meta?.renderEngine;
+      expect(renderEngine).toMatchObject({
+        version: 1,
+        scenes: [
+          {
+            sceneId: "sc1",
+            image: {
+              source: "reused",
+              plateQuality: "premium",
+              generationId: "plate-gen-1",
+            },
+            video: {
+              provider: "video-provider-actual",
+              endpoint: "video/v4/image-to-video",
+            },
+          },
+          {
+            sceneId: "sc2",
+            image: {
+              source: "generated",
+              provider: "image-provider-actual",
+              endpoint: "images/v9/actual",
+            },
+          },
+        ],
+      });
+      expect(calls.updates.findLast((update) =>
+        update.table === "video_agent_projects" && "production" in update.patch
+      )?.patch.production).toMatchObject({
+        template: "legacy-custom-production",
+        unknownLegacyField: { keep: true },
+        renderEngine,
+      });
+    } finally {
+      if (prevHf === undefined) delete process.env.HF_TOKEN;
+      else process.env.HF_TOKEN = prevHf;
+    }
+  });
+
+  it("preserves native Film Plan approval and provenance while attaching a receipt", async () => {
+    const native = await nativePayload();
+    const receipt = {
+      version: 1 as const,
+      scenes: [],
+      assembler: {
+        provider: "aurora-video-agent" as const,
+        endpoint: "local-ffmpeg-assemble" as const,
+      },
+    };
+    const merged = mergeVideoAgentRenderReceipt(native.filmPlan, receipt);
+    expect(merged).toMatchObject({
+      planner: native.filmPlan.planner,
+      renderApproval: native.filmPlan.renderApproval,
+      renderPlan: native.filmPlan.renderPlan,
+      renderEngine: receipt,
+    });
+  });
+
+  it("re-reads and preserves a concurrent production change after an optimistic CAS miss", async () => {
+    const prevHf = process.env.HF_TOKEN;
+    process.env.HF_TOKEN = "test-token";
+    videoAgentProjectRow = {
+      production: { legacy: "initial", untouched: 1 },
+      updated_at: "2026-09-09T00:00:00.000Z",
+    };
+    videoAgentProductionCasFailures = 1;
+    videoAgentConcurrentProduction = {
+      legacy: "concurrently-updated",
+      untouched: 1,
+      newlyAdded: { preserve: true },
+    };
+    try {
+      claimQueue = [job({
+        kind: "video_agent_render",
+        credits_reserved: 20,
+        payload: {
+          ...basePayload,
+          scenes: [{
+            ...validScenes[0],
+            frame: "https://storage.example.com/reused.png",
+            plateQuality: "free" as const,
+          }],
+        },
+      })];
+      const result = await rawProcessOneJob("w1", {
+        ...deps,
+        assembleVideoAgent: async () => Buffer.from("assembled"),
+        uploadVideoAgent: async () => "https://storage.example.com/final.mp4",
+      });
+      expect(result.status).toBe("succeeded");
+      const productionWrites = calls.updates.filter((update) =>
+        update.table === "video_agent_projects" && "production" in update.patch
+      );
+      expect(productionWrites).toHaveLength(2);
+      expect(productionWrites[1].patch.production).toMatchObject({
+        legacy: "concurrently-updated",
+        untouched: 1,
+        newlyAdded: { preserve: true },
+        renderEngine: { version: 1 },
+      });
+    } finally {
+      if (prevHf === undefined) delete process.env.HF_TOKEN;
+      else process.env.HF_TOKEN = prevHf;
+    }
+  });
+
+  it("does not persist engine production data after losing the finalization fence", async () => {
+    const prevHf = process.env.HF_TOKEN;
+    process.env.HF_TOKEN = "test-token";
+    jobsCasWins = false;
+    try {
+      claimQueue = [job({
+        kind: "video_agent_render",
+        credits_reserved: 20,
+        payload: {
+          ...basePayload,
+          scenes: [{
+            ...validScenes[0],
+            frame: "https://storage.example.com/reused.png",
+            plateQuality: "free" as const,
+          }],
+        },
+      })];
+      const result = await rawProcessOneJob("w1", {
+        ...deps,
+        assembleVideoAgent: async () => Buffer.from("assembled"),
+        uploadVideoAgent: async () => "https://storage.example.com/final.mp4",
+      });
+      expect(result.status).toBe("stale");
+      expect(calls.updates.some((update) =>
+        update.table === "video_agent_projects" && "production" in update.patch
+      )).toBe(false);
+    } finally {
+      if (prevHf === undefined) delete process.env.HF_TOKEN;
+      else process.env.HF_TOKEN = prevHf;
+    }
+  });
+
+  it("rejects manually injected native jobs while the readiness gate is off", async () => {
+    const prevHf = process.env.HF_TOKEN;
+    const prevNative = process.env.FILM_STUDIO_NATIVE_RENDER_ENABLED;
+    process.env.HF_TOKEN = "test-token";
+    delete process.env.FILM_STUDIO_NATIVE_RENDER_ENABLED;
+    try {
+      claimQueue = [job({
+        kind: "video_agent_render",
+        attempts: PERSISTENT_RETRY_MAX_ATTEMPTS,
+        credits_reserved: 20,
+        payload: await nativePayload(),
+      })];
+      const result = await processOneJob("w1");
+      expect(result.status).toBe("failed");
+      expect(orchCalls).toBe(0);
+      expect(result.error).toMatch(/disabled pending production readiness/i);
+    } finally {
+      if (prevHf === undefined) delete process.env.HF_TOKEN;
+      else process.env.HF_TOKEN = prevHf;
+      if (prevNative === undefined) delete process.env.FILM_STUDIO_NATIVE_RENDER_ENABLED;
+      else process.env.FILM_STUDIO_NATIVE_RENDER_ENABLED = prevNative;
+    }
+  });
 
   it("fails terminally and refunds when no TTS backend is configured, before any paid stage", async () => {
     const prevHf = process.env.HF_TOKEN;
@@ -1188,5 +1668,122 @@ describe("processOneJob progress wiring", () => {
     expect(stages).toContain("animating performance");
     expect(stages).toContain("rendering frames"); // provider free text passes through
     expect(stages).toContain("syncing lips");
+  });
+
+  for (const duration of [30, 45] as const) {
+    it(`Content Line ${duration}s jobs assemble every scene and persist the captioned export`, async () => {
+      const oldXaiKey = process.env.XAI_API_KEY;
+      process.env.XAI_API_KEY = "test-key";
+      try {
+        let sceneCount = 0;
+        orchestrateImpl = async (request) => {
+          const req = request as { kind: string };
+          const url = req.kind === "caption_burn"
+            ? "https://out/captioned.mp4"
+            : `https://out/scene-${++sceneCount}.mp4`;
+          return { url, provider: "test-provider", endpoint: `test:${req.kind}`, latencyMs: 1, costUsd: 0 };
+        };
+        const script = "I used to wake up every night. Then I tried a new routine. Now I wake up feeling rested.";
+        claimQueue = [job({
+          kind: "ugc_ad",
+          payload: {
+            avatarImageUrl: "https://in/avatar.png",
+            avatarName: "Maya",
+            productPrompt: "A sleep routine",
+            scriptOverride: script,
+            captionText: "MY NEW ROUTINE",
+            aspect: "9:16",
+            duration,
+          },
+        })];
+        const bytes = Buffer.from("assembled-test-video");
+        const assemble = mock(async (params: {
+          clips: string[]; maxDurationSec?: number; targetClipDurationSec?: number; preserveClipDuration?: boolean;
+        }) => {
+          expect(params.clips).toEqual(Array.from({ length: duration / 15 }, (_, i) => `https://out/scene-${i + 1}.mp4`));
+          expect(params.preserveClipDuration).toBe(true);
+          expect(params.targetClipDurationSec).toBe(15);
+          expect(params.maxDurationSec).toBe(duration);
+          expect(params.clips.length * params.targetClipDurationSec!).toBe(duration);
+          return bytes;
+        });
+        const upload = mock(async (userId: string, jobId: string, video: Buffer) => {
+          expect(userId).toBe("u1");
+          expect(jobId).toBe("j1");
+          expect(video).toBe(bytes);
+          return "https://out/assembled.mp4";
+        });
+        const result = await rawProcessOneJob("w1", { ...deps, assembleUGC: assemble, uploadUGC: upload });
+        expect(result.status).toBe("succeeded");
+        expect(assemble).toHaveBeenCalledTimes(1);
+        expect(upload).toHaveBeenCalledTimes(1);
+        const requests = orchRequests as Array<{ kind: string; duration?: number; model?: string; prompt?: string; videoUrl?: string; segments?: unknown }>;
+        expect(requests.map((r) => r.kind)).toEqual([...Array(duration / 15).fill("video"), "caption_burn"]);
+        for (const request of requests.filter((r) => r.kind === "video")) {
+          expect(request.duration).toBe(15);
+          expect(request.model).toBe("xai/grok-imagine-video-1.5");
+        }
+        const caption = requests.at(-1)!;
+        expect(caption.videoUrl).toBe("https://out/assembled.mp4");
+        expect(caption.segments).toEqual([{ start: duration * 0.42, end: duration - 0.35, text: "MY NEW ROUTINE" }]);
+        const finish = calls.rpc.find((call) => call.name === "finalize_job");
+        expect(finish?.args._result_video_url).toBe("https://out/captioned.mp4");
+      } finally {
+        if (oldXaiKey === undefined) delete process.env.XAI_API_KEY;
+        else process.env.XAI_API_KEY = oldXaiKey;
+      }
+    });
+  }
+
+  it("Content Line UGC jobs preserve authored copy and persist the caption-burned video", async () => {
+    const oldXaiKey = process.env.XAI_API_KEY;
+    const oldHfToken = process.env.HF_TOKEN;
+    process.env.XAI_API_KEY = "test-key";
+    delete process.env.HF_TOKEN;
+    try {
+      orchestrateImpl = async (request) => {
+        const req = request as { kind: string };
+        const url = req.kind === "caption_burn"
+          ? "https://out/captioned.mp4"
+          : "https://out/raw.mp4";
+        return { url, provider: "test-provider", endpoint: `test:${req.kind}`, latencyMs: 1, costUsd: 0 };
+      };
+      claimQueue = [job({
+        kind: "ugc_ad",
+        payload: {
+          avatarImageUrl: "https://in/avatar.png",
+          avatarName: "Maya",
+          vibe: "Beauty reviewer",
+          sceneHint: "Window-lit bathroom mirror selfie",
+          sceneName: "testimonial",
+          productPrompt: "A magnesium sleep gummy",
+          scriptOverride: "I stopped waking up at 3 AM every single night.",
+          captionText: "I SLEEP THROUGH THE NIGHT NOW",
+          aspect: "9:16",
+          duration: 8,
+        },
+      })];
+
+      const result = await processOneJob("w1");
+
+      expect(result.processed).toBe(true);
+      const videoRequest = orchRequests.find((request) => (request as { kind?: string }).kind === "video") as { prompt?: string };
+      expect(videoRequest.prompt).toContain("I stopped waking up at 3 AM every single night.");
+      const captionRequest = orchRequests.find((request) => (request as { kind?: string }).kind === "caption_burn") as {
+        videoUrl?: string;
+        segments?: Array<{ text: string }>;
+      };
+      expect(captionRequest.videoUrl).toBe("https://out/raw.mp4");
+      expect(captionRequest.segments).toEqual(expect.arrayContaining([
+        expect.objectContaining({ text: "I SLEEP THROUGH THE NIGHT NOW" }),
+      ]));
+      const finish = calls.rpc.find((call) => call.name === "finalize_job");
+      expect(finish?.args._result_video_url).toBe("https://out/captioned.mp4");
+    } finally {
+      if (oldXaiKey === undefined) delete process.env.XAI_API_KEY;
+      else process.env.XAI_API_KEY = oldXaiKey;
+      if (oldHfToken === undefined) delete process.env.HF_TOKEN;
+      else process.env.HF_TOKEN = oldHfToken;
+    }
   });
 });

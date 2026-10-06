@@ -74,7 +74,7 @@ export function LipSyncDemo() {
     <section className="relative z-10 px-6 md:px-12 pb-16">
       <div className="grid lg:grid-cols-12 gap-6 items-center max-w-6xl mx-auto">
         <div className="lg:col-span-5 space-y-3">
-          <span className="inline-flex items-center gap-1.5 text-xs text-emerald-200/90 border border-emerald-400/30 bg-emerald-500/10 px-3 py-1 rounded-full">
+          <span className="inline-flex items-center gap-1.5 text-xs text-emerald-200/90 bg-emerald-500/10 px-3 py-1 rounded-full">
             <Wand2 className="size-3" /> Sync 1.9 · Lip-sync
           </span>
           <h2 className="text-xl md:text-3xl font-semibold leading-tight">

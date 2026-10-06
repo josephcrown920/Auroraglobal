@@ -1,36 +1,13 @@
 // AI creative writing tools for the Avatar Studio.
-// Uses the same provider chain as llm-fallback.server.ts (Gemini → Anthropic → OpenRouter).
+// Uses Aurora's shared category router so dead models and missing credentials
+// fall through consistently with Prime and the Video Agent.
 
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { generateText } from "ai";
-import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { routedGenerate } from "@/lib/ai-router";
 
-function getLLM() {
-  if (process.env.GEMINI_API_KEY) {
-    return createOpenAICompatible({
-      name: "gemini",
-      baseURL: "https://generativelanguage.googleapis.com/v1beta/openai",
-      headers: { Authorization: `Bearer ${process.env.GEMINI_API_KEY}` },
-    })("gemini-2.0-flash");
-  }
-  if (process.env.ANTHROPIC_API_KEY) {
-    return createOpenAICompatible({
-      name: "anthropic",
-      baseURL: "https://api.anthropic.com/v1",
-      headers: { Authorization: `Bearer ${process.env.ANTHROPIC_API_KEY}` },
-    })("claude-haiku-4-5");
-  }
-  if (process.env.OPENROUTER_API_KEY) {
-    return createOpenAICompatible({
-      name: "openrouter",
-      baseURL: "https://openrouter.ai/api/v1",
-      headers: { Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}` },
-    })("google/gemini-2.0-flash");
-  }
-  throw new Error("No LLM provider configured for script generation");
-}
+const ScriptSchema = z.object({ script: z.string().min(1) });
 
 const STYLE_INSTRUCTIONS = {
   hype: "Energetic, bold, and hype — punchy sentences, commanding presence, like a rap intro or ad.",
@@ -57,31 +34,27 @@ export const writeAvatarScript = createServerFn({ method: "POST" })
       .parse(d),
   )
   .handler(async ({ data }): Promise<{ script: string }> => {
-    const model = getLLM();
-    const { text } = await generateText({
-      model,
-      messages: [
-        {
-          role: "user",
-          content: `You are a creative director writing camera-facing video scripts for an artist's social media content.
+    const { output } = await routedGenerate({
+      system: "You are a creative director writing camera-facing video scripts for an artist's social media content.",
+      prompt: `
 
 Topic / Theme: "${data.theme}"
 Style: ${STYLE_INSTRUCTIONS[data.style]}
 Target length: ${DURATION_GUIDE[data.duration]}
 
 Rules:
-- Output ONLY the spoken script — no stage directions, no brackets, no formatting
+- Put only spoken words in the JSON "script" field — no stage directions, brackets, or formatting
 - First-person voice, speaking directly into camera
 - Start with a strong line that immediately hooks the viewer
 - End with impact — a punchline, a call-to-action, or a memorable close
 - Sound like a real human talking, not corporate copy
 - No hashtags, no emojis in the script itself
 
-Script:`,
-        },
-      ],
+Return JSON: {"script":"the spoken script"}`,
+      schema: ScriptSchema,
+      category: "SCRIPT_WRITING",
     });
-    return { script: text.trim() };
+    return { script: output.script.trim() };
   });
 
 export const improveAvatarScript = createServerFn({ method: "POST" })
@@ -95,7 +68,6 @@ export const improveAvatarScript = createServerFn({ method: "POST" })
       .parse(d),
   )
   .handler(async ({ data }): Promise<{ script: string }> => {
-    const model = getLLM();
     const ACTION = {
       improve:
         "Improve the flow, rhythm, and emotional impact of this script. Keep the same message and approximate length — make every word earn its place.",
@@ -108,19 +80,16 @@ export const improveAvatarScript = createServerFn({ method: "POST" })
       punchup:
         "Punch up the entire script — make every line more vivid, bolder, and more memorable. Same ideas, maximum impact.",
     };
-    const { text } = await generateText({
-      model,
-      messages: [
-        {
-          role: "user",
-          content: `${ACTION[data.action]}
+    const { output } = await routedGenerate({
+      system: "You improve camera-facing social video scripts while preserving the creator's intent.",
+      prompt: `${ACTION[data.action]}
 
 Original script:
 ${data.script}
 
-Output only the improved script text (no instructions, no labels):`,
-        },
-      ],
+Output only JSON with a single "script" field containing the improved spoken script.`,
+      schema: ScriptSchema,
+      category: "SCRIPT_WRITING",
     });
-    return { script: text.trim() };
+    return { script: output.script.trim() };
   });

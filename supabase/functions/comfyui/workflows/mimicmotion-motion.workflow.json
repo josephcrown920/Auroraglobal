@@ -1,0 +1,29 @@
+{
+  "1": {
+    "class_type": "MimicMotionModelLoader",
+    "inputs": { "model_name": "MimicMotion.pth", "dtype": "fp16" }
+  },
+  "2": {
+    "class_type": "LoadImage",
+    "inputs": { "image": "pose_reference" }
+  },
+  "3": {
+    "class_type": "LoadImage",
+    "inputs": { "image": "character_image" }
+  },
+  "4": {
+    "class_type": "MimicMotionInference",
+    "inputs": {
+      "mimicmotion_model": ["1", 0],
+      "pose_image": ["2", 0],
+      "ref_image": ["3", 0],
+      "motion_length": 16,
+      "num_inference_steps": 25,
+      "denoise_strength": 0.5
+    }
+  },
+  "5": {
+    "class_type": "SaveVideo",
+    "inputs": { "filename_prefix": "aurora_motion", "video": ["4", 0] }
+  }
+}

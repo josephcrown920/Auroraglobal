@@ -64,6 +64,7 @@ Every task must be propagated across all artifacts before it is considered done.
 3. `artifacts/aurora-adult` — Adult School
 4. `artifacts/aurora-colors` — Aurora Colors Studio
 5. `artifacts/ugc-line` — Aurora Content Line
+6. `artifacts/video-agent` — Aurora Video Agent
 7. `artifacts/perform-anywhere` — Perform Anywhere
 8. `artifacts/aurora-mobile` — Aurora Studio (Expo mobile)
 
@@ -112,6 +113,16 @@ production job queue (`video_agent_render` kind in `src/lib/jobs.server.ts`).
   email; dedup state row `id='queue'` in `uptime_monitor_state`). Ops view:
   `/admin/orchestration` → "Generation queue" panel.
 - Live schema check without provider spend: `bun run scripts/va-live-roundtrip.ts`.
+
+## Vast.ai CLI / SDK (workspace tooling)
+
+The official `vastai` CLI + Python SDK live in `.pythonlibs` (install/upgrade/repair:
+`bash scripts/setup-vast-tools.sh`). The key is the `VASTAI_API_KEY` secret; the tools
+expect `VAST_API_KEY`, so the setup script installs a `usercustomize.py` hook (source:
+`scripts/vast-usercustomize.py`) that maps the name in-process — bare `vastai …` and
+`VastAI()` just work. Never `vastai set api-key` or `--explain` (both expose the key).
+Read-only commands only (`search offers`, `show …`); renting/stopping/destroying goes
+through the guarded `aurora vast …` flow. Details: `docs/VAST_TOOLS.md`.
 
 ## Development principles (Karpathy Guidelines)
 

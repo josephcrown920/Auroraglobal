@@ -1,736 +1,90 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { routedGenerate } from "@/lib/ai-router";
-import { computeCost } from "@/lib/pricing";
-import { assertOwnedReferenceImage } from "@/lib/url-guard";
-import {
-  PlanSchema,
-  DIRECTOR_SYSTEM,
-  buildDirectorPrompt,
-  buildRefNote,
-  ChatTurnSchema,
-  CHAT_DIRECTOR_SYSTEM,
-  buildChatPrompt,
-  buildChatPromptWithSkill,
-  type AgentPlan,
-  type PlanIteration,
-  type AgentChatTurn,
-} from "@/lib/agent.schema";
-import { refinePlan } from "@/lib/agent-loop.server";
-import type { Json } from "@/integrations/supabase/types";
-import type { SupabaseClient } from "@supabase/supabase-js";
-import type { Database } from "@/integrations/supabase/types";
-import type { RenderInput, RenderOutcome } from "@/lib/generate-core.server";
+import { generateWithFallback } from "@/lib/llm-fallback.server";
+import { modelArkEnabled, modelArkResponses, modelArkText, modelArkTextModel } from "@/lib/modelark.server";
 
-// Re-export shared types so existing consumers (e.g. AuroraAgentPanel) keep
-// importing them from this module.
-export type { AgentPlan, AgentShot, Critique, CritiqueIssue, PlanIteration } from "@/lib/agent.schema";
 
-/** Translate raw provider failures into explicit, user-facing messages (no silent fallback). */
-function mapLlmError(err: unknown): Error {
-  const message = err instanceof Error ? err.message : "Agent failed";
-  if (message.includes("No LLM provider"))
-    return new Error(
-      "No AI model is configured for planning. Add an LLM provider key (Lovable, Gemini, OpenAI, OpenRouter, or HuggingFace).",
-    );
-  if (message.includes("429")) return new Error("Aurora Agent is rate-limited. Try again in a moment.");
-  if (message.includes("402")) return new Error("Out of AI credits. Add credits in workspace settings.");
-  return new Error(message);
+const SYSTEM = `You are AURORA AGENT — a senior music-video / short-film director.
+A user gives you ONE paragraph describing a story/shoot they want to create.
+Return a complete production breakdown the user can execute immediately:
+- 1-2 sentence creative direction (mood, references, palette)
+- 4-8 shots, each with: shot type, camera, action, and a FULL ready-to-use image prompt
+  (~80-150 words, cinematic, 16mm/35mm-film vocabulary, deep focus, no bloom/no lens flare)
+- 3-5 color/grade keywords
+- A short list of next-step suggestions ("generate shot 1", "split-reality on shot 3", etc.)
+Write prompts so good the user does not need to edit them. Be specific about wardrobe,
+lighting, lens, camera move, and environment. Never use markdown formatting in fields —
+return clean text only.`;
+
+const ShotSchema = z.object({
+  id: z.string().describe("Short id like S1, S2"),
+  title: z.string().describe("Shot title, 3-6 words"),
+  shotType: z.string().describe("Wide / Medium / Close-up / OTS / Dutch / etc"),
+  camera: z.string().describe("Lens, movement, frame e.g. '35mm, slow push in, handheld'"),
+  action: z.string().describe("1-2 sentence description of what happens"),
+  prompt: z.string().describe("Full ready-to-run image prompt, ~80-150 words"),
+});
+
+const PlanSchema = z.object({
+  title: z.string(),
+  logline: z.string().describe("One sentence pitch"),
+  direction: z.string().describe("1-2 sentence creative direction with mood/palette/references"),
+  palette: z.array(z.string()).min(3).max(6).describe("Hex codes for the color story"),
+  shots: z.array(ShotSchema).min(3).max(8),
+  suggestions: z.array(z.string()).min(2).max(5),
+});
+
+export type AgentPlan = z.infer<typeof PlanSchema>;
+
+function parsePlan(text: string): AgentPlan {
+  const cleaned = text
+    .replace(/^```(?:json)?\s*/i, "")
+    .replace(/\s*```$/i, "")
+    .trim();
+  const start = cleaned.indexOf("{");
+  const end = cleaned.lastIndexOf("}");
+  if (start < 0 || end <= start) throw new Error("ModelArk returned no JSON production plan");
+  return PlanSchema.parse(JSON.parse(cleaned.slice(start, end + 1)));
 }
 
-// ─── Single-shot planner (public, unchanged behaviour) ───────────────────────
-const COST_VIDEO = computeCost({ features: ["video"] }).total;
-
-type RunAgentDeps = {
-  assertOwned: (url: string, userId: string) => Promise<void>;
-  generate: typeof routedGenerate;
-};
-
-// Deps-injected core (same pattern as gifts.functions.ts): the createServerFn
-// handler can't run without a Start request context, so unit tests exercise
-// this core directly — proving the ownership guard fires BEFORE any reference
-// image is sent to the LLM provider, and that owned references pass through.
-export async function runAuroraAgentCore(
-  userId: string,
-  data: { brief: string; referenceImages?: string[] },
-  deps: RunAgentDeps = { assertOwned: assertOwnedReferenceImage, generate: routedGenerate },
-): Promise<AgentPlan> {
-  // Ownership guard: reference images (sent to the LLM as creative context) must
-  // belong to the caller — a crafted request could otherwise expose another user's
-  // private studio asset to the LLM provider.
-  for (const url of data.referenceImages ?? []) {
-    await deps.assertOwned(url, userId);
-  }
-  try {
-    const { output } = await deps.generate({
-      system: DIRECTOR_SYSTEM,
-      prompt: buildDirectorPrompt(data.brief, buildRefNote(data.referenceImages)),
-      schema: PlanSchema,
-      category: "VIDEO_DIRECTION",
-    });
-    return output as AgentPlan;
-  } catch (err) {
-    throw mapLlmError(err);
-  }
-}
-
-// ─── Single-shot planner (public, unchanged behaviour) ───────────────────────
 export const runAuroraAgent = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) =>
-    z
-      .object({
-        brief: z.string().min(4).max(4000),
-        referenceImages: z.array(z.string().url()).max(8).optional(),
-      })
-      .parse(d),
+    z.object({
+      brief: z.string().min(4).max(4000),
+      referenceImages: z.array(z.string().url()).max(8).optional(),
+    }).parse(d)
   )
-  .handler(async ({ data, context }) => runAuroraAgentCore(context.userId, data));
+  .handler(async ({ data }) => {
+    const refNote = data.referenceImages?.length
+      ? `\n\nThe user attached ${data.referenceImages.length} reference image(s). Treat them as the talent / wardrobe / location anchor — keep them visually consistent across every shot.`
+      : "";
 
-// ─── Director → Critic refinement + session persistence (authed) ─────────────
-export const refineAuroraPlan = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((d: unknown) =>
-    z
-      .object({
-        brief: z.string().min(4).max(4000),
-        referenceImages: z.array(z.string().url()).max(8).optional(),
-        sessionId: z.string().uuid().optional(),
-        title: z.string().max(120).optional(),
-        threshold: z.number().int().min(50).max(100).optional(),
-        maxIterations: z.number().int().min(1).max(5).optional(),
-      })
-      .parse(d),
-  )
-  .handler(async ({ data, context }) => {
-    // Ownership guard: reference images used for LLM planning context must belong
-    // to the authenticated caller — prevent exposure of private studio assets to
-    // the LLM provider via a crafted referenceImages array.
-    for (const url of data.referenceImages ?? []) {
-      await assertOwnedReferenceImage(url, context.userId);
-    }
-    let result;
     try {
-      result = await refinePlan({
-        brief: data.brief,
-        referenceImages: data.referenceImages,
-        threshold: data.threshold,
-        maxIterations: data.maxIterations,
-      });
-    } catch (err) {
-      throw mapLlmError(err);
-    }
-
-    const row = {
-      user_id: context.userId,
-      title: data.title ?? result.plan.title,
-      brief: data.brief,
-      plan: result.plan as unknown as Json,
-      iterations: result.iterations as unknown as Json,
-      status: "ready",
-      updated_at: new Date().toISOString(),
-    };
-
-    let sessionId = data.sessionId;
-    if (sessionId) {
-      const { data: upd, error } = await context.supabase
-        .from("agent_sessions")
-        .update(row)
-        .eq("id", sessionId)
-        .eq("user_id", context.userId)
-        .select("id")
-        .single();
-      if (error) throw new Error(error.message);
-      if (!upd) throw new Error("Session not found");
-      sessionId = upd.id;
-    } else {
-      const { data: ins, error } = await context.supabase
-        .from("agent_sessions")
-        .insert(row)
-        .select("id")
-        .single();
-      if (error) throw new Error(error.message);
-      sessionId = ins.id;
-    }
-
-    return {
-      sessionId,
-      plan: result.plan,
-      iterations: result.iterations,
-      finalScore: result.finalScore,
-      stopReason: result.stopReason,
-    };
-  });
-
-export const listAgentSessions = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
-    const { data, error } = await context.supabase
-      .from("agent_sessions")
-      .select("id, title, brief, status, created_at, updated_at")
-      .order("updated_at", { ascending: false })
-      .limit(50);
-    if (error) throw new Error(error.message);
-    return data ?? [];
-  });
-
-export const getAgentSession = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((d: unknown) => z.object({ sessionId: z.string().uuid() }).parse(d))
-  .handler(async ({ data, context }) => {
-    const { data: session, error } = await context.supabase
-      .from("agent_sessions")
-      .select("*")
-      .eq("id", data.sessionId)
-      .single();
-    if (error || !session) throw new Error("Session not found");
-
-    // Per-shot render state is relational: generations linked by session_id + agent_shot_id.
-    // Querying it here (rather than trusting nested JSON) keeps status correct even
-    // when several shots are rendered concurrently.
-    const { data: gens, error: gerr } = await context.supabase
-      .from("generations")
-      .select("agent_shot_id, status, result_image_url, created_at")
-      .eq("session_id", data.sessionId)
-      .order("created_at", { ascending: false });
-    if (gerr) throw new Error(gerr.message);
-
-    const renders: Record<string, { status: string; url: string | null }> = {};
-    for (const g of gens ?? []) {
-      const sid = g.agent_shot_id;
-      if (!sid || renders[sid]) continue; // rows are newest-first → keep the latest per shot
-      renders[sid] = { status: g.status, url: g.result_image_url };
-    }
-
-    return {
-      session: {
-        id: session.id,
-        title: session.title,
-        brief: session.brief,
-        status: session.status,
-        plan: session.plan as unknown as AgentPlan,
-        iterations: (session.iterations as unknown as PlanIteration[]) ?? [],
-        created_at: session.created_at,
-        updated_at: session.updated_at,
-      },
-      renders,
-    };
-  });
-
-export const deleteAgentSession = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((d: unknown) => z.object({ sessionId: z.string().uuid() }).parse(d))
-  .handler(async ({ data, context }) => {
-    const { error } = await context.supabase
-      .from("agent_sessions")
-      .delete()
-      .eq("id", data.sessionId)
-      .eq("user_id", context.userId);
-    if (error) throw new Error(error.message);
-    return { ok: true as const };
-  });
-
-// ─── Conversational Video Agent: persistent chat + permanent memory ──────────
-
-export type SkillMeta = {
-  name: string;
-  icon: string;
-  label: string;
-  summary: string;
-  durationMs: number;
-};
-
-export type AgentChatMessage = {
-  id: string;
-  role: "user" | "assistant";
-  content: string;
-  plan: AgentPlan | null;
-  skillMeta: SkillMeta | null;
-  created_at: string;
-};
-
-const CHAT_CONTEXT_MESSAGES = 20;
-const CHAT_CONTEXT_CHARS = 1000;
-
-type AgentChatContext = {
-  userId: string;
-  supabase: SupabaseClient<Database>;
-};
-
-type AgentChatDeps = {
-  generate: typeof routedGenerate;
-  loadSkills: () => Promise<typeof import("@/lib/agent-skills.server")>;
-};
-
-const defaultAgentChatDeps: AgentChatDeps = {
-  generate: routedGenerate,
-  loadSkills: () => import("@/lib/agent-skills.server"),
-};
-
-// This is the production chat path, separated from the Start transport wrapper
-// so tests can invoke the exact handler behavior with an authenticated context.
-export async function chatWithAuroraAgentCore(
-  context: AgentChatContext,
-  data: { message: string; cinematicMode?: boolean },
-  deps: AgentChatDeps = defaultAgentChatDeps,
-) {
-    // Load permanent memory + recent transcript (RLS scopes both to the caller).
-    const [{ data: memRow }, { data: recent, error: histErr }] = await Promise.all([
-      context.supabase
-        .from("agent_user_memory")
-        .select("memory, structured_memory")
-        .eq("user_id", context.userId)
-        .maybeSingle(),
-      context.supabase
-        .from("agent_chat_messages")
-        .select("role, content")
-        .eq("user_id", context.userId)
-        .order("created_at", { ascending: false })
-        .limit(CHAT_CONTEXT_MESSAGES),
-    ]);
-    if (histErr) throw new Error(histErr.message);
-
-    const freeText = memRow?.memory ?? "";
-    const structured = (memRow?.structured_memory as Record<string, unknown> | null) ?? null;
-    const structuredBlock =
-      structured && Object.keys(structured).length > 0
-        ? `\n\nSTRUCTURED BRAND PROFILE (auto-recalled):\n${JSON.stringify(structured, null, 2)}`
-        : "";
-    const memory = (freeText + structuredBlock).trim();
-    const transcript = (recent ?? [])
-      .reverse()
-      .map((m: { role: string; content: string }) => ({
-        role: (m.role === "assistant" ? "assistant" : "user") as "user" | "assistant",
-        content: m.content.length > CHAT_CONTEXT_CHARS ? `${m.content.slice(0, CHAT_CONTEXT_CHARS)}…` : m.content,
-      }));
-
-    let turn: AgentChatTurn;
-    try {
-      const { output } = await deps.generate({
-        system: CHAT_DIRECTOR_SYSTEM,
-        prompt: buildChatPrompt({ memory, transcript, message: data.message, cinematicMode: data.cinematicMode }),
-        schema: ChatTurnSchema,
-        degradedOutput: {
-          reply: "Aurora is catching up right now. Your context is safe — please try again in about 30 seconds.",
-          plan: null,
-          memoryUpdate: null,
-          skillCall: null,
-        },
-      });
-      turn = output;
-    } catch (err) {
-      throw mapLlmError(err);
-    }
-
-    // ─── Skill dispatch ───────────────────────────────────────────────────────
-    let skillMeta: SkillMeta | null = null;
-    if (turn.skillCall) {
-      const { skill, args } = turn.skillCall;
-      const t0 = Date.now();
-      try {
-        const { dispatchSkill, SKILL_REGISTRY } = await deps.loadSkills();
-        const skillResult = await dispatchSkill(skill, args, { userId: context.userId, supabase: context.supabase });
-        const durationMs = Date.now() - t0;
-        const skillInfo = SKILL_REGISTRY[skill];
-        skillMeta = {
-          name: skill,
-          icon: skillInfo?.icon ?? "🔧",
-          label: skillInfo?.label ?? skill,
-          summary: skillResult.summary,
-          durationMs,
-        };
-        if (skillResult.ok) {
-          // Second LLM pass: inject skill result and compose the real reply.
-          try {
-            const { output: turn2 } = await deps.generate({
-              system: CHAT_DIRECTOR_SYSTEM,
-              prompt: buildChatPromptWithSkill({
-                memory,
-                transcript,
-                message: data.message,
-                skillName: skill,
-                skillData: skillResult.data,
-                cinematicMode: data.cinematicMode,
-              }),
-              schema: ChatTurnSchema,
-              degradedOutput: {
-                reply: "Aurora is catching up right now. Your context is safe — please try again in about 30 seconds.",
-                plan: null,
-                memoryUpdate: null,
-                skillCall: null,
-              },
-            });
-            // Suppress further skill calls from the second pass to avoid loops.
-            turn = { ...turn2, skillCall: null };
-          } catch {
-            // Second pass failed — keep the first-pass acknowledgment reply.
-          }
-        }
-      } catch {
-        // Skill dispatch threw — continue with the original turn.
+      if (modelArkEnabled()) {
+        const response = await modelArkResponses({
+          model: modelArkTextModel(),
+          input: [
+            { role: "system", content: [{ type: "input_text", text: SYSTEM }] },
+            {
+              role: "user",
+              content: [{ type: "input_text", text: `BRIEF:\n${data.brief}${refNote}\n\nReturn the full production plan now as JSON only.` }],
+            },
+          ],
+        });
+        const text = modelArkText(response);
+        if (text) return parsePlan(text);
       }
-    }
 
-    // Persist both turns server-side (never trust client-written assistant rows).
-    const { error: insErr } = await context.supabase.from("agent_chat_messages").insert([
-      { user_id: context.userId, role: "user", content: data.message },
-      {
-        user_id: context.userId,
-        role: "assistant",
-        content: turn.reply,
-        plan: (turn.plan ?? null) as unknown as Json,
-        skill_meta: (skillMeta ?? null) as unknown as Json,
-      },
-    ]);
-    if (insErr) throw new Error(insErr.message);
-
-    if (turn.memoryUpdate && turn.memoryUpdate.trim()) {
-      const { error: memErr } = await context.supabase.from("agent_user_memory").upsert({
-        user_id: context.userId,
-        memory: turn.memoryUpdate.trim().slice(0, 2000),
-        updated_at: new Date().toISOString(),
+      const { output } = await generateWithFallback({
+        system: SYSTEM,
+        prompt: `BRIEF:\n${data.brief}${refNote}\n\nReturn the full production plan now.`,
+        schema: PlanSchema,
       });
-      if (memErr) throw new Error(memErr.message);
-    }
-
-    return {
-      reply: turn.reply,
-      plan: turn.plan ?? null,
-      memoryUpdated: !!(turn.memoryUpdate && turn.memoryUpdate.trim()),
-      skillInvoked: skillMeta,
-    };
-}
-
-const chatInputSchema = z.object({ message: z.string().min(1).max(4000), cinematicMode: z.boolean().optional() });
-
-export const chatWithAuroraAgent = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((d: unknown) => chatInputSchema.parse(d))
-  .handler(async ({ data, context }) => chatWithAuroraAgentCore(context, data));
-
-export const listAgentChat = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
-    const [{ data: msgs, error }, { data: memRow }] = await Promise.all([
-      context.supabase
-        .from("agent_chat_messages")
-        // skill_meta is a new column added in 20260713170000 migration.
-        .select("id, role, content, plan, skill_meta, created_at")
-        .eq("user_id", context.userId)
-        // Newest 200, then reversed to chronological — ascending+limit would
-        // pin the window to the OLDEST rows once history exceeds the cap.
-        .order("created_at", { ascending: false })
-        .limit(200),
-      context.supabase
-        .from("agent_user_memory")
-        .select("memory, updated_at")
-        .eq("user_id", context.userId)
-        .maybeSingle(),
-    ]);
-    if (error) throw new Error(error.message);
-    return {
-      messages: (msgs ?? [])
-        .slice()
-        .reverse()
-        .map((m) => ({
-          id: m.id,
-          role: (m.role === "assistant" ? "assistant" : "user") as "user" | "assistant",
-          content: m.content,
-          plan: (m.plan as unknown as AgentPlan | null) ?? null,
-          skillMeta: ((m as { skill_meta?: unknown }).skill_meta as SkillMeta | null) ?? null,
-          created_at: m.created_at,
-        })) satisfies AgentChatMessage[],
-      hasMemory: !!memRow?.memory?.trim(),
-      memory: memRow?.memory ?? "",
-    };
-  });
-
-/** Wipes the visible conversation but KEEPS permanent memory — that's the point of it. */
-export const clearAgentChat = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
-    const { error } = await context.supabase
-      .from("agent_chat_messages")
-      .delete()
-      .eq("user_id", context.userId);
-    if (error) throw new Error(error.message);
-    return { ok: true as const };
-  });
-
-/** Directly saves the free-text memory document (used by the Director Memory sidebar textarea). */
-export const saveAgentMemory = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((d: unknown) => z.object({ memory: z.string().max(2000) }).parse(d))
-  .handler(async ({ data, context }) => {
-    const { error } = await context.supabase.from("agent_user_memory").upsert({
-      user_id: context.userId,
-      memory: data.memory.trim().slice(0, 2000),
-      updated_at: new Date().toISOString(),
-    });
-    if (error) throw new Error(error.message);
-    return { ok: true as const };
-  });
-
-/** Explicit "forget me" — deletes the permanent memory document. */
-export const deleteAgentMemory = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
-    const { error } = await context.supabase
-      .from("agent_user_memory")
-      .delete()
-      .eq("user_id", context.userId);
-    if (error) throw new Error(error.message);
-    return { ok: true as const };
-  });
-
-// ─── Previs Pro: render a preview plate for a plan shot ──────────────────────
-// Previsualization turns a shot's engineered prompt into a VISIBLE still plate
-// the director can review before committing to the expensive motion render.
-//
-// Two tiers (Hybrid model):
-//   • quality:"free"    — free Pollinations keyframe (the same $0 sketch engine
-//     the Video Agent storyboard uses). Charges nothing, records nothing.
-//   • quality:"premium" — "Upgrade plate": re-render the SAME shot prompt through
-//     the real paid image pipeline (reserveOrchestrateRecord, kind:"image"),
-//     charged through the canonical pricing/reservation flow and recorded in
-//     `generations` linked to session_id + agent_shot_id.
-//
-// The shot prompt is ALWAYS read from STORED session state (never a client body)
-// so a crafted request cannot inject an arbitrary prompt or spend under another
-// user's session. RLS on context.supabase scopes the lookup to the caller.
-
-const COST_IMAGE_PREVIS = computeCost({ features: ["image"] }).total;
-
-/** Free previsualization plate URL from the open-access Pollinations engine. */
-function pollinationsPlateUrl(prompt: string): string {
-  const encoded = encodeURIComponent(prompt.slice(0, 500));
-  const seed = Math.floor(Math.random() * 999999);
-  return `https://image.pollinations.ai/prompt/${encoded}?width=896&height=504&nologo=true&enhance=false&seed=${seed}`;
-}
-
-export type PrevisPlateResult =
-  | { ok: true; shotId: string; quality: "free" | "premium"; url: string; generationId: string | null; provider: string | null }
-  | { ok: false; error: string; insufficient?: boolean };
-
-export const renderPrevisPlate = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((d: unknown) =>
-    z
-      .object({
-        sessionId: z.string().uuid(),
-        shotId: z.string().min(1).max(40),
-        quality: z.enum(["free", "premium"]).default("free"),
-        model: z.string().max(120).optional(),
-      })
-      .parse(d),
-  )
-  .handler(async ({ data, context }): Promise<PrevisPlateResult> => {
-    // Read the OWNED session + shot prompt from stored state (IDOR / injection
-    // hardening — never trust a client-supplied prompt). RLS is a second fence.
-    const { data: session, error } = await context.supabase
-      .from("agent_sessions")
-      .select("id, plan")
-      .eq("id", data.sessionId)
-      .single();
-    if (error || !session) return { ok: false, error: "Session not found" };
-
-    const plan = session.plan as unknown as AgentPlan | null;
-    const shot = plan?.shots?.find((s) => s.id === data.shotId);
-    if (!shot) return { ok: false, error: `Shot ${data.shotId} is not part of this plan` };
-    if (!shot.prompt?.trim()) return { ok: false, error: `Shot ${data.shotId} has no prompt to previsualize` };
-
-    // Free tier: no charge, no generations row — just a Pollinations sketch.
-    if (data.quality === "free") {
-      return {
-        ok: true,
-        shotId: shot.id,
-        quality: "free",
-        url: pollinationsPlateUrl(shot.prompt),
-        generationId: null,
-        provider: "pollinations",
-      };
-    }
-
-    // Premium ("Upgrade plate"): real paid image pipeline, canonical reservation.
-    const { reserveOrchestrateRecord } = await import("@/lib/generate-core.server");
-    let outcome;
-    try {
-      outcome = await reserveOrchestrateRecord({
-        userId: context.userId,
-        kind: "image",
-        prompt: shot.prompt,
-        model: data.model,
-        cost: COST_IMAGE_PREVIS,
-        reason: "agent_previs_plate",
-        mode: "preview",
-        sessionId: data.sessionId,
-        agentShotId: shot.id,
-      });
-    } catch (err) {
-      return { ok: false, error: err instanceof Error ? err.message : "Previs render failed" };
-    }
-    if (!outcome.ok) return { ok: false, error: outcome.error, insufficient: outcome.insufficient };
-
-    return {
-      ok: true,
-      shotId: shot.id,
-      quality: "premium",
-      url: outcome.url,
-      generationId: outcome.generationId,
-      provider: outcome.provider,
-    };
-  });
-
-// ─── Render one approved shot through the EXISTING pipeline (orchestrate) ─────
-type RenderAgentShotContext = {
-  userId: string;
-  supabase: SupabaseClient<Database>;
-};
-
-type RenderAgentShotDeps = {
-  render: (input: RenderInput) => Promise<RenderOutcome>;
-};
-
-/**
- * The authenticated Agent shot flow, separated from the Start transport
- * wrapper so an integration test can exercise the exact session lookup,
- * stored-prompt selection, and credit pipeline together.
- */
-export async function renderAgentShotCore(
-  context: RenderAgentShotContext,
-  data: { sessionId: string; shotId: string; model?: string },
-  deps?: RenderAgentShotDeps,
-) {
-  // Load the OWNED session and read the shot prompt from STORED state — never
-  // trust a client-supplied prompt (IDOR / prompt-injection hardening). RLS on
-  // context.supabase already scopes this to the caller's own rows.
-  const { data: session, error } = await context.supabase
-    .from("agent_sessions")
-    .select("id, plan")
-    .eq("id", data.sessionId)
-    .single();
-  if (error || !session) throw new Error("Session not found");
-
-  const plan = session.plan as unknown as AgentPlan | null;
-  const shot = plan?.shots?.find((s) => s.id === data.shotId);
-  if (!shot) throw new Error(`Shot ${data.shotId} is not part of this plan`);
-  if (!shot.prompt?.trim()) throw new Error(`Shot ${data.shotId} has no prompt to render`);
-
-  const render =
-    deps?.render ??
-    (async (input: RenderInput) => {
-      const { reserveOrchestrateRecord } = await import("@/lib/generate-core.server");
-      return reserveOrchestrateRecord(input);
-    });
-
-  let outcome: RenderOutcome;
-  try {
-    outcome = await render({
-      userId: context.userId,
-      kind: "image",
-      prompt: shot.prompt,
-      model: data.model,
-      cost: 1,
-      reason: "agent_shot_render",
-      sessionId: data.sessionId,
-      agentShotId: shot.id,
-    });
-  } catch (err) {
-    // orchestrate throws explicit errors when no provider can serve the request.
-    const message = err instanceof Error ? err.message : "Render failed";
-    throw new Error(message);
-  }
-  if (!outcome.ok) throw new Error(outcome.error);
-
-  return {
-    shotId: shot.id,
-    status: "succeeded" as const,
-    url: outcome.url,
-    provider: outcome.provider,
-    generationId: outcome.generationId,
-  };
-}
-
-export const renderAgentShot = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((d: unknown) =>
-    z
-      .object({
-        sessionId: z.string().uuid(),
-        shotId: z.string().min(1).max(40),
-        model: z.string().max(120).optional(),
-      })
-      .parse(d),
-  )
-  .handler(async ({ data, context }) => {
-    return renderAgentShotCore(context, data);
-  });
-
-// Turns an already-rendered shot still into a real motion clip. Looks up the
-// shot's own last successful image generation (never trusts a client-supplied
-// image URL — IDOR hardening) and feeds it into image-to-video ("video" kind,
-// which has hosted providers, unlike "motion" which is GPU-worker-only).
-export const renderAgentShotVideo = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((d: unknown) =>
-    z
-      .object({
-        sessionId: z.string().uuid(),
-        shotId: z.string().min(1).max(40),
-      })
-      .parse(d),
-  )
-  .handler(async ({ data, context }) => {
-    const { data: session, error } = await context.supabase
-      .from("agent_sessions")
-      .select("id, plan")
-      .eq("id", data.sessionId)
-      .single();
-    if (error || !session) throw new Error("Session not found");
-
-    const plan = session.plan as unknown as AgentPlan | null;
-    const shot = plan?.shots?.find((s) => s.id === data.shotId);
-    if (!shot) throw new Error(`Shot ${data.shotId} is not part of this plan`);
-
-    const { data: lastImage, error: imgErr } = await context.supabase
-      .from("generations")
-      .select("result_image_url")
-      .eq("session_id", data.sessionId)
-      .eq("agent_shot_id", data.shotId)
-      .eq("kind", "image")
-      .eq("status", "succeeded")
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    if (imgErr || !lastImage?.result_image_url) {
-      throw new Error(`Render shot ${data.shotId} as an image first, then animate it`);
-    }
-
-    const { reserveOrchestrateRecord } = await import("@/lib/generate-core.server");
-    let outcome;
-    try {
-      outcome = await reserveOrchestrateRecord({
-        userId: context.userId,
-        kind: "video",
-        prompt: shot.camera ? `${shot.action} — camera: ${shot.camera}` : shot.action,
-        imageUrls: [lastImage.result_image_url],
-        cost: COST_VIDEO,
-        reason: "agent_shot_animate",
-        sessionId: data.sessionId,
-        agentShotId: shot.id,
-      });
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Animate failed";
+      return output as AgentPlan;
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Agent failed";
+      if (message.includes("429")) throw new Error("Aurora Agent is rate-limited. Try again in a moment.");
+      if (message.includes("402")) throw new Error("Out of AI credits. Add credits in workspace settings.");
       throw new Error(message);
     }
-    if (!outcome.ok) throw new Error(outcome.error);
-
-    return {
-      shotId: shot.id,
-      status: "succeeded" as const,
-      url: outcome.url,
-      provider: outcome.provider,
-      generationId: outcome.generationId,
-    };
   });

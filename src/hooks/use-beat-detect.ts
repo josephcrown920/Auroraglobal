@@ -69,15 +69,18 @@ function estimateBpm(timestamps: number[], durationMs: number): number {
 
 export function useBeatDetect() {
   const [state, setState] = useState<BeatDetectState>({ status: "idle" });
-  const abortRef = useRef(false);
+  // Monotonically increasing run id: a newer analyze() or reset() invalidates
+  // any in-flight run, so a slow decode of a previous file can never
+  // overwrite state belonging to a newer one.
+  const runIdRef = useRef(0);
 
   const analyze = useCallback(async (file: File) => {
+    const runId = ++runIdRef.current;
     setState({ status: "analyzing" });
-    abortRef.current = false;
 
     try {
       const arrayBuffer = await file.arrayBuffer();
-      if (abortRef.current) return;
+      if (runIdRef.current !== runId) return;
 
       type WebkitAudio = { webkitAudioContext?: typeof AudioContext };
       const AudioCtxClass =
@@ -87,7 +90,7 @@ export function useBeatDetect() {
       const ctx = new AudioCtxClass({ sampleRate: 22050 });
       const decoded = await ctx.decodeAudioData(arrayBuffer);
       await ctx.close();
-      if (abortRef.current) return;
+      if (runIdRef.current !== runId) return;
 
       const pcm = decoded.getChannelData(0);
       const sampleRate = decoded.sampleRate;
@@ -108,6 +111,7 @@ export function useBeatDetect() {
         },
       });
     } catch (e) {
+      if (runIdRef.current !== runId) return;
       setState({
         status: "error",
         message: e instanceof Error ? e.message : "Analysis failed",
@@ -116,7 +120,7 @@ export function useBeatDetect() {
   }, []);
 
   const reset = useCallback(() => {
-    abortRef.current = true;
+    runIdRef.current++;
     setState({ status: "idle" });
   }, []);
 

@@ -5,7 +5,15 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { routedGenerate } from "@/lib/ai-router";
-import { runLocalFfmpegAssemble, uploadAutocutResult, signedAutocutUrl, getMusicTrack } from "@/lib/autocut.server";
+import { runLocalFfmpegAssemble, signedAutocutUrl, getMusicTrack } from "@/lib/autocut.server";
+import { assertRateLimit } from "@/lib/rate-limit.server";
+import {
+  assertOwnedSoundtrackPath,
+  muxOwnedSoundtrack,
+  persistPrivateEditorExport,
+  signPrivateEditorExport,
+  type SoundtrackSettings,
+} from "@/lib/soundtrack-export.server";
 
 // edit_sessions is a new table not yet in generated types — use any cast.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -51,6 +59,16 @@ export type EditorMutation = {
   styleId?: string;
   trackId?: string | null;
 };
+
+export type { SoundtrackSettings };
+
+const SoundtrackSettingsSchema = z.object({
+  offsetSec: z.number().min(0).max(120),
+  trimStartSec: z.number().min(0).max(3600),
+  trimEndSec: z.number().min(0).max(3600),
+  volume: z.number().min(0).max(2),
+  mode: z.enum(["mix", "replace"]),
+});
 
 // ─── Zod schemas ──────────────────────────────────────────────────────────────
 
@@ -109,11 +127,22 @@ export const loadEditSession = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { data: row, error } = await db
       .from("edit_sessions")
-      .select("id, user_id, title, clip_list, chat_history, style, music_track_id, status, result_url")
+      .select("id, user_id, title, clip_list, chat_history, style, music_track_id, source_audio_path, soundtrack_offset_sec, soundtrack_trim_start_sec, soundtrack_trim_end_sec, soundtrack_volume, soundtrack_mode, status, result_url, result_path")
       .eq("id", data.sessionId)
       .single();
     if (error || !row) throw new Error("Edit session not found");
     if (row.user_id !== context.userId) throw new Error("Forbidden");
+    let sourceAudioUrl: string | null = null;
+    if (row.source_audio_path) {
+      assertOwnedSoundtrackPath(row.source_audio_path as string, context.userId);
+      const { data: signed, error: signError } = await supabaseAdmin.storage
+        .from("studio")
+        .createSignedUrl(row.source_audio_path as string, 60 * 60);
+      if (signError || !signed?.signedUrl) throw new Error("Could not load performance reference audio");
+      sourceAudioUrl = signed.signedUrl;
+    }
+    let resultUrl: string | null = null;
+    if (row.result_path) resultUrl = await signPrivateEditorExport(row.result_path as string, context.userId);
     return {
       id:           row.id          as string,
       title:        row.title       as string,
@@ -122,7 +151,16 @@ export const loadEditSession = createServerFn({ method: "POST" })
       style:        row.style       as string,
       musicTrackId: row.music_track_id as string | null,
       status:       row.status      as string,
-      resultUrl:    row.result_url  as string | null,
+       resultUrl:    resultUrl ?? row.result_url as string | null,
+      sourceAudioUrl,
+       hasSourceAudio: Boolean(row.source_audio_path),
+       soundtrack: {
+         offsetSec: row.soundtrack_offset_sec ?? 0,
+         trimStartSec: row.soundtrack_trim_start_sec ?? 0,
+         trimEndSec: row.soundtrack_trim_end_sec ?? 0,
+         volume: row.soundtrack_volume ?? 1,
+         mode: row.soundtrack_mode ?? "mix",
+       } as SoundtrackSettings,
     };
   });
 
@@ -135,6 +173,7 @@ export const saveEditSession = createServerFn({ method: "POST" })
     chatHistory:  z.array(ChatMessageSchema),
     style:        z.string(),
     musicTrackId: z.string().nullable().optional(),
+    soundtrack: SoundtrackSettingsSchema,
   }))
   .handler(async ({ data, context }) => {
     // Ownership check
@@ -153,6 +192,11 @@ export const saveEditSession = createServerFn({ method: "POST" })
         chat_history:   data.chatHistory,
         style:          data.style,
         music_track_id: data.musicTrackId ?? null,
+        soundtrack_offset_sec: data.soundtrack.offsetSec,
+        soundtrack_trim_start_sec: data.soundtrack.trimStartSec,
+        soundtrack_trim_end_sec: data.soundtrack.trimEndSec,
+        soundtrack_volume: data.soundtrack.volume,
+        soundtrack_mode: data.soundtrack.mode,
       })
       .eq("id", data.sessionId);
     if (error) throw new Error(error.message);
@@ -281,14 +325,16 @@ export const exportEditSession = createServerFn({ method: "POST" })
     clipList:     z.array(TimelineClipSchema),
     style:        z.string(),
     musicTrackId: z.string().nullable().optional(),
+    soundtrack: SoundtrackSettingsSchema,
   }))
   .handler(async ({ data, context }) => {
     const userId = context.userId;
+    assertRateLimit(`video-editor-export:${userId}`, 3, 10 * 60_000);
 
     // Ownership check
     const { data: row } = await db
       .from("edit_sessions")
-      .select("user_id")
+      .select("user_id, source_audio_path")
       .eq("id", data.sessionId)
       .single();
     if (!row || row.user_id !== userId) throw new Error("Forbidden");
@@ -297,51 +343,75 @@ export const exportEditSession = createServerFn({ method: "POST" })
     // Mark session as exporting
     await db.from("edit_sessions").update({ status: "exporting" }).eq("id", data.sessionId);
 
-    // Resolve a playable HTTP URL for each clip
-    const videoUrls: string[] = [];
-    for (const clip of data.clipList) {
-      let url: string | null = null;
-      if (clip.generationId) {
-        // Fetch the raw provider URL directly from DB (not the watermark proxy)
-        const { data: gen } = await supabaseAdmin
-          .from("generations")
-          .select("result_video_url")
-          .eq("id", clip.generationId)
-          .eq("user_id", userId)
-          .single();
-        url = (gen as { result_video_url: string | null } | null)?.result_video_url ?? null;
-      } else if (clip.storagePath) {
-        url = await signedAutocutUrl(clip.storagePath, 3600);
-      } else {
-        url = clip.videoUrl; // fallback: use whatever URL is stored
+    try {
+      // Resolve a playable HTTP URL for each clip
+      const videoUrls: string[] = [];
+      for (const clip of data.clipList) {
+        let url: string | null = null;
+        if (clip.generationId) {
+          // Fetch the raw provider URL directly from DB (not the watermark proxy)
+          const { data: gen } = await supabaseAdmin
+            .from("generations")
+            .select("result_video_url")
+            .eq("id", clip.generationId)
+            .eq("user_id", userId)
+            .single();
+          url = (gen as { result_video_url: string | null } | null)?.result_video_url ?? null;
+        } else if (clip.storagePath) {
+          assertOwnedSoundtrackPath(clip.storagePath, userId);
+          url = await signedAutocutUrl(clip.storagePath, 3600);
+        } else {
+          throw new Error(`Clip "${clip.label}" is not backed by owned storage or a generation`);
+        }
+        if (!url) throw new Error(`Could not resolve video URL for clip "${clip.label}"`);
+        videoUrls.push(url);
       }
-      if (!url) throw new Error(`Could not resolve video URL for clip "${clip.label}"`);
-      videoUrls.push(url);
+
+      // Resolve music URL if selected
+      let musicUrl: string | null = null;
+      if (data.musicTrackId) {
+        const track = getMusicTrack(data.musicTrackId);
+        if (track) musicUrl = await signedAutocutUrl(track.storagePath, 3600);
+      }
+
+      // Assemble via local ffmpeg
+      let bytes = await runLocalFfmpegAssemble({
+        clips: videoUrls,
+        style: data.style,
+        musicUrl,
+        maxDurationSec: 120,
+      });
+
+      if (row.source_audio_path) {
+        bytes = await muxOwnedSoundtrack({
+          video: bytes,
+          soundtrackPath: row.source_audio_path as string,
+          userId,
+          settings: data.soundtrack,
+        });
+      }
+
+      // Keep editor exports private and issue a short-lived retrieval URL.
+      const { resultPath, resultUrl } = await persistPrivateEditorExport(userId, data.sessionId, bytes);
+
+      // Mark done and store result
+      await db
+        .from("edit_sessions")
+        .update({
+          status: "done",
+          result_url: null,
+          result_path: resultPath,
+          soundtrack_offset_sec: data.soundtrack.offsetSec,
+          soundtrack_trim_start_sec: data.soundtrack.trimStartSec,
+          soundtrack_trim_end_sec: data.soundtrack.trimEndSec,
+          soundtrack_volume: data.soundtrack.volume,
+          soundtrack_mode: data.soundtrack.mode,
+        })
+        .eq("id", data.sessionId);
+
+      return { resultUrl };
+    } catch (error) {
+      await db.from("edit_sessions").update({ status: "draft" }).eq("id", data.sessionId);
+      throw error;
     }
-
-    // Resolve music URL if selected
-    let musicUrl: string | null = null;
-    if (data.musicTrackId) {
-      const track = getMusicTrack(data.musicTrackId);
-      if (track) musicUrl = await signedAutocutUrl(track.storagePath, 3600);
-    }
-
-    // Assemble via local ffmpeg
-    const bytes = await runLocalFfmpegAssemble({
-      clips: videoUrls,
-      style: data.style,
-      musicUrl,
-      maxDurationSec: 120,
-    });
-
-    // Upload result to studio bucket
-    const resultUrl = await uploadAutocutResult(userId, data.sessionId, bytes);
-
-    // Mark done and store result
-    await db
-      .from("edit_sessions")
-      .update({ status: "done", result_url: resultUrl })
-      .eq("id", data.sessionId);
-
-    return { resultUrl };
   });

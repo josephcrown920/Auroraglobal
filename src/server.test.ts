@@ -4,6 +4,7 @@ import { join } from "node:path";
 import serverHandler, {
   createAuroraFetchHandler,
   startupHealthResponse,
+  unauthenticatedPublicRateLimitResponse,
   type ServerEntry,
 } from "./server";
 
@@ -131,6 +132,99 @@ describe("deployment readiness probe — SSR bypass proof", () => {
   });
 });
 
+describe("unauthenticated public API rate limiting", () => {
+  it("limits credential-free public generation bursts and returns Retry-After", () => {
+    const now = 1_000;
+    const request = new Request("http://localhost:8080/api/public/generate", {
+      method: "POST",
+      headers: { "cf-connecting-ip": "198.51.100.40" },
+    });
+    for (let i = 0; i < 240; i++) {
+      expect(unauthenticatedPublicRateLimitResponse(request, now)).toBeNull();
+    }
+    const rejected = unauthenticatedPublicRateLimitResponse(request, now);
+    expect(rejected?.status).toBe(429);
+    expect(rejected?.headers.get("retry-after")).toBe("1");
+  });
+
+  it("does not let arbitrary credentials bypass the bucket", () => {
+    const authenticated = new Request("http://localhost:8080/api/public/generate", {
+      method: "POST",
+      headers: {
+        authorization: "Bearer test-token",
+        "cf-connecting-ip": "198.51.100.42",
+      },
+    });
+    const unrelated = new Request("http://localhost:8080/studio");
+    for (let i = 0; i < 240; i++) {
+      expect(unauthenticatedPublicRateLimitResponse(authenticated, 1_000)).toBeNull();
+    }
+    expect(unauthenticatedPublicRateLimitResponse(authenticated, 1_000)?.status).toBe(429);
+    expect(unauthenticatedPublicRateLimitResponse(unrelated, 1_000)).toBeNull();
+  });
+
+  it("registers API route work with waitUntil while still awaiting the response", async () => {
+    const pending: Promise<unknown>[] = [];
+    const handler = createAuroraFetchHandler({
+      fetch: async () => new Response("ok"),
+    });
+    const response = await handler.fetch(
+      new Request("http://localhost:8080/api/example"),
+      {},
+      { waitUntil: (promise: Promise<unknown>) => pending.push(promise) },
+    );
+    expect(response.status).toBe(200);
+    expect(pending.length).toBeGreaterThanOrEqual(1);
+    // The first registration is the route itself. A later registration is the
+    // best-effort API log insert, which must not make this unit test depend on
+    // live Supabase availability.
+    await pending[0];
+  });
+
+  it("rejects missing generation auth before loading the route graph", async () => {
+    const calls: string[] = [];
+    const handler = createAuroraFetchHandler({
+      fetch: (request) => {
+        calls.push(request.url);
+        return new Response("should not run");
+      },
+    });
+    const response = await handler.fetch(
+      new Request("http://localhost:8080/api/public/generate", {
+        method: "POST",
+        headers: { "cf-connecting-ip": "198.51.100.41" },
+      }),
+      {},
+      {},
+    );
+    expect(response.status).toBe(401);
+    expect(calls).toEqual([]);
+  });
+
+  it("routes the /api/generate compatibility path to the canonical handler", async () => {
+    const calls: string[] = [];
+    const handler = createAuroraFetchHandler({
+      fetch: (request) => {
+        calls.push(new URL(request.url).pathname);
+        return new Response("ok");
+      },
+    });
+    const response = await handler.fetch(
+      new Request("http://localhost:8080/api/generate", {
+        method: "POST",
+        headers: {
+          authorization: "Bearer test-token",
+          "cf-connecting-ip": "198.51.100.43",
+        },
+      }),
+      {},
+      {},
+    );
+    expect(response.status).toBe(200);
+    expect(calls).toEqual(["/api/public/generate"]);
+  });
+});
+
 // ── artifact.toml startup-probe configuration ─────────────────────────────────
 
 const ARTIFACT_TOML_PATH = join(
@@ -183,10 +277,16 @@ describe("artifact.toml production startup probe", () => {
   it("production run command starts the bundle built from src/server.ts", () => {
     // vite.config.ts redirects the bundled server entry to src/server.ts, so
     // .output/server/index.mjs is the artifact that actually contains the
-    // /health short-circuit asserted above. If the run command stops starting
-    // that bundle, the probe contract no longer applies to what deploys run.
+    // /health short-circuit asserted above. The run command now goes through
+    // the start-time boot guard (scripts/start-prod.sh, docs/BACKUP_AND_DR.md),
+    // which must in turn exec that bundle (or its health-gated snapshot copy,
+    // whose server/index.mjs is the same hardlinked file). If either link
+    // breaks, the probe contract no longer applies to what deploys run.
     const table = readTomlTable(source, "services.production");
     expect(table).not.toBeNull();
-    expect(table?.run).toContain(".output/server/index.mjs");
+    expect(table?.run).toContain("scripts/start-prod.sh");
+    const guard = readFileSync(join(import.meta.dir, "..", "scripts/start-prod.sh"), "utf8");
+    expect(guard).toContain('exec bash scripts/replit-node.sh "$1/server/index.mjs"');
+    expect(guard).toMatch(/AURORA_BUILD_OUTPUT:-\$ROOT\/\.output/);
   });
 });

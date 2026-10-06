@@ -5,6 +5,7 @@
 
 # Git history (~4.4 GB) — not needed in the deployed container
 .git
+.git/**
 
 # Replit workspace caches (~3.1 GB: playwright, typescript, pip, bun, node-gyp…)
 .cache
@@ -32,6 +33,12 @@ attached_assets
 .vinxi
 .tanstack
 .nitro
+
+# The deploy builder installs dependencies before running the production build,
+# but the generated Nitro server does not need the workspace dependency tree at
+# runtime. Excluding it saves about 1.8 GiB and removes dev-only native binaries.
+node_modules
+node_modules/**
 
 # Dev notebooks, docs, screenshots, and one-off scripts
 notebooks

@@ -13,7 +13,12 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery } from "@tanstack/react-query";
 
 import { useColors } from "@/hooks/useColors";
-import { getCreditTransactions, getUserProfile, CreditTransaction } from "@/lib/api";
+import {
+  getCreditTransactions,
+  getPublicPricing,
+  getUserProfile,
+  CreditTransaction,
+} from "@/lib/api";
 
 // Store-policy note: this screen intentionally has NO purchase button or
 // payment link. Credits are consumed in-app only; purchasing lives on the
@@ -33,6 +38,12 @@ export default function CreditsScreen() {
     queryKey: ["transactions"],
     queryFn: () => getCreditTransactions(50),
     staleTime: 30_000,
+  });
+
+  const { data: pricing } = useQuery({
+    queryKey: ["public-pricing"],
+    queryFn: getPublicPricing,
+    staleTime: 5 * 60 * 1000,
   });
 
   const credits = profile?.credits_balance ?? 0;
@@ -116,7 +127,9 @@ export default function CreditsScreen() {
                 </View>
               </View>
               <Text style={[styles.balanceHint, { color: colors.mutedForeground }]}>
-                Images from 10 Aura · videos from 100 Aura
+                {pricing
+                  ? `Images from ${pricing.imageFrom} Aura · videos from ${pricing.videoFrom} Aura`
+                  : "Prices vary by model, duration, and resolution"}
               </Text>
             </LinearGradient>
 

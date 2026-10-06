@@ -1,13 +1,13 @@
 import { authNextSearch } from "@/lib/auth-return-path";
 import { createLazyFileRoute, Link, useNavigate, useSearch } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ArrowLeft, CheckCircle2, ExternalLink, Fingerprint, Loader2, LogOut, Music2, Plus, Shield, Trash2, UserCircle2, X } from "lucide-react";
+import { ArrowLeft, BarChart3, CheckCircle2, Clock, ExternalLink, Fingerprint, Loader2, LogOut, Music2, Plus, RefreshCw, RotateCcw, Shield, Trash2, UserCircle2, X } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useBiometricSupport } from "@/hooks/use-biometric-support";
-import { getMyTiktokAccount, initTiktokConnect, disconnectTiktok } from "@/lib/tiktok-posting.functions";
+import { getMyTiktokAccount, initTiktokConnect, disconnectTiktok, listMyTiktokPosts, pollTiktokPostStatus, retryTiktokPost } from "@/lib/tiktok-posting.functions";
 import {
   beginPasskeyRegistration,
   completePasskeyRegistration,
@@ -17,6 +17,20 @@ import {
 import { SiteFooter } from "@/components/SiteFooter";
 
 export const Route = createLazyFileRoute("/settings")({ component: SettingsPage });
+
+type TiktokPostRow = Awaited<ReturnType<typeof listMyTiktokPosts>>[number];
+
+const TERMINAL_TIKTOK_STATUSES = new Set(["publish_complete", "failed", "publish_from_creator_fail"]);
+const isTerminalTiktokStatus = (status: string) => TERMINAL_TIKTOK_STATUSES.has(status);
+
+// Live-status policy: poll TikTok for non-terminal rows at most every 30s,
+// and give up on rows older than 10 minutes (they get a manual Check button).
+const POLL_MAX_AGE_MS = 10 * 60_000;
+const POLL_THROTTLE_MS = 30_000;
+const isPollableTiktokPost = (p: TiktokPostRow) =>
+  !isTerminalTiktokStatus(p.status) &&
+  !!p.publishId &&
+  Date.now() - new Date(p.createdAt).getTime() < POLL_MAX_AGE_MS;
 
 function SettingsPage() {
   const { user, loading } = useAuth();
@@ -47,7 +61,7 @@ function SettingsPage() {
   }, [search.tiktok, search.msg]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const { data: tiktokAccount, isLoading: tiktokLoading } = useQuery({
-    queryKey: ["tiktok-account"],
+    queryKey: ["tiktok-account", user?.id],
     queryFn: () => getAccountFn(),
     enabled: !!user,
   });
@@ -71,6 +85,60 @@ function SettingsPage() {
       qc.invalidateQueries({ queryKey: ["tiktok-account"] });
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Failed to disconnect"),
+  });
+
+  // ── TikTok post history ────────────────────────────────────────────────────
+  const listPostsFn = useServerFn(listMyTiktokPosts);
+  const pollPostFn = useServerFn(pollTiktokPostStatus);
+  const retryPostFn = useServerFn(retryTiktokPost);
+
+  const postsQ = useQuery({
+    queryKey: ["tiktok-posts", user?.id],
+    queryFn: () => listPostsFn(),
+    enabled: !!user && !!tiktokAccount?.connected,
+    refetchInterval: (query) => {
+      const rows = query.state.data;
+      return Array.isArray(rows) && rows.some(isPollableTiktokPost) ? 15_000 : false;
+    },
+  });
+
+  // Refresh eligible non-terminal rows from TikTok, throttled to one call per
+  // row per POLL_THROTTLE_MS; rows past POLL_MAX_AGE_MS stop auto-refreshing.
+  const lastPolledRef = useRef<Map<string, number>>(new Map());
+  useEffect(() => {
+    const rows = postsQ.data ?? [];
+    const now = Date.now();
+    const due = rows.filter((p) => isPollableTiktokPost(p) && now - (lastPolledRef.current.get(p.id) ?? 0) > POLL_THROTTLE_MS);
+    if (due.length === 0) return;
+    due.forEach((p) => lastPolledRef.current.set(p.id, now));
+    let cancelled = false;
+    void (async () => {
+      const results = await Promise.allSettled(due.map((p) => pollPostFn({ data: { postId: p.id } })));
+      if (!cancelled && results.some((r) => r.status === "fulfilled")) {
+        qc.invalidateQueries({ queryKey: ["tiktok-posts"] });
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [postsQ.data]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const retryPostMut = useMutation({
+    mutationFn: (p: TiktokPostRow) => retryPostFn({ data: { postId: p.id } }),
+    onSuccess: () => {
+      toast.success("Retrying — TikTok is processing the video again.");
+      qc.invalidateQueries({ queryKey: ["tiktok-posts"] });
+    },
+    onError: (e) => {
+      toast.error(e instanceof Error ? e.message : "Retry failed");
+      qc.invalidateQueries({ queryKey: ["tiktok-posts"] });
+    },
+  });
+
+  const checkStatusMut = useMutation({
+    mutationFn: (postId: string) => pollPostFn({ data: { postId } }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["tiktok-posts"] }),
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Couldn't refresh status"),
   });
 
   // ── Sign-in methods (Face ID / fingerprint) ────────────────────────────────
@@ -285,6 +353,13 @@ function SettingsPage() {
                 followers.
               </p>
 
+              <Link
+                to="/promotion"
+                className="inline-flex items-center gap-1.5 text-xs font-medium text-[#25F4EE] hover:text-[#25F4EE]/80"
+              >
+                <BarChart3 className="size-3.5" /> See your TikTok stats in Promotion →
+              </Link>
+
               <div className="flex gap-2">
                 {tiktok.sessionExpired && (
                   <button
@@ -340,6 +415,118 @@ function SettingsPage() {
             </div>
           )}
         </section>
+
+        {/* TikTok Post History */}
+        {tiktok?.connected && (
+          <section className="aurora-card rounded-2xl p-5 space-y-4">
+            <div className="flex items-center gap-2">
+              <Clock className="size-4 text-[#25F4EE]" />
+              <h2 className="text-sm font-semibold">TikTok posts</h2>
+              {postsQ.isFetching && !postsQ.isLoading && (
+                <Loader2 className="size-3 animate-spin text-muted-foreground ml-auto" />
+              )}
+            </div>
+
+            {postsQ.isLoading ? (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="size-4 animate-spin" /> Loading…
+              </div>
+            ) : (postsQ.data ?? []).length === 0 ? (
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                Nothing posted yet — videos you share to TikTok will show up here with their status.
+              </p>
+            ) : (
+              <ul className="space-y-2">
+                {(postsQ.data ?? []).map((p) => {
+                  const posted = p.status === "publish_complete";
+                  const failed = p.status === "failed" || p.status === "publish_from_creator_fail";
+                  const stuck = !posted && !failed && !isPollableTiktokPost(p);
+                  return (
+                    <li key={p.id} className="flex items-center gap-3 rounded-xl border border-border px-3 py-2.5">
+                      <div className="relative size-12 flex-shrink-0 overflow-hidden rounded-lg border border-border bg-muted">
+                        <Music2 className="absolute inset-0 m-auto size-4 text-muted-foreground" />
+                        <video
+                          src={p.videoUrl}
+                          muted
+                          playsInline
+                          preload="metadata"
+                          className="relative h-full w-full object-cover"
+                          onError={(e) => {
+                            e.currentTarget.style.display = "none";
+                          }}
+                        />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium text-foreground truncate">{p.title || "Untitled video"}</p>
+                        <p className="text-[11px] text-muted-foreground">
+                          {new Date(p.createdAt).toLocaleString()}
+                          {posted && p.postedAt ? ` · Live since ${new Date(p.postedAt).toLocaleDateString()}` : ""}
+                        </p>
+                        {failed && p.errorMsg && (
+                          <p className="mt-0.5 text-[11px] text-red-300/80 line-clamp-2">{p.errorMsg}</p>
+                        )}
+                      </div>
+                      <div className="flex flex-shrink-0 flex-col items-end gap-1.5">
+                        <span
+                          className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold ${
+                            posted
+                              ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-400"
+                              : failed
+                                ? "border-red-400/30 bg-red-400/10 text-red-400"
+                                : stuck
+                                  ? "border-border bg-muted text-muted-foreground"
+                                  : "border-amber-400/30 bg-amber-400/10 text-amber-300"
+                          }`}
+                        >
+                          {posted ? (
+                            <CheckCircle2 className="size-3" />
+                          ) : failed ? (
+                            <X className="size-3" />
+                          ) : stuck ? (
+                            <Clock className="size-3" />
+                          ) : (
+                            <Loader2 className="size-3 animate-spin" />
+                          )}
+                          {posted ? "Posted" : failed ? "Failed" : stuck ? "Stuck?" : "Posting…"}
+                        </span>
+                        {stuck && (
+                          <button
+                            type="button"
+                            onClick={() => checkStatusMut.mutate(p.id)}
+                            disabled={checkStatusMut.isPending}
+                            className="inline-flex items-center gap-1 rounded-full border border-border px-2.5 py-1 text-[11px] font-semibold text-muted-foreground hover:text-foreground hover:border-foreground/30 disabled:opacity-50"
+                          >
+                            {checkStatusMut.isPending && checkStatusMut.variables === p.id ? (
+                              <Loader2 className="size-3 animate-spin" />
+                            ) : (
+                              <RefreshCw className="size-3" />
+                            )}
+                            Check
+                          </button>
+                        )}
+                        {failed && (
+                          <button
+                            type="button"
+                            onClick={() => retryPostMut.mutate(p)}
+                            disabled={retryPostMut.isPending}
+                            className="inline-flex items-center gap-1 rounded-full border border-border px-2.5 py-1 text-[11px] font-semibold text-muted-foreground hover:text-foreground hover:border-foreground/30 disabled:opacity-50"
+                          >
+                            {retryPostMut.isPending && retryPostMut.variables?.id === p.id ? (
+                              <Loader2 className="size-3 animate-spin" />
+                            ) : (
+                              <RotateCcw className="size-3" />
+                            )}
+                            Retry
+                          </button>
+                        )}
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </section>
+        )}
 
         {/* Legal */}
         <section className="aurora-card rounded-2xl p-5 space-y-3">

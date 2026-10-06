@@ -445,6 +445,7 @@ export async function processPaymentSuccess(
     _amount: payment.credits_granted,
     _reason: "purchase",
     _ref: payment.id,
+    _actor: null,
   });
 
   // Day passes: auto-set the daily spend limit so usage is naturally spread

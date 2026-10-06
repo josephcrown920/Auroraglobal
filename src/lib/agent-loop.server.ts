@@ -36,6 +36,7 @@ export const defaultRefineDeps: RefineDeps = {
       prompt: buildDirectorPrompt(brief, refNote),
       schema: PlanSchema,
       category: "VIDEO_DIRECTION",
+      routingMode: "modelark-free",
     });
     return output as AgentPlan;
   },
@@ -45,6 +46,7 @@ export const defaultRefineDeps: RefineDeps = {
       prompt: buildCritiquePrompt(brief, plan),
       schema: CritiqueSchema,
       category: "VIDEO_DIRECTION",
+      routingMode: "modelark-free",
     });
     return output as Critique;
   },
@@ -54,6 +56,7 @@ export const defaultRefineDeps: RefineDeps = {
       prompt: buildRefinePrompt(brief, plan, critique, refNote),
       schema: PlanSchema,
       category: "VIDEO_DIRECTION",
+      routingMode: "modelark-free",
     });
     return output as AgentPlan;
   },

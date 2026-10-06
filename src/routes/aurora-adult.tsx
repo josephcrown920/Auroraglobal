@@ -1,8 +1,6 @@
-// /aurora-adult (no trailing slash) is the main app's entry point into the
-// separate Adult School artifact at /aurora-adult/ (proxy path). Artist-only
-// mode: regular users must not be forwarded there while the "adult-school"
-// feature is hidden — they land on /studio instead. Admins pass straight
-// through. The artifact keeps its own internal gate; this guards the entry.
+// Keep the historical /aurora-adult URL as a compatibility entry point while
+// Adult School now lives in the main TanStack app at /adult. Artist-only mode:
+// regular users still land on /studio while the feature is hidden.
 //
 // NOTE: this must stay a client-side component guard (not a beforeLoad
 // redirect) — SSR route guards don't reliably see browser session cookies in
@@ -25,9 +23,7 @@ export const Route = createFileRoute("/aurora-adult")({
 
 function ForwardToArtifact() {
   useEffect(() => {
-    // Full-page navigation: /aurora-adult/ is served by the artifact proxy,
-    // not the TanStack router.
-    window.location.replace("/aurora-adult/");
+    window.location.replace("/adult");
   }, []);
   return null;
 }

@@ -8,12 +8,19 @@ graph for every kind and patches per-node inputs (prompt, input URLs, seed, step
 | file                                  | kind    | route when            | key nodes (must match) |
 | ------------------------------------- | ------- | --------------------- | ---------------------- |
 | `sdxl-image.workflow.json`            | image   | always                | `CheckpointLoaderSimple`, `CLIPTextEncode`, `KSampler`, `VAEDecode`, `SaveImage` |
-| `svd-image-to-video.workflow.json`    | video   | an input image given  | `ImageOnlyCheckpointLoader`, `LoadImageFromUrl`, `SVD_img2vid_Conditioning`, `VideoLinearCFGGuidance`, `VHS_VideoCombine` |
-| `animatediff-text-to-video.workflow.json` | video | no input image    | `CheckpointLoaderSimple`, `ADE_AnimateDiffLoaderGen1`, `CLIPTextEncode`, `KSampler`, `VHS_VideoCombine` |
+| Flux.2 Dev graph | image | no input image | `UNETLoader`, `CLIPLoader`, `FluxGuidance`, `Flux2Scheduler`, `SamplerCustomAdvanced`, `VAEDecode` |
+| Flux.2 Dev edit graph | image | an input image given | `LoadImageFromUrl`, `ReferenceLatent`, `VAEEncode`, plus the Flux.2 nodes above |
+| LTX-2.3 graph | video | no input image | `LTXAVTextEncoderLoader`, `LTXVConditioning`, `LTXVConcatAVLatent`, `SamplerCustomAdvanced`, `CreateVideo` |
+| LTX-2.3 image-to-video graph | video | an input image given | the LTX-2.3 nodes plus `LoadImageFromUrl`, `LTXVPreprocess`, `LTXVImgToVideoInplace` |
+| Wan 2.2 graph | video | explicit `params.comfyModel = "wan-2.2"` | `WanImageToVideo` (image-to-video), `ModelSamplingSD3`, two-pass `KSamplerAdvanced`, `CreateVideo` |
+| SDXL / SVD / AnimateDiff graphs | fallback | legacy worker or explicit graph | retained for existing workers and caller-supplied `comfyWorkflow` |
 | `latentsync-lipsync.workflow.json`    | lipsync | always (self-hosted)  | `LoadVideoFromUrl`, `LoadAudioFromUrl`, `LatentSyncSampler`, `VideoCombine`, `SaveVideo` |
 | `mimicmotion-motion.workflow.json`    | motion  | always (self-hosted)  | `LoadImageFromUrl`, `LoadVideoFromUrl`, `MimicMotionSampler`, `VideoCombine`, `SaveVideo` |
 
-The graph builders live in `src/lib/comfy-default-workflows.server.ts` (image/video),
+The graph builders live in `src/lib/comfy-default-workflows.server.ts` (image/video).
+Flux.2 is the default image graph, LTX-2.3 is the default video graph, and Wan 2.2
+is selected explicitly with `params.comfyModel` / `comfy_model` / `model` containing
+`wan`. An input image selects the edit or image-to-video variant.
 `src/lib/lipsync-workflows.server.ts` and `src/lib/motion-workflows.server.ts`. The
 JSONs here are **reference exports** (API format) — import them into the ComfyUI editor
 to confirm your node class names match, and adjust the builders if a node pack renames
@@ -92,12 +99,15 @@ capacity summary above the table counts its free slots.
 1. Install [ComfyUI](https://github.com/comfyanonymous/ComfyUI) and the custom-node
    packs that provide the classes in the table above:
    - `ComfyUI-VideoHelperSuite` — `VHS_VideoCombine` / `VideoCombine` / `Load*FromUrl`
-   - `ComfyUI-AnimateDiff-Evolved` — `ADE_AnimateDiffLoaderGen1` (text-to-video)
+   - `ComfyUI-AnimateDiff-Evolved` — `ADE_AnimateDiffLoaderGen1` (legacy text-to-video)
+   - `ComfyUI-LTXVideo` — LTX-2.3 audio/video conditioning and decode nodes
+   - `ComfyUI-WanVideoWrapper` — Wan 2.2 video nodes
    - a URL-loader pack (e.g. `comfyui-art-venture`) — `LoadImageFromUrl` / `LoadAudioFromUrl`
    - a LatentSync wrapper — `LatentSyncSampler` (lipsync)
    - a MimicMotion wrapper — `MimicMotionSampler` (motion)
-2. Download the matching weights (SDXL for image; SVD + SD1.5 + an AnimateDiff motion
-   module for video; LatentSync / MimicMotion checkpoints for lipsync / motion).
+2. Download the matching weights (Flux.2 Dev for image; LTX-2.3 or Wan 2.2 for
+   modern video; SDXL + SVD + SD1.5 + AnimateDiff remain valid legacy fallbacks;
+   LatentSync / MimicMotion checkpoints cover lipsync / motion).
 3. Start it listening on all interfaces:
    ```bash
    python main.py --listen 0.0.0.0 --port 8188

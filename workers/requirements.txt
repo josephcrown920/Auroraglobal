@@ -4,3 +4,5 @@
 requests>=2.33
 fastapi>=0.110
 uvicorn[standard]>=0.29
+# Official Ark Runtime SDK; pinned after checking the upstream stable release.
+arkruntime==0.4.0

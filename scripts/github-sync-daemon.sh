@@ -65,6 +65,26 @@ fi
 
 echo "[github-sync] daemon starting (poll every ${INTERVAL_SECONDS}s)"
 
+# ── Daily git backup refs (source-recovery layer) ───────────────────────────
+# Once per UTC day, maintain rotating dated backup/<date> (+ monthly) refs so
+# recent source states are recoverable even after a bad rebase/force-push.
+# See scripts/git-backup-refs.sh and docs/BACKUP_AND_DR.md. Runs only here, on
+# the main workspace, because the REPL_ID guard above already idled clones.
+BACKUP_STATE_FILE="$ROOT/.local/.git-backup-refs-last-run"
+maybe_backup_refs() {
+  local today last=""
+  today="$(date -u +%F)"
+  [[ -f "$BACKUP_STATE_FILE" ]] && last="$(cat "$BACKUP_STATE_FILE" 2>/dev/null || true)"
+  if [[ "$today" != "$last" ]]; then
+    if bash "$ROOT/scripts/git-backup-refs.sh"; then
+      echo "$today" > "$BACKUP_STATE_FILE"
+    else
+      echo "[github-sync] $(date -u +%FT%TZ) git backup refs FAILED; will retry next cycle" >&2
+    fi
+  fi
+}
+maybe_backup_refs
+
 if [[ -z "${GITHUB_TOKEN:-}" ]]; then
   echo "[github-sync] WARNING: GITHUB_TOKEN is not set yet. Waiting for it to" \
        "appear (set the secret and this daemon will pick it up automatically)."
@@ -146,6 +166,8 @@ while true; do
     # No new commit — write a heartbeat so the admin UI knows we're alive and healthy
     write_status 'null'
   fi
+
+  maybe_backup_refs
 
   sleep "$INTERVAL_SECONDS"
 done
